@@ -1,6 +1,6 @@
 # -*- mode: python -*-
 a = Analysis(['gam.py'],
-             pathex=['C:\\GAMADV-O'],
+             pathex=['C:\\GAMADV-X'],
              hiddenimports=[],
              hookspath=None,
              runtime_hooks=None)
