@@ -50,7 +50,7 @@ GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__
                                                                               platform.platform(), platform.machine())
 GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
 GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
-GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile#creating-your-own-oauth2servicejson'
+GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile'
 GAM_APPSPOT = u'https://gamadvx-update.appspot.com'
 GAM_APPSPOT_LATEST_VERSION = GAM_APPSPOT+u'/latest-version.txt?v='+__version__
 GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/latest-version-announcement.txt?v='+__version__
@@ -1490,6 +1490,7 @@ ENTITY_IS_A_GROUP_ALIAS_RC = 23
 # Warnings/Errors
 AC_FAILED_RC = 50
 AC_NOT_PERFORMED_RC = 51
+AUTHORIZATION_NONEXISTANT_ERROR_RC = 52
 BAD_REQUEST_RC = 53
 DATA_NOT_AVALIABLE_RC = 55
 ENTITY_DOES_NOT_EXIST_RC = 56
@@ -3371,12 +3372,19 @@ def getSvcAcctCredentials(scopes, act_as):
     printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
-def getGDataOAuthToken(gdataObject):
-  storage = oauth2client.file.Storage(GC_Values[GC_OAUTH2ALT_TXT])
+def getClientCredentials(alt):
+  filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
+  storage = oauth2client.file.Storage(filename)
   credentials = storage.get()
   if not credentials or credentials.invalid:
-    doOAuthRequest(alt=True)
+    doOAuthRequest(alt)
     credentials = storage.get()
+    if not credentials or credentials.invalid:
+      systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]), filename, PHRASE_DOES_NOT_EXIST))
+  return credentials
+
+def getGDataOAuthToken(gdataObject):
+  credentials = getClientCredentials(True)
   try:
     if credentials.access_token_expired:
       credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
@@ -3949,11 +3957,7 @@ def readDiscoveryFile(api_version):
     invalidJSONExit(disc_file)
 
 def getClientAPIversionHttpService(api):
-  storage = oauth2client.file.Storage(GC_Values[GC_OAUTH2_TXT])
-  credentials = storage.get()
-  if not credentials or credentials.invalid:
-    doOAuthRequest(alt=False)
-    credentials = storage.get()
+  credentials = getClientCredentials(False)
   credentials.user_agent = GAM_INFO
   api, version, api_version = getAPIVersion(api)
   http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
@@ -5365,22 +5369,14 @@ def doOAuthInfo():
   alt = checkArgumentPresent(ALT_ARGUMENT)
   access_token = getString(OB_ACCESS_TOKEN, optional=True)
   checkForExtraneousArguments()
-  filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-  entityname = singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt])
   if not access_token:
-    storage = oauth2client.file.Storage(filename)
-    credentials = storage.get()
-    if not credentials or credentials.invalid:
-      doOAuthRequest(alt)
-      credentials = storage.get()
-      if not credentials or credentials.invalid:
-        return
+    credentials = getClientCredentials(alt)
     credentials.user_agent = GAM_INFO
     http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
     if credentials.access_token_expired:
       credentials.refresh(http)
     access_token = credentials.access_token
-    printKeyValueList([entityname, filename])
+    printKeyValueList([singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]), GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]])
   oa2 = buildGAPIObject(GAPI_OAUTH2_API)
   try:
     token_info = callGAPI(oa2, u'tokeninfo',
@@ -12001,13 +11997,7 @@ def doInfoUser(entityList=None, getEntityListArg=False):
     if not getEntityListArg:
       entityList = getStringReturnInList(OB_USER_ITEM)
       if not entityList:
-        storage = oauth2client.file.Storage(GC_Values[GC_OAUTH2_TXT])
-        credentials = storage.get()
-        if not credentials or credentials.invalid:
-          doOAuthRequest(alt=False)
-          credentials = storage.get()
-          if not credentials or credentials.invalid:
-            return
+        credentials = getClientCredentials(False)
         entityList = [credentials.id_token[u'email']]
     else:
       _, entityList = getEntityToModify(CL_ENTITY_USERS)
