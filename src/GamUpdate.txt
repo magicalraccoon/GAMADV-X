@@ -1,0 +1,427 @@
+** Consistency/Usability ***
+These changes make arguments across similar commands consistent or make a command more usable.
+
+00) Clean up argument parsing, give user location of error in command line.
+Currently:
+    ./gam.py update user testuser1 address type foo formatted '123 main street' primary
+    ERROR: wrong type should be custom, home, other or work. Got foo
+Proposed:
+    ./gam.py update user testuser1 address type foo formatted '123 main street' primary
+
+    Command: ./gam.py update user testuser1 address type >>>foo<<< formatted '123 main street' primary
+    ERROR: Invalid argument: expected <custom|home|other|work>
+    Help: Documentation is at https://github.com/jay0lee/GAM/wiki
+This change involves creating functions like getBoolean, getChoice, getInteger, that standardize argument
+processing. Additionally, common processing of large argument lists is combined into a function.
+For example, doCreateuser and doUpdateUser call getuserAttributes rather than repeating the argument processing.
+
+01) Make reminder argument consistent in add/update calendar and calendar addevent.
+Currently:
+    gam <Users> add/update calendar take reminder <Method> <Minutes>
+    gam calendar <EmailAddress> addevent takes reminder <Minutes> <Method>
+Proposed:
+Allow either order for all commands.
+
+02) Make the file selection arguments for gam get drivefile and gam update drivefile consistent.
+Currently:
+    gam <Users> get drivefile (id <DriveFileID)|(query <Query>)
+    gam <Users> update drivefile (id <DriveFileID>)|(drivefilename <DriveFileName>)
+Proposed:
+    gam <Users> get drivefile (id <DriveFileID>)|(query <Query>)|(drivefilename <DriveFileName>)
+    gam <Users> update drivefile (id <DriveFileID>)|(query <Query>)|(drivefilename <DriveFileName>)
+
+03) Make the file selection arguments for gam delete drivefile and gam show fileinfo consistent.
+Allow show fileinfo to show info for multiple files.
+Currently:
+    gam <Users> delete drivefile <DriveFileID>|query:<Query>
+    gam <Users> show fileinfo <DriveFileID>
+Proposed:
+    gam <Users> delete drivefile <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+    gam <Users> show fileinfo <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+
+04) Corrected gam create resource so that type argument is properly recognized.
+
+05) Add type specification argument for gam print resources.
+    gam print resources [todrive] [idfirst] [allfields] [id] [description] [email] [type]
+
+06) Make the gam whatis command work better. Add an argument to suppress all output beyond the statement
+indicating the type of the email address.
+    gam whatis <EmailAddress> [noinfo]
+If noinfo is specified, doGetUserInfo, doGetGroupInfo, doGetAliasInfo are not called.
+If noinfo is not specified, the arguments in the doGetxxxInfo functions are processed starting at the correct point.
+Additionally, each of the doGetxxxInfo functions silently ignore non-relevant arguments.
+    gam whatis foo@bar.com nousers nogroups
+If foo@bar.com is a user, nogroups takes effect and nousers is ignored.
+If foo@bar.com is a group, nousers takes effect and nogroups is ignored.
+If foo@bar.com is an alias, all arguments are ignored. 
+
+07) All "Getting ...", "Retrieving ...", "Got ..." messages are now written to stderr.
+Most already were but the following commands wrote to stdout:
+    gam <Users> show gmailprofile
+    gam <Users> deprov
+    gam <Users> delete label
+    gam <Users> transfer drive
+    gam <Users> add drivefile
+    gam <Users> update drivefile
+    gam <Users> delete drivefile
+    gam <Users> get drivefile
+
+*** Minor Enhancements ***
+These changes add basic new new functionality.
+
+01) Allow gam batch to read lines from stdin by specifying - instead of a file name.
+    cat foo.bat | gam batch -
+This makes gam batch have the same file options as gam csv; for those heavy duty scripting users.
+
+02) Two new mutually exclusive arguments are defined for gam print mobile to set the amount of data retrieved.
+    bam print mobile basic|full
+
+03) A new argument (delimiter <String>) is defined in gam print users.
+It is used when the groups argument is specified, <String> rather than a single space will separate the entries in the groups list.
+    gam print users delimiter ',' groups
+
+04) A new argument (delimiter <String>) is defined in gam print courses.
+It is used when the aliases argument is specified, <String> rather than a single space will separate the entries in the aliases list.
+    gam print courses delimiter ',' aliases
+
+05) Extend gam version to force an update check.
+    gam version check
+
+06) Get information about a specific calendar.
+    gam <Users> info calendar <EmailAddress>
+
+07) Support event notification property in calendars.
+In gam <Users> add calendar and gam <Users> update calendar, add notification argument; it may be repeated.
+   notification email|sms event_creation|event_change|event_cancellation|event_response|agenda
+   gam user foo@bar.com update calendar bar.com_dsoevca1qm34unsejmac3tsbv4@group.calendar.google.com notification email event_creation notification sms event_change
+
+08) Add an argument to gam <Users> show signature to format the signature.
+   gam <Users> show signature [format]
+
+09) Add argument to gam print printjobs and gam printjob fetch to control number of retrieved print jobs.
+   gam print printjobs ... limit <Number>
+   gam printjob <PrinterId> fetch ... limit <Number>
+limit specifies the maximum number of print jobs to retrieve; defaults to 25, set limit to 0 to retrieve all print jobs.
+
+*** Enhancements ***
+These enhancements add more substantial functionality.
+
+01) Allow user properties that are arrays, e.g., phone, organization, address, to be cleared.
+Gam can currently set these arrays but has no way of removing all of the entries.
+    gam update user <UserID> <Property> clear|none
+<Property> is phone, organization, im, address, ...
+    gam update user foo@bar.com phone none
+
+02) Support user properties website and note.
+In gam create user and gam update user add website argument.
+    website home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <Value>
+    gam update user foo@bar.com website work www.bar.com
+If <String> is specified instead of one of the pre-defined values, it will be marked custom.
+
+    note text_plain|text_html file <FileName>
+    note text_plain|text_html <String>
+    gam update user foo@bar.com note text_plain "Works weekend shift"
+
+03) The format argument in gam get drivefile is extended to offer more choices of file types and can be a list.
+The possible formats are: csv|html|txt|tsv|jpeg|jpg|png|svg|pdf|rtf|pptx|xlsx|docx|odt|ods|openoffice|ms|microsoft|micro$oft
+ms, microsoft and micro$oft are  shorthand for docx,pptx,xlsx
+openoffice is shorthand for odt,ods
+    gam get drivefile drivefilename XXX format docx,rtf,txt,odt,pdf
+This will get file XXX as long as it is in some text document format. If a file is available in multiple formats, the first
+available format in the list is chosen.
+
+04) Add a command to remove drive files from the trash.
+    gam <Users> undelete drivefile <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+
+05) Extend gam update group to explicitly allow clearing members from a group.
+    gam update group <GroupItem> clear [owner] [manager] [member]
+
+06) Extend the gam course add and gam course remove commands to use the same participant selections as gam course sync.
+    gam course <CourseID> add teachers|students <UserTypeEntity>
+    gam course <CourseID> delete teachers|students <UserTypeEntity>
+    gam course <CourseID> sync teachers|students <UserTypeEntity>
+<UserTypeEntity> ::=
+	<EmailAddress>|
+	(all users)|
+	(user <EmailAddress>)|
+	(users <EmailAddressList>)|
+	(group <EmailAddress)|
+	(ou <OrgUnitPath)|
+	(ou_and_children <OrgUnitPath)|
+	(courseparticipants <CourseID>)|
+	(students <CourseID>)|
+	(teachers <CourseID>)|
+	(file <FileName> [charset <Charset>])|
+	(csvfile <FileName>:<FieldName> [charset <Charset>])|
+	(query <Query>)|
+	(groups <GroupList)|
+	(ous|orgs <OrgUnitList)|
+	(ous_and_children|ous_and_child <OrgUnitList)|
+	(courseparticipants <CourseIDList>)|
+	(students <CourseIDList>)|
+	(teachers <CourseIDList>)|
+	(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
+	(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>])|
+	(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
+		keyfield <FieldName> [delimiter <String>]
+		[matchfield <FieldName> <PythonRegularExpression>]
+		[datafield <FieldName> [delimiter <String>]])|
+	(csvdata <FieldName>)
+07) Add a command to support updating a list of ChromeOS devices.
+Currently:
+    gam update cros <DeviceID>|query:<Query> <CrOSAttributes>
+    gam all cros update <CrOSAttributes>
+Proposed:
+    gam cros <DeviceIDList> update <CrOSAttributes>
+
+08) Implement pull request #93 to be able to mark messages as spam.
+    gam <Users> spam message|messages query <Query> [doit] [max_to_move <Number>]
+<Number> defaults to 1.
+
+09) Modify show filelist to allow arbitrary queries. The query <Query> argument always includes "'me' in owners" which limits the scope.
+    gam <Users> show filelist ... fullquery <Query> ...
+
+10) Support user calendar creation/modification/deletion.
+    gam <Users> create calendar summary <String> [description <String>] [location <String>] [timezone <String>]
+    gam <Users> modify calendar <EmailAddress>|primary [summary <String>] [description <String>] [location <String>] [timezone <String>]
+    gam <Users> remove calendar <EmailAddress>
+Summary <string> is required when creating a calendar.
+Primary refers to the user's primary calendar, it is replaced with the user's email address.
+
+11) Process a csv file without subprocesses. The syntax is exactly the same as gam csv, but, rather than starting
+a subprocess for each line, gam executes the command directly. There is no subprocess creation overhead, cleaner output,
+but it will not execute as fast on large csv files as there is no parallelism.
+    gam loop <Filename>|- gam ...
+
+12) Improve support for languages with accented characters.
+The following commands have been extended to allow specification of the character set used in the file.
+    gam batch <Filename>|- [charset <Charset>]
+    gam csv <Filename>|- [charset <Charset>] gam ...
+    gam loop <Filename>|- [charset <Charset>] gam ...
+<Charset> defaults to ascii; other typical values are: utf-8, utf-16, latin-1.
+
+13) Extend gam csv/loop to select rows from a csv file by matching a field value.
+    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] gam ...
+    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] gam ...
+<FieldName> does not have a leading ~ and must be a column heading in <FileName>.
+For documentation on <PythonRegularExpression> see https://docs.python.org/2/library/re.html
+    gam csv DeptGroups.csv matchfield Department Sales gam print group-members group ~Group
+DeptGroups.csv:
+Department,Group
+Sales,sales-ny@bar.com
+Sales,sales-nj@bar.com
+Marketing,mktg-ny@bar.com
+Marketing,mktg-nj@bar.com
+
+14) Extend gam csv/loop to allow field substitution within an argument.
+    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] [fieldsub] gam ...
+    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] [fieldsub] gam ...
+If fieldsub is specified, you can have arguments made of text combined with CSV fields; ~<FieldName>~ will be
+replaced with the data in column <FieldName> of the CSV file.
+    gam csv Users.csv fieldsub gam update user ~User note text-plain 'Full Name: ~First~ ~Last~'
+
+15) Reorganize gam so that it is importable on Mac OS/Linux.
+This isn't elegant but it's a start; you can say:
+    #!/usr/bin/env python
+    import os, sys, shlex
+    from gam import ProcessGAMCommand
+    # Set appropriate values
+    os.environ['GAM_CFG_HOME'] = '/Users/admin/GAM'
+    GAM_STDOUT = '/tmp/gamstdout.out'
+    # Choose how to produce args list
+    rc = ProcessGAMCommand(shlex.split('/Users/admin/GAM/gam.py redirect stdout write {0} info user admin'.format(GAM_STDOUT)))
+    #rc = ProcessGAMCommand(['/Users/admin/GAM/gam.py',
+    #                        'redirect', 'stdout, GAM_STDOUT,
+    #                        'info', 'user', 'admin'])
+    print 'GAM returned {0}'.format(rc)
+    with open(GAM_STDOUT, 'rU') as f:
+        for line in f:
+            # Process outout
+            print line.strip()
+
+16) Add idfirst argument to all commands that write a CSV file to force column containing the object ID/name to be the leftmost column.
+
+17) Add recursive argument to gam print group-members to show users from sub-groups rather than the sub-group name itself.
+Two new columns indicate the sub-group that a user comes from and the depth of the sub-group.
+The noduplicates argument ensures that a user only appears once in the list.
+
+18) Modify gam <Users> show calendars command to allow output to CSV file.
+    gam <Users> show calendars [csv] [todrive] [idfirst]
+
+19) Implement Pull request #10 to allow copying of Drive folders
+    gam <Users> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <FolderName>]
+
+20) Implement a command for redirecting stdout, stderr and CSV files.
+    gam [redirect csv {{Section}}|<FileName> [append] [charset <CharSet>]] [redirect stdout {{Section}}|<FileName> [append]] [rerirect stderr {{Section}}|<FileName> [append]] ...
+The redirect arguments must appear before any other gam arguments.
+If <FileName> is relative, it will be stored in ~/Downloads.
+
+21) Modify gam update group <GroupItem> add/sync to allow suspended users to be excluded from being added to the group.
+    gam update group <GroupItem> add [owner|manager|member] [notsuspended] <UserTypeEntity>
+    gam update group <GroupItem> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
+This option is effective for the following values of <UserTypeEntity>:
+    all users | ou|org <OrgUnitPath | ou_and_children|ou_and_child <OrgUnitPath> | query <Query>
+
+22) Modify gam course <CourseID> add/sync to disallow suspended users from being added to the course.
+    gam course <CourseID> add teachers|students <UserTypeEntity>
+    gam course <CourseID> sync teachers|students <UserTypeEntity>
+This option is effective for the following values of <UserTypeEntity>:
+    all users | ou|org <OrgUnitPath | ou_and_children|ou_and_child <OrgUnitPath> | query <Query>
+
+23) Add a command to show the file path of a Google Drive file.
+    gam <Users> show filepath <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+
+24) Add filepath argument to gam show fileinfo to show the file path of a Google Drive file.
+    gam <Users> show fileinfo <DriveFileID>|query:<Query>|drivefilename:<DriveFileName> [filepath]
+
+25) Add filepath argument to gam show filelist to show the file path of Google Drive files.
+    gam <Users> show filelist ... [filepath] ...
+Getting the file path for many files is expensive, use sparingly.
+
+26) Add show argument to gam print course-participants to select what members to display; the default is all.
+    gam print course-participants ... [show all|students|teachers]
+
+27) Add untrash argument to gam delete drivefile to remove file from trash.
+    gam <Users> delete drivefile <DriveFileItem> [purge|untrash]
+
+28) Add arguments to gam info group to suppress aliases listing and include groups of which this group is a member.
+    gam info group <Group> ... [noaliases] [groups]
+
+29) Add listlimit argument to gam print cros to limit number of timeranges and recentusers entries
+    gam print cros ... [listlimit <Number>]
+
+30) Added command to untrash messages
+    gam <Users> untrash messages query <Query> [doit] [max_to_untrash <Number>]
+
+31) Add fields argument to gam info user to allow selection of fields.
+    gam info user [<User>] [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNamesList>]
+
+32) Add fields argument to gam print users to allow expanded selection of fields.
+    gam print users [todrive] [idfirst] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+	[delimiter <String>] [groups] [license|licenses] [emailpart|emailparts|username]
+	[orderby familyname|lastname|givenname|firstname|email] [ascending|descending] [userview]
+	[allfields | <UserFieldNames>* | fields <UserFieldNamesList>]
+
+33) Add fields argument to gam info group to allow selection of fields.
+    gam info group <Group> [nousers] [noaliases] [groups] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+
+34) Add fields argument to gam print groups to allow expanded selection of fields.
+    gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+	[maxresults <Number>] [delimiter <String>]
+	[members] [owners] [managers] <GroupFieldNames>* [settings] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+
+35) Add fields argument to gam info cros to allow selection of fields.
+    gam info cros <CrOSDeviceID> [fields <CrOSFieldNamesList>]
+
+36) Add fields argument to gam print cros to allow selection of fields.
+    gam print cros [todrive] [idfirst] [query <Query>] [basic|full] [nolists|recentusers|timeranges] [listlimit <Number>]
+	[orderby lastsync|location|notes|serialnumber|status|supportenddate|user] [ascending|descending] [fields <CrOSFieldNamesList>]
+
+37) Jay added command to modify message labels.
+    gam <Users> modify message|messages query <Query> (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
+
+38) Added matchlabel argument to gam delete/modify/spam/trash/untrash messages as an additional way of selecting messages.
+    gam <Users> delete message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>]
+    gam <Users> modify message|messages query <Query> (matchlabel <LabelName>)* (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
+    gam <Users> spam message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>]
+    gam <Users> trash message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>]
+    gam <Users> untrash message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>]
+A message must have all of the specified matchlabels to be selected.
+
+39) Added charset argument to gam signature/vacation to allow specification of character set of file argument.
+    gam <Users> signature|sig <String>|(file <FileName> [charset <Charset>]
+    gam <Users> vacation <Boolean> [subject <String>] [message <String>]|[file <FileName> [charset <Charset>]] [contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+
+40) Added clear option to reminder and notification arguments of add/update calendar
+    reminder clear|(email|sms|pop <Number>)
+    notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda)
+
+41) Add select argument to gam print users to allow selection of source of users.
+    gam print users [todrive] [idfirst] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+	[delimiter <String>] [groups] [license|licenses] [emailpart|emailparts|username]
+	[orderby familyname|lastname|givenname|firstname|email] [ascending|descending] [userview]
+	[allfields | <UserFieldNames>* | fields <UserFieldNamesList>]
+
+42) Add select argument to gam print groups/group-members to allow selection of groups.
+    gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+	[maxresults <Number>] [delimiter <String>]
+	[members] [owners] [managers] <GroupFieldNames>* [settings] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+    gam print group-members|groups-members [todrive] [idfirst] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
+
+43) Add select argument to gam report to allow selection of users. Add maxresults and nodatechange arguments.
+    gam report users|user [todrive] [idfirst] [nodatechange] [maxresults <Number>]
+	[date <Date>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [filter|filters <String>] [fields|parameters <String>]
+    gam report customers|customer|domain [todrive] [idfirst] [nodatechange]
+	[date <Date>] [fields|parameters <String>]
+    gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive] [idfirst] [maxresults <Number>]
+	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>]
+If nodatechange is specified, <Date> will not be moved back to the last acceptable date.
+The maxResults argument, range 1-1000,  controls how many results are obtained in each packet from Google; it does not limit the total number of results.
+
+44) Removed language, name, admin_secondary_email, mx_verify, user_migrations, outbound_gateway, email_route from gam update instance
+language, name and admin_secondary_email are present in gam update customer
+    gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <EmailAddress>] [language <LanguageCode] [phone|phonenumber <String>]
+	[contact|contactname <String>] [name|organizationname <String>]
+	[address1|addressline1 <String>]  [address2|addressline2 <String>]  [address3|addressline3 <String>]
+	[locality <String>] [region <String>] [postalcode <String>] [country|countrycode <String>]
+
+45) Add membernames argument to gam print group-members to include member name (in addition to member email) in output. Add fields argument to allow full specification of fields.
+    gam print group-members|groups-members [todrive] [idfirst] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
+
+46) Update gam <Users> delete groups to allow specification of a list of groups from which the users are to be deleted.
+    gam <Users> delete|del group|groups [<GroupEntity>]
+
+47) Add command to allow adding users to multiple groups.
+    gam <Users> add group|groups [owner|manager|member] <GroupEntity>
+
+48) Added skus <SKUIDList> argument to gam info user <User> so that licenses for desired SKUs can be shown.
+    gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNamesList>] [skus|sku <SKUIDList>]
+
+49) Added revision argument to gam <Users> get drivefile to allow downloading specific version of a file.
+    gam <Users> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>]
+Submitted by Seth Stein
+
+50) Added command to show revisions of a file.
+    gam <Users> show filerevisions <DriveFileItem>|<DriveFileEntity>
+Submitted by Seth Stein
+
+51) Added command to show Google+ profile.
+    gam <Users> show gplusprofile [todrive] [idfirst]
+
+52) Warning messages are now written to stderr.
+To capture all stdout and stderr ouput from a command in a single file, do: gam command > file 2>&1
+
+53) Added domain <DomainName and member <EmailAddress> arguments to gam print group-members to allow selecting subsets of groups.
+    gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+
+*** Calendar Enhancements ***
+
+00) Add additional commands to manage calendar events.
+    gam calendars <CalendarEntity> add event <EventAttributes>
+    gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>
+    gam calendars <CalendarEntity> delete event <EventIDEntity>
+    gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem>
+    gam calendars <CalendarEntity> info event <EventIDEntity>
+    gam calendars <CalendarEntity> show events
+    gam calendars <CalendarEntity> wipe events
+
+01) Add additional command to manage calendar ACLs.
+    gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendars <CalendarEntity> add acls <CalendarACLRole> <CalendarACLEntity>
+    gam calendars <CalendarEntity> update acls <CalendarACLRole> <CalendarACLEntity>
+    gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <CalendarACLEntity>
+    gam calendars <CalendarEntity> info acl|acls <CalendarACLEntity>
+    gam calendars <CalendarEntity> show acls
+    gam calendars <CalendarEntity> wipe acls
+
+*** Major Enhancements ***
+
+00) Implement gam.cfg
+See GamConfig.txt
+
+
+01) Implement Contacts
+See GamContacts.txt
+
