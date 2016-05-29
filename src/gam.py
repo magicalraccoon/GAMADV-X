@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.13.1'
+__version__ = u'4.13.2'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, errno, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
@@ -349,6 +349,18 @@ GC_SETTABLE_VARS = [
   ]
 
 # Google API constants
+APPLICATION_VND_GOOGLE_APPS = u'application/vnd.google-apps.'
+MIMETYPE_GA_DOCUMENT = APPLICATION_VND_GOOGLE_APPS+u'document'
+MIMETYPE_GA_DRAWING = APPLICATION_VND_GOOGLE_APPS+u'drawing'
+MIMETYPE_GA_FOLDER = APPLICATION_VND_GOOGLE_APPS+u'folder'
+MIMETYPE_GA_FORM = APPLICATION_VND_GOOGLE_APPS+u'form'
+MIMETYPE_GA_FUSIONTABLE = APPLICATION_VND_GOOGLE_APPS+u'fusiontable'
+MIMETYPE_GA_MAP = APPLICATION_VND_GOOGLE_APPS+u'map'
+MIMETYPE_GA_PRESENTATION = APPLICATION_VND_GOOGLE_APPS+u'presentation'
+MIMETYPE_GA_SCRIPT = APPLICATION_VND_GOOGLE_APPS+u'script'
+MIMETYPE_GA_SITES = APPLICATION_VND_GOOGLE_APPS+u'sites'
+MIMETYPE_GA_SPREADSHEET = APPLICATION_VND_GOOGLE_APPS+u'spreadsheet'
+
 GOOGLE_NAMESERVERS = [u'8.8.8.8', u'8.8.4.4']
 NEVER_TIME = u'1970-01-01T00:00:00.000Z'
 NEVER_START_DATE = u'1970-01-01'
@@ -504,6 +516,7 @@ GAPI_FAILED_PRECONDITION = u'failedPrecondition'
 GAPI_FILE_NOT_FOUND = u'fileNotFound'
 GAPI_FORBIDDEN = u'forbidden'
 GAPI_GROUP_NOT_FOUND = u'groupNotFound'
+GAPI_INSUFFICIENT_PERMISSIONS = u'insufficientPermissions'
 GAPI_INTERNAL_ERROR = u'internalError'
 GAPI_INVALID = u'invalid'
 GAPI_INVALID_CUSTOMER_ID = u'invalidCustomerId'
@@ -1431,6 +1444,7 @@ MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite 
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
+MESSAGE_INSUFFICIENT_PERMISSIONS_TO_UPLOAD_RESULTS = u'Insufficient permissions to upload results'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
@@ -1503,6 +1517,7 @@ INVALID_TOKEN_RC = 63
 JSON_LOADS_ERROR_RC = 64
 MULTIPLE_DELETED_USERS_FOUND_RC = 65
 NO_CSV_HEADERS_ERROR_RC = 66
+INSUFFICIENT_PERMISSIONS_RC = 67
 REQUEST_COMPLETED_NO_RESULTS_RC = 71
 REQUEST_NOT_COMPLETED_RC = 72
 SERVICE_NOT_APPLICABLE_RC = 73
@@ -2497,6 +2512,8 @@ def setActionName(action):
   GM_Globals[GM_ACTION_NOT_PERFORMED] = u'{0} {1}'.format(AC_PREFIX_NOT, GM_Globals[GM_ACTION_PERFORMED])
 
 def formatFileSize(fileSize):
+  if fileSize == 0:
+    return u'0kb'
   if fileSize < ONE_KILO_BYTES:
     return u'1kb'
   if fileSize < ONE_MEGA_BYTES:
@@ -3707,6 +3724,7 @@ class GAPI_failedPrecondition(GAPI_exception): pass
 class GAPI_fileNotFound(GAPI_exception): pass
 class GAPI_forbidden(GAPI_exception): pass
 class GAPI_groupNotFound(GAPI_exception): pass
+class GAPI_insufficientPermissions(GAPI_exception): pass
 class GAPI_internalError(GAPI_exception): pass
 class GAPI_invalid(GAPI_exception): pass
 class GAPI_invalidCustomerId(GAPI_exception): pass
@@ -3759,6 +3777,7 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_FILE_NOT_FOUND: GAPI_fileNotFound,
   GAPI_FORBIDDEN: GAPI_forbidden,
   GAPI_GROUP_NOT_FOUND: GAPI_groupNotFound,
+  GAPI_INSUFFICIENT_PERMISSIONS: GAPI_insufficientPermissions,
   GAPI_INTERNAL_ERROR: GAPI_internalError,
   GAPI_INVALID: GAPI_invalid,
   GAPI_INVALID_CUSTOMER_ID: GAPI_invalidCustomerId,
@@ -4792,23 +4811,27 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     rows = len(csvRows)
     cell_count = rows * columns
     if cell_count > 500000 or columns > 256:
-      printKeyValueList([WARNING_PREFIX, MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
+      printKeyValueList([WARNING, MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
       convert = False
     else:
       convert = True
     drive = buildGAPIObject(GAPI_DRIVE_API)
-    result = callGAPI(drive.files(), u'insert',
-                      convert=convert, body={u'description': u' '.join(CL_argv), u'title': u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type), u'mimeType': u'text/csv'},
-                      media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True))
-    file_url = result[u'alternateLink']
-    if GC_Values[GC_NO_BROWSER]:
-      msg_txt = u'{0}:\n{1}'.format(PHRASE_DATA_UPLOADED_TO_DRIVE_FILE, file_url)
-      msg_subj = u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
-      send_email(msg_subj, msg_txt)
-      printKeyValueList([msg_txt])
-    else:
-      import webbrowser
-      webbrowser.open(file_url)
+    try:
+      result = callGAPI(drive.files(), u'insert',
+                        throw_reasons=[GAPI_INSUFFICIENT_PERMISSIONS],
+                        convert=convert, body={u'description': u' '.join(CL_argv), u'title': u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type), u'mimeType': u'text/csv'},
+                        media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True))
+      file_url = result[u'alternateLink']
+      if GC_Values[GC_NO_BROWSER]:
+        msg_txt = u'{0}:\n{1}'.format(PHRASE_DATA_UPLOADED_TO_DRIVE_FILE, file_url)
+        msg_subj = u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
+        send_email(msg_subj, msg_txt)
+        printKeyValueList([msg_txt])
+      else:
+        import webbrowser
+        webbrowser.open(file_url)
+    except GAPI_insufficientPermissions:
+      printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, MESSAGE_INSUFFICIENT_PERMISSIONS_TO_UPLOAD_RESULTS)
   if GM_Globals[GM_CSVFILE] != u'-':
     closeFile(csvFile)
 
@@ -5305,7 +5328,7 @@ See the follow site for instructions:
       else:
         sys.stderr.write(u'{0}Please enter number in range 0-{1}\n'.format(ERROR_PREFIX, authorize_scopes))
 
-  scopes = [[u'email',], []][alt] # Email Display Scope, always included for client
+  scopes = [u'email',] # Email Display Scope, always included for client
   for i in range(num_scopes):
     if selected_scopes[i] == u'*':
       scopes.append(possible_scopes[i])
@@ -9376,11 +9399,11 @@ def doPrintContacts(users, entityType):
     user, contactsObject = getContactsObject(user, i, count)
     if not contactsObject:
       continue
+    printGettingAllEntityItemsForWhom(EN_CONTACT, user, i, count, qualifier=queryQualifier(query))
     if query or params:
       url = getContactsQuery(feed=contactsFeedUri(user, projection=projection), text_query=query, params=params).ToUri()
     else:
       url = contactsFeedUri(user, projection=projection)
-    printGettingAllEntityItemsForWhom(EN_CONTACT, user, i, count, qualifier=queryQualifier(query))
     try:
       page_message = getPageMessage()
       contacts = callGDataPages(contactsObject, u'GetContactsFeed',
@@ -14516,30 +14539,19 @@ def getDriveFileEntity(fileIdSelection, myarg=None):
     usageErrorExit(MESSAGE_NO_MULTIPLE_FILE_SPECS)
   return True
 
-APPLICATION_VND_GOOGLE_APPS = u'application/vnd.google-apps.'
-MIME_TYPE_GA_DOCUMENT = APPLICATION_VND_GOOGLE_APPS+u'document'
-MIME_TYPE_GA_DRAWING = APPLICATION_VND_GOOGLE_APPS+u'drawing'
-MIME_TYPE_GA_FOLDER = APPLICATION_VND_GOOGLE_APPS+u'folder'
-MIME_TYPE_GA_FORM = APPLICATION_VND_GOOGLE_APPS+u'form'
-MIME_TYPE_GA_FUSIONTABLE = APPLICATION_VND_GOOGLE_APPS+u'fusiontable'
-MIME_TYPE_GA_PRESENTATION = APPLICATION_VND_GOOGLE_APPS+u'presentation'
-MIME_TYPE_GA_SCRIPT = APPLICATION_VND_GOOGLE_APPS+u'script'
-MIME_TYPE_GA_SITES = APPLICATION_VND_GOOGLE_APPS+u'sites'
-MIME_TYPE_GA_SPREADSHEET = APPLICATION_VND_GOOGLE_APPS+u'spreadsheet'
-
 MIMETYPE_CHOICES_MAP = {
-  u'gdoc': MIME_TYPE_GA_DOCUMENT,
-  u'gdocument': MIME_TYPE_GA_DOCUMENT,
-  u'gdrawing': MIME_TYPE_GA_DRAWING,
-  u'gfolder': MIME_TYPE_GA_FOLDER,
-  u'gdirectory': MIME_TYPE_GA_FOLDER,
-  u'gform': MIME_TYPE_GA_FORM,
-  u'gfusion': MIME_TYPE_GA_FUSIONTABLE,
-  u'gpresentation': MIME_TYPE_GA_PRESENTATION,
-  u'gscript': MIME_TYPE_GA_SCRIPT,
-  u'gsite': MIME_TYPE_GA_SITES,
-  u'gsheet': MIME_TYPE_GA_SPREADSHEET,
-  u'gspreadsheet': MIME_TYPE_GA_SPREADSHEET,
+  u'gdoc': MIMETYPE_GA_DOCUMENT,
+  u'gdocument': MIMETYPE_GA_DOCUMENT,
+  u'gdrawing': MIMETYPE_GA_DRAWING,
+  u'gfolder': MIMETYPE_GA_FOLDER,
+  u'gdirectory': MIMETYPE_GA_FOLDER,
+  u'gform': MIMETYPE_GA_FORM,
+  u'gfusion': MIMETYPE_GA_FUSIONTABLE,
+  u'gpresentation': MIMETYPE_GA_PRESENTATION,
+  u'gscript': MIMETYPE_GA_SCRIPT,
+  u'gsite': MIMETYPE_GA_SITES,
+  u'gsheet': MIMETYPE_GA_SPREADSHEET,
+  u'gspreadsheet': MIMETYPE_GA_SPREADSHEET,
   }
 
 DFA_CONVERT = u'convert'
@@ -14591,7 +14603,7 @@ def getDriveFileAttribute(body, parameters, myarg, update=False):
     body.setdefault(u'parents', [])
     body[u'parents'].append({u'id': getString(OB_DRIVE_FOLDER_ID)})
   elif myarg == u'parentname':
-    parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and title = '{1}'".format(MIME_TYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
+    parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and title = '{1}'".format(MIMETYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
   elif myarg == u'writerscantshare':
     body[u'writersCanShare'] = False
   else:
@@ -14642,7 +14654,7 @@ def printDriveFolderContents(feed, folderId):
     for parent in f_file[u'parents']:
       if folderId == parent[u'id']:
         printKeyValueList([f_file[u'title']])
-        if f_file[u'mimeType'] == MIME_TYPE_GA_FOLDER:
+        if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
           incrementIndentLevel()
           printDriveFolderContents(feed, f_file[u'id'])
           decrementIndentLevel()
@@ -14736,7 +14748,7 @@ def showDriveSettings(users):
   writeCSVfile(csvRows, titles, u'User Drive Settings', todrive)
 
 def getFilePath(drive, initialResult):
-  entityType = [EN_DRIVE_FOLDER_ID, EN_DRIVE_FILE_ID][initialResult[u'mimeType'] != MIME_TYPE_GA_FOLDER]
+  entityType = [EN_DRIVE_FOLDER_ID, EN_DRIVE_FILE_ID][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER]
   path = []
   title = initialResult[u'title']
   parents = initialResult[u'parents']
@@ -15089,7 +15101,7 @@ def addDriveFile(users):
                         media_body=media_body, body=body, fields=u'id,title,mimeType')
       if parameters[DFA_LOCALFILENAME]:
         entityItemValueModifierNewValueActionPerformed(EN_USER, user, EN_DRIVE_FILE, result[u'title'], AC_MODIFIER_WITH_CONTENT_FROM, parameters[DFA_LOCALFILENAME], i, count)
-      elif result[u'mimeType'] != MIME_TYPE_GA_FOLDER:
+      elif result[u'mimeType'] != MIMETYPE_GA_FOLDER:
         entityItemValueActionPerformed(EN_USER, user, EN_DRIVE_FILE, result[u'title'], i, count)
       else:
         entityItemValueActionPerformed(EN_USER, user, EN_DRIVE_FOLDER, result[u'title'], i, count)
@@ -15140,7 +15152,7 @@ def updateDriveFile(users):
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                               fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
                               body=body, fields=u'id,title,mimeType')
-            entityItemValueActionPerformed(EN_USER, user, [EN_DRIVE_FOLDER, EN_DRIVE_FILE][result[u'mimeType'] != MIME_TYPE_GA_FOLDER], result[u'title'], j, jcount)
+            entityItemValueActionPerformed(EN_USER, user, [EN_DRIVE_FOLDER, EN_DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], result[u'title'], j, jcount)
         except GAPI_fileNotFound:
           entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
         except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -15170,7 +15182,7 @@ def updateDriveFile(users):
       decrementIndentLevel()
 
 def recursiveFolderCopy(drive, user, i, count, folderId, folderTitle, newFolderTitle, parentId):
-  body = dict({u'title': newFolderTitle, u'mimeType': MIME_TYPE_GA_FOLDER, u'parents': list()})
+  body = dict({u'title': newFolderTitle, u'mimeType': MIMETYPE_GA_FOLDER, u'parents': list()})
   if parentId:
     body[u'parents'].append({u'id': parentId})
   result = callGAPI(drive.files(), u'insert', body=body, fields=u'id')
@@ -15186,7 +15198,7 @@ def recursiveFolderCopy(drive, user, i, count, folderId, folderTitle, newFolderT
     for child in source_children[u'items']:
       j += 1
       file_metadata = callGAPI(drive.files(), u'get', fileId=child[u'id'])
-      if file_metadata[u'mimeType'] == MIME_TYPE_GA_FOLDER:
+      if file_metadata[u'mimeType'] == MIMETYPE_GA_FOLDER:
         recursiveFolderCopy(drive, user, j, jcount, child[u'id'], file_metadata[u'title'], file_metadata[u'title'], newFolderId)
       else:
         fileId = file_metadata[u'id']
@@ -15214,7 +15226,7 @@ def copyDriveFile(users):
       body.setdefault(u'parents', [])
       body[u'parents'].append({u'id': getString(OB_DRIVE_FILE_ID)})
     elif myarg == u'parentname':
-      parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and title = '{1}'".format(MIME_TYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
+      parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and title = '{1}'".format(MIMETYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
     elif not getDriveFileEntity(fileIdSelection, myarg):
       unknownArgumentExit()
   i = 0
@@ -15235,7 +15247,7 @@ def copyDriveFile(users):
         metadata = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                             fileId=fileId, fields=u'id,title,mimeType')
-        if metadata[u'mimeType'] == MIME_TYPE_GA_FOLDER:
+        if metadata[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if recursive:
             destFilename = newfilename or u'Copy of {0}'.format(metadata[u'title'])
             recursiveFolderCopy(drive, user, j, jcount, fileId, metadata[u'title'], destFilename, parentid)
@@ -15375,7 +15387,7 @@ def getDriveFile(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=u'title,mimeType,fileSize,downloadUrl,exportLinks')
-        if result[u'mimeType'] == MIME_TYPE_GA_FOLDER:
+        if result[u'mimeType'] == MIMETYPE_GA_FOLDER:
           entityItemValueActionNotPerformedWarning(EN_USER, user, EN_DRIVE_FOLDER, result[u'title'], PHRASE_CAN_NOT_BE_DOWNLOADED, j, jcount)
           continue
         if u'fileSize' in result:
@@ -15430,7 +15442,7 @@ def transferDriveFiles(users):
     else:
       unknownArgumentExit()
   source_query = u"'me' in owners and trashed = false"
-  target_query = u"'me' in owners and mimeType = '{0}'".format(MIME_TYPE_GA_FOLDER)
+  target_query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   target_user, target_drive = buildDriveGAPIObject(target_user)
   if not target_drive:
     return
@@ -15489,7 +15501,7 @@ def transferDriveFiles(users):
           got_top_folder = True
       if not got_top_folder:
         create_folder = callGAPI(target_drive.files(), u'insert',
-                                 body={u'title': u'{0} old files'.format(user), u'mimeType': MIME_TYPE_GA_FOLDER}, fields=u'id')
+                                 body={u'title': u'{0} old files'.format(user), u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')
         target_top_folder = create_folder[u'id']
       transferred_files = []
       counter = 0
@@ -15544,7 +15556,7 @@ def transferDriveFiles(users):
 def deleteEmptyDriveFolders(users):
   checkForExtraneousArguments()
   setActionName(AC_DELETE_EMPTY)
-  query = u"'me' in owners and mimeType = '{0}'".format(MIME_TYPE_GA_FOLDER)
+  query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   i = 0
   count = len(users)
   for user in users:
