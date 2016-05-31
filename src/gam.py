@@ -8684,7 +8684,7 @@ class ContactsManager(object):
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP:
-            address[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            address[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING, emptyOK=True)
           elif argument in ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP:
             address[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
             break
@@ -8753,7 +8753,7 @@ class ContactsManager(object):
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
-            organization[ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            organization[ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING, emptyOK=True)
           elif argument in ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP:
             organization[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
             break
@@ -8779,7 +8779,7 @@ class ContactsManager(object):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        userdefinedfield = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING)}
+        userdefinedfield = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING, emptyOK=True)}
         AppendItemToFieldsList(fieldName, userdefinedfield)
       elif fieldName == CONTACT_WEBSITES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
