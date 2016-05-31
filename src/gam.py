@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.13.3'
+__version__ = u'4.13.4'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
@@ -824,8 +824,8 @@ ENTITY_NAMES = {
   EN_MESSAGE: [u'Messages', u'Message'],
   EN_MOBILE_DEVICE: [u'Mobile Devices', u'Mobile Device'],
   EN_NOTIFICATION: [u'Notifications', u'Notification'],
-  EN_OAUTH2_TXT_FILE: [u'Client OAuth File', u'Client OAuth File'],
-  EN_OAUTH2ALT_TXT_FILE: [u'Client OAuthAlt File', u'Client OAuthAlt File'],
+  EN_OAUTH2_TXT_FILE: [u'Client OAuth2 File', u'Client OAuth2 File'],
+  EN_OAUTH2ALT_TXT_FILE: [u'Client OAuth2Alt File', u'Client OAuth2Alt File'],
   EN_ORGANIZATIONAL_UNIT: [u'Organizational Units', u'Organizational Unit'],
   EN_PAGE_SIZE: [u'Page Size', u'Page Size'],
   EN_PARTICIPANT: [u'Participants', u'Participant'],
@@ -5356,7 +5356,8 @@ def doOAuthDelete():
   alt = checkArgumentPresent(ALT_ARGUMENT)
   checkForExtraneousArguments()
   filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-  entityname = singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt])
+  entity = [EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]
+  entityname = singularEntityName(entity)
   storage = oauth2client.file.Storage(filename)
   credentials = storage.get()
   try:
@@ -5383,7 +5384,7 @@ def doOAuthDelete():
   try:
     if os.path.isfile(filename):
       os.remove(filename)
-    entityActionPerformed(entityname, filename)
+    entityActionPerformed(entity, filename)
   except OSError as e:
     stderrWarningMsg(e)
 
