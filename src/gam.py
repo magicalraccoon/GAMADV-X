@@ -9440,27 +9440,30 @@ def doPrintContacts(users, entityType):
                 if keymap[u'primary']:
                   fnp = fn+u' Primary'
                   contactRow[fnp] = item[u'primary']
+                value = item[u'value']
+                if value == None:
+                  value = u''
                 if key == CONTACT_IMS:
                   fnp = fn+u' Protocol'
                   contactRow[fnp] = contactsManager.IM_REL_TO_PROTOCOL_MAP[item[u'protocol']]
-                  contactRow[fn] = item[u'value']
+                  contactRow[fn] = value
                 elif key == CONTACT_ADDRESSES:
-                  contactRow[fn] = item[u'value'].replace(u'\n', u'\\n')
+                  contactRow[fn] = value.replace(u'\n', u'\\n')
                   for org_key in contactsManager.ADDRESS_FIELD_PRINT_ORDER:
                     if item[org_key]:
                       fnp = fn+u' '+contactsManager.ADDRESS_FIELD_TO_ARGUMENT_TITLE_MAP[org_key][1]
                       contactRow[fnp] = item[org_key].replace(u'\n', u'\\n')
                 elif key == CONTACT_ORGANIZATIONS:
-                  contactRow[fn] = item[u'value']
+                  contactRow[fn] = value
                   for org_key in contactsManager.ORGANIZATION_FIELD_PRINT_ORDER:
                     if item[org_key]:
                       fnp = fn+u' '+contactsManager.ORGANIZATION_FIELD_TO_ARGUMENT_TITLE_MAP[org_key][1]
                       contactRow[fnp] = item[org_key]
                 elif key == CONTACT_USER_DEFINED_FIELDS:
                   fn = u'{0} {1}'.format(keymap[u'dfltRel'], fn)
-                  contactRow[fn] = item[u'value']
+                  contactRow[fn] = value
                 else:
-                  contactRow[fn] = item[u'value']
+                  contactRow[fn] = value
           csvRows.append(contactRow)
           addTitlesToCSVfile(csvRows[-1], titles)
     except GData_serviceNotApplicable:
