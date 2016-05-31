@@ -26,7 +26,7 @@ __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
 __version__ = u'4.13.3'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
-import sys, os, errno, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
+import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
 
 import json
 import httplib2
@@ -5381,11 +5381,11 @@ def doOAuthDelete():
   except oauth2client.client.TokenRevokeError as e:
     printErrorMessage(INVALID_TOKEN_RC, e.message)
   try:
-    os.remove(filename)
-    entityActionPerformed(EN_OAUTH2_TXT_FILE, filename)
+    if os.path.isfile(filename):
+      os.remove(filename)
+    entityActionPerformed(entityname, filename)
   except OSError as e:
-    if e.errno != errno.ENOENT:
-      stderrWarningMsg(e)
+    stderrWarningMsg(e)
 
 # gam oauth|oauth2 info [alt] [<AccessToken>]
 def doOAuthInfo():
