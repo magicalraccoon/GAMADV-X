@@ -9325,26 +9325,29 @@ def doInfoContacts(users, entityType):
                 fn = item.get(u'rel', keymap[u'dfltRel'])
               if keymap[u'primary'] and (item[u'primary'] == u'true'):
                 printKeyValueList([u'primary', item[u'primary']])
+              value = item[u'value']
+              if value == None:
+                value = u''
               if key == CONTACT_IMS:
                 printKeyValueList([u'protocol', contactsManager.IM_REL_TO_PROTOCOL_MAP[item[u'protocol']]])
-                printKeyValueList([keymap[u'infoTitle'], item[u'value']])
+                printKeyValueList([keymap[u'infoTitle'], value])
               elif key == CONTACT_ADDRESSES:
                 printKeyValueList([keymap[u'infoTitle'], u''])
                 incrementIndentLevel()
-                printKeyValueList([indentMultiLineText(item[u'value'])])
+                printKeyValueList([indentMultiLineText(value)])
                 decrementIndentLevel()
                 for org_key in contactsManager.ADDRESS_FIELD_PRINT_ORDER:
                   if item[org_key]:
                     printKeyValueList([contactsManager.ADDRESS_FIELD_TO_ARGUMENT_TITLE_MAP[org_key][0], item[org_key].replace(u'\n', u'\\n')])
               elif key == CONTACT_ORGANIZATIONS:
-                printKeyValueList([keymap[u'infoTitle'], item[u'value']])
+                printKeyValueList([keymap[u'infoTitle'], value])
                 for org_key in contactsManager.ORGANIZATION_FIELD_PRINT_ORDER:
                   if item[org_key]:
                     printKeyValueList([contactsManager.ORGANIZATION_FIELD_TO_ARGUMENT_TITLE_MAP[org_key][0], item[org_key]])
               elif key == CONTACT_USER_DEFINED_FIELDS:
-                printKeyValueList([fn, item[u'value']])
+                printKeyValueList([fn, value])
               else:
-                printKeyValueList([keymap[u'infoTitle'], item[u'value']])
+                printKeyValueList([keymap[u'infoTitle'], value])
               if keymap[u'relMap']:
                 decrementIndentLevel()
             decrementIndentLevel()
