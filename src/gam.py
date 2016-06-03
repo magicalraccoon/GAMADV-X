@@ -26,7 +26,7 @@ __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
 __version__ = u'4.14.0'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
-import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
+import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
 
 import json
 import httplib2
@@ -111,7 +111,7 @@ GM_CURRENT_API_USER = u'capu'
 GM_CURRENT_API_SCOPES = u'scoc'
 # Values retrieved from oauth2service.json
 GM_OAUTH2SERVICE_JSON_DATA = u'oajd'
-GM_OAUTH_CLIENT_ID = u'oaci'
+GM_OAUTH2_CLIENT_ID = u'oaci'
 # gam.cfg parser
 GM_PARSER = u'pars'
 # gam.cfg file
@@ -164,7 +164,7 @@ GM_Globals = {
   GM_CURRENT_API_USER: None,
   GM_CURRENT_API_SCOPES: [],
   GM_OAUTH2SERVICE_JSON_DATA: None,
-  GM_OAUTH_CLIENT_ID: None,
+  GM_OAUTH2_CLIENT_ID: None,
   GM_LAST_UPDATE_CHECK_TXT: u'',
   GM_PARSER: None,
   GM_GAM_CFG_PATH: u'',
@@ -485,9 +485,9 @@ GDATA_SERVICE_NOT_APPLICABLE = 1410
 #
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID]
 # oauth errors
-OAUTH_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
-                      u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID',
-                      u'invalid_request: Invalid impersonation prn email address.']
+OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
+                       u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID',
+                       u'invalid_request: Invalid impersonation prn email address.']
 # callGAPI throw reasons
 GAPI_ABORTED = u'aborted'
 GAPI_ALREADY_EXISTS = u'alreadyExists'
@@ -558,9 +558,9 @@ GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 #
-OAUTH_GAPI_SCOPES = u'gapi'
-OAUTH_GDATA_SCOPES = u'gdata'
-OAUTH_SCOPES_LIST = [OAUTH_GAPI_SCOPES, OAUTH_GDATA_SCOPES]
+OAUTH2_GAPI_SCOPES = u'gapi'
+OAUTH2_GDATA_SCOPES = u'gdata'
+OAUTH2_SCOPES_LIST = [OAUTH2_GAPI_SCOPES, OAUTH2_GDATA_SCOPES]
 # Object BNF names
 OB_ACCESS_TOKEN = u'AccessToken'
 OB_ARGUMENT = u'argument'
@@ -1367,6 +1367,7 @@ PHRASE_DELEGATE_ACCESS_TO = u'Delegate Access to'
 PHRASE_DENIED = u'DENIED'
 PHRASE_DIRECTLY_IN_THE_OU = u'directly in the OU'
 PHRASE_DOES_NOT_EXIST = u'Does not exist'
+PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'Does not exist or has invalid format'
 PHRASE_DOMAIN_NOT_VERIFIED_SECONDARY = u'Domain is not a verified secondary domain'
 PHRASE_DO_NOT_EXIST = u'Do not exist'
 PHRASE_DUPLICATE = u'Duplicate'
@@ -1489,6 +1490,7 @@ CONFIG_ERROR_RC = 13
 CERTIFICATE_VALIDATION_UNSUPPORTED_RC = 14
 CLIENT_SECRETS_JSON_REQUIRED_RC = 15
 OAUTH2SERVICE_JSON_REQUIRED_RC = 16
+OAUTH2_TXT_REQUIRED_RC = 16
 INVALID_JSON_RC = 17
 AUTHENTICATION_TOKEN_REFRESH_ERROR_RC = 18
 HARD_ERROR_RC = 19
@@ -1500,7 +1502,6 @@ ENTITY_IS_A_GROUP_ALIAS_RC = 23
 # Warnings/Errors
 AC_FAILED_RC = 50
 AC_NOT_PERFORMED_RC = 51
-AUTHORIZATION_NONEXISTANT_ERROR_RC = 52
 BAD_REQUEST_RC = 53
 DATA_NOT_AVALIABLE_RC = 55
 ENTITY_DOES_NOT_EXIST_RC = 56
@@ -1698,7 +1699,7 @@ def accessErrorExit(cd):
   systemErrorExit(INVALID_DOMAIN_RC, message)
 
 def APIAccessDeniedExit():
-  stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH_CLIENT_ID],
+  stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
                                                   u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
   systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_CONFIG)
 
@@ -3293,7 +3294,7 @@ def SetGlobalVariables():
       GM_Globals[GM_EXTRA_ARGS_DICT].update(dict(ea_config.items(u'extra-args')))
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
-    GM_Globals[GM_OAUTH_CLIENT_ID] = None
+    GM_Globals[GM_OAUTH2_CLIENT_ID] = None
 # redirect [csv <FileName> [append] [charset <CharSet>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
   if checkArgumentPresent([REDIRECT_CMD,]):
     while CL_argvI < CL_argvLen:
@@ -3359,7 +3360,7 @@ def doGAMCheckForUpdates(forceCheck=False):
     return
 
 def handleOAuthTokenError(e, soft_errors):
-  if e.message in OAUTH_TOKEN_ERRORS:
+  if e.message in OAUTH2_TOKEN_ERRORS:
     if soft_errors:
       return None
     if not GM_Globals[GM_CURRENT_API_USER]:
@@ -3367,6 +3368,14 @@ def handleOAuthTokenError(e, soft_errors):
     else:
       systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
+
+def getClientCredentials(oauthScope):
+  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope)
+  credentials = storage.get()
+  if not credentials or credentials.invalid:
+    systemErrorExit(OAUTH2_TXT_REQUIRED_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT))
+  credentials.user_agent = GAM_INFO
+  return credentials
 
 def getSvcAcctCredentials(scopes, act_as):
   try:
@@ -3381,38 +3390,30 @@ def getSvcAcctCredentials(scopes, act_as):
     credentials = credentials.create_delegated(act_as)
     credentials.user_agent = GAM_INFO
     serialization_data = credentials.serialization_data
-    GM_Globals[GM_OAUTH_CLIENT_ID] = serialization_data[u'client_id']
+    GM_Globals[GM_OAUTH2_CLIENT_ID] = serialization_data[u'client_id']
     return credentials
   except (ValueError, KeyError):
     printLine(MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON)
     printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
-def getClientCredentials(oauthScope):
-  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope)
-  credentials = storage.get()
-  if not credentials or credentials.invalid:
-    systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
-  credentials.user_agent = GAM_INFO
-  return credentials
-
-def getGDataOAuthToken(gdataObject):
-  credentials = getClientCredentials(OAUTH_GDATA_SCOPES)
+def getGDataOAuthToken(gdataObj):
+  credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
   try:
-    if credentials.access_token_expired:
-      credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
+    credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(NETWORK_ERROR_RC, e)
   except oauth2client.client.AccessTokenRefreshError as e:
     return handleOAuthTokenError(e, False)
-  gdataObject.additional_headers[u'Authorization'] = u'Bearer {0}'.format(credentials.access_token)
+  gdataObj.additional_headers[u'Authorization'] = u'Bearer {0}'.format(credentials.access_token)
   if not GC_Values[GC_DOMAIN]:
     GC_Values[GC_DOMAIN] = credentials.id_token.get(u'hd', u'UNKNOWN').lower()
   if not GC_Values[GC_CUSTOMER_ID]:
     GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
   GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
-  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
-  gdataObject.domain = GC_Values[GC_DOMAIN]
+  GM_Globals[GM_OAUTH2_CLIENT_ID] = credentials.client_id
+  gdataObj.domain = GC_Values[GC_DOMAIN]
+  gdataObj.source = GAM_INFO
   return True
 
 def checkGDataError(e, service):
@@ -4000,7 +4001,7 @@ def getAPIversionHttpService(api):
 def buildGAPIObject(api):
   GM_Globals[GM_CURRENT_API_USER] = None
   _, http, service = getAPIversionHttpService(api)
-  credentials = getClientCredentials(OAUTH_GAPI_SCOPES)
+  credentials = getClientCredentials(OAUTH2_GAPI_SCOPES)
   try:
     service._http = credentials.authorize(http)
   except httplib2.ServerNotFoundError as e:
@@ -4012,7 +4013,7 @@ def buildGAPIObject(api):
   if not GC_Values[GC_CUSTOMER_ID]:
     GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
   GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
-  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
+  GM_Globals[GM_OAUTH2_CLIENT_ID] = credentials.client_id
   return service
 
 API_SCOPE_MAPPING = {
@@ -4066,7 +4067,6 @@ def initGDataObject(gdataObj, api):
   except KeyError:
     invalidJSONExit(disc_file)
   getGDataOAuthToken(gdataObj)
-  gdataObj.source = GAM_INFO
   if GC_Values[GC_DEBUG_LEVEL] > 0:
     gdataObj.debug = True
   return gdataObj
@@ -5139,8 +5139,8 @@ class cmd_flags(object):
     self.auth_host_name = u'localhost'
     self.auth_host_port = [8080, 9090]
 
-OAUTH_SCOPES = {
-  OAUTH_GAPI_SCOPES: {
+OAUTH2_SCOPES = {
+  OAUTH2_GAPI_SCOPES: {
     u'All_scopes': [
       u'https://mail.google.com/',                                         #  0:Admin User - Email upload report document notifications
       u'https://www.googleapis.com/auth/drive.file',                       #  1:Admin User - Upload report documents to Google Drive
@@ -5208,7 +5208,7 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       %%s)  Continue
 '''
     },
-  OAUTH_GDATA_SCOPES: {
+  OAUTH2_GDATA_SCOPES: {
     u'All_scopes': [
       u'https://apps-apis.google.com/a/feeds/domain/',                     #  0:Admin Settings API
       u'https://www.google.com/m8/feeds/contacts',                         #  1:Contacts API
@@ -5259,12 +5259,12 @@ See the follow site for instructions:
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
   checkForExtraneousArguments()
-  for oauthScope in OAUTH_SCOPES_LIST:
-    possible_scopes = OAUTH_SCOPES[oauthScope][u'All_scopes']
-    readonly_scopes = OAUTH_SCOPES[oauthScope][u'RO_scopes']
-    actiononly_scopes = OAUTH_SCOPES[oauthScope][u'AO_scopes']
+  for oauthScope in OAUTH2_SCOPES_LIST:
+    possible_scopes = OAUTH2_SCOPES[oauthScope][u'All_scopes']
+    readonly_scopes = OAUTH2_SCOPES[oauthScope][u'RO_scopes']
+    actiononly_scopes = OAUTH2_SCOPES[oauthScope][u'AO_scopes']
     num_scopes = len(possible_scopes)
-    menu = OAUTH_SCOPES[oauthScope][u'Menu'] % tuple(range(num_scopes))
+    menu = OAUTH2_SCOPES[oauthScope][u'Menu'] % tuple(range(num_scopes))
     select_all_scopes = num_scopes
     unselect_all_scopes = num_scopes+1
     cancel = num_scopes+2
@@ -5406,7 +5406,7 @@ def doOAuthInfo():
   access_token = getString(OB_ACCESS_TOKEN, optional=True)
   checkForExtraneousArguments()
   if access_token:
-    for oauthScope in OAUTH_SCOPES_LIST:
+    for oauthScope in OAUTH2_SCOPES_LIST:
       credentials = getClientCredentials(oauthScope)
       if credentials.access_token == access_token:
         _printScopes(credentials)
@@ -6472,48 +6472,33 @@ def doUpdateInstance():
   except GData_invalidValue as e:
     printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.value)
 #
-MAXIMUM_USERS_MAP = [u'maximumNumberOfUsers', u'Maximum Users']
-CURRENT_USERS_MAP = [u'currentNumberOfUsers', u'Current Users']
-DOMAIN_EDITION_MAP = [u'edition', u'Domain Edition']
-CUSTOMER_PIN_MAP = [u'customerPIN', u'Customer PIN']
-SINGLE_SIGN_ON_SETTINGS_MAP = [u'enableSSO', u'SSO Enabled',
-                               u'samlSignonUri', u'SSO Signon Page',
-                               u'samlLogoutUri', u'SSO Logout Page',
-                               u'changePasswordUri', u'SSO Password Page',
-                               u'ssoWhitelist', u'SSO Whitelist IPs',
-                               u'useDomainSpecificIssuer', u'SSO Use Domain Specific Issuer']
-SINGLE_SIGN_ON_SIGNING_KEY_MAP = [u'algorithm', u'SSO Key Algorithm',
-                                  u'format', u'SSO Key Format',
-                                  u'modulus', u'SSO Key Modulus',
-                                  u'exponent', u'SSO Key Exponent',
-                                  u'yValue', u'SSO Key yValue',
-                                  u'signingKey', u'Full SSO Key']
+SINGLE_SIGN_ON_SETTINGS_TITLES = {u'enableSSO': u'SSO Enabled',
+                                  u'samlSignonUri': u'SSO Signon Page',
+                                  u'samlLogoutUri': u'SSO Logout Page',
+                                  u'changePasswordUri': u'SSO Password Page',
+                                  u'ssoWhitelist': u'SSO Whitelist IPs',
+                                  u'useDomainSpecificIssuer': u'SSO Use Domain Specific Issuer'}
+SINGLE_SIGN_ON_SIGNING_KEY_TITLES = {u'algorithm': u'SSO Key Algorithm',
+                                     u'format': u'SSO Key Format',
+                                     u'modulus': u'SSO Key Modulus',
+                                     u'exponent': u'SSO Key Exponent',
+                                     u'yValue': u'SSO Key yValue',
+                                     u'signingKey': u'Full SSO Key'}
 
-def printAdminSetting(service, propertyTitleMap, defaultValue=None):
-  result = callGAPI(service, u'get',
-                    silent_errors=True, soft_errors=True,
-                    domainName=GC_Values[GC_DOMAIN])
-  if result and (u'entry' in result) and (u'apps$property' in result[u'entry']):
-    for i in range(0, len(propertyTitleMap), 2):
-      asProperty = propertyTitleMap[i]
-      for entry in result[u'entry'][u'apps$property']:
-        if entry[u'name'] == asProperty:
-          if not asProperty.endswith(u'Time'):
-            printKeyValueList([propertyTitleMap[i+1], entry[u'value']])
-          else:
-            tv = entry[u'value']
-            printKeyValueList([propertyTitleMap[i+1], u'{0}-{1}-{2}T{3}:{4}:{5}{6}'.format(tv[0:4], tv[4:6], tv[6:8], tv[9:11], tv[11:13], tv[13:15], tv[19:])])
-          break
-      else:
-        if defaultValue:
-          printKeyValueList([propertyTitleMap[i+1], defaultValue])
-  elif defaultValue:
-    for i in range(0, len(propertyTitleMap), 2):
-      printKeyValueList([propertyTitleMap[i+1], defaultValue])
+def printAdminSetting(adminSettingsObject, function, propertyTitleMap, defaultValue=None):
+  try:
+    result = callGData(adminSettingsObject, function,
+                       throw_errors=[GDATA_INVALID_DOMAIN, GDATA_INVALID_SSO_SIGNING_KEY])
+    if isinstance(result, (bool, int, str)):
+      printKeyValueList([propertyTitleMap, result])
+    else:
+      for attr in result:
+        printKeyValueList([propertyTitleMap[attr], result[attr]])
+  except (GData_invalidDomain, GData_invalidSSOSigningKey):
+    pass
 
 # gam info instance [logo <FileName>]
 def doInfoInstance():
-  adm = buildGAPIObject(GAPI_ADMIN_SETTINGS_API)
   if checkArgumentPresent(LOGO_ARGUMENT):
     setActionName(AC_DOWNLOAD)
     logoFile = getString(OB_FILE_NAME)
@@ -6524,12 +6509,13 @@ def doInfoInstance():
     return
   checkForExtraneousArguments()
   doInfoCustomer()
-  printAdminSetting(adm.maximumNumberOfUsers(), MAXIMUM_USERS_MAP)
-  printAdminSetting(adm.currentNumberOfUsers(), CURRENT_USERS_MAP)
-  printAdminSetting(adm.edition(), DOMAIN_EDITION_MAP)
-  printAdminSetting(adm.customerPIN(), CUSTOMER_PIN_MAP)
-  printAdminSetting(adm.ssoGeneral(), SINGLE_SIGN_ON_SETTINGS_MAP)
-  printAdminSetting(adm.ssoSigningKey(), SINGLE_SIGN_ON_SIGNING_KEY_MAP)
+  adminSettingsObject = getAdminSettingsObject()
+  printAdminSetting(adminSettingsObject, u'GetMaximumNumberOfUsers', u'Maximum Users')
+  printAdminSetting(adminSettingsObject, u'GetCurrentNumberOfUsers', u'Current Users')
+  printAdminSetting(adminSettingsObject, u'GetEdition', u'Domain Edition')
+  printAdminSetting(adminSettingsObject, u'GetCustomerPIN', u'Customer PIN')
+  printAdminSetting(adminSettingsObject, u'GetSSOSettings', SINGLE_SIGN_ON_SETTINGS_TITLES)
+  printAdminSetting(adminSettingsObject, u'GetSSOKey', SINGLE_SIGN_ON_SIGNING_KEY_TITLES)
 
 def getOrgEntity(getEntityListArg):
   if not getEntityListArg:
@@ -12027,7 +12013,7 @@ def doInfoUser(entityList=None, getEntityListArg=False):
     if not getEntityListArg:
       entityList = getStringReturnInList(OB_USER_ITEM)
       if not entityList:
-        credentials = getClientCredentials(OAUTH_GAPI_SCOPES)
+        credentials = getClientCredentials(OAUTH2_GAPI_SCOPES)
         entityList = [credentials.id_token[u'email']]
     else:
       _, entityList = getEntityToModify(CL_ENTITY_USERS)
@@ -17890,23 +17876,23 @@ MAIN_COMMANDS_WITH_OBJECTS = {
   }
 
 # Oauth command sub-commands
-OAUTH_SUBCOMMANDS = {
+OAUTH2_SUBCOMMANDS = {
   u'create':	{CMD_ACTION: AC_CREATE, CMD_FUNCTION: doOAuthRequest},
   u'delete':	{CMD_ACTION: AC_DELETE, CMD_FUNCTION: doOAuthDelete},
   u'info':	{CMD_ACTION: AC_INFO, CMD_FUNCTION: doOAuthInfo},
   }
 
 # Oauth sub-command aliases
-OAUTH_SUBCOMMAND_ALIASES = {
+OAUTH2_SUBCOMMAND_ALIASES = {
   u'request':	u'create',
   u'revoke':	u'delete',
   u'verify':	u'info',
   }
 
 def processOauthCommands():
-  CL_subCommand = getChoice(OAUTH_SUBCOMMANDS, choiceAliases=OAUTH_SUBCOMMAND_ALIASES)
-  setActionName(OAUTH_SUBCOMMANDS[CL_subCommand][CMD_ACTION])
-  OAUTH_SUBCOMMANDS[CL_subCommand][CMD_FUNCTION]()
+  CL_subCommand = getChoice(OAUTH2_SUBCOMMANDS, choiceAliases=OAUTH2_SUBCOMMAND_ALIASES)
+  setActionName(OAUTH2_SUBCOMMANDS[CL_subCommand][CMD_ACTION])
+  OAUTH2_SUBCOMMANDS[CL_subCommand][CMD_FUNCTION]()
 
 # Audit command sub-commands
 AUDIT_SUBCOMMANDS = {
@@ -18564,4 +18550,5 @@ if __name__ == "__main__":
     sys.setdefaultencoding(u'UTF-8')
   if GM_Globals[GM_WINDOWS]:
     win32_unicode_argv() # cleanup sys.argv on Windows
+  logging.raiseExceptions = False
   sys.exit(ProcessGAMCommand(sys.argv))
