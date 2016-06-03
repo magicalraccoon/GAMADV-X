@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.15.0'
+__version__ = u'4.14.0'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
@@ -3388,14 +3388,12 @@ def getSvcAcctCredentials(scopes, act_as):
     printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
-def getClientCredentials(oauthScope, api=None):
+def getClientCredentials(oauthScope):
   storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope)
   credentials = storage.get()
   if not credentials or credentials.invalid:
-    doOAuthRequest(oauthScope)
-    credentials = storage.get()
-    if not credentials or credentials.invalid:
-      systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
+    systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
+  credentials.user_agent = GAM_INFO
   return credentials
 
 def getGDataOAuthToken(gdataObject):
@@ -3403,6 +3401,8 @@ def getGDataOAuthToken(gdataObject):
   try:
     if credentials.access_token_expired:
       credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
+  except httplib2.ServerNotFoundError as e:
+    systemErrorExit(NETWORK_ERROR_RC, e)
   except oauth2client.client.AccessTokenRefreshError as e:
     return handleOAuthTokenError(e, False)
   gdataObject.additional_headers[u'Authorization'] = u'Bearer {0}'.format(credentials.access_token)
@@ -3981,64 +3981,7 @@ def readDiscoveryFile(api_version):
   except ValueError:
     invalidJSONExit(disc_file)
 
-def getClientAPIversionHttpService(api):
-  credentials = getClientCredentials(OAUTH_GAPI_SCOPES, api)
-  credentials.user_agent = GAM_INFO
-  api, version, api_version = getAPIVersion(api)
-  http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                                             cache=GC_Values[GC_CACHE_DIR]))
-  try:
-    return (credentials, googleapiclient.discovery.build(api, version, http=http, cache_discovery=False))
-  except httplib2.ServerNotFoundError as e:
-    systemErrorExit(NETWORK_ERROR_RC, e)
-  except httplib2.CertificateValidationUnsupported:
-    noPythonSSLExit()
-  except googleapiclient.errors.UnknownApiNameOrVersion:
-    pass
-  disc_file, discovery = readDiscoveryFile(api_version)
-  try:
-    return (credentials, googleapiclient.discovery.build_from_document(discovery, http=http))
-  except (ValueError, KeyError):
-    invalidJSONExit(disc_file)
-
-def buildGAPIObject(api):
-  GM_Globals[GM_CURRENT_API_USER] = None
-  credentials, service = getClientAPIversionHttpService(api)
-  if GC_Values[GC_DOMAIN]:
-    if not GC_Values[GC_CUSTOMER_ID]:
-      resp, result = service._http.request(u'https://www.googleapis.com/admin/directory/v1/users?domain={0}&maxResults=1&fields=users(customerId)'.format(GC_Values[GC_DOMAIN]))
-      try:
-        resultObj = json.loads(result)
-      except ValueError:
-        systemErrorExit(JSON_LOADS_ERROR_RC, u'Unexpected response: {0}'.format(result))
-      if resp[u'status'] in [u'403', u'404']:
-        try:
-          message = resultObj[u'error'][u'errors'][0][u'message']
-        except KeyError:
-          message = resultObj[u'error'][u'message']
-        systemErrorExit(GOOGLE_API_ERROR_RC, u'{0} - {1}'.format(message, GC_Values[GC_DOMAIN]))
-      try:
-        GC_Values[GC_CUSTOMER_ID] = resultObj[u'users'][0][u'customerId']
-      except KeyError:
-        GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
-  else:
-    GC_Values[GC_DOMAIN] = credentials.id_token.get(u'hd', u'UNKNOWN').lower()
-    if not GC_Values[GC_CUSTOMER_ID]:
-      GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
-  GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
-  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
-  return service
-
-API_SCOPE_MAPPING = {
-  GAPI_APPSACTIVITY_API: [u'https://www.googleapis.com/auth/activity',
-                          u'https://www.googleapis.com/auth/drive'],
-  GAPI_CALENDAR_API: [u'https://www.googleapis.com/auth/calendar',],
-  GAPI_DRIVE_API: [u'https://www.googleapis.com/auth/drive',],
-  GAPI_GMAIL_API: [u'https://mail.google.com/',],
-  GAPI_GPLUS_API: [u'https://www.googleapis.com/auth/plus.me',],
-}
-
-def getSvcAcctAPIversionHttpService(api):
+def getAPIversionHttpService(api):
   api, version, api_version = getAPIVersion(api)
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
                        cache=GC_Values[GC_CACHE_DIR])
@@ -4054,8 +3997,35 @@ def getSvcAcctAPIversionHttpService(api):
   except (ValueError, KeyError):
     invalidJSONExit(disc_file)
 
+def buildGAPIObject(api):
+  GM_Globals[GM_CURRENT_API_USER] = None
+  _, http, service = getAPIversionHttpService(api)
+  credentials = getClientCredentials(OAUTH_GAPI_SCOPES)
+  try:
+    service._http = credentials.authorize(http)
+  except httplib2.ServerNotFoundError as e:
+    systemErrorExit(NETWORK_ERROR_RC, e)
+  except oauth2client.client.AccessTokenRefreshError as e:
+    return handleOAuthTokenError(e, False)
+  if not GC_Values[GC_DOMAIN]:
+    GC_Values[GC_DOMAIN] = credentials.id_token.get(u'hd', u'UNKNOWN').lower()
+  if not GC_Values[GC_CUSTOMER_ID]:
+    GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
+  GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
+  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
+  return service
+
+API_SCOPE_MAPPING = {
+  GAPI_APPSACTIVITY_API: [u'https://www.googleapis.com/auth/activity',
+                          u'https://www.googleapis.com/auth/drive'],
+  GAPI_CALENDAR_API: [u'https://www.googleapis.com/auth/calendar',],
+  GAPI_DRIVE_API: [u'https://www.googleapis.com/auth/drive',],
+  GAPI_GMAIL_API: [u'https://mail.google.com/',],
+  GAPI_GPLUS_API: [u'https://www.googleapis.com/auth/plus.me',],
+}
+
 def buildGAPIServiceObject(api, act_as):
-  _, http, service = getSvcAcctAPIversionHttpService(api)
+  _, http, service = getAPIversionHttpService(api)
   GM_Globals[GM_CURRENT_API_USER] = act_as
   GM_Globals[GM_CURRENT_API_SCOPES] = API_SCOPE_MAPPING[api]
   credentials = getSvcAcctCredentials(GM_Globals[GM_CURRENT_API_SCOPES], act_as)
@@ -4095,9 +4065,7 @@ def initGDataObject(gdataObj, api):
     GM_Globals[GM_CURRENT_API_SCOPES] = discovery[u'auth'][u'oauth2'][u'scopes'].keys()
   except KeyError:
     invalidJSONExit(disc_file)
-  if not getGDataOAuthToken(gdataObj):
-    doOAuthRequest(OAUTH_GDATA_SCOPES)
-    getGDataOAuthToken(gdataObj)
+  getGDataOAuthToken(gdataObj)
   gdataObj.source = GAM_INFO
   if GC_Values[GC_DEBUG_LEVEL] > 0:
     gdataObj.debug = True
@@ -5278,7 +5246,7 @@ def revokeCredentials(credentials):
     printErrorMessage(INVALID_TOKEN_RC, e.message)
 
 # gam oauth|oauth2 create|request
-def doOAuthRequest(oauthScope=None):
+def doOAuthRequest():
   MISSING_CLIENT_SECRETS_MESSAGE = u"""Please configure OAuth 2.0
 
 To make GAM run you will need to populate the {0} file found at:
@@ -5290,12 +5258,8 @@ See the follow site for instructions:
 
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
-  if oauthScope == None:
-    checkForExtraneousArguments()
-    scopesList = OAUTH_SCOPES_LIST
-  else:
-    scopesList = [oauthScope]
-  for oauthScope in scopesList:
+  checkForExtraneousArguments()
+  for oauthScope in OAUTH_SCOPES_LIST:
     possible_scopes = OAUTH_SCOPES[oauthScope][u'All_scopes']
     readonly_scopes = OAUTH_SCOPES[oauthScope][u'RO_scopes']
     actiononly_scopes = OAUTH_SCOPES[oauthScope][u'AO_scopes']
