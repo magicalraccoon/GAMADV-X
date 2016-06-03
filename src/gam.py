@@ -453,7 +453,6 @@ LANGUAGE_CODES_MAP = {
   u'zu': u'zu', #Zulu
   }
 # GAPI APIs
-GAPI_ADMIN_SETTINGS_API = u'admin-settings'
 GAPI_APPSACTIVITY_API = u'appsactivity'
 GAPI_CALENDAR_API = u'calendar'
 GAPI_CLASSROOM_API = u'classroom'
@@ -468,6 +467,7 @@ GAPI_LICENSING_API = u'licensing'
 GAPI_REPORTS_API = u'reports'
 GAPI_SITEVERIFICATION_API = u'siteVerification'
 # GDATA APIs
+GDATA_ADMIN_SETTINGS_API = u'admin-settings'
 GDATA_CONTACTS_API = u'contacts'
 GDATA_EMAIL_AUDIT_API = u'email-audit'
 GDATA_EMAIL_SETTINGS_API = u'email-settings'
@@ -1433,7 +1433,6 @@ PHRASE_WITH = u'with'
 PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
 
 MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
-MESSAGE_API_ACCESS_CONFIG = u'API access is configured in your Control Panel under: Security-Show more-Advanced settings-Manage API client access'
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\n\nPlease make sure the Client ID: {0} is authorized for the API Scope(s): {1}'
 MESSAGE_CSV_ARGUMENT_REQUIRED = u'csv <FileName> required'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
@@ -1701,9 +1700,8 @@ def accessErrorExit(cd):
   systemErrorExit(INVALID_DOMAIN_RC, message)
 
 def APIAccessDeniedExit():
-  stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
-                                                  u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
-  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_CONFIG)
+  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
+                                                                         u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
 
 def checkEntityDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
   message = accessErrorMessage(cd)
@@ -3941,7 +3939,7 @@ def callGCP(service, function,
   return checkCloudPrintResult(result, throw_messages=throw_messages)
 
 API_VER_MAPPING = {
-  GAPI_ADMIN_SETTINGS_API: u'v1',
+  GDATA_ADMIN_SETTINGS_API: u'v1',
   GAPI_APPSACTIVITY_API: u'v1',
   GAPI_CALENDAR_API: u'v3',
   GAPI_CLASSROOM_API: u'v1',
@@ -4044,23 +4042,23 @@ def buildGAPIServiceObject(api, act_as):
     return handleOAuthTokenError(e, True)
   return service
 
-def buildActivityGAPIObject(user, i=0, count=0):
+def buildActivityGAPIObject(user):
   userEmail = convertUserUIDtoEmailAddress(user)
   return (userEmail, buildGAPIServiceObject(GAPI_APPSACTIVITY_API, userEmail))
 
-def buildCalendarGAPIObject(calname, i=0, count=0):
+def buildCalendarGAPIObject(calname):
   calendarId = convertUserUIDtoEmailAddress(calname)
   return (calendarId, buildGAPIServiceObject(GAPI_CALENDAR_API, calendarId))
 
-def buildDriveGAPIObject(user, i=0, count=0):
+def buildDriveGAPIObject(user):
   userEmail = convertUserUIDtoEmailAddress(user)
   return (userEmail, buildGAPIServiceObject(GAPI_DRIVE_API, userEmail))
 
-def buildGmailGAPIObject(user, i=0, count=0):
+def buildGmailGAPIObject(user):
   userEmail = convertUserUIDtoEmailAddress(user)
   return (userEmail, buildGAPIServiceObject(GAPI_GMAIL_API, userEmail))
 
-def buildGplusGAPIObject(user, i=0, count=0):
+def buildGplusGAPIObject(user):
   userEmail = convertUserUIDtoEmailAddress(user)
   return (userEmail, buildGAPIServiceObject(GAPI_GPLUS_API, userEmail))
 
@@ -4082,7 +4080,7 @@ def initGDataObject(gdataObj, api):
 
 def getAdminSettingsObject():
   import gdata.apps.adminsettings.service
-  return initGDataObject(gdata.apps.adminsettings.service.AdminSettingsService(), GAPI_ADMIN_SETTINGS_API)
+  return initGDataObject(gdata.apps.adminsettings.service.AdminSettingsService(), GDATA_ADMIN_SETTINGS_API)
 
 def getAuditObject():
   import gdata.apps.audit.service
@@ -4423,7 +4421,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           page_message = getPageMessageForWhom(noNL=True)
           teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
                                    page_message=page_message,
-                                   throw_reasons=[GAPI_NOT_FOUND],
+                                   throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                    courseId=courseId)
           for teacher in teachers:
             email = teacher[u'profile'].get(u'emailAddress', None)
@@ -4435,7 +4433,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           page_message = getPageMessageForWhom(noNL=True)
           students = callGAPIpages(croom.courses().students(), u'list', u'students',
                                    page_message=page_message,
-                                   throw_reasons=[GAPI_NOT_FOUND],
+                                   throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                    courseId=courseId)
           for student in students:
             email = student[u'profile'].get(u'emailAddress', None)
@@ -4445,6 +4443,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       except GAPI_notFound:
         entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId))
         errors += 1
+      except GAPI_forbidden:
+        APIAccessDeniedExit()
   elif entityType == CL_ENTITY_CROS:
     buildGAPIObject(GAPI_DIRECTORY_API)
     members = convertEntityToList(entityType, None, entity)
@@ -6497,7 +6497,7 @@ SINGLE_SIGN_ON_SIGNING_KEY_TITLES = {u'algorithm': u'SSO Key Algorithm',
                                      u'yValue': u'SSO Key yValue',
                                      u'signingKey': u'Full SSO Key'}
 
-def printAdminSetting(adminSettingsObject, function, propertyTitleMap, defaultValue=None):
+def printAdminSetting(adminSettingsObject, function, propertyTitleMap):
   try:
     result = callGData(adminSettingsObject, function,
                        throw_errors=[GDATA_INVALID_DOMAIN, GDATA_INVALID_SSO_SIGNING_KEY])
@@ -7940,7 +7940,7 @@ def doCalendarAddEvent(cal, calendarList):
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     try:
@@ -7977,7 +7977,7 @@ def doCalendarUpdateEvent(cal, calendarList):
     i += 1
     if eventIdLists:
       eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     jcount = len(eventIds)
@@ -8025,7 +8025,7 @@ def doCalendarDeleteEvent(cal, calendarList):
     i += 1
     if eventIdLists:
       eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     jcount = len(eventIds)
@@ -8059,7 +8059,7 @@ def doCalendarInfoEvent(cal, calendarList):
     i += 1
     if eventIdLists:
       eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     jcount = len(eventIds)
@@ -8100,7 +8100,7 @@ def doCalendarMoveEvent(cal, calendarList):
     i += 1
     if eventIdLists:
       eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     jcount = len(eventIds)
@@ -8132,7 +8132,7 @@ def doCalendarShowEvents(cal, calendarList):
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     try:
@@ -8160,7 +8160,7 @@ def doCalendarWipeEvents(cal, calendarList):
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    calendarId, cal = buildCalendarGAPIObject(calendarId, i, count)
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
     if not cal:
       continue
     try:
@@ -12701,6 +12701,7 @@ def doInfoCourse(getEntityListArg=False):
       printKeyValueList([u'Participants', u''])
       incrementIndentLevel()
       teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                               throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                courseId=courseId)
       if teachers:
         printKeyValueList([u'Teachers', u''])
@@ -12712,6 +12713,7 @@ def doInfoCourse(getEntityListArg=False):
             printKeyValueList([teacher[u'profile'][u'name'][u'fullName']])
         decrementIndentLevel()
       students = callGAPIpages(croom.courses().students(), u'list', u'students',
+                               throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                courseId=courseId)
       if students:
         printKeyValueList([u'Students', u''])
@@ -12726,6 +12728,8 @@ def doInfoCourse(getEntityListArg=False):
       decrementIndentLevel()
     except GAPI_notFound:
       entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId), i, count)
+    except GAPI_forbidden:
+      APIAccessDeniedExit()
 
 # gam print courses [todrive] [idfirst] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>]
 def doPrintCourses():
@@ -13084,18 +13088,23 @@ def doPrintCourseParticipants():
                                                                     [singularEntityName(EN_COURSE), courseId],
                                                                     currentCount(i, count)),
                                          noNL=True)
-    if showMembers != u'students':
-      setGettingEntityItem(EN_TEACHER)
-      results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
-                              page_message=page_message,
-                              courseId=courseId)
-      _saveParticipants(results, u'TEACHER')
-    if showMembers != u'teachers':
-      setGettingEntityItem(EN_STUDENT)
-      results = callGAPIpages(croom.courses().students(), u'list', u'students',
-                              page_message=page_message,
-                              courseId=courseId)
-      _saveParticipants(results, u'STUDENT')
+    try:
+      if showMembers != u'students':
+        setGettingEntityItem(EN_TEACHER)
+        results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                                page_message=page_message,
+                                throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                                courseId=courseId)
+        _saveParticipants(results, u'TEACHER')
+      if showMembers != u'teachers':
+        setGettingEntityItem(EN_STUDENT)
+        results = callGAPIpages(croom.courses().students(), u'list', u'students',
+                                page_message=page_message,
+                                throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                                courseId=courseId)
+        _saveParticipants(results, u'STUDENT')
+    except GAPI_forbidden:
+      APIAccessDeniedExit()
   writeCSVfile(csvRows, titles, u'Course Participants', todrive)
 
 def encode_multipart(fields, files, boundary=None):
@@ -14091,7 +14100,7 @@ def addCalendar(users, getEntityListArg=False):
     i += 1
     if calendarLists:
       calendarIds = calendarLists[user]
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     jcount = len(calendarIds)
@@ -14136,7 +14145,7 @@ def updateDeleteCalendars(users, calendarIds, calendarLists, function, **kwargs)
     i += 1
     if calendarLists:
       calendarIds = calendarLists[user]
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     jcount = len(calendarIds)
@@ -14167,7 +14176,7 @@ def infoCalendar(users, getEntityListArg=False):
     i += 1
     if calendarLists:
       calendarIds = calendarLists[user]
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     jcount = len(calendarIds)
@@ -14202,7 +14211,7 @@ def showCalendars(users):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     try:
@@ -14234,7 +14243,7 @@ def showCalSettings(users):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     try:
@@ -14301,7 +14310,7 @@ def createCalendar(users):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     processCalendar(user, i, count, None, i, count, cal, u'insert', body=body)
@@ -14333,7 +14342,7 @@ def modifyRemoveCalendars(users, calendarIds, calendarLists, function, **kwargs)
     i += 1
     if calendarLists:
       calendarIds = calendarLists[user]
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     jcount = len(calendarIds)
@@ -14383,7 +14392,7 @@ def updateCalendarAttendees(users):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildCalendarGAPIObject(user, i, count)
+    user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
     printEntityKVList(EN_USER, user, [PHRASE_CHECKING, u''], i, count)
@@ -14459,7 +14468,7 @@ def transferSecCals(users):
   count = len(users)
   for user in users:
     i += 1
-    user, source_cal = buildCalendarGAPIObject(user, i, count)
+    user, source_cal = buildCalendarGAPIObject(user)
     if not source_cal:
       continue
     try:
@@ -14638,7 +14647,7 @@ def doDriveSearch(drive, user, i, count, query=None):
 def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
   if fileIdSelection[u'dict']:
     fileIdSelection[u'fileIds'] = cleanFileIDsList(fileIdSelection[u'dict'][user])
-  user, drive = buildDriveGAPIObject(user, i, count)
+  user, drive = buildDriveGAPIObject(user)
   if not drive:
     return (user, None, 0)
   if parameters[DFA_PARENTQUERY]:
@@ -14687,7 +14696,7 @@ def showDriveActivity(users):
   count = len(users)
   for user in users:
     i += 1
-    user, activity = buildActivityGAPIObject(user, i, count)
+    user, activity = buildActivityGAPIObject(user)
     if not activity:
       continue
     try:
@@ -14724,7 +14733,7 @@ def showDriveSettings(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive = buildDriveGAPIObject(user, i, count)
+    user, drive = buildDriveGAPIObject(user)
     if not drive:
       continue
     printGettingEntityItemForWhom(EN_DRIVE_SETTINGS, user, i, count)
@@ -14955,7 +14964,7 @@ def showDriveFiles(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive = buildDriveGAPIObject(user, i, count)
+    user, drive = buildDriveGAPIObject(user)
     if not drive:
       continue
     try:
@@ -15060,7 +15069,7 @@ def showDriveFileTree(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive = buildDriveGAPIObject(user, i, count)
+    user, drive = buildDriveGAPIObject(user)
     if not drive:
       continue
     try:
@@ -15463,7 +15472,7 @@ def transferDriveFiles(users):
   count = len(users)
   for user in users:
     i += 1
-    user, source_drive = buildDriveGAPIObject(user, i, count)
+    user, source_drive = buildDriveGAPIObject(user)
     if not source_drive:
       continue
     try:
@@ -15566,7 +15575,7 @@ def deleteEmptyDriveFolders(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive = buildDriveGAPIObject(user, i, count)
+    user, drive = buildDriveGAPIObject(user)
     if not drive:
       continue
     try:
@@ -16395,7 +16404,7 @@ def showGmailProfile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16426,7 +16435,7 @@ def showGplusProfile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gplus = buildGplusGAPIObject(user, i, count)
+    user, gplus = buildGplusGAPIObject(user)
     if not gplus:
       continue
     try:
@@ -16464,7 +16473,7 @@ def addLabel(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16496,7 +16505,7 @@ def updateLabelSettings(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16543,7 +16552,7 @@ def updateLabels(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16641,7 +16650,7 @@ def deleteLabel(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16693,7 +16702,7 @@ def showLabels(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
@@ -16826,7 +16835,7 @@ def processMessages(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail = buildGmailGAPIObject(user, i, count)
+    user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
