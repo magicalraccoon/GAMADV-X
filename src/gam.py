@@ -3392,8 +3392,10 @@ def getSvcAcctCredentials(scopes, act_as):
     printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
-def getClientCredentials(alt):
+def getClientCredentials(alt, api=None):
   filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
+  if (not os.path.isfile(filename)) and (api == GAPI_OAUTH2_API):
+    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][not alt]]
   storage = oauth2client.file.Storage(filename)
   credentials = storage.get()
   if not credentials or credentials.invalid:
@@ -3988,7 +3990,7 @@ def readDiscoveryFile(api_version):
     invalidJSONExit(disc_file)
 
 def getClientAPIversionHttpService(api):
-  credentials = getClientCredentials(False)
+  credentials = getClientCredentials(False, api)
   credentials.user_agent = GAM_INFO
   api, version, api_version = getAPIVersion(api)
   http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
@@ -5280,7 +5282,7 @@ See the follow site for instructions:
     altList = [False, True]
   else:
     altList = [alt]
-  for alt in altList:  
+  for alt in altList:
     filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
     possible_scopes = [GAPI_scopes, GDATA_scopes][alt]
     readonly_scopes = [GAPI_RO_scopes, GDATA_RO_scopes][alt]
@@ -5325,8 +5327,6 @@ See the follow site for instructions:
           else:
             mode = u' '
           selected_scopes[selection] = mode
-          ###
-          print possible_scopes[selection]
         elif selection == select_all_scopes:
           for i in range(num_scopes):
             selected_scopes[i] = u'*'
@@ -5404,7 +5404,8 @@ def doOAuthDelete():
 # gam oauth|oauth2 info [<AccessToken>]
 def doOAuthInfo():
 
-  def _printScopes(oa2, access_token, client_secret):
+  def _printScopes(access_token, client_secret):
+    oa2 = buildGAPIObject(GAPI_OAUTH2_API)
     try:
       token_info = callGAPI(oa2, u'tokeninfo',
                             throw_reasons=[GAPI_INVALID],
@@ -5426,19 +5427,21 @@ def doOAuthInfo():
 
   access_token = getString(OB_ACCESS_TOKEN, optional=True)
   checkForExtraneousArguments()
-  oa2 = buildGAPIObject(GAPI_OAUTH2_API)
   if access_token:
-    _printScopes(oa2, access_token, None)
+    _printScopes(access_token, None)
     return
   for alt in [False, True]:
-    credentials = getClientCredentials(alt)
-    credentials.user_agent = GAM_INFO
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-    if credentials.access_token_expired:
-      credentials.refresh(http)
-    access_token = credentials.access_token
-    printKeyValueList([singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]), GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]])
-    _printScopes(oa2, access_token, credentials.client_secret)
+    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
+    if os.path.isfile(filename):
+      entityname = singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt])
+      credentials = getClientCredentials(alt)
+      credentials.user_agent = GAM_INFO
+      http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+      if credentials.access_token_expired:
+        credentials.refresh(http)
+      access_token = credentials.access_token
+      printKeyValueList([entityname, filename])
+      _printScopes(access_token, credentials.client_secret)
 
 # gam whatis <EmailItem> [noinfo]
 def doWhatIs():
@@ -6863,7 +6866,6 @@ def doPrintOrgs():
       unknownArgumentExit()
   if fieldsList:
     if not idfirst:
-    ## Move Path to end of list
       ftList = ORGUNITPATH_TO_PROPERTY_TITLE_MAP[u'orgunitpath']
       titles[u'list'].remove(ftList[1])
       titles[u'list'].append(ftList[1])
