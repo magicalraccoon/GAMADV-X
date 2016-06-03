@@ -36,7 +36,7 @@ import googleapiclient.errors
 import googleapiclient.http
 import oauth2client.client
 import oauth2client.service_account
-import oauth2client.file
+import oauth2client.contrib.multistore_file
 import oauth2client.tools
 import mimetypes
 import ntpath
@@ -79,7 +79,6 @@ FN_EXTRA_ARGS_TXT = u'extra-args.txt'
 FN_LAST_UPDATE_CHECK_TXT = u'lastupdatecheck.txt'
 FN_OAUTH2SERVICE_JSON = u'oauth2service.json'
 FN_OAUTH2_TXT = u'oauth2.txt'
-FN_OAUTH2ALT_TXT = u'oauth2alt.txt'
 MY_CUSTOMER = u'my_customer'
 
 # Global variables
@@ -240,8 +239,6 @@ GC_NO_VERIFY_SSL = u'no_verify_ssl'
 GC_NUM_THREADS = u'num_threads'
 # Path to oauth2.txt
 GC_OAUTH2_TXT = u'oauth2_txt'
-# Path to oauth2alt.txt
-GC_OAUTH2ALT_TXT = u'oauth2alt_txt'
 # Path to oauth2service.json
 GC_OAUTH2SERVICE_JSON = u'oauth2service_json'
 # Default section to use for processing
@@ -275,7 +272,6 @@ GC_Defaults = {
   GC_NO_VERIFY_SSL: FALSE,
   GC_NUM_THREADS: 5,
   GC_OAUTH2_TXT: FN_OAUTH2_TXT,
-  GC_OAUTH2ALT_TXT: FN_OAUTH2ALT_TXT,
   GC_OAUTH2SERVICE_JSON: FN_OAUTH2SERVICE_JSON,
   GC_SECTION: u'',
   GC_SHOW_COUNTS_MIN: 1,
@@ -321,7 +317,6 @@ GC_VAR_INFO = {
   GC_NO_VERIFY_SSL: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'noverifyssl.txt', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_NUM_THREADS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_THREADS', GC_VAR_LIMITS: (1, None)},
   GC_OAUTH2_TXT: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHFILE'},
-  GC_OAUTH2ALT_TXT: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHALTFILE'},
   GC_OAUTH2SERVICE_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHSERVICEFILE'},
   GC_SECTION: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_SECTION'},
   GC_SHOW_COUNTS_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_SHOW_COUNTS_MIN', GC_VAR_LIMITS: (0, None)},
@@ -713,7 +708,6 @@ EN_MESSAGE = u'mesg'
 EN_MOBILE_DEVICE = u'mobi'
 EN_NOTIFICATION = u'noti'
 EN_OAUTH2_TXT_FILE = u'oaut'
-EN_OAUTH2ALT_TXT_FILE = u'oaua'
 EN_ORGANIZATIONAL_UNIT = u'orgu'
 EN_PAGE_SIZE = u'page'
 EN_PARTICIPANT = u'part'
@@ -826,7 +820,6 @@ ENTITY_NAMES = {
   EN_MOBILE_DEVICE: [u'Mobile Devices', u'Mobile Device'],
   EN_NOTIFICATION: [u'Notifications', u'Notification'],
   EN_OAUTH2_TXT_FILE: [u'Client OAuth2 File', u'Client OAuth2 File'],
-  EN_OAUTH2ALT_TXT_FILE: [u'Client OAuth2Alt File', u'Client OAuth2Alt File'],
   EN_ORGANIZATIONAL_UNIT: [u'Organizational Units', u'Organizational Unit'],
   EN_PAGE_SIZE: [u'Page Size', u'Page Size'],
   EN_PARTICIPANT: [u'Participants', u'Participant'],
@@ -3393,16 +3386,13 @@ def getSvcAcctCredentials(scopes, act_as):
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
 def getClientCredentials(alt, api=None):
-  filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-  if (not os.path.isfile(filename)) and (api == GAPI_OAUTH2_API):
-    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][not alt]]
-  storage = oauth2client.file.Storage(filename)
+  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], [u'gapi', u'gdata'][alt])
   credentials = storage.get()
   if not credentials or credentials.invalid:
     doOAuthRequest(alt)
     credentials = storage.get()
     if not credentials or credentials.invalid:
-      systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]), filename, PHRASE_DOES_NOT_EXIST))
+      systemErrorExit(AUTHORIZATION_NONEXISTANT_ERROR_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
   return credentials
 
 def getGDataOAuthToken(gdataObject):
@@ -5283,7 +5273,6 @@ See the follow site for instructions:
   else:
     altList = [alt]
   for alt in altList:
-    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
     possible_scopes = [GAPI_scopes, GDATA_scopes][alt]
     readonly_scopes = [GAPI_RO_scopes, GDATA_RO_scopes][alt]
     actiononly_scopes = [GAPI_AO_scopes, GDATA_AO_scopes][alt]
@@ -5353,7 +5342,7 @@ See the follow site for instructions:
                                                          scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
       systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-    storage = oauth2client.file.Storage(filename)
+    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], [u'gapi', u'gdata'][alt])
     credentials = storage.get()
     flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
     if not credentials or credentials.invalid:
@@ -5366,20 +5355,17 @@ See the follow site for instructions:
 # gam oauth|oauth2 delete|revoke
 def doOAuthDelete():
   checkForExtraneousArguments()
-  for alt in [False, True]:
-    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-    if os.path.isfile(filename):
-      entity = [EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]
-      entityname = singularEntityName(entity)
-      storage = oauth2client.file.Storage(filename)
+  if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
+    for alt in [False, True]:
+      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], [u'gapi', u'gdata'][alt])
       credentials = storage.get()
       try:
         credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
       except AttributeError:
-        sys.stdout.write(u'{0}: {1} {2}\n'.format(entityname, filename, PHRASE_DOES_NOT_EXIST))
+        sys.stdout.write(u'{0}: {1} {2}\n'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
         return
       http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-      sys.stdout.write(u'{0}: {1}, will be Deleted in 3...'.format(entityname, filename))
+      sys.stdout.write(u'{0}: {1}, will be Deleted in 3...'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]))
       sys.stdout.flush()
       time.sleep(1)
       sys.stdout.write(u'2...')
@@ -5394,12 +5380,12 @@ def doOAuthDelete():
         credentials.revoke(http)
       except oauth2client.client.TokenRevokeError as e:
         printErrorMessage(INVALID_TOKEN_RC, e.message)
-      try:
-        if os.path.isfile(filename):
-          os.remove(filename)
-        entityActionPerformed(entity, filename)
-      except OSError as e:
-        stderrWarningMsg(e)
+    try:
+      if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
+        os.remove(GC_Values[GC_OAUTH2_TXT])
+      entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
+    except OSError as e:
+      stderrWarningMsg(e)
 
 # gam oauth|oauth2 info [<AccessToken>]
 def doOAuthInfo():
@@ -5430,17 +5416,15 @@ def doOAuthInfo():
   if access_token:
     _printScopes(access_token, None)
     return
-  for alt in [False, True]:
-    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-    if os.path.isfile(filename):
-      entityname = singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt])
+  if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
+    for alt in [False, True]:
       credentials = getClientCredentials(alt)
       credentials.user_agent = GAM_INFO
       http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
       if credentials.access_token_expired:
         credentials.refresh(http)
       access_token = credentials.access_token
-      printKeyValueList([entityname, filename])
+      printKeyValueList([singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
       _printScopes(access_token, credentials.client_secret)
 
 # gam whatis <EmailItem> [noinfo]
