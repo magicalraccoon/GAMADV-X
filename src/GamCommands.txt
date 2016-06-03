@@ -295,7 +295,6 @@ If an item contains spaces, it should be surrounded by " or '.
 <SchemaEntity> ::= <SchemaNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <UserEntity> ::= <UserList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 
-
 # Item attributes
 <CalendarAttributes> ::=
 	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
@@ -453,9 +452,9 @@ gam loop <FileName>|- [charset <Charset>] [matchfield <FieldName> <PythonRegular
 gam list [todrive] [idfirst] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
 gam <CrOSTypeEntity>|<UserTypeEntity> list [todrive] [idfirst] [data <EntityList> [delimiter <String>]]
 
-gam oauth|oauth2 create|request [alt]
-gam oauth|oauth2 delete|revoke [alt]
-gam oauth|oauth2 info|verify [alt]
+gam oauth|oauth2 create|request
+gam oauth|oauth2 delete|revoke
+gam oauth|oauth2 info|verify [<AccessToken>]
 
 gam whatis <EmailItem> [noinfo]
 

@@ -167,6 +167,7 @@ available format in the list is chosen.
 		[matchfield <FieldName> <PythonRegularExpression>]
 		[datafield <FieldName> [delimiter <String>]])|
 	(csvdata <FieldName>)
+
 07) Add a command to support updating a list of ChromeOS devices.
 Currently:
     gam update cros <DeviceID>|query:<Query> <CrOSAttributes>
@@ -420,7 +421,6 @@ To capture all stdout and stderr ouput from a command in a single file, do: gam 
 
 00) Implement gam.cfg
 See GamConfig.txt
-
 
 01) Implement Contacts
 See GamContacts.txt

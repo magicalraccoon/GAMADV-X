@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.13.4'
+__version__ = u'4.15.0'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections
@@ -112,7 +112,7 @@ GM_CURRENT_API_USER = u'capu'
 GM_CURRENT_API_SCOPES = u'scoc'
 # Values retrieved from oauth2service.json
 GM_OAUTH2SERVICE_JSON_DATA = u'oajd'
-GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID = u'oaci'
+GM_OAUTH_CLIENT_ID = u'oaci'
 # gam.cfg parser
 GM_PARSER = u'pars'
 # gam.cfg file
@@ -165,7 +165,7 @@ GM_Globals = {
   GM_CURRENT_API_USER: None,
   GM_CURRENT_API_SCOPES: [],
   GM_OAUTH2SERVICE_JSON_DATA: None,
-  GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID: None,
+  GM_OAUTH_CLIENT_ID: None,
   GM_LAST_UPDATE_CHECK_TXT: u'',
   GM_PARSER: None,
   GM_GAM_CFG_PATH: u'',
@@ -481,6 +481,7 @@ GDATA_EMAIL_SETTINGS_API = u'email-settings'
 GDATA_BAD_REQUEST = 601
 GDATA_DOES_NOT_EXIST = 1301
 GDATA_ENTITY_EXISTS = 1300
+GDATA_INSUFFICIENT_PERMISSIONS = 603
 GDATA_INVALID_DOMAIN = 602
 GDATA_INVALID_SSO_SIGNING_KEY = 1408
 GDATA_INVALID_VALUE = 1801
@@ -1069,7 +1070,6 @@ CONFIG_CMD = u'config'
 REDIRECT_CMD = u'redirect'
 GAM_META_COMMANDS = [SELECT_CMD, CONFIG_CMD, REDIRECT_CMD,]
 #
-ALT_ARGUMENT = [u'alt',]
 CLEAR_NONE_ARGUMENT = [u'clear', u'none',]
 CLIENTID_ARGUMENT = [u'clientid',]
 DATAFIELD_ARGUMENT = [u'datafield',]
@@ -1444,7 +1444,7 @@ MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite 
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
-MESSAGE_INSUFFICIENT_PERMISSIONS_TO_UPLOAD_RESULTS = u'Insufficient permissions to upload results'
+MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
@@ -1700,6 +1700,11 @@ def accessErrorExit(cd):
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
   message = accessErrorMessage(cd)
   systemErrorExit(INVALID_DOMAIN_RC, message)
+
+def APIAccessDeniedExit():
+  stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH_CLIENT_ID],
+                                                  u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
+  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_CONFIG)
 
 def checkEntityDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
   message = accessErrorMessage(cd)
@@ -3292,7 +3297,7 @@ def SetGlobalVariables():
       GM_Globals[GM_EXTRA_ARGS_DICT].update(dict(ea_config.items(u'extra-args')))
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
-    GM_Globals[GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID] = None
+    GM_Globals[GM_OAUTH_CLIENT_ID] = None
 # redirect [csv <FileName> [append] [charset <CharSet>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
   if checkArgumentPresent([REDIRECT_CMD,]):
     while CL_argvI < CL_argvLen:
@@ -3362,9 +3367,7 @@ def handleOAuthTokenError(e, soft_errors):
     if soft_errors:
       return None
     if not GM_Globals[GM_CURRENT_API_USER]:
-      stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID],
-                                                      u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
-      systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_CONFIG)
+      APIAccessDeniedExit()
     else:
       systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
@@ -3382,7 +3385,7 @@ def getSvcAcctCredentials(scopes, act_as):
     credentials = credentials.create_delegated(act_as)
     credentials.user_agent = GAM_INFO
     serialization_data = credentials.serialization_data
-    GM_Globals[GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID] = serialization_data[u'client_id']
+    GM_Globals[GM_OAUTH_CLIENT_ID] = serialization_data[u'client_id']
     return credentials
   except (ValueError, KeyError):
     printLine(MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON)
@@ -3413,6 +3416,7 @@ def getGDataOAuthToken(gdataObject):
   if not GC_Values[GC_CUSTOMER_ID]:
     GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
   GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
+  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
   gdataObject.domain = GC_Values[GC_DOMAIN]
   return True
 
@@ -3429,6 +3433,8 @@ def checkGDataError(e, service):
     return False
   if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
     return u'403 - Token disabled, revoked, or expired. Please delete and re-create oauth.txt'
+  if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
+    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
   if e.error_code == 600 and e[0][u'reason'] == u'Invalid domain.':
     return u'{0} - {1}'.format(GDATA_INVALID_DOMAIN, e[0][u'reason'])
   if e.error_code == 600 and e[0][u'reason'].startswith(u'You are not authorized to perform operations on the domain'):
@@ -3491,6 +3497,7 @@ class GData_exception(Exception):
 class GData_badRequest(GData_exception): pass
 class GData_doesNotExist(GData_exception): pass
 class GData_entityExists(GData_exception): pass
+class GData_insufficientPermissions(GData_exception): pass
 class GData_invalidDomain(GData_exception): pass
 class GData_invalidValue(GData_exception): pass
 class GData_invalidSSOSigningKey(GData_exception): pass
@@ -3502,6 +3509,7 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_BAD_REQUEST: GData_badRequest,
   GDATA_DOES_NOT_EXIST: GData_doesNotExist,
   GDATA_ENTITY_EXISTS: GData_entityExists,
+  GDATA_INSUFFICIENT_PERMISSIONS: GData_insufficientPermissions,
   GDATA_INVALID_DOMAIN: GData_invalidDomain,
   GDATA_INVALID_VALUE: GData_invalidValue,
   GDATA_INVALID_SSO_SIGNING_KEY: GData_invalidSSOSigningKey,
@@ -3535,6 +3543,8 @@ def callGData(service, function,
       if soft_errors:
         stderrErrorMsg(u'{0}{1}'.format(terminating_error, [u'', u': Giving up.\n'][n > 1]))
         return None
+      if throw_error_code == GDATA_INSUFFICIENT_PERMISSIONS:
+        APIAccessDeniedExit()
       systemErrorExit(GOOGLE_API_ERROR_RC, terminating_error)
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GDATA_SERVICE_NOT_APPLICABLE in throw_errors)
@@ -3833,6 +3843,8 @@ def callGAPI(service, function,
       if soft_errors:
         stderrErrorMsg(u'{0}: {1} - {2}{3}'.format(http_status, message, reason, [u'', u': Giving up.\n'][n > 1]))
         return None
+      if reason == GAPI_INSUFFICIENT_PERMISSIONS:
+        APIAccessDeniedExit()
       systemErrorExit(HTTP_ERROR_RC, u'{0}: {1} - {2}'.format(http_status, message, reason))
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GAPI_SERVICE_NOT_AVAILABLE in throw_reasons)
@@ -4020,6 +4032,7 @@ def buildGAPIObject(api):
     if not GC_Values[GC_CUSTOMER_ID]:
       GC_Values[GC_CUSTOMER_ID] = MY_CUSTOMER
   GM_Globals[GM_ADMIN] = credentials.id_token.get(u'email', u'UNKNOWN').lower()
+  GM_Globals[GM_OAUTH_CLIENT_ID] = credentials.client_id
   return service
 
 API_SCOPE_MAPPING = {
@@ -4831,7 +4844,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
         import webbrowser
         webbrowser.open(file_url)
     except GAPI_insufficientPermissions:
-      printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, MESSAGE_INSUFFICIENT_PERMISSIONS_TO_UPLOAD_RESULTS)
+      printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
   if GM_Globals[GM_CSVFILE] != u'-':
     closeFile(csvFile)
 
@@ -5165,57 +5178,57 @@ class cmd_flags(object):
     self.auth_host_port = [8080, 9090]
 
 GAPI_scopes = [
-  u'https://www.googleapis.com/auth/admin.directory.group',            #  0:Groups Directory Scope
-  u'https://www.googleapis.com/auth/admin.directory.orgunit',          #  1:Organization Directory Scope
-  u'https://www.googleapis.com/auth/admin.directory.user',             #  2:Users Directory Scope
-  u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  #  3:Chrome OS Devices Directory Scope
-  u'https://www.googleapis.com/auth/admin.directory.device.mobile',    #  4:Mobile Device Directory Scope
-  u'https://www.googleapis.com/auth/admin.directory.resource.calendar',#  5:Resource Calendars API
-  u'https://www.googleapis.com/auth/apps.groups.settings',             #  6:Group Settings API
-  u'https://www.googleapis.com/auth/calendar',                         #  7:Calendar Data API
-  u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     #  8:Audit Reports
-  u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     #  9:Usage Reports
-  u'https://www.googleapis.com/auth/drive.file',                       # 10:Drive API - Admin user access to files created or opened by the app
-  u'https://www.googleapis.com/auth/apps.licensing',                   # 11:License Manager API
-  u'https://www.googleapis.com/auth/admin.directory.user.security',    # 12:User Security Directory API
-  u'https://www.googleapis.com/auth/admin.directory.notifications',    # 13:Notifications Directory API
-  u'https://www.googleapis.com/auth/siteverification',                 # 14:Site Verification API
-  u'https://mail.google.com/',                                         # 15:IMAP/SMTP authentication for admin notifications
-  u'https://www.googleapis.com/auth/admin.directory.userschema',       # 16:Customer User Schema
-  u'https://www.googleapis.com/auth/classroom.rosters https://www.googleapis.com/auth/classroom.courses https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/classroom.profile.photos',          # Classroom API
-  u'https://www.googleapis.com/auth/cloudprint',                       # 18:Cloudprint API
-  u'https://www.googleapis.com/auth/admin.datatransfer',               # 19:Data Transfer API
-  u'https://www.googleapis.com/auth/admin.directory.customer',         # 20:Customer API
-  u'https://www.googleapis.com/auth/admin.directory.domain',           # 21:Domain API
-  u'https://www.googleapis.com/auth/admin.directory.rolemanagement',   # 22:Roles API (RO)
+  u'https://mail.google.com/',                                         #  0:Admin User - Email upload report document notifications
+  u'https://www.googleapis.com/auth/drive.file',                       #  1:Admin User - Upload report documents to Google Drive
+  u'https://www.googleapis.com/auth/calendar',                         #  2:Calendar API (RO)
+  u'https://www.googleapis.com/auth/classroom.rosters https://www.googleapis.com/auth/classroom.courses https://www.googleapis.com/auth/classroom.profile.emails https://www.googleapis.com/auth/classroom.profile.photos',          #  3: Classroom API
+  u'https://www.googleapis.com/auth/cloudprint',                       #  4:Cloudprint API
+  u'https://www.googleapis.com/auth/admin.datatransfer',               #  5:Data Transfer API (RO)
+  u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  #  6:Directory API - Chrome OS Devices Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.customer',         #  7:Directory API - Customers Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.domain',           #  8:Directory API - Domains Scope  (RO)
+  u'https://www.googleapis.com/auth/admin.directory.group',            #  9:Directory API - Groups Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.device.mobile',    # 10:Directory API - Mobile Devices Directory Scope (RO,AO)
+  u'https://www.googleapis.com/auth/admin.directory.notifications',    # 11:Directory API - Notifications Scope
+  u'https://www.googleapis.com/auth/admin.directory.orgunit',          # 12:Directory API - Organizational Units Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.resource.calendar',# 13:Directory API - Resource Calendars Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.rolemanagement',   # 14:Directory API - Roles Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.userschema',       # 15:Directory API - User Schemas Scope (RO)
+  u'https://www.googleapis.com/auth/admin.directory.user.security',    # 16:Directory API - User Security Scope
+  u'https://www.googleapis.com/auth/admin.directory.user',             # 17:Directory API - Users Scope (RO)
+  u'https://www.googleapis.com/auth/apps.groups.settings',             # 18:Group Settings API
+  u'https://www.googleapis.com/auth/apps.licensing',                   # 19:License Manager API
+  u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     # 20:Reports API - Audit Reports
+  u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     # 21:Reports API - Usage Reports
+  u'https://www.googleapis.com/auth/siteverification',                 # 22:Site Verification API
   ]
 GAPI_menu = u'''
 Select the authorized scopes for this token by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 
-[%%s]  %s)  Group Directory API (supports read-only)
-[%%s]  %s)  Organizational Unit Directory API (supports read-only)
-[%%s]  %s)  User Directory API (supports read-only)
-[%%s]  %s)  Chrome OS Device Directory API (supports read-only)
-[%%s]  %s)  Mobile Device Directory API (supports read-only and action)
-[%%s]  %s)  Resource Calendars API (supports read-only)
-[%%s]  %s)  Groups Settings API
-[%%s]  %s)  Calendar Data API (supports read-only)
-[%%s]  %s)  Audit Reports API
-[%%s]  %s)  Usage Reports API
-[%%s]  %s)  Drive API (create report documents for admin user only)
-[%%s]  %s)  License Manager API
-[%%s]  %s)  User Security Directory API
-[%%s]  %s)  Notifications Directory API
-[%%s]  %s)  Site Verification API
-[%%s]  %s)  IMAP/SMTP Access (send notifications to admin)
-[%%s]  %s)  User Schemas (supports read-only)
-[%%s]  %s)  Classroom API
-[%%s]  %s)  Cloud Print API
-[%%s]  %s)  Data Transfer API (supports read-only)
-[%%s]  %s)  Customer Directory API (supports read-only)
-[%%s]  %s)  Domains Directory API (supports read-only)
-[%%s]  %s)  Roles API (supports read-only)
+[%%s]  %2s)  Admin User - Email upload report document notifications
+[%%s]  %2s)  Admin User - Upload report documents to Google Drive
+[%%s]  %2s)  Calendar API (supports read-only)
+[%%s]  %2s)  Classroom API
+[%%s]  %2s)  Cloud Print API
+[%%s]  %2s)  Data Transfer API (supports read-only)
+[%%s]  %2s)  Directory API - Chrome OS Devices Scope (supports read-only)
+[%%s]  %2s)  Directory API - Customers Scope (supports read-only)
+[%%s]  %2s)  Directory API - Domains Scope (supports read-only)
+[%%s]  %2s)  Directory API - Groups Scope (supports read-only)
+[%%s]  %2s)  Directory API - Mobile Devices Scope (supports read-only and action-only)
+[%%s]  %2s)  Directory API - Notifications Scope
+[%%s]  %2s)  Directory API - Organizational Units Scope (supports read-only)
+[%%s]  %2s)  Directory API - Resource Calendars Scope (supports read-only)
+[%%s]  %2s)  Directory API - Roles Scope (supports read-only)
+[%%s]  %2s)  Directory API - User Schemas Scope (supports read-only)
+[%%s]  %2s)  Directory API - User Security Scope
+[%%s]  %2s)  Directory API - Users Scope (supports read-only)
+[%%s]  %2s)  Groups Settings API
+[%%s]  %2s)  License Manager API
+[%%s]  %2s)  Reports API - Audit Reports
+[%%s]  %2s)  Reports API - Usage Reports
+[%%s]  %2s)  Site Verification API
 
       %%s)  Select all scopes
       %%s)  Unselect all scopes
@@ -5223,14 +5236,14 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       %%s)  Continue
 '''
 
-GAPI_RO_scopes = [0, 1, 2, 3, 4, 5, 7, 16, 19, 20, 21, 22]
-GAPI_AO_scopes = [4]
+GAPI_RO_scopes = [2, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 17]
+GAPI_AO_scopes = [10]
 
 GDATA_scopes = [
-  u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/',          #  0:Email Settings API
-  u'https://apps-apis.google.com/a/feeds/compliance/audit/',           #  1:Email Audit API
-  u'https://apps-apis.google.com/a/feeds/domain/',                     #  2:Admin Settings API
-  u'https://www.google.com/m8/feeds/contacts',                         #  3:Contacts API
+  u'https://apps-apis.google.com/a/feeds/domain/',                     #  0:Admin Settings API
+  u'https://www.google.com/m8/feeds/contacts',                         #  1:Contacts API
+  u'https://apps-apis.google.com/a/feeds/compliance/audit/',           #  2:Email Audit API
+  u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/',          #  3:Email Settings API
   ]
 GDATA_RO_scopes = []
 GDATA_AO_scopes = []
@@ -5238,10 +5251,10 @@ GDATA_AO_scopes = []
 GDATA_menu = u'''
 Select the authorized scopes for this token by entering a number.
 
-[%%s]  %s)  User Email Settings API
-[%%s]  %s)  Audit Monitors, Activity and Mailbox Exports API
 [%%s]  %s)  Admin Settings API
 [%%s]  %s)  Contacts API
+[%%s]  %s)  Email Audit API - Monitors, Activity and Mailbox Exports
+[%%s]  %s)  User Email Settings API
 
       %%s)  Select all scopes
       %%s)  Unselect all scopes
@@ -5249,7 +5262,7 @@ Select the authorized scopes for this token by entering a number.
       %%s)  Continue
 '''
 
-# gam oauth|oauth2 create|request [alt]
+# gam oauth|oauth2 create|request
 def doOAuthRequest(alt=None):
   MISSING_CLIENT_SECRETS_MESSAGE = u"""Please configure OAuth 2.0
 
@@ -5263,137 +5276,161 @@ See the follow site for instructions:
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
   if alt == None:
-    alt = checkArgumentPresent(ALT_ARGUMENT)
     checkForExtraneousArguments()
-  filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-  possible_scopes = [GAPI_scopes, GDATA_scopes][alt]
-  readonly_scopes = [GAPI_RO_scopes, GDATA_RO_scopes][alt]
-  actiononly_scopes = [GAPI_AO_scopes, GDATA_AO_scopes][alt]
-  num_scopes = len(possible_scopes)
-  menu = [GAPI_menu, GDATA_menu][alt] % tuple(range(num_scopes))
-  selected_scopes = [u'*'] * num_scopes
-  select_all_scopes = num_scopes
-  unselect_all_scopes = num_scopes+1
-  cancel = num_scopes+2
-  authorize_scopes = num_scopes+3
-  scope_choices = (unicode(str(select_all_scopes)), unicode(str(unselect_all_scopes)), unicode(str(cancel)), unicode(str(authorize_scopes)))
+    altList = [False, True]
+  else:
+    altList = [alt]
+  for alt in altList:  
+    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
+    possible_scopes = [GAPI_scopes, GDATA_scopes][alt]
+    readonly_scopes = [GAPI_RO_scopes, GDATA_RO_scopes][alt]
+    actiononly_scopes = [GAPI_AO_scopes, GDATA_AO_scopes][alt]
+    num_scopes = len(possible_scopes)
+    menu = [GAPI_menu, GDATA_menu][alt] % tuple(range(num_scopes))
+    selected_scopes = [u'*'] * num_scopes
+    select_all_scopes = num_scopes
+    unselect_all_scopes = num_scopes+1
+    cancel = num_scopes+2
+    authorize_scopes = num_scopes+3
+    scope_choices = (unicode(str(select_all_scopes)), unicode(str(unselect_all_scopes)), unicode(str(cancel)), unicode(str(authorize_scopes)))
 
-  while True:
-    menu_fill = tuple(selected_scopes)+scope_choices
-    print menu % (menu_fill)
-    selection = raw_input(u'Your selection: ').lower()
-    if selection:
-      if selection.find(u'r') >= 0:
-        mode = u'R'
-        selection = selection.replace(u'r', u'')
-      elif selection.find(u'a') >= 0:
-        mode = u'A'
-        selection = selection.replace(u'a', u'')
-      else:
-        mode = u' '
-      if not selection.isdigit():
-        sys.stderr.write(u'{0}Please enter numbers only\n'.format(ERROR_PREFIX))
-        continue
-      selection = int(selection)
-      if selection >= 0 and selection < num_scopes:
-        if mode == u'R':
-          if selection not in readonly_scopes:
-            sys.stderr.write(u'{0}That scope does not support read-only mode!\n'.format(ERROR_PREFIX))
-            continue
-        elif mode == u'A':
-          if selection not in actiononly_scopes:
-            sys.stderr.write(u'{0}That scope does not support action-only mode!\n'.format(ERROR_PREFIX))
-            continue
-        elif selected_scopes[selection] == u' ':
-          mode = u'*'
+    while True:
+      menu_fill = tuple(selected_scopes)+scope_choices
+      print menu % (menu_fill)
+      selection = raw_input(u'Your selection: ').lower()
+      if selection:
+        if selection.find(u'r') >= 0:
+          mode = u'R'
+          selection = selection.replace(u'r', u'')
+        elif selection.find(u'a') >= 0:
+          mode = u'A'
+          selection = selection.replace(u'a', u'')
         else:
           mode = u' '
-        selected_scopes[selection] = mode
-      elif selection == select_all_scopes:
-        for i in range(num_scopes):
-          selected_scopes[i] = u'*'
-      elif selection == unselect_all_scopes:
-        for i in range(num_scopes):
-          selected_scopes[i] = u' '
-      elif selection == cancel:
-        return
-      elif selection == authorize_scopes:
-        for i in range(num_scopes):
-          if selected_scopes[i] in [u'*', u'R', u'A']:
-            break
-        else:
-          sys.stderr.write(u'{0}You must select at least one scope!\n'.format(ERROR_PREFIX))
+        if not selection.isdigit():
+          sys.stderr.write(u'{0}Please enter numbers only\n'.format(ERROR_PREFIX))
           continue
-        break
-      else:
-        sys.stderr.write(u'{0}Please enter number in range 0-{1}\n'.format(ERROR_PREFIX, authorize_scopes))
+        selection = int(selection)
+        if selection >= 0 and selection < num_scopes:
+          if mode == u'R':
+            if selection not in readonly_scopes:
+              sys.stderr.write(u'{0}That scope does not support read-only mode!\n'.format(ERROR_PREFIX))
+              continue
+          elif mode == u'A':
+            if selection not in actiononly_scopes:
+              sys.stderr.write(u'{0}That scope does not support action-only mode!\n'.format(ERROR_PREFIX))
+              continue
+          elif selected_scopes[selection] == u' ':
+            mode = u'*'
+          else:
+            mode = u' '
+          selected_scopes[selection] = mode
+          ###
+          print possible_scopes[selection]
+        elif selection == select_all_scopes:
+          for i in range(num_scopes):
+            selected_scopes[i] = u'*'
+        elif selection == unselect_all_scopes:
+          for i in range(num_scopes):
+            selected_scopes[i] = u' '
+        elif selection == cancel:
+          return
+        elif selection == authorize_scopes:
+          break
+        else:
+          sys.stderr.write(u'{0}Please enter number in range 0-{1}\n'.format(ERROR_PREFIX, authorize_scopes))
 
-  scopes = [u'email',] # Email Display Scope, always included for client
-  for i in range(num_scopes):
-    if selected_scopes[i] == u'*':
-      scopes.append(possible_scopes[i])
-    elif selected_scopes[i] == u'R':
-      scopes.append(u'{0}.readonly'.format(possible_scopes[i]))
-    elif selected_scopes[i] == u'A':
-      scopes.append(u'{0}.action'.format(possible_scopes[i]))
-  try:
-    FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON],
-                                                       scope=scopes)
-  except oauth2client.client.clientsecrets.InvalidClientSecretsError:
-    systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-  storage = oauth2client.file.Storage(filename)
-  credentials = storage.get()
-  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
-  if not credentials or credentials.invalid:
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+    scopes = [u'email',] # Email Display Scope, always included for client
+    for i in range(num_scopes):
+      if selected_scopes[i] == u'*':
+        scopes.append(possible_scopes[i])
+      elif selected_scopes[i] == u'R':
+        scopes.append(u'{0}.readonly'.format(possible_scopes[i]))
+      elif selected_scopes[i] == u'A':
+        scopes.append(u'{0}.action'.format(possible_scopes[i]))
     try:
-      credentials = oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
-    except httplib2.CertificateValidationUnsupported:
-      noPythonSSLExit()
+      FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON],
+                                                         scope=scopes)
+    except oauth2client.client.clientsecrets.InvalidClientSecretsError:
+      systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
+    storage = oauth2client.file.Storage(filename)
+    credentials = storage.get()
+    flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+    if not credentials or credentials.invalid:
+      http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+      try:
+        credentials = oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
+      except httplib2.CertificateValidationUnsupported:
+        noPythonSSLExit()
 
-# gam oauth|oauth2 delete|revoke [alt]
+# gam oauth|oauth2 delete|revoke
 def doOAuthDelete():
-  alt = checkArgumentPresent(ALT_ARGUMENT)
   checkForExtraneousArguments()
-  filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
-  entity = [EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]
-  entityname = singularEntityName(entity)
-  storage = oauth2client.file.Storage(filename)
-  credentials = storage.get()
-  try:
-    credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
-  except AttributeError:
-    sys.stdout.write(u'{0}: {1} {2}\n'.format(entityname, filename, PHRASE_DOES_NOT_EXIST))
-    return
-  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-  sys.stdout.write(u'{0}: {1}, will be Deleted in 3...'.format(entityname, filename))
-  sys.stdout.flush()
-  time.sleep(1)
-  sys.stdout.write(u'2...')
-  sys.stdout.flush()
-  time.sleep(1)
-  sys.stdout.write(u'1...')
-  sys.stdout.flush()
-  time.sleep(1)
-  sys.stdout.write(u'boom!\n')
-  sys.stdout.flush()
-  try:
-    credentials.revoke(http)
-  except oauth2client.client.TokenRevokeError as e:
-    printErrorMessage(INVALID_TOKEN_RC, e.message)
-  try:
+  for alt in [False, True]:
+    filename = GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]
     if os.path.isfile(filename):
-      os.remove(filename)
-    entityActionPerformed(entity, filename)
-  except OSError as e:
-    stderrWarningMsg(e)
+      entity = [EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]
+      entityname = singularEntityName(entity)
+      storage = oauth2client.file.Storage(filename)
+      credentials = storage.get()
+      try:
+        credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
+      except AttributeError:
+        sys.stdout.write(u'{0}: {1} {2}\n'.format(entityname, filename, PHRASE_DOES_NOT_EXIST))
+        return
+      http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+      sys.stdout.write(u'{0}: {1}, will be Deleted in 3...'.format(entityname, filename))
+      sys.stdout.flush()
+      time.sleep(1)
+      sys.stdout.write(u'2...')
+      sys.stdout.flush()
+      time.sleep(1)
+      sys.stdout.write(u'1...')
+      sys.stdout.flush()
+      time.sleep(1)
+      sys.stdout.write(u'boom!\n')
+      sys.stdout.flush()
+      try:
+        credentials.revoke(http)
+      except oauth2client.client.TokenRevokeError as e:
+        printErrorMessage(INVALID_TOKEN_RC, e.message)
+      try:
+        if os.path.isfile(filename):
+          os.remove(filename)
+        entityActionPerformed(entity, filename)
+      except OSError as e:
+        stderrWarningMsg(e)
 
-# gam oauth|oauth2 info [alt] [<AccessToken>]
+# gam oauth|oauth2 info [<AccessToken>]
 def doOAuthInfo():
-  alt = checkArgumentPresent(ALT_ARGUMENT)
+
+  def _printScopes(oa2, access_token, client_secret):
+    try:
+      token_info = callGAPI(oa2, u'tokeninfo',
+                            throw_reasons=[GAPI_INVALID],
+                            access_token=access_token)
+    except GAPI_invalid:
+      systemErrorExit(0, formatKeyValueList(u'',
+                                            [singularEntityName(EN_ACCESS_TOKEN), access_token, PHRASE_INVALID],
+                                            u''))
+    printKeyValueList([u'Client ID', token_info[u'issued_to']])
+    if client_secret:
+      printKeyValueList([u'Secret', client_secret])
+    printKeyValueList([u'Scopes', u''])
+    incrementIndentLevel()
+    for scope in token_info[u'scope'].split():
+      printKeyValueList([scope])
+    decrementIndentLevel()
+    printKeyValueList([u'Google Apps Admin', token_info.get('email', u'Unknown')])
+    printBlankLine()
+
   access_token = getString(OB_ACCESS_TOKEN, optional=True)
   checkForExtraneousArguments()
-  if not access_token:
+  oa2 = buildGAPIObject(GAPI_OAUTH2_API)
+  if access_token:
+    _printScopes(oa2, access_token, None)
+    return
+  for alt in [False, True]:
     credentials = getClientCredentials(alt)
     credentials.user_agent = GAM_INFO
     http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
@@ -5401,26 +5438,7 @@ def doOAuthInfo():
       credentials.refresh(http)
     access_token = credentials.access_token
     printKeyValueList([singularEntityName([EN_OAUTH2_TXT_FILE, EN_OAUTH2ALT_TXT_FILE][alt]), GC_Values[[GC_OAUTH2_TXT, GC_OAUTH2ALT_TXT][alt]]])
-  oa2 = buildGAPIObject(GAPI_OAUTH2_API)
-  try:
-    token_info = callGAPI(oa2, u'tokeninfo',
-                          throw_reasons=[GAPI_INVALID],
-                          access_token=access_token)
-  except GAPI_invalid:
-    systemErrorExit(0, formatKeyValueList(u'',
-                                          [singularEntityName(EN_ACCESS_TOKEN), access_token, PHRASE_INVALID],
-                                          u''))
-  printKeyValueList([u'Client ID', token_info[u'issued_to']])
-  try:
-    printKeyValueList([u'Secret', credentials.client_secret])
-  except UnboundLocalError:
-    pass
-  printKeyValueList([u'Scopes', u''])
-  incrementIndentLevel()
-  for scope in token_info[u'scope'].split():
-    printKeyValueList([scope])
-  decrementIndentLevel()
-  printKeyValueList([u'Google Apps Admin', token_info.get('email', u'Unknown')])
+    _printScopes(oa2, access_token, credentials.client_secret)
 
 # gam whatis <EmailItem> [noinfo]
 def doWhatIs():
