@@ -1448,6 +1448,7 @@ MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
 MESSAGE_NO_MULTIPLE_FILE_SPECS = u'You cannot specify more than one of the id, query and drivefilename arguments at the same time.'
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
+MESSAGE_NO_SCOPES_FOR_API = u'There are no scopes authorized for the {0}'
 MESSAGE_NO_TRANSFER_LACK_OF_DISK_SPACE = u'Cowardly refusing to perform migration due to lack of target drive space.'
 MESSAGE_PRIMARY_ARGUMENT_REQUIRED = u'primary required'
 MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files were returned, try requesting again'
@@ -1488,7 +1489,8 @@ NO_DISCOVERY_INFORMATION_RC = 11
 API_ACCESS_DENIED_RC = 12
 CONFIG_ERROR_RC = 13
 CERTIFICATE_VALIDATION_UNSUPPORTED_RC = 14
-CLIENT_SECRETS_JSON_REQUIRED_RC = 15
+NO_SCOPES_FOR_API_RC = 15
+CLIENT_SECRETS_JSON_REQUIRED_RC = 16
 OAUTH2SERVICE_JSON_REQUIRED_RC = 16
 OAUTH2_TXT_REQUIRED_RC = 16
 INVALID_JSON_RC = 17
@@ -3397,8 +3399,9 @@ def getSvcAcctCredentials(scopes, act_as):
     printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
     invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
 
-def getGDataOAuthToken(gdataObj):
-  credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
+def getGDataOAuthToken(gdataObj, credentials=None):
+  if not credentials:
+    credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
   try:
     credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
   except httplib2.ServerNotFoundError as e:
@@ -4002,6 +4005,9 @@ def buildGAPIObject(api):
   GM_Globals[GM_CURRENT_API_USER] = None
   _, http, service = getAPIversionHttpService(api)
   credentials = getClientCredentials(OAUTH2_GAPI_SCOPES)
+  GM_Globals[GM_CURRENT_API_SCOPES] = list(set(service._rootDesc[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
+  if not GM_Globals[GM_CURRENT_API_SCOPES]:
+    systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(service._rootDesc[u'title']))
   try:
     service._http = credentials.authorize(http)
   except httplib2.ServerNotFoundError as e:
@@ -4062,11 +4068,14 @@ def initGDataObject(gdataObj, api):
   _, _, api_version = getAPIVersion(api)
   disc_file, discovery = readDiscoveryFile(api_version)
   GM_Globals[GM_CURRENT_API_USER] = None
+  credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
   try:
-    GM_Globals[GM_CURRENT_API_SCOPES] = discovery[u'auth'][u'oauth2'][u'scopes'].keys()
+    GM_Globals[GM_CURRENT_API_SCOPES] = list(set(discovery[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
   except KeyError:
     invalidJSONExit(disc_file)
-  getGDataOAuthToken(gdataObj)
+  if not GM_Globals[GM_CURRENT_API_SCOPES]:
+    systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(discovery.get(u'title', api_version)))
+  getGDataOAuthToken(gdataObj, credentials)
   if GC_Values[GC_DEBUG_LEVEL] > 0:
     gdataObj.debug = True
   return gdataObj
@@ -4089,10 +4098,13 @@ def getContactsObject(user, i=0, count=0):
   _, _, api_version = getAPIVersion(GDATA_CONTACTS_API)
   disc_file, discovery = readDiscoveryFile(api_version)
   GM_Globals[GM_CURRENT_API_USER] = None
+  credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
   try:
-    GM_Globals[GM_CURRENT_API_SCOPES] = discovery[u'auth'][u'oauth2'][u'scopes'].keys()
+    GM_Globals[GM_CURRENT_API_SCOPES] = list(set(discovery[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
   except KeyError:
     invalidJSONExit(disc_file)
+  if not GM_Globals[GM_CURRENT_API_SCOPES]:
+    systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(discovery.get(u'title', api_version)))
   credentials = getSvcAcctCredentials(GM_Globals[GM_CURRENT_API_SCOPES], userEmail)
   try:
     credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
