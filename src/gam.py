@@ -453,6 +453,7 @@ LANGUAGE_CODES_MAP = {
   u'zu': u'zu', #Zulu
   }
 # GAPI APIs
+GAPI_ADMIN_SETTINGS_API = u'admin-settings'
 GAPI_APPSACTIVITY_API = u'appsactivity'
 GAPI_CALENDAR_API = u'calendar'
 GAPI_CLASSROOM_API = u'classroom'
@@ -467,7 +468,7 @@ GAPI_LICENSING_API = u'licensing'
 GAPI_REPORTS_API = u'reports'
 GAPI_SITEVERIFICATION_API = u'siteVerification'
 # GDATA APIs
-GDATA_ADMIN_SETTINGS_API = u'admin-settings'
+GDATA_ADMIN_SETTINGS_API = GAPI_ADMIN_SETTINGS_API
 GDATA_CONTACTS_API = u'contacts'
 GDATA_EMAIL_AUDIT_API = u'email-audit'
 GDATA_EMAIL_SETTINGS_API = u'email-settings'
@@ -477,7 +478,6 @@ GDATA_DOES_NOT_EXIST = 1301
 GDATA_ENTITY_EXISTS = 1300
 GDATA_INSUFFICIENT_PERMISSIONS = 603
 GDATA_INVALID_DOMAIN = 602
-GDATA_INVALID_SSO_SIGNING_KEY = 1408
 GDATA_INVALID_VALUE = 1801
 GDATA_NAME_NOT_VALID = 1303
 GDATA_NOT_FOUND = 600
@@ -3501,7 +3501,6 @@ class GData_entityExists(GData_exception): pass
 class GData_insufficientPermissions(GData_exception): pass
 class GData_invalidDomain(GData_exception): pass
 class GData_invalidValue(GData_exception): pass
-class GData_invalidSSOSigningKey(GData_exception): pass
 class GData_nameNotValid(GData_exception): pass
 class GData_notFound(GData_exception): pass
 class GData_serviceNotApplicable(GData_exception): pass
@@ -3513,7 +3512,6 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_INSUFFICIENT_PERMISSIONS: GData_insufficientPermissions,
   GDATA_INVALID_DOMAIN: GData_invalidDomain,
   GDATA_INVALID_VALUE: GData_invalidValue,
-  GDATA_INVALID_SSO_SIGNING_KEY: GData_invalidSSOSigningKey,
   GDATA_NAME_NOT_VALID: GData_nameNotValid,
   GDATA_NOT_FOUND: GData_notFound,
   GDATA_SERVICE_NOT_APPLICABLE: GData_serviceNotApplicable,
@@ -3593,14 +3591,19 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
   except ValueError:
     if (e.resp[u'status'] == u'503') and (e.content == u'Quota exceeded for the current request'):
       return (e.resp[u'status'], GAPI_QUOTA_EXCEEDED, e.content)
-    if retryOnHttpError:
+    if (e.resp[u'status'] == u'403') and (u'Invalid domain.' in e.content):
+      error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI_NOT_FOUND, u'message': u'Domain not found'}]}}
+    elif (e.resp[u'status'] == u'400') and (u'InvalidSsoSigningKey' in e.content):
+      error = {u'error': {u'code': 400, u'errors': [{u'reason': GAPI_INVALID, u'message': u'InvalidSsoSigningKey'}]}}
+    elif retryOnHttpError:
       service._http.request.credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
       return (-1, None, None)
-    if soft_errors:
+    elif soft_errors:
       if not silent_errors:
         stderrErrorMsg(e.content)
       return (0, None, None)
-    systemErrorExit(JSON_LOADS_ERROR_RC, e.content)
+    else:
+      systemErrorExit(JSON_LOADS_ERROR_RC, e.content)
   if u'error' in error:
     http_status = error[u'error'][u'code']
     try:
@@ -3625,7 +3628,7 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       systemErrorExit(GOOGLE_API_ERROR_RC, str(error))
   try:
     reason = error[u'error'][u'errors'][0][u'reason']
-    if reason == u'notFound':
+    if reason == GAPI_NOT_FOUND:
       if u'userKey' in message:
         reason = GAPI_USER_NOT_FOUND
       elif u'groupKey' in message:
@@ -3652,10 +3655,10 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
         reason = GAPI_RESOURCE_NOT_FOUND
       elif u'Customer doesn\'t exist' in message:
         reason = GAPI_CUSTOMER_NOT_FOUND
-    elif reason == u'resourceNotFound':
+    elif reason == GAPI_RESOURCE_NOT_FOUND:
       if u'resourceId' in message:
         reason = GAPI_RESOURCE_ID_NOT_FOUND
-    elif reason == u'invalid':
+    elif reason == GAPI_INVALID:
       if u'userId' in message:
         reason = GAPI_USER_NOT_FOUND
       elif u'memberKey' in message:
@@ -3680,24 +3683,24 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
         reason = GAPI_INVALID_RESOURCE
       elif u'Invalid Input:' in message:
         reason = GAPI_INVALID_INPUT
-    elif reason == u'required':
+    elif reason == GAPI_REQUIRED:
       if u'memberKey' in message:
         reason = GAPI_MEMBER_NOT_FOUND
       elif u'Login Required' in message:
         reason = GAPI_LOGIN_REQUIRED
-    elif reason == u'conditionNotMet':
+    elif reason == GAPI_CONDITION_NOT_MET:
       if u'undelete' in message:
         reason = GAPI_DELETED_USER_NOT_FOUND
       elif u'Cyclic memberships not allowed' in message:
         reason = GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED
-    elif reason == u'invalidSharingRequest':
+    elif reason == GAPI_INVALID_SHARING_REQUEST:
       loc = message.find(u'User message: ')
       if loc != 1:
         message = message[loc+15:]
-    elif reason == u'aborted':
+    elif reason == GAPI_ABORTED:
       if u'Label name exists or conflicts' in message:
         reason = GAPI_DUPLICATE
-    elif reason == u'failedPrecondition':
+    elif reason == GAPI_FAILED_PRECONDITION:
       if u'Bad Request' in message:
         reason = GAPI_BAD_REQUEST
       elif u'Mail service not enabled' in message:
@@ -3943,7 +3946,7 @@ def callGCP(service, function,
   return checkCloudPrintResult(result, throw_messages=throw_messages)
 
 API_VER_MAPPING = {
-  GDATA_ADMIN_SETTINGS_API: u'v1',
+  GAPI_ADMIN_SETTINGS_API: u'v1',
   GAPI_APPSACTIVITY_API: u'v1',
   GAPI_CALENDAR_API: u'v3',
   GAPI_CLASSROOM_API: u'v1',
@@ -5193,12 +5196,11 @@ OAUTH2_SCOPES = [
 OAUTH2_RO_SCOPES = [3, 4, 7, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 22]
 OAUTH2_AO_SCOPES = [15]
 OAUTH2_SCOPES_MAP = {
-  OAUTH2_GAPI_SCOPES: [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29],
+  OAUTH2_GAPI_SCOPES: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29],
   OAUTH2_GDATA_SCOPES: [0, 9, 23, 24]
   }
-  
 OAUTH2_MENU = u'''
-Select the authorized scopes for this token by entering a number.
+Select the authorized scopes by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 
 [%s]   0)  Admin Settings API
@@ -5289,49 +5291,52 @@ See the follow site for instructions:
     else:
       for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
         selected_scopes[i] = u'*'
+  prompt = u'Please enter 0-{0}[a|r] or {1}: '.format(num_scopes-1, u'|'.join(OAUTH2_CMDS))
   while True:
-    print OAUTH2_MENU % tuple(selected_scopes)
-    selection = raw_input(u'Your selection: ').lower()
-    if selection:
-      if selection.find(u'r') >= 0:
-        mode = u'R'
-        selection = selection.replace(u'r', u'')
-      elif selection.find(u'a') >= 0:
-        mode = u'A'
-        selection = selection.replace(u'a', u'')
-      else:
-        mode = u' '
-      if selection.isdigit():
-        selection = int(selection)
-      if (isinstance(selection, int) and selection >= num_scopes) or (isinstance(selection, str) and selection not in OAUTH2_CMDS):
-        sys.stderr.write(u'{0}Please enter numbers in range 0-{1} or {2} only\n'.format(ERROR_PREFIX, num_scopes-1, u','.join(OAUTH2_CMDS)))
-        continue
-      if selection == u's':
-        for i in range(num_scopes):
-          selected_scopes[i] = u'*'
-        continue  
-      if selection == u'u':
-        for i in range(num_scopes):
-          selected_scopes[i] = u' '
-        continue  
-      if selection == u'e':
-        return
-      if selection == u'c':
-        break
-      if mode == u'R':
-        if selection not in OAUTH2_RO_SCOPES:
-          sys.stderr.write(u'{0}That scope does not support read-only mode!\n'.format(ERROR_PREFIX))
-          continue
-      elif mode == u'A':
-        if selection not in OAUTH2_AO_SCOPES:
-          sys.stderr.write(u'{0}That scope does not support action-only mode!\n'.format(ERROR_PREFIX))
-          continue
-      elif selected_scopes[selection] == u' ':
-        mode = u'*'
-      else:
-        mode = u' '
-      selected_scopes[selection] = mode
-
+    os.system([u'clear', u'cls'][GM_Globals[GM_WINDOWS]])
+    sys.stdout.write(OAUTH2_MENU % tuple(selected_scopes))
+    while True:
+      choice = raw_input(prompt)
+      if choice:
+        selection = choice.lower()
+        if selection.find(u'r') >= 0:
+          mode = u'R'
+          selection = selection.replace(u'r', u'')
+        elif selection.find(u'a') >= 0:
+          mode = u'A'
+          selection = selection.replace(u'a', u'')
+        else:
+          mode = u' '
+        if selection and selection.isdigit():
+          selection = int(selection)
+        if isinstance(selection, int) and selection < num_scopes:
+          if mode == u'R':
+            if selection not in OAUTH2_RO_SCOPES:
+              sys.stdout.write(u'{0}Scope {1} does not support read-only mode!\n'.format(ERROR_PREFIX, selection))
+              continue
+          elif mode == u'A':
+            if selection not in OAUTH2_AO_SCOPES:
+              sys.stdout.write(u'{0}Scope {1} does not support action-only mode!\n'.format(ERROR_PREFIX, selection))
+              continue
+          elif selected_scopes[selection] != u'*':
+            mode = u'*'
+          else:
+            mode = u' '
+          selected_scopes[selection] = mode
+          break
+        elif isinstance(selection, str) and selection in OAUTH2_CMDS:
+          if selection == u's':
+            for i in range(num_scopes):
+              selected_scopes[i] = u'*'
+          elif selection == u'u':
+            for i in range(num_scopes):
+              selected_scopes[i] = u' '
+          elif selection == u'e':
+            return
+          break
+        sys.stdout.write(u'{0}Invalid input "{1}"\n'.format(ERROR_PREFIX, choice))
+    if selection == u'c':
+      break
   for oauth2Scope in OAUTH2_SCOPES_LIST:
     scopes = [u'email',] # Email Display Scope, always included for client
     for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
@@ -5354,6 +5359,7 @@ See the follow site for instructions:
                                   http=http)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
+    entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 delete|revoke
 def doOAuthDelete():
@@ -5372,6 +5378,11 @@ def doOAuthDelete():
     sys.stdout.flush()
     revokeCredentials(OAUTH2_GAPI_SCOPES)
     revokeCredentials(OAUTH2_GDATA_SCOPES)
+    if os.path.isfile(GC_Values[GC_OAUTH2_TXT]) and not oauth2client.contrib.multistore_file.get_all_credential_keys(GC_Values[GC_OAUTH2_TXT]):
+      try:
+        os.remove(GC_Values[GC_OAUTH2_TXT])
+      except OSError as e:
+        stderrWarningMsg(e)
     entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 info [<AccessToken>]
@@ -5408,11 +5419,11 @@ def doOAuthInfo():
       gapiCredentials = storage.get()
       storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GDATA_SCOPES)
       gdataCredentials = storage.get()
-      if (    gapiCredentials and not gapiCredentials.invalid
-          and gdataCredentials and not gdataCredentials.invalid
-          and gapiCredentials.client_id == gdataCredentials.client_id
-          and gapiCredentials.client_secret == gdataCredentials.client_secret
-          and gapiCredentials.id_token.get(u'email') == gdataCredentials.id_token.get(u'email')):
+      if (gapiCredentials and not gapiCredentials.invalid and
+          gdataCredentials and not gdataCredentials.invalid and
+          gapiCredentials.client_id == gdataCredentials.client_id and
+          gapiCredentials.client_secret == gdataCredentials.client_secret and
+          gapiCredentials.id_token.get(u'email') == gdataCredentials.id_token.get(u'email')):
         gapiCredentials.scopes = gapiCredentials.scopes.union(gdataCredentials.scopes)
         _printCredentials(gapiCredentials)
       else:
@@ -6468,33 +6479,42 @@ def doUpdateInstance():
   except GData_invalidValue as e:
     printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.value)
 #
-SINGLE_SIGN_ON_SETTINGS_TITLES = {u'enableSSO': u'SSO Enabled',
-                                  u'samlSignonUri': u'SSO Signon Page',
-                                  u'samlLogoutUri': u'SSO Logout Page',
-                                  u'changePasswordUri': u'SSO Password Page',
-                                  u'ssoWhitelist': u'SSO Whitelist IPs',
-                                  u'useDomainSpecificIssuer': u'SSO Use Domain Specific Issuer'}
-SINGLE_SIGN_ON_SIGNING_KEY_TITLES = {u'algorithm': u'SSO Key Algorithm',
-                                     u'format': u'SSO Key Format',
-                                     u'modulus': u'SSO Key Modulus',
-                                     u'exponent': u'SSO Key Exponent',
-                                     u'yValue': u'SSO Key yValue',
-                                     u'signingKey': u'Full SSO Key'}
-
-def printAdminSetting(adminSettingsObject, function, propertyTitleMap):
-  try:
-    result = callGData(adminSettingsObject, function,
-                       throw_errors=[GDATA_INVALID_DOMAIN, GDATA_INVALID_SSO_SIGNING_KEY])
-    if isinstance(result, (bool, int, str)):
-      printKeyValueList([propertyTitleMap, result])
-    else:
-      for attr in result:
-        printKeyValueList([propertyTitleMap[attr], result[attr]])
-  except (GData_invalidDomain, GData_invalidSSOSigningKey):
-    pass
+MAXIMUM_USERS_MAP = [u'maximumNumberOfUsers', u'Maximum Users']
+CURRENT_USERS_MAP = [u'currentNumberOfUsers', u'Current Users']
+DOMAIN_EDITION_MAP = [u'edition', u'Domain Edition']
+CUSTOMER_PIN_MAP = [u'customerPIN', u'Customer PIN']
+SINGLE_SIGN_ON_SETTINGS_MAP = [u'enableSSO', u'SSO Enabled',
+                               u'samlSignonUri', u'SSO Signon Page',
+                               u'samlLogoutUri', u'SSO Logout Page',
+                               u'changePasswordUri', u'SSO Password Page',
+                               u'ssoWhitelist', u'SSO Whitelist IPs',
+                               u'useDomainSpecificIssuer', u'SSO Use Domain Specific Issuer']
+SINGLE_SIGN_ON_SIGNING_KEY_MAP = [u'algorithm', u'SSO Key Algorithm',
+                                  u'format', u'SSO Key Format',
+                                  u'modulus', u'SSO Key Modulus',
+                                  u'exponent', u'SSO Key Exponent',
+                                  u'yValue', u'SSO Key yValue',
+                                  u'signingKey', u'Full SSO Key']
 
 # gam info instance [logo <FileName>]
 def doInfoInstance():
+  def _printAdminSetting(service, propertyTitleMap):
+    try:
+      result = callGAPI(service, u'get',
+                        throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID],
+                        domainName=GC_Values[GC_DOMAIN])
+      if result and (u'entry' in result) and (u'apps$property' in result[u'entry']):
+        for i in range(0, len(propertyTitleMap), 2):
+          asProperty = propertyTitleMap[i]
+          for entry in result[u'entry'][u'apps$property']:
+            if entry[u'name'] == asProperty:
+              printKeyValueList([propertyTitleMap[i+1], entry[u'value']])
+              break
+    except GAPI_domainNotFound:
+      systemErrorExit(INVALID_DOMAIN_RC, formatKeyValueList(u'', [singularEntityName(EN_DOMAIN), GC_Values[GC_DOMAIN], PHRASE_DOES_NOT_EXIST], u''))
+    except GAPI_invalid:
+      pass
+
   if checkArgumentPresent(LOGO_ARGUMENT):
     setActionName(AC_DOWNLOAD)
     logoFile = getString(OB_FILE_NAME)
@@ -6505,13 +6525,13 @@ def doInfoInstance():
     return
   checkForExtraneousArguments()
   doInfoCustomer()
-  adminSettingsObject = getAdminSettingsObject()
-  printAdminSetting(adminSettingsObject, u'GetMaximumNumberOfUsers', u'Maximum Users')
-  printAdminSetting(adminSettingsObject, u'GetCurrentNumberOfUsers', u'Current Users')
-  printAdminSetting(adminSettingsObject, u'GetEdition', u'Domain Edition')
-  printAdminSetting(adminSettingsObject, u'GetCustomerPIN', u'Customer PIN')
-  printAdminSetting(adminSettingsObject, u'GetSSOSettings', SINGLE_SIGN_ON_SETTINGS_TITLES)
-  printAdminSetting(adminSettingsObject, u'GetSSOKey', SINGLE_SIGN_ON_SIGNING_KEY_TITLES)
+  adm = buildGAPIObject(GAPI_ADMIN_SETTINGS_API)
+  _printAdminSetting(adm.maximumNumberOfUsers(), MAXIMUM_USERS_MAP)
+  _printAdminSetting(adm.currentNumberOfUsers(), CURRENT_USERS_MAP)
+  _printAdminSetting(adm.edition(), DOMAIN_EDITION_MAP)
+  _printAdminSetting(adm.customerPIN(), CUSTOMER_PIN_MAP)
+  _printAdminSetting(adm.ssoGeneral(), SINGLE_SIGN_ON_SETTINGS_MAP)
+  _printAdminSetting(adm.ssoSigningKey(), SINGLE_SIGN_ON_SIGNING_KEY_MAP)
 
 def getOrgEntity(getEntityListArg):
   if not getEntityListArg:
