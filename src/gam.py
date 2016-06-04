@@ -4026,8 +4026,11 @@ API_SCOPE_MAPPING = {
   GAPI_CALENDAR_API: [u'https://www.googleapis.com/auth/calendar',],
   GAPI_DRIVE_API: [u'https://www.googleapis.com/auth/drive',],
   GAPI_GMAIL_API: [u'https://mail.google.com/',],
-  GAPI_GPLUS_API: [u'https://www.googleapis.com/auth/plus.me',],
-}
+  GAPI_GPLUS_API: [u'https://www.googleapis.com/auth/plus.me',
+                   u'https://www.googleapis.com/auth/plus.login',
+                   u'https://www.googleapis.com/auth/userinfo.email',
+                   u'https://www.googleapis.com/auth/userinfo.profile'],
+  }
 
 def buildGAPIServiceObject(api, act_as):
   _, http, service = getAPIversionHttpService(api)
