@@ -1,4 +1,4 @@
-Alternate authorization model: oauth2service.json, client_secrets.json, oauth2.txt, oauth2alt.txt
+Alternate authorization model: oauth2service.json, client_secrets.json, oauth2.txt
 
 GAM requires authorization to perform tasks on your domain; the tasks break down into two categories.
 Tasks that manipulate objects in the domain: add a user, update a group, delete a class, share a printer.
@@ -7,7 +7,7 @@ Tasks that manipulate objects that belong to users: calendars, drive files, emai
 An OAuth Client manipulates objects in the domain; the OAuth Client acts on its own behalf to perform the tasks.
 A Service Account manipulates objects that belong to users; the Service Account acts on behalf of the user to perform the tasks.
 
-There are four broad steps to set up GAM access.
+There are three broad steps to set up GAM access.
 
 1) In the Google Developers console, you specify a set of APIs that GAM will be able to use and you define an OAuth Client
 and a Service Account. This produces two files: client_secrets.json for the OAuth Client and oauth2service.json for
@@ -18,15 +18,10 @@ and the Service Account ID access to a different set of scopes. Scopes identify 
 
 3) While logged into your domain Admin Console, on your computer you run the command: gam oauth create
 You select a list of scopes, GAM uses a browser to get final authorization from Google for the logged on admin user
-for these scopes and GAM writes the authorization into the file oauth2.txt that contains the email address of
-the logged on admin user and a key.
+for these scopes and GAM writes the authorization into the file oauth2.txt. The browser authorization step is performed
+twice to circumvent a Google limitation.
 
-To circumvent a Google limit, this process is repeated for a second set of scopes.
-You select a second list of scopes, GAM uses a browser to get final authorization from Google for the logged on admin user
-for these scopes and GAM writes the authorization into the file oauth2alt.txt that contains the email address of
-the logged on admin user and a key.
-
-You can generate multiple oauth2.txt/oauth2alt.txt files (with different names) authorizing different admins access to a different set of scopes.
+You can generate multiple oauth2.txt files (with different names) authorizing different admins access to a different set of scopes.
 You can verify the results of this step with the command: gam oauth info
 
 This link describes the process described above: https://github.com/jay0lee/GAM/wiki/CreatingClientSecretsFile

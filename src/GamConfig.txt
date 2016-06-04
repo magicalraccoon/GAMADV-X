@@ -1,5 +1,5 @@
 GAM versions 3.70 and above use a configuration file, gam.cfg, to store the values of the various environment variables
-and signal files used by earlier versions of GAM. Configuration files client_secrets.json, oauth2.txt, oauth2alt.txt, oauth2service.json and extra_args.txt
+and signal files used by earlier versions of GAM. Configuration files client_secrets.json, oauth2.txt>, oauth2service.json and extra_args.txt
 are moved to a version independent location. This should simplify upgrading GAM versions in the future.
 Additionally, if you support multiple clients/domains or have multiple users running GAM,
 gam.cfg lets you easily manage your configuration.
@@ -8,7 +8,7 @@ In the following discussion, these names will be used to refer to directories:
     OldGamPath: Location of previous version of gam.py or gam.exe
     GamPath: Location of new version of gam.py or gam.exe
     GamCfgDir: Location of gam.cfg
-    GamConfigDir: Location of client_secrets.json, oauth2.txt, oauth2alt.txt, oauth2service.json, extra_args.txt
+    GamConfigDir: Location of client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
     GamCacheDir: Google API cache files
     GamDriveDir: Files downloaded with gam user <User> get drivefile <DriveFileID> when targetfolder <FilePath> is not specified
     GamSiteDir: Location of admin-settings-v1.json, cloudprint-v2.json, contacts-v3.json, email-audit-v1.json, email-settings-v1.json
@@ -47,7 +47,7 @@ gam.cfg must be a plain text file, you can edit it with your favorite text edito
 TextEdit, Notepad, Wordpad) as long as you wind up with a plain text file.
 
 If you are upgrading from a previous version of GAM, set the environment variable OLDGAMPATH to OldGamPath. This is a one-time setting
-to allow GAM to find your old signal files and to copy client_secrets.json, oauth2.txt, oauth2alt.txt, oauth2service.json, extra_args.txt
+to allow GAM to find your old signal files and to copy client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
 from OldGamPath to GamConfigDir. To generate the initial gam.cfg, execute the command: gam select default verify.
 Once gam.cfg is created, no signal files are read and the only environment variable used is GAMCFGDIR.
 GAMFIGDIR does not have to be set unless you want a value other than ~/.gam for the location of gam.cfg.
@@ -81,7 +81,7 @@ client_secrets_json
 	Default: GamConfigDir/client_secrets.json
 	Environment variable: CLIENTSECRETSFILE
 config_dir
-	GAM config directory containing client_secrets.json, oauth2.txt, oauth2alt.txt, oauth2service.json, extra_args.txt
+	GAM config directory containing client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
 	Default: ~/.gam
 	Environment variable: GAMUSERCONFIGDIR
 contact_max_results
@@ -118,7 +118,7 @@ extra_args
 	Data file: extra_args.txt
 no_browser
 	If no_browser is True, GAM won't open a browser if todrive is set when creating CSV files
-	and GAM prints a link and waits for the verification code when oauth2.txt/oauth2alt.txt is being created
+	and GAM prints a link and waits for the verification code when oauth2.txt is being created
 	Signal file: GamConfigDir/nobrowser.txt
 no_cache
 	Disable GAM API caching
@@ -137,10 +137,6 @@ oauth2_txt
 	Path to oauth2.txt
 	Default: GamConfigDir/oauth2.txt
 	Environment variable: OAUTHFILE
-oauth2alt_txt
-	Path to oauth2alt.txt
-	Default: GamConfigDir/oauth2alt.txt
-	Environment variable: OAUTHALTFILE
 oauth2service_json
 	Path to oauth2service.json
 	Default: GamConfigDir/oauth2service.json
@@ -185,7 +181,6 @@ Section: DEFAULT
   no_verify_ssl = false
   num_threads = 5
   oauth2_txt = oauth2.txt ; /Users/admin/.gam/oauth2.txt
-  oauth2alt_txt = oauth2alt.txt ; /Users/admin/.gam/oauth2alt.txt
   oauth2service_json = oauth2service.json ; /Users/admin/.gam/oauth2service.json
   section = 
   show_counts_min = 1
@@ -250,16 +245,17 @@ You have five clients: main, foo, goo, shared1 and shared2; 90% of your work is 
 
 Clients main, foo and goo have distinct oauth2service.json and client_secrets.json files.
 Clients shared1 and shared2 have shared oauth2service.json and client_secrets.json files.
-All clients have distinct oauth2.txt/oauth2alt.txt files.
+All clients have distinct oauth2.txt files.
 The files for foo, goo, shared1 and shared2 have prefixes to indicate the client; the main files do not have prefixes.
 All files are in OldGamPath. You have been using the environment variables CLIENTSECRETSFILE, OAUTHFILE and OAUTHSERVICEFILE
 to specify the client on which to operate. You have:
     client_secrets.json, oauth2.txt, oauth2service.json
-    foo_client_secrets.json, foo_oauth2.txt, foo_oauth2alt.txt, foo_oauth2service.json
-    goo_client_secrets.json, goo_oauth2.txt, goo_oauth2alt.txt, goo_oauth2service.json
+    foo_client_secrets.json, foo_oauth2.txt, foo_oauth2service.json
+    goo_client_secrets.json, goo_oauth2.txt, goo_oauth2service.json
     shared_client_secrets.json, shared_oauth2service.json
-    shared1_oauth2.txt, shared1_oauth2alt.txt, shared2_oauth2.txt, shared2_oauth2alt.txt, 
-client_secrets.json, oauth2.txt, oauth2alt.txt, oauth2service.json, extra_args.txt were copied to their new location
+    shared1_oauth2.txt, shared2_oauth2.txt
+
+client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt were copied to their new location
 when you initially executed the command: gam select default verify
 Copy the prefixed files to GamConfigDir by hand as necessary.
 Edit gam.cfg to set up additional clients; it should look like this when complete.
@@ -285,7 +281,6 @@ no_update_check = false
 no_verify_ssl = false
 num_threads = 5
 oauth2_txt = oauth2.txt
-oauth2alt_txt = oauth2alt.txt
 oauth2service_json = oauth2service.json
 section = 
 show_counts_min = 1
@@ -298,7 +293,6 @@ customer_id = 1111111111
 oauth2service_json = foo_oauth2service.json
 client_secrets_json = foo_client_secrets.json
 oauth2_txt = foo_oauth2.txt
-oauth2alt_txt = foo_oauth2alt.txt
 
 [goo]
 domain = goo.com
@@ -306,7 +300,6 @@ customer_id = 2222222222
 oauth2service_json = goo_oauth2service.json
 client_secrets_json = goo_client_secrets.json
 oauth2_txt = goo_oauth2.txt
-oauth2alt_txt = goo_oauth2alt.txt
 
 [shared1]
 domain = shared1.org
@@ -314,7 +307,6 @@ customer_id = 3333333333
 oauth2service_json = shared_oauth2service.json
 client_secrets_json = shared_client_secrets.json
 oauth2_txt = shared1_oauth2.txt
-oauth2alt_txt = shared1_oauth2alt.txt
 
 [shared2]
 domain = shared2.org
@@ -322,7 +314,6 @@ customer_id = 4444444444
 oauth2service_json = shared_oauth2service.json
 client_secrets_json = shared_client_secrets.json
 oauth2_txt = shared2_oauth2.txt
-oauth2alt_txt = shared_oauth2alt.txt
 
 To get information about your main client, don't select a section.
 	gam info domain

@@ -3369,8 +3369,8 @@ def handleOAuthTokenError(e, soft_errors):
       systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
 
-def getClientCredentials(oauthScope):
-  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope)
+def getClientCredentials(oauth2Scope):
+  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
   credentials = storage.get()
   if not credentials or credentials.invalid:
     systemErrorExit(OAUTH2_TXT_REQUIRED_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT))
@@ -3431,6 +3431,10 @@ def checkGDataError(e, service):
   if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
     return u'403 - Token disabled, revoked, or expired. Please delete and re-create oauth.txt'
   if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
+    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
+  if e.error_code == 600 and e[0][u'reason'].startswith(u'Only administrators can request entries belonging to'):
+    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
+  if e.error_code == 600 and e[0][u'reason'] == u'You are not authorized to access this API':
     return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
   if e.error_code == 600 and e[0][u'reason'] == u'Invalid domain.':
     return u'{0} - {1}'.format(GDATA_INVALID_DOMAIN, e[0][u'reason'])
@@ -5154,111 +5158,97 @@ class cmd_flags(object):
     self.auth_host_name = u'localhost'
     self.auth_host_port = [8080, 9090]
 
-OAUTH2_SCOPES = {
-  OAUTH2_GAPI_SCOPES: {
-    u'All_scopes': [
-      u'https://mail.google.com/',                                         #  0:Admin User - Email upload report document notifications
-      u'https://www.googleapis.com/auth/drive.file',                       #  1:Admin User - Upload report documents to Google Drive
-      u'https://www.googleapis.com/auth/calendar',                         #  2:Calendar API (RO)
-      u'https://www.googleapis.com/auth/classroom.courses',                #  3:Classroom API - Courses (RO)
-      u'https://www.googleapis.com/auth/classroom.profile.emails',         #  4:Classroom API - Profile Emails
-      u'https://www.googleapis.com/auth/classroom.profile.photos',         #  5:Classroom API - Profile Photos
-      u'https://www.googleapis.com/auth/classroom.rosters',                #  6:Classroom API - Rosters (RO)
-      u'https://www.googleapis.com/auth/cloudprint',                       #  7:Cloudprint API
-      u'https://www.googleapis.com/auth/admin.datatransfer',               #  8:Data Transfer API (RO)
-      u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  #  9:Directory API - Chrome OS Devices Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.customer',         # 10:Directory API - Customers Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.domain',           # 11:Directory API - Domains Scope  (RO)
-      u'https://www.googleapis.com/auth/admin.directory.group',            # 12:Directory API - Groups Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.device.mobile',    # 13:Directory API - Mobile Devices Directory Scope (RO,AO)
-      u'https://www.googleapis.com/auth/admin.directory.notifications',    # 14:Directory API - Notifications Scope
-      u'https://www.googleapis.com/auth/admin.directory.orgunit',          # 15:Directory API - Organizational Units Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.resource.calendar',# 16:Directory API - Resource Calendars Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.rolemanagement',   # 17:Directory API - Roles Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.userschema',       # 18:Directory API - User Schemas Scope (RO)
-      u'https://www.googleapis.com/auth/admin.directory.user.security',    # 19:Directory API - User Security Scope
-      u'https://www.googleapis.com/auth/admin.directory.user',             # 20:Directory API - Users Scope (RO)
-      u'https://www.googleapis.com/auth/apps.groups.settings',             # 21:Group Settings API
-      u'https://www.googleapis.com/auth/apps.licensing',                   # 22:License Manager API
-      u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     # 23:Reports API - Audit Reports
-      u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     # 24:Reports API - Usage Reports
-      u'https://www.googleapis.com/auth/siteverification',                 # 25:Site Verification API
-      ],
-    u'RO_scopes': [2, 3, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 20],
-    u'AO_scopes': [13],
-    u'Menu': u'''
+OAUTH2_SCOPES = [
+  u'https://apps-apis.google.com/a/feeds/domain/',                     #  0:Admin Settings API
+  u'https://mail.google.com/',                                         #  1:Admin User - Email upload report document notifications
+  u'https://www.googleapis.com/auth/drive.file',                       #  2:Admin User - Upload report documents to Google Drive
+  u'https://www.googleapis.com/auth/calendar',                         #  3:Calendar API (RO)
+  u'https://www.googleapis.com/auth/classroom.courses',                #  4:Classroom API - Courses (RO)
+  u'https://www.googleapis.com/auth/classroom.profile.emails',         #  5:Classroom API - Profile Emails
+  u'https://www.googleapis.com/auth/classroom.profile.photos',         #  6:Classroom API - Profile Photos
+  u'https://www.googleapis.com/auth/classroom.rosters',                #  7:Classroom API - Rosters (RO)
+  u'https://www.googleapis.com/auth/cloudprint',                       #  8:Cloudprint API
+  u'https://www.google.com/m8/feeds/contacts',                         #  9:Contacts API - Domain Shared and Users
+  u'https://www.googleapis.com/auth/admin.datatransfer',               # 10:Data Transfer API (RO)
+  u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  # 11:Directory API - Chrome OS Devices (RO)
+  u'https://www.googleapis.com/auth/admin.directory.customer',         # 12:Directory API - Customers (RO)
+  u'https://www.googleapis.com/auth/admin.directory.domain',           # 13:Directory API - Domains (RO)
+  u'https://www.googleapis.com/auth/admin.directory.group',            # 14:Directory API - Groups (RO)
+  u'https://www.googleapis.com/auth/admin.directory.device.mobile',    # 15:Directory API - Mobile Devices Directory (RO,AO)
+  u'https://www.googleapis.com/auth/admin.directory.notifications',    # 16:Directory API - Notifications
+  u'https://www.googleapis.com/auth/admin.directory.orgunit',          # 17:Directory API - Organizational Units (RO)
+  u'https://www.googleapis.com/auth/admin.directory.resource.calendar',# 18:Directory API - Resource Calendars (RO)
+  u'https://www.googleapis.com/auth/admin.directory.rolemanagement',   # 19:Directory API - Roles (RO)
+  u'https://www.googleapis.com/auth/admin.directory.userschema',       # 20:Directory API - User Schemas (RO)
+  u'https://www.googleapis.com/auth/admin.directory.user.security',    # 21:Directory API - User Security
+  u'https://www.googleapis.com/auth/admin.directory.user',             # 22:Directory API - Users (RO)
+  u'https://apps-apis.google.com/a/feeds/compliance/audit/',           # 23:Email Audit API
+  u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/',          # 24:Email Settings API - Users
+  u'https://www.googleapis.com/auth/apps.groups.settings',             # 25:Group Settings API
+  u'https://www.googleapis.com/auth/apps.licensing',                   # 26:License Manager API
+  u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     # 27:Reports API - Audit Reports
+  u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     # 28:Reports API - Usage Reports
+  u'https://www.googleapis.com/auth/siteverification',                 # 29:Site Verification API
+  ]
+OAUTH2_RO_SCOPES = [3, 4, 7, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 22]
+OAUTH2_AO_SCOPES = [15]
+OAUTH2_SCOPES_MAP = {
+  OAUTH2_GAPI_SCOPES: [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29],
+  OAUTH2_GDATA_SCOPES: [0, 9, 23, 24]
+  }
+  
+OAUTH2_MENU = u'''
 Select the authorized scopes for this token by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 
-[%%s]  %2s)  Admin User - Email upload report document notifications
-[%%s]  %2s)  Admin User - Upload report documents to Google Drive
-[%%s]  %2s)  Calendar API (supports read-only)
-[%%s]  %2s)  Classroom API - Courses (supports read-only)
-[%%s]  %2s)  Classroom API - Profile Emails
-[%%s]  %2s)  Classroom API - Profile Photos
-[%%s]  %2s)  Classroom API - Rosters (supports read-only)
-[%%s]  %2s)  Cloud Print API
-[%%s]  %2s)  Data Transfer API (supports read-only)
-[%%s]  %2s)  Directory API - Chrome OS Devices Scope (supports read-only)
-[%%s]  %2s)  Directory API - Customers Scope (supports read-only)
-[%%s]  %2s)  Directory API - Domains Scope (supports read-only)
-[%%s]  %2s)  Directory API - Groups Scope (supports read-only)
-[%%s]  %2s)  Directory API - Mobile Devices Scope (supports read-only and action-only)
-[%%s]  %2s)  Directory API - Notifications Scope
-[%%s]  %2s)  Directory API - Organizational Units Scope (supports read-only)
-[%%s]  %2s)  Directory API - Resource Calendars Scope (supports read-only)
-[%%s]  %2s)  Directory API - Roles Scope (supports read-only)
-[%%s]  %2s)  Directory API - User Schemas Scope (supports read-only)
-[%%s]  %2s)  Directory API - User Security Scope
-[%%s]  %2s)  Directory API - Users Scope (supports read-only)
-[%%s]  %2s)  Groups Settings API
-[%%s]  %2s)  License Manager API
-[%%s]  %2s)  Reports API - Audit Reports
-[%%s]  %2s)  Reports API - Usage Reports
-[%%s]  %2s)  Site Verification API
+[%s]   0)  Admin Settings API
+[%s]   1)  Admin User - Email upload report document notifications
+[%s]   2)  Admin User - Upload report documents to Google Drive
+[%s]   3)  Calendar API (supports read-only)
+[%s]   4)  Classroom API - Courses (supports read-only)
+[%s]   5)  Classroom API - Profile Emails
+[%s]   6)  Classroom API - Profile Photos
+[%s]   7)  Classroom API - Rosters (supports read-only)
+[%s]   8)  Cloud Print API
+[%s]   9)  Contacts API - Domain Shared and Users
+[%s]  10)  Data Transfer API (supports read-only)
+[%s]  11)  Directory API - Chrome OS Devices (supports read-only)
+[%s]  12)  Directory API - Customers (supports read-only)
+[%s]  13)  Directory API - Domains (supports read-only)
+[%s]  14)  Directory API - Groups (supports read-only)
+[%s]  15)  Directory API - Mobile Devices (supports read-only and action-only)
+[%s]  16)  Directory API - Notifications
+[%s]  17)  Directory API - Organizational Units (supports read-only)
+[%s]  18)  Directory API - Resource Calendars (supports read-only)
+[%s]  19)  Directory API - Roles (supports read-only)
+[%s]  20)  Directory API - User Schemas (supports read-only)
+[%s]  21)  Directory API - User Security
+[%s]  22)  Directory API - Users (supports read-only)
+[%s]  23)  Email Audit API - Monitors, Activity and Mailbox Exports
+[%s]  24)  Email Settings API - Users
+[%s]  25)  Groups Settings API
+[%s]  26)  License Manager API
+[%s]  27)  Reports API - Audit Reports
+[%s]  28)  Reports API - Usage Reports
+[%s]  29)  Site Verification API
 
-      %%s)  Select all scopes
-      %%s)  Unselect all scopes
-      %%s)  Cancel
-      %%s)  Continue
+      s)  Select all scopes
+      u)  Unselect all scopes
+      e)  Exit
+      c)  Continue
 '''
-    },
-  OAUTH2_GDATA_SCOPES: {
-    u'All_scopes': [
-      u'https://apps-apis.google.com/a/feeds/domain/',                     #  0:Admin Settings API
-      u'https://www.google.com/m8/feeds/contacts',                         #  1:Contacts API
-      u'https://apps-apis.google.com/a/feeds/compliance/audit/',           #  2:Email Audit API
-      u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/',          #  3:Email Settings API
-      ],
-    u'RO_scopes': [],
-    u'AO_scopes': [],
-    u'Menu': u'''
-Select the authorized scopes for this token by entering a number.
+OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 
-[%%s]  %s)  Admin Settings API
-[%%s]  %s)  Contacts API
-[%%s]  %s)  Email Audit API - Monitors, Activity and Mailbox Exports
-[%%s]  %s)  User Email Settings API
-
-      %%s)  Select all scopes
-      %%s)  Unselect all scopes
-      %%s)  Cancel
-      %%s)  Continue
-'''
-    }
-  }
-
-def revokeCredentials(credentials):
-  try:
+def revokeCredentials(oauth2Scope):
+  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+  credentials = storage.get()
+  if credentials and not credentials.invalid:
     credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
-  except AttributeError:
-    sys.stdout.write(u'{0}: {1} {2}\n'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST))
-    return
-  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-  try:
-    credentials.revoke(http)
-  except oauth2client.client.TokenRevokeError as e:
-    printErrorMessage(INVALID_TOKEN_RC, e.message)
+    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+    try:
+      credentials.revoke(http)
+    except oauth2client.client.TokenRevokeError as e:
+      printErrorMessage(INVALID_TOKEN_RC, e.message)
 
 # gam oauth|oauth2 create|request
 def doOAuthRequest():
@@ -5274,103 +5264,92 @@ See the follow site for instructions:
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
   checkForExtraneousArguments()
-  for oauthScope in OAUTH2_SCOPES_LIST:
-    possible_scopes = OAUTH2_SCOPES[oauthScope][u'All_scopes']
-    readonly_scopes = OAUTH2_SCOPES[oauthScope][u'RO_scopes']
-    actiononly_scopes = OAUTH2_SCOPES[oauthScope][u'AO_scopes']
-    num_scopes = len(possible_scopes)
-    menu = OAUTH2_SCOPES[oauthScope][u'Menu'] % tuple(range(num_scopes))
-    select_all_scopes = num_scopes
-    unselect_all_scopes = num_scopes+1
-    cancel = num_scopes+2
-    authorize_scopes = num_scopes+3
-    scope_choices = (unicode(str(select_all_scopes)), unicode(str(unselect_all_scopes)), unicode(str(cancel)), unicode(str(authorize_scopes)))
-    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope)
+  num_scopes = len(OAUTH2_SCOPES)
+  selected_scopes = [u' '] * num_scopes
+  for oauth2Scope in OAUTH2_SCOPES_LIST:
+    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
     credentials = storage.get()
     if credentials and not credentials.invalid:
       currentScopes = sorted(credentials.scopes)
-      selected_scopes = [u' '] * num_scopes
-      i = 0
-      while i < num_scopes:
-        possibleScope = possible_scopes[i]
+      for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
+        selected_scopes[i] = u' '
+        possibleScope = OAUTH2_SCOPES[i]
         for currentScope in currentScopes:
           if currentScope == possibleScope:
             selected_scopes[i] = u'*'
             break
-          if i in readonly_scopes:
+          if i in OAUTH2_RO_SCOPES:
             if currentScope == possibleScope+u'.readonly':
               selected_scopes[i] = u'R'
               break
-          if i in actiononly_scopes:
+          if i in OAUTH2_AO_SCOPES:
             if currentScope == possibleScope+u'.action':
               selected_scopes[i] = u'A'
               break
-        i += 1
     else:
-      selected_scopes = [u'*'] * num_scopes
-    while True:
-      menu_fill = tuple(selected_scopes)+scope_choices
-      print menu % (menu_fill)
-      selection = raw_input(u'Your selection: ').lower()
-      if selection:
-        if selection.find(u'r') >= 0:
-          mode = u'R'
-          selection = selection.replace(u'r', u'')
-        elif selection.find(u'a') >= 0:
-          mode = u'A'
-          selection = selection.replace(u'a', u'')
-        else:
-          mode = u' '
-        if not selection.isdigit():
-          sys.stderr.write(u'{0}Please enter numbers only\n'.format(ERROR_PREFIX))
-          continue
+      for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
+        selected_scopes[i] = u'*'
+  while True:
+    print OAUTH2_MENU % tuple(selected_scopes)
+    selection = raw_input(u'Your selection: ').lower()
+    if selection:
+      if selection.find(u'r') >= 0:
+        mode = u'R'
+        selection = selection.replace(u'r', u'')
+      elif selection.find(u'a') >= 0:
+        mode = u'A'
+        selection = selection.replace(u'a', u'')
+      else:
+        mode = u' '
+      if selection.isdigit():
         selection = int(selection)
-        if selection >= 0 and selection < num_scopes:
-          if mode == u'R':
-            if selection not in readonly_scopes:
-              sys.stderr.write(u'{0}That scope does not support read-only mode!\n'.format(ERROR_PREFIX))
-              continue
-          elif mode == u'A':
-            if selection not in actiononly_scopes:
-              sys.stderr.write(u'{0}That scope does not support action-only mode!\n'.format(ERROR_PREFIX))
-              continue
-          elif selected_scopes[selection] == u' ':
-            mode = u'*'
-          else:
-            mode = u' '
-          selected_scopes[selection] = mode
-        elif selection == select_all_scopes:
-          for i in range(num_scopes):
-            selected_scopes[i] = u'*'
-        elif selection == unselect_all_scopes:
-          for i in range(num_scopes):
-            selected_scopes[i] = u' '
-        elif selection == cancel:
-          return
-        elif selection == authorize_scopes:
-          break
-        else:
-          sys.stderr.write(u'{0}Please enter number in range 0-{1}\n'.format(ERROR_PREFIX, authorize_scopes))
+      if (isinstance(selection, int) and selection >= num_scopes) or (isinstance(selection, str) and selection not in OAUTH2_CMDS):
+        sys.stderr.write(u'{0}Please enter numbers in range 0-{1} or {2} only\n'.format(ERROR_PREFIX, num_scopes-1, u','.join(OAUTH2_CMDS)))
+        continue
+      if selection == u's':
+        for i in range(num_scopes):
+          selected_scopes[i] = u'*'
+        continue  
+      if selection == u'u':
+        for i in range(num_scopes):
+          selected_scopes[i] = u' '
+        continue  
+      if selection == u'e':
+        return
+      if selection == u'c':
+        break
+      if mode == u'R':
+        if selection not in OAUTH2_RO_SCOPES:
+          sys.stderr.write(u'{0}That scope does not support read-only mode!\n'.format(ERROR_PREFIX))
+          continue
+      elif mode == u'A':
+        if selection not in OAUTH2_AO_SCOPES:
+          sys.stderr.write(u'{0}That scope does not support action-only mode!\n'.format(ERROR_PREFIX))
+          continue
+      elif selected_scopes[selection] == u' ':
+        mode = u'*'
+      else:
+        mode = u' '
+      selected_scopes[selection] = mode
 
+  for oauth2Scope in OAUTH2_SCOPES_LIST:
     scopes = [u'email',] # Email Display Scope, always included for client
-    for i in range(num_scopes):
+    for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
       if selected_scopes[i] == u'*':
-        scopes.append(possible_scopes[i])
+        scopes.append(OAUTH2_SCOPES[i])
       elif selected_scopes[i] == u'R':
-        scopes.append(u'{0}.readonly'.format(possible_scopes[i]))
+        scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i]))
       elif selected_scopes[i] == u'A':
-        scopes.append(u'{0}.action'.format(possible_scopes[i]))
-    if credentials and not credentials.invalid:
-      revokeCredentials(credentials)
+        scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
+    revokeCredentials(oauth2Scope)
     try:
-      FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON],
-                                                         scope=scopes)
+      FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
       systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
     http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
     try:
       oauth2client.tools.run_flow(flow=FLOW,
-                                  storage=oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope),
+                                  storage=oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope),
                                   flags=cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER]),
                                   http=http)
     except httplib2.CertificateValidationUnsupported:
@@ -5391,22 +5370,16 @@ def doOAuthDelete():
     time.sleep(1)
     sys.stdout.write(u'boom!\n')
     sys.stdout.flush()
-    oauthScopes = oauth2client.contrib.multistore_file.get_all_credential_keys(GC_Values[GC_OAUTH2_TXT])
-    for oauthScope in oauthScopes:
-      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope[u'key'])
-      credentials = storage.get()
-      revokeCredentials(credentials)
-    try:
-      if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
-        os.remove(GC_Values[GC_OAUTH2_TXT])
-      entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
-    except OSError as e:
-      stderrWarningMsg(e)
+    revokeCredentials(OAUTH2_GAPI_SCOPES)
+    revokeCredentials(OAUTH2_GDATA_SCOPES)
+    entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 info [<AccessToken>]
 def doOAuthInfo():
 
-  def _printScopes(credentials):
+  def _printCredentials(credentials):
+    if not credentials or credentials.invalid:
+      return
     printKeyValueList([u'Client ID', credentials.client_id])
     printKeyValueList([u'Secret', credentials.client_secret])
     printKeyValueList([u'Scopes', u''])
@@ -5421,22 +5394,30 @@ def doOAuthInfo():
   access_token = getString(OB_ACCESS_TOKEN, optional=True)
   checkForExtraneousArguments()
   if access_token:
-    for oauthScope in OAUTH2_SCOPES_LIST:
-      credentials = getClientCredentials(oauthScope)
+    for oauth2Scope in OAUTH2_SCOPES_LIST:
+      credentials = getClientCredentials(oauth2Scope)
       if credentials.access_token == access_token:
-        _printScopes(credentials)
+        _printCredentials(credentials)
         break
     else:
       entityDoesNotExistWarning(EN_ACCESS_TOKEN, access_token)
   else:
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
       printKeyValueList([singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
-      oauthScopes = oauth2client.contrib.multistore_file.get_all_credential_keys(GC_Values[GC_OAUTH2_TXT])
-      for oauthScope in oauthScopes:
-        storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauthScope[u'key'])
-        credentials = storage.get()
-        if credentials and not credentials.invalid:
-          _printScopes(credentials)
+      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GAPI_SCOPES)
+      gapiCredentials = storage.get()
+      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GDATA_SCOPES)
+      gdataCredentials = storage.get()
+      if (    gapiCredentials and not gapiCredentials.invalid
+          and gdataCredentials and not gdataCredentials.invalid
+          and gapiCredentials.client_id == gdataCredentials.client_id
+          and gapiCredentials.client_secret == gdataCredentials.client_secret
+          and gapiCredentials.id_token.get(u'email') == gdataCredentials.id_token.get(u'email')):
+        gapiCredentials.scopes = gapiCredentials.scopes.union(gdataCredentials.scopes)
+        _printCredentials(gapiCredentials)
+      else:
+        _printCredentials(gapiCredentials)
+        _printCredentials(gdataCredentials)
 
 # gam whatis <EmailItem> [noinfo]
 def doWhatIs():
