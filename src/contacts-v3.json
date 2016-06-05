@@ -1,9 +1,9 @@
 {
  "kind": "discovery#restDescription",
- "discoveryVersion": "v3",
+ "discoveryVersion": "v1",
  "id": "contacts:v3",
  "name": "contacts",
- "version": "v1",
+ "version": "v3",
  "revision": "20130823",
  "title": "Contacts API",
  "description": "Lets you manage Google Apps Contacts",
