@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.14.0'
+__version__ = u'4.14.1'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -1382,6 +1382,7 @@ PHRASE_FORMAT_NOT_DOWNLOADABLE = u'Format not downloadable'
 PHRASE_FROM = u'From'
 PHRASE_GETTING = u'Getting'
 PHRASE_GETTING_ALL = u'Getting all'
+PHRASE_GOOGLE_EARLIEST_REPORT_TIME = u'Google earliest report time'
 PHRASE_GOT = u'Got'
 PHRASE_INVALID = u'Invalid'
 PHRASE_INVALID_ALIAS = u'Invalid Alias'
@@ -1442,6 +1443,7 @@ MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV header
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
+MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
@@ -2367,27 +2369,26 @@ def getYYYYMMDDTHHMM():
         invalidArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
 
-FULL_TIME_PATTERN = re.compile(r'^(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.(\d+))?(?:(Z)|([-+])(\d\d):(\d\d))$')
-YYMMDDTHHMMSS_FORMAT = u'%Y-%m-%dT%H:%M:%S'
+YYYYMMDDTHHMMSS_FORMAT = u'%Y-%m-%dT%H:%M:%S'
 HHMM_FORMAT = u'%H:%M'
-YYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
+YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
-def getFullTime():
+def getFullTime(returnDateTime=False):
+  from iso8601 import iso8601
   global CL_argvI
   if CL_argvI < CL_argvLen:
-    argstr = CL_argv[CL_argvI].strip().upper().replace(u' ', u'T')
+    argstr = CL_argv[CL_argvI].strip().upper()
     if argstr:
-      if FULL_TIME_PATTERN.match(argstr):
-        try:
-          datetime.datetime.strptime(argstr[:19], YYMMDDTHHMMSS_FORMAT)
-          if not argstr.endswith(u'Z'):
-            datetime.datetime.strptime(argstr[-5:], HHMM_FORMAT)
-          CL_argvI += 1
-          return argstr
-        except ValueError:
-          pass
-      invalidArgumentExit(YYMMDDTHHMMSS_FORMAT_REQUIRED)
-  missingArgumentExit(YYMMDDTHHMMSS_FORMAT_REQUIRED)
+      try:
+        fullDateTime, tz = iso8601.parse_date(argstr)
+        CL_argvI += 1
+        if not returnDateTime:
+          return argstr.replace(u' ', u'T')
+        return (fullDateTime, tz, argstr.replace(u' ', u'T'))
+      except iso8601.ParseError:
+        pass
+      invalidArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
+  missingArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
 
 EVENT_TIME_FORMAT_REQUIRED = u'allday yyyy-mm-dd | yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
@@ -5531,7 +5532,7 @@ def doReport():
   customerId = GC_Values[GC_CUSTOMER_ID]
   if customerId == MY_CUSTOMER:
     customerId = None
-  maxResults = try_date = filters = parameters = actorIpAddress = startTime = endTime = eventName = None
+  maxResults = try_date = filters = parameters = actorIpAddress = startTime = endTime = startDateTime = endDateTime = eventName = None
   exitUserLoop = noDateChange = normalizeUsers = select = to_drive = False
   userKey = u'all'
   filtersUserValid = report != u'customer'
@@ -5550,9 +5551,19 @@ def doReport():
     elif usageReports and myarg in [u'fields', u'parameters']:
       parameters = getString(OB_STRING)
     elif activityReports and myarg == u'start':
-      startTime = getFullTime()
+      startDateTime, tzinfo, startTime = getFullTime(True)
+      earliestDateTime = datetime.datetime.now(tzinfo)-datetime.timedelta(days=180)
+      if startDateTime < earliestDateTime:
+        putArgumentBack()
+        usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'start', startTime, PHRASE_GOOGLE_EARLIEST_REPORT_TIME, earliestDateTime.isoformat()))
+      if endDateTime and endDateTime < startDateTime:
+        putArgumentBack()
+        usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'end', endTime, u'start', startTime))
     elif activityReports and myarg == u'end':
-      endTime = getFullTime()
+      endDateTime, _, endTime = getFullTime(True)
+      if startDateTime and endDateTime < startDateTime:
+        putArgumentBack()
+        usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'end', endTime, u'start', startTime))
     elif activityReports and myarg == u'event':
       eventName = getString(OB_STRING)
     elif activityReports and myarg == u'ip':
@@ -5685,7 +5696,7 @@ def doReport():
       try:
         activities = callGAPIpages(rep.activities(), u'list', u'items',
                                    page_message=page_message,
-                                   throw_reasons=[GAPI_BAD_REQUEST, GAPI_AUTH_ERROR],
+                                   throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_AUTH_ERROR],
                                    applicationName=report, userKey=user, customerId=customerId,
                                    actorIpAddress=actorIpAddress, startTime=startTime, endTime=endTime, eventName=eventName, filters=filters,
                                    maxResults=maxResults)
@@ -5707,6 +5718,8 @@ def doReport():
         else:
           printErrorMessage(BAD_REQUEST_RC, PHRASE_BAD_REQUEST)
           break
+      except GAPI_invalid as e:
+        systemErrorExit(GOOGLE_API_ERROR_RC, e.message)
       except GAPI_authError:
         accessErrorExit(None)
     sortCSVTitles(u'name', titles)
@@ -17595,8 +17608,14 @@ def setVacation(users):
       domain_only = True
     elif myarg == u'startdate':
       start_date = getYYYYMMDD()
+      if end_date and end_date < start_date:
+        putArgumentBack()
+        usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'enddate', end_date, u'startdate', start_date))
     elif myarg == u'enddate':
       end_date = getYYYYMMDD()
+      if start_date and end_date < start_date:
+        putArgumentBack()
+        usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'enddate', end_date, u'startdate', start_date))
     elif myarg == u'file':
       filename = getString(OB_FILE_NAME)
       encoding = getCharSet()
