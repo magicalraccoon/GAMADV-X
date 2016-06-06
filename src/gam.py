@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.14.1'
+__version__ = u'4.14.2'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -477,13 +477,14 @@ GDATA_BAD_REQUEST = 601
 GDATA_DOES_NOT_EXIST = 1301
 GDATA_ENTITY_EXISTS = 1300
 GDATA_INSUFFICIENT_PERMISSIONS = 603
+GDATA_INTERNAL_SERVER_ERROR = 1000
 GDATA_INVALID_DOMAIN = 602
 GDATA_INVALID_VALUE = 1801
 GDATA_NAME_NOT_VALID = 1303
 GDATA_NOT_FOUND = 600
 GDATA_SERVICE_NOT_APPLICABLE = 1410
 #
-GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID]
+GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR]
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
                        u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID',
@@ -1457,6 +1458,7 @@ MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloadin
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
 MESSAGE_SERVICE_NOT_APPLICABLE = u'Service not applicable for this address: {0}'
 MESSAGE_SUMMARY_ARGUMENT_REQUIRED = u'summary <String> required'
+MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please follow the instructions at this site to setup a Service account.'
 
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
@@ -3445,8 +3447,8 @@ def checkGDataError(e, service):
     return u'{0} - {1}'.format(GDATA_BAD_REQUEST, e[0][u'reason'])
   # We got a "normal" error, define the mapping below
   error_code_map = {
-    1000: False,
-    1001: False,
+    1000: e[0][u'reason'],
+    1001: e[0][u'reason'],
     1002: u'Unauthorized and forbidden',
     1100: u'User deleted recently',
     1200: u'Domain user limit exceeded',
@@ -3500,6 +3502,7 @@ class GData_badRequest(GData_exception): pass
 class GData_doesNotExist(GData_exception): pass
 class GData_entityExists(GData_exception): pass
 class GData_insufficientPermissions(GData_exception): pass
+class GData_internalServerError(GData_exception): pass
 class GData_invalidDomain(GData_exception): pass
 class GData_invalidValue(GData_exception): pass
 class GData_nameNotValid(GData_exception): pass
@@ -3511,6 +3514,7 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_DOES_NOT_EXIST: GData_doesNotExist,
   GDATA_ENTITY_EXISTS: GData_entityExists,
   GDATA_INSUFFICIENT_PERMISSIONS: GData_insufficientPermissions,
+  GDATA_INTERNAL_SERVER_ERROR: GData_internalServerError,
   GDATA_INVALID_DOMAIN: GData_invalidDomain,
   GDATA_INVALID_VALUE: GData_invalidValue,
   GDATA_NAME_NOT_VALID: GData_nameNotValid,
@@ -16942,6 +16946,11 @@ def processEmailSettings(user, i, count, service, function, **kwargs):
     entityServiceNotApplicableWarning(EN_USER, user, i, count)
   except GData_badRequest as e:
     entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.value, i, count)
+  except GData_internalServerError as e:
+    if function != u'UpdateVacation':
+      entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.value, i, count)
+    else:
+      entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, MESSAGE_CHECK_VACATION_DATES, i, count)
   except GData_nameNotValid:
     entityBadRequestWarning(EN_USER, user, EN_FORWARD_TO, kwargs[u'forward_to'], PHRASE_NOT_ALLOWED, i, count)
   return None
@@ -17589,7 +17598,8 @@ def setUnicode(users):
                            EN_UNICODE, result[u'unicode'],
                            i, count)
 
-# gam <UserTypeEntity> vacation <Boolean> [subject <String>] [message <String>]|[file <FileName> [charset <CharSet>]] [contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+# gam <UserTypeEntity> vacation <FalseValues>
+# gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
 def setVacation(users):
   emailSettingsObject = getEmailSettingsObject()
   subject = message = u''
@@ -17622,6 +17632,11 @@ def setVacation(users):
       message = readFile(filename, encoding=encoding)
     else:
       unknownArgumentExit()
+  if enable:
+    if not message:
+      missingArgumentExit(u'message')
+    if not subject:
+      missingArgumentExit(u'subject')
   message = message.replace(u'\\n', u'\n')
   i = 0
   count = len(users)
