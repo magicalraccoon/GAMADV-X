@@ -499,7 +499,6 @@ GAPI_CANNOT_CHANGE_OWN_ACL = u'cannotChangeOwnAcl'
 GAPI_CANNOT_CHANGE_OWNER_ACL = u'cannotChangeOwnerAcl'
 GAPI_CANNOT_DELETE_PRIMARY_CALENDAR = u'cannotDeletePrimaryCalendar'
 GAPI_CONDITION_NOT_MET = u'conditionNotMet'
-GAPI_COURSE_NOT_FOUND = u'courseNotFound'
 GAPI_CUSTOMER_NOT_FOUND = u'customerNotFound'
 GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED = u'cyclicMembershipsNotAllowed'
 GAPI_DELETED = u'deleted'
@@ -3732,7 +3731,6 @@ class GAPI_cannotChangeOwnAcl(GAPI_exception): pass
 class GAPI_cannotChangeOwnerAcl(GAPI_exception): pass
 class GAPI_cannotDeletePrimaryCalendar(GAPI_exception): pass
 class GAPI_conditionNotMet(GAPI_exception): pass
-class GAPI_courseNotFound(GAPI_exception): pass
 class GAPI_customerNotFound(GAPI_exception): pass
 class GAPI_cyclicMembershipsNotAllowed(GAPI_exception): pass
 class GAPI_deleted(GAPI_exception): pass
@@ -3785,7 +3783,6 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_CANNOT_CHANGE_OWNER_ACL: GAPI_cannotChangeOwnerAcl,
   GAPI_CANNOT_DELETE_PRIMARY_CALENDAR: GAPI_cannotDeletePrimaryCalendar,
   GAPI_CONDITION_NOT_MET: GAPI_conditionNotMet,
-  GAPI_COURSE_NOT_FOUND: GAPI_courseNotFound,
   GAPI_CUSTOMER_NOT_FOUND: GAPI_customerNotFound,
   GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED: GAPI_cyclicMembershipsNotAllowed,
   GAPI_DELETED: GAPI_deleted,
@@ -13098,10 +13095,10 @@ def doPrintCourseParticipants():
       courseId = normalizeCourseId(course)
       try:
         info = callGAPI(croom.courses(), u'get',
-                        throw_reasons=[GAPI_COURSE_NOT_FOUND],
+                        throw_reasons=[GAPI_NOT_FOUND],
                         id=courseId)
         all_courses.append(info)
-      except GAPI_courseNotFound:
+      except GAPI_notFound:
         entityDoesNotExistWarning(EN_COURSE, courseId)
   i = 0
   count = len(all_courses)
