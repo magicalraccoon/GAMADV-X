@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.14.2'
+__version__ = u'4.14.3'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -1347,7 +1347,7 @@ USER_PROPERTIES = {
 IM_PROTOCOLS = {
   PTKW_CL_TYPE_KEYWORD: u'protocol', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom_protocol',
   PTKW_ATTR_TYPE_KEYWORD: u'protocol', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom_protocol', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customProtocol',
-  PTKW_KEYWORD_LIST: [u'custom_protocol', u'aim', u'gtalk', u'icq', u'jabber', u'msn', u'net_meeting', u'qq', u'skype', u'yahoo']
+  PTKW_KEYWORD_LIST: [u'custom_protocol', u'aim', u'gtalk', u'icq', u'jabber', u'msn', u'net_meeting', u'qq', u'skype', u'xmpp', u'yahoo']
   }
 
 # These values can be translated into other languages
@@ -1435,7 +1435,7 @@ PHRASE_WITH = u'with'
 PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
 
 MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
-MESSAGE_API_ACCESS_DENIED = u'API access Denied.\n\nPlease make sure the Client ID: {0} is authorized for the API Scope(s): {1}'
+MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes\nSee: {1}'
 MESSAGE_CSV_ARGUMENT_REQUIRED = u'csv <FileName> required'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
@@ -1704,8 +1704,9 @@ def accessErrorExit(cd):
   systemErrorExit(INVALID_DOMAIN_RC, message)
 
 def APIAccessDeniedExit():
-  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
-                                                                         u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
+#  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
+#                                                                         u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
+  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID], GAM_WIKI_CREATE_CLIENT_SECRETS))
 
 def checkEntityDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
   message = accessErrorMessage(cd)
@@ -3393,6 +3394,7 @@ def getSvcAcctCredentials(scopes, act_as):
     credentials = credentials.create_delegated(act_as)
     credentials.user_agent = GAM_INFO
     serialization_data = credentials.serialization_data
+    GM_Globals[GM_ADMIN] = serialization_data[u'client_email']
     GM_Globals[GM_OAUTH2_CLIENT_ID] = serialization_data[u'client_id']
     return credentials
   except (ValueError, KeyError):
@@ -5364,7 +5366,7 @@ See the follow site for instructions:
                                   http=http)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
-    entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
+  entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 delete|revoke
 def doOAuthDelete():
@@ -8422,6 +8424,7 @@ class ContactsManager(object):
     u'netmeeting': gdata.apps.contacts.IM_NETMEETING,
     u'qq': gdata.apps.contacts.IM_QQ,
     u'skype': gdata.apps.contacts.IM_SKYPE,
+    u'xmpp': gdata.apps.contacts.IM_JABBER,
     u'yahoo': gdata.apps.contacts.IM_YAHOO,
     }
 
@@ -9349,7 +9352,7 @@ def doInfoContacts(users, entityType):
               if value == None:
                 value = u''
               if key == CONTACT_IMS:
-                printKeyValueList([u'protocol', contactsManager.IM_REL_TO_PROTOCOL_MAP[item[u'protocol']]])
+                printKeyValueList([u'protocol', contactsManager.IM_REL_TO_PROTOCOL_MAP.get(item[u'protocol'], item[u'protocol'])])
                 printKeyValueList([keymap[u'infoTitle'], value])
               elif key == CONTACT_ADDRESSES:
                 printKeyValueList([keymap[u'infoTitle'], u''])
@@ -9468,7 +9471,7 @@ def doPrintContacts(users, entityType):
                   value = u''
                 if key == CONTACT_IMS:
                   fnp = fn+u' Protocol'
-                  contactRow[fnp] = contactsManager.IM_REL_TO_PROTOCOL_MAP[item[u'protocol']]
+                  contactRow[fnp] = contactsManager.IM_REL_TO_PROTOCOL_MAP.get(item[u'protocol'], item[u'protocol'])
                   contactRow[fn] = value
                 elif key == CONTACT_ADDRESSES:
                   contactRow[fn] = value.replace(u'\n', u'\\n')
