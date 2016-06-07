@@ -5245,14 +5245,16 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 '''
 OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 
-def revokeCredentials(oauth2Scope):
+def revokeCredentials(oauth2Scope, http=None):
   storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
   credentials = storage.get()
   if credentials and not credentials.invalid:
     credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+    if not http:
+      http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
     try:
       credentials.revoke(http)
+      time.sleep(2)
     except oauth2client.client.TokenRevokeError as e:
       printErrorMessage(INVALID_TOKEN_RC, e.message)
 
@@ -5352,7 +5354,7 @@ See the follow site for instructions:
         scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i]))
       elif selected_scopes[i] == u'A':
         scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
-    revokeCredentials(oauth2Scope)
+    revokeCredentials(oauth2Scope, http)
     try:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
