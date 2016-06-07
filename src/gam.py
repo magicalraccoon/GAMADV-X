@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.14.3'
+__version__ = u'4.14.4'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -5341,6 +5341,8 @@ See the follow site for instructions:
         sys.stdout.write(u'{0}Invalid input "{1}"\n'.format(ERROR_PREFIX, choice))
     if selection == u'c':
       break
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
   for oauth2Scope in OAUTH2_SCOPES_LIST:
     scopes = [u'email',] # Email Display Scope, always included for client
     for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
@@ -5355,12 +5357,9 @@ See the follow site for instructions:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
       systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
     try:
-      oauth2client.tools.run_flow(flow=FLOW,
-                                  storage=oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope),
-                                  flags=cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER]),
-                                  http=http)
+      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+      oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
   entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
