@@ -2371,8 +2371,6 @@ def getYYYYMMDDTHHMM():
         invalidArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
 
-YYYYMMDDTHHMMSS_FORMAT = u'%Y-%m-%dT%H:%M:%S'
-HHMM_FORMAT = u'%H:%M'
 YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
 def getFullTime(returnDateTime=False):
@@ -2392,7 +2390,7 @@ def getFullTime(returnDateTime=False):
       invalidArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
 
-EVENT_TIME_FORMAT_REQUIRED = u'allday yyyy-mm-dd | yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
+EVENT_TIME_FORMAT_REQUIRED = u'allday yyyy-mm-dd | '+YYYYMMDDTHHMMSS_FORMAT_REQUIRED
 
 def getEventTime():
   global CL_argvI
@@ -5245,15 +5243,18 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 '''
 OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 
-def revokeCredentials(storage, http):
-  credentials = storage.get()
-  if credentials and not credentials.invalid:
-    credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
-    try:
-      credentials.revoke(http)
-      time.sleep(2)
-    except oauth2client.client.TokenRevokeError as e:
-      printErrorMessage(INVALID_TOKEN_RC, e.message)
+def revokeCredentials():
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+  for oauth2Scope in OAUTH2_SCOPES_LIST:
+    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+    credentials = storage.get()
+    if credentials and not credentials.invalid:
+      credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
+      try:
+        credentials.revoke(http)
+        time.sleep(2)
+      except oauth2client.client.TokenRevokeError as e:
+        printErrorMessage(INVALID_TOKEN_RC, e.message)
 
 # gam oauth|oauth2 create|request
 def doOAuthRequest():
@@ -5340,6 +5341,7 @@ See this site for instructions:
         sys.stdout.write(u'{0}Invalid input "{1}"\n'.format(ERROR_PREFIX, choice))
     if selection == u'c':
       break
+  revokeCredentials()
   flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
   for oauth2Scope in OAUTH2_SCOPES_LIST:
@@ -5352,7 +5354,6 @@ See this site for instructions:
       elif selected_scopes[i] == u'A':
         scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
     storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-    revokeCredentials(storage, http)
     try:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
@@ -5364,12 +5365,8 @@ See this site for instructions:
       except httplib2.CertificateValidationUnsupported:
         noPythonSSLExit()
       except SystemExit as e:
-        if u'Try running' not in e.message:
-          oauth2Scope = OAUTH2_GDATA_SCOPES if oauth2Scope == OAUTH2_GAPI_SCOPES else OAUTH2_GAPI_SCOPES
-          storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-          revokeCredentials(storage, http)
-          entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
-          systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
+        entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
+        systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
   entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 delete|revoke
@@ -5387,10 +5384,7 @@ def doOAuthDelete():
     time.sleep(1)
     sys.stdout.write(u'boom!\n')
     sys.stdout.flush()
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-    for oauth2Scope in OAUTH2_SCOPES_LIST:
-      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-      revokeCredentials(storage, http)
+    revokeCredentials()
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]) and not oauth2client.contrib.multistore_file.get_all_credential_keys(GC_Values[GC_OAUTH2_TXT]):
       try:
         os.remove(GC_Values[GC_OAUTH2_TXT])
