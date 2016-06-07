@@ -5245,13 +5245,10 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 '''
 OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 
-def revokeCredentials(oauth2Scope, http=None):
-  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+def revokeCredentials(storage, http):
   credentials = storage.get()
   if credentials and not credentials.invalid:
     credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
-    if not http:
-      http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
     try:
       credentials.revoke(http)
       time.sleep(2)
@@ -5266,7 +5263,7 @@ To make GAM run you will need to populate the {0} file found at:
 {1}
 with information from the APIs Console <https://console.developers.google.com>.
 
-See the follow site for instructions:
+See this site for instructions:
 {2}
 
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
@@ -5354,16 +5351,25 @@ See the follow site for instructions:
         scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i]))
       elif selected_scopes[i] == u'A':
         scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
-    revokeCredentials(oauth2Scope, http)
+    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+    revokeCredentials(storage, http)
     try:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
       systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-    try:
-      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-      oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
-    except httplib2.CertificateValidationUnsupported:
-      noPythonSSLExit()
+    while True:
+      try:
+        oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
+        break
+      except httplib2.CertificateValidationUnsupported:
+        noPythonSSLExit()
+      except SystemExit as e:
+        if u'Try running' not in e.message:
+          oauth2Scope = OAUTH2_GDATA_SCOPES if oauth2Scope == OAUTH2_GAPI_SCOPES else OAUTH2_GAPI_SCOPES
+          storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+          revokeCredentials(storage, http)
+          entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
+          systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
   entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 delete|revoke
@@ -5381,8 +5387,10 @@ def doOAuthDelete():
     time.sleep(1)
     sys.stdout.write(u'boom!\n')
     sys.stdout.flush()
-    revokeCredentials(OAUTH2_GAPI_SCOPES)
-    revokeCredentials(OAUTH2_GDATA_SCOPES)
+    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+    for oauth2Scope in OAUTH2_SCOPES_LIST:
+      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+      revokeCredentials(storage, http)
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]) and not oauth2client.contrib.multistore_file.get_all_credential_keys(GC_Values[GC_OAUTH2_TXT]):
       try:
         os.remove(GC_Values[GC_OAUTH2_TXT])
