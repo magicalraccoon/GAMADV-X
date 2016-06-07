@@ -5358,15 +5358,14 @@ See this site for instructions:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
       systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-    while True:
-      try:
-        oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
-        break
-      except httplib2.CertificateValidationUnsupported:
-        noPythonSSLExit()
-      except SystemExit as e:
-        entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
-        systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
+    try:
+      oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
+      time.sleep(3)
+    except httplib2.CertificateValidationUnsupported:
+      noPythonSSLExit()
+    except SystemExit as e:
+      entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
+      systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
   entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 # gam oauth|oauth2 delete|revoke
