@@ -130,6 +130,55 @@ If an item contains spaces, it should be surrounded by " or '.
 	supportenddate|
 	willautorenew
 
+<DriveFieldNames> ::=
+	appdatacontents|
+	cancomment|
+	canreadrevisions|
+	copyable|
+	createddate|Vcreatedtime|
+	description|
+	editable|
+	explicitlytrashed|
+	fileextension|
+	filesize|
+	foldercolorrgb|
+	fullfileextension|
+	headrevisionid|
+	iconlink|
+	id|
+	lastmodifyinguser|
+	lastmodifyingusername|
+	lastviewedbyme|astviewedbymedate|lastviewedbymetime|lastviewedbyuser|
+	md5|md5checksum|md5sum|
+	mime|mimetype|
+	modifiedbyme|modifiedbymedate|modifiedbymetime|modifiedbyuser|
+	modifieddate|modifiedtime|
+	name|
+	originalfilename|
+	ownedbyme|
+	ownernames|
+	owners|
+	permissions|
+	quotabytesused|quotaused|
+	restricted|
+	shareable|
+	shared|
+	sharedwithmedate|sharedwithmetime|
+	sharinguser|
+	size|
+	spaces|
+	starred|
+	thumbnaillink|
+	title|
+	trashed
+	userpermission|
+	version|
+	viewed|
+	viewerscancopycontent|
+	webcontentlink|
+	webviewlink|
+	writerscanshare
+
 <GroupFieldNames> ::=
 	admincreated|
 	aliases|
@@ -339,15 +388,13 @@ If an item contains spaces, it should be surrounded by " or '.
 <DriveFileAddAttributes> ::=
 	(localfile <FileName>)|
 	(convert)|(ocr)|(ocrlanguage <Language>)|(restricted|restrict)|(starred|star)|(trashed|trash)|(viewed|view)|
-	(lastviewedbyme <Time>)|(modifieddate <Time>)|(description <String>)|(mimetype gdoc|gdocument|gdrawing|gfolder|gdirectory|gform|gfusion|gpresentation|gscript|gsite|gsheet|gspreadsheet)|
-	(parentid <DriveFolderID>)|(parentname <FolderName>)|(writerscantshare)
-
+	(lastviewedbyme <Time>)|(modifieddate|modifiedtime <Time>)|(description <String>)|(mimetype gdoc|gdocument|gdrawing|gfolder|gdirectory|gform|gfusion|gpresentation|gscript|gsite|gsheet|gspreadsheet)|
+	(parentid <DriveFolderID>)|(parentname <FolderName>)|writerscantshare
 <DriveFileUpdateAttributes> ::=
 	(localfile <FileName>)|
 	(convert)|(ocr)|(ocrlanguage <Language>)|(restricted|restrict <Boolean>)|(starred|star <Boolean>)|(trashed|trash <Boolean>)|(viewed|view <Boolean>)|
 	(lastviewedbyme <Time>)|(modifieddate <Time>)|(description <String>)|(mimetype gdoc|gdocument|gdrawing|gfolder|gdirectory|gform|gfusion|gpresentation|gscript|gsite|gsheet|gspreadsheet)|
-	(parentid <DriveFolderID>)|(parentname <FolderName>)|(writerscantshare)
-
+	(parentid <DriveFolderID>)|(parentname <FolderName>)|writerscantshare
 <EventAttributes> ::=
 	(anyonecanaddself)|(guestscantinviteothers)|(guestscantseeothers)|(notifyattendees)|(available)|(visibility default|public|prvate)|(tentative)|
 	(attendee <EmailAddress>)|(optionalattendee <EmailAddress>)|
@@ -762,16 +809,9 @@ gam <UserTypeEntity> remove calendars <CalendarEntity>
 gam <UserTypeEntity> show driveactivity [todrive] [idfirst] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> show drivesettings [todrive] [idfirst]
 
-gam <UserTypeEntity> show fileinfo <DriveFileItem>|<DriveFileEntity> [filepath]
+gam <UserTypeEntity> show fileinfo <DriveFileItem>|<DriveFileEntity> [filepath] [allfields|<DriveFieldNames>*]
 gam <UserTypeEntity> show filerevisions <DriveFileItem>|<DriveFileEntity>
-gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath]
-	[restricted|restrict] [starred|star] [trashed|trash] [viewed|view]
-	[allfields|
-	 ([canComment] [copyable] [createddate] [description] [editable] [fileextension] [filesize] [id]
-	  [lastmodifyinguser|lastmodifyingusername] [lastviewedbyuser|lastviewedbymedate] [md5|md5sum|md5checksum] [mimetype|mime]
-	  [modifiedbyuser|modifiedbymedate] [modifieddate] [originalfilename] [ownedByMe] [quotaused|quotabytesused]
-	  [shareable] [shared] [sharedWithMeDate] [sharingUser] [userPermission] [writerscanshare])*
-	]
+gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldNames>*]
 gam <UserTypeEntity> show filetree
 gam <UserTypeEntity> show filepath <DriveFileItem>|<DriveFileEntity>
 
