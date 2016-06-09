@@ -395,6 +395,9 @@ To capture all stdout and stderr ouput from a command in a single file, do: gam 
 53) Added domain <DomainName and member <EmailAddress> arguments to gam print group-members to allow selecting subsets of groups.
     gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
 
+54) Add arguments to gam show fileinfo to allow field selectionam.
+    gam <Users> show fileinfo <DriveFileItem>|<DriveFileEntity> [filepath] [allfields|<DriveFieldNames>*]
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
