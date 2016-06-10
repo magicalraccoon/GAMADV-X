@@ -105,7 +105,10 @@ If an item contains spaces, it should be surrounded by " or '.
 <URL> ::= <String>
 <UserItem> ::= <EmailAddress>|<UniqueID>|<String>
 
-<CrOSFieldNames> ::=
+<ContactOrderByFieldName> ::=
+	lastmodified
+
+<CrOSFieldName> ::=
 	activetimeranges|timeranges|
 	annotatedassetid|assedid|asset|
 	annotatedlocation|location|
@@ -130,12 +133,15 @@ If an item contains spaces, it should be surrounded by " or '.
 	supportenddate|
 	willautorenew
 
-<DriveFieldNames> ::=
+<CrOSOrderByFieldName> ::=
+	lastsync|location|notes|serialnumber|status|supportenddate|user
+
+<DriveFieldName> ::=
 	appdatacontents|
 	cancomment|
 	canreadrevisions|
 	copyable|
-	createddate|Vcreatedtime|
+	createddate|createdtime|
 	description|
 	editable|
 	explicitlytrashed|
@@ -148,7 +154,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	id|
 	lastmodifyinguser|
 	lastmodifyingusername|
-	lastviewedbyme|astviewedbymedate|lastviewedbymetime|lastviewedbyuser|
+	lastviewedbyme|lastviewedbymedate|lastviewedbymetime|lastviewedbyuser|
 	md5|md5checksum|md5sum|
 	mime|mimetype|
 	modifiedbyme|modifiedbymedate|modifiedbymetime|modifiedbyuser|
@@ -179,7 +185,21 @@ If an item contains spaces, it should be surrounded by " or '.
 	webviewlink|
 	writerscanshare
 
-<GroupFieldNames> ::=
+<DriveOrderByFieldName> ::=
+	createddate|createdtime|
+	folder|
+	lastviewedbyme|lastviewedbymedate|lastviewedbymetime|lastviewedbyuser|
+	modifiedbyme|modifiedbymedate|modifiedbymetime|modifiedbyuser|
+	modifieddate|modifiedtime|
+	name|
+	quotabytesused|quotaused|
+	recency|
+	sharedwithmedate|sharedwithmetime|
+	starred|
+	title|
+	viewedbymedate|viewedbymetime
+
+<GroupFieldName> ::=
 	admincreated|
 	aliases|
 	description|
@@ -187,7 +207,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	id|
 	name
 
-<GroupSettingsFieldNames> ::=
+<GroupSettingsFieldName> ::=
 	allowexternalmembers|
 	allowgooglecommunication|
 	allowwebposting|
@@ -214,7 +234,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	whocanviewgroup|
 	whocanviewmembership
 
-<MembersFieldNames> ::=
+<MembersFieldName> ::=
 	email|
 	group|
 	id|
@@ -222,7 +242,13 @@ If an item contains spaces, it should be surrounded by " or '.
 	role|
 	type
 
-<UserFieldNames> ::=
+<MobileOrderByFieldName> ::=
+	deviceid|email|lastsync|model|name|os|status|type
+
+<PrintJobOrderByFieldName> ::=
+	create_time|status|title
+
+<UserFieldName> ::=
 	addresses|address|
 	agreedtoterms|agreed2terms|
 	changepasswordatnextlogin|changepassword|
@@ -249,6 +275,9 @@ If an item contains spaces, it should be surrounded by " or '.
 	thumbnailphotourl|photo|photourl|
 	websites|website|
 	custom all|<SchemaNameList>
+
+<UserOrderByFieldName> ::=
+	familyname|lastname|givenname|firstname|email
 
 # Named Lists, comma separated items, surrounded by ' or "
 <CalendarACLList> ::== '<CalendarACLScope>(,<CalendarACLScope>)*'
@@ -332,7 +361,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <CourseEntity> ::= <CourseIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CrOSEntity> ::= <CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<DriveFileEntity> ::= (id <DriveFileItem>)|(ids <DriveFileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)|(drivefilename <DriveFileName>)|drivefilename:<DriveFileName>|(query <Query>)|query:<Query>
+<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)|(drivefilename <DriveFileName>)|drivefilename:<DriveFileName>|(query <Query>)|query:<Query>|root
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <GroupEntity> ::= <GroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
@@ -613,27 +642,27 @@ gam calendars <CalendarEntity> wipe events
 gam [<UserTypeEntity>] create contact <ContactAttributes>
 gam [<UserTypeEntity>] update contacts <ContactEntity> <ContactAttributes>
 gam [<UserTypeEntity>] delete contacts <ContactEntity>|
-	query <Query> [updated_min yyyy-mm-dd] [orderby lastmodified] [ascending|descending]
+	query <Query> [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 gam [<UserTypeEntity>] info contacts <ContactEntity>|
-	query <Query> [basic|full] [updated_min yyyy-mm-dd] [orderby lastmodified] [ascending|descending]
+	query <Query> [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 gam [<UserTypeEntity>] print contacts [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
-	[orderby lastmodified] [ascending|descending]
+	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
 gam update cros <CrOSItem> <CrOSAttributes>
-gam info cros <CrOSItem> [fields <CrOSFieldNamesList>]
+gam info cros <CrOSItem> [fields <CrOSFieldNameList>]
 gam print cros [todrive] [idfirst] [query <Query>] [basic|full] [nolists|recentusers|timeranges] [listlimit <Number>]
-	[orderby lastsync|location|notes|serialnumber|status|supportenddate|user] [ascending|descending] [fields <CrOSFieldNamesList>]
+	[orderby <CrOSOrderByFieldName> [ascending|descending]] [fields <CrOSFieldNameList>]
 gam <CrOSTypeEntity> update <CrOSAttributes>
 gam <CrOSTypeEntity> print
 
 gam update croses <CrOSEntity> <CrOSAttributes>
-gam info croses <CrOSEntity> [fields <CrOSFieldNamesList>]
+gam info croses <CrOSEntity> [fields <CrOSFieldNameList>]
 
 gam update mobile <MobileItem> <MobileAttributes>
 gam delete mobile <MobileItem>
 gam info mobile <MobileItem>
 gam print mobile [todrive] [idfirst] [query <Query>] [basic|full]
-	[orderby deviceid|email|lastsync|model|name|os|status|type] [ascending|descending]
+	[orderby <MobileOrderByFieldName> [ascending|descending]]
 
 gam update mobiles <MobileEntity> <MobileAttributes>
 gam delete mobiles <MobileEntity>
@@ -646,7 +675,7 @@ gam update group <GroupItem> remove [owner|manager|member] <UserTypeEntity>
 gam update group <GroupItem> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
 gam update group <GroupItem> update [owner|manager|member] <UserTypeEntity>
 gam delete group <GroupItem>
-gam info group <GroupItem> [nousers] [noaliases] [groups] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+gam info group <GroupItem> [nousers] [noaliases] [groups] [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
 gam update group <GroupItem> clear [owner] [manager] [member]
 
 gam update groups <GroupEntity> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>
@@ -656,11 +685,11 @@ gam update groups <GroupEntity> sync [owner|manager|member] [notsuspended] <User
 gam update groups <GroupEntity> update [owner|manager|member] <UserTypeEntity>
 gam update groups <GroupEntity> clear [owner] [manager] [member]
 gam delete groups <GroupEntity>
-gam info groups <GroupEntity> [nousers] [noaliases] [groups] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+gam info groups <GroupEntity> [nousers] [noaliases] [groups] [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
 
 gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>]
-	[members] [owners] [managers] <GroupFieldNames>* [settings]  [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
+	[members] [owners] [managers] <GroupFieldName>* [settings]  [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
 
 gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
 
@@ -696,16 +725,16 @@ gam create user <EmailAddress> <UserAttrubutes>
 gam update user <UserItem> <UserAttributes>
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
-gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNamesList>] [skus|sku <SKUIDList>]
+gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
 gam print users [todrive] [idfirst] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>]  [groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
-	[orderby familyname|lastname|givenname|firstname|email] [ascending|descending] [userview]
-	[allfields | <UserFieldNames>* | fields <UserFieldNamesList>]
+	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
+	[allfields | <UserFieldName>* | fields <UserFieldNameList>]
 
 gam delete users <UserEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam update users <UserEntity> <UserAttributes>
-gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNamesList>]
+gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>]
 
 gam create verify|verification <DomainName>
 gam update verify|verification <DomainName> cname|txt|text|site|file
@@ -767,14 +796,14 @@ gam printjobs <PrintJobEntity> resubmit <PrinterID>
 gam printjob|printjobs <PrinterID>|any fetch
 	[olderthan|newerthan <PrintJobAge>] [query <Query>]
 	[status done|error|held|in_progress|queued|submitted]
-	[orderby create_time|status|title] [ascending|descending]
+	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 	[owner|user <EmailAddress>]
 	[limit <Number>]
 gam printjob|printjobs <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
 gam print printjobs [todrive] [idfirst] [printer|printerid <PrinterID>]
 	[olderthan|newerthan <PrintJobAge>] [query <Query>]
 	[status done|error|held|in_progress|queued|submitted]
-	[orderby create_time|status|title] [ascending|descending]
+	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 	[owner|user <EmailAddress>]
 	[limit <Number>]
 
@@ -809,35 +838,27 @@ gam <UserTypeEntity> remove calendars <CalendarEntity>
 gam <UserTypeEntity> show driveactivity [todrive] [idfirst] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> show drivesettings [todrive] [idfirst]
 
-gam <UserTypeEntity> show fileinfo <DriveFileItem>|<DriveFileEntity> [filepath] [allfields|<DriveFieldNames>*]
-gam <UserTypeEntity> show filerevisions <DriveFileItem>|<DriveFileEntity>
-gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldNames>*]
-gam <UserTypeEntity> show filetree
-gam <UserTypeEntity> show filepath <DriveFileItem>|<DriveFileEntity>
+gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
+gam <UserTypeEntity> show filerevisions <DriveFileEntity>
+gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+gam <UserTypeEntity> show filetree [<DriveFileEntity>] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] [<DriveFileAddAttributes>]
 gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] [<DriveFileUpdateAttributes>]
 gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>]
 gam <UserTypeEntity> delete|del drivefile <DriveFileEntity> [purge|untrash|trash]
 gam <UserTypeEntity> undelete drivefile <DriveFileEntity>
+gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
 gam <UserTypeEntity> delete|del emptydrivefolders
 
-gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
-
-gam <UserTypeEntity> add drivefileacl <DriveFileID> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
+gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	[withlink] [role reader|commenter|writer|owner|editor] [sendmail] [emailmessage <String>] [showtitles]
-gam <UserTypeEntity> update drivefileacl <DriveFileID> id:<String>|<EmailAddress>
+gam <UserTypeEntity> update drivefileacl <DriveFileEntity> id:<String>|<EmailAddress>
 	[withlink] [role reader|commenter|writer|owner|editor] [transferownership <Boolean>] [showtitles]
-gam <UserTypeEntity> delete|del drivefileacl <DriveFileID> id:<String>|<EmailAddress> [showtitles]
-gam <UserTypeEntity> show drivefileacl <DriveFileID> [showtitles]
-
-gam <UserTypeEntity> add drivefileacls <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-	[withlink] [role reader|commenter|writer|owner|editor] [sendmail] [emailmessage <String>] [showtitles]
-gam <UserTypeEntity> update drivefileacls <DriveFileEntity> id:<String>|<EmailAddress>
-	[withlink] [role reader|commenter|writer|owner|editor] [transferownership <Boolean>] [showtitles]
-gam <UserTypeEntity> delete|del drivefileacls <DriveFileEntity> id:<String>|<EmailAddress> [showtitles]
-gam <UserTypeEntity> show drivefileacls <DriveFileEntity> [showtitles]
+gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> id:<String>|<EmailAddress> [showtitles]
+gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 
 gam <UserTypeEntity> delete|del alias|aliases
 
