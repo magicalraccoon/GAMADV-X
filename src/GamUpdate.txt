@@ -283,7 +283,7 @@ Getting the file path for many files is expensive, use sparingly.
     gam print course-participants ... [show all|students|teachers]
 
 27) Add untrash argument to gam delete drivefile to remove file from trash.
-    gam <Users> delete drivefile <DriveFileItem> [purge|untrash]
+    gam <Users> delete drivefile <DriveFileEntity> [purge|untrash]
 
 28) Add arguments to gam info group to suppress aliases listing and include groups of which this group is a member.
     gam info group <Group> ... [noaliases] [groups]
@@ -383,7 +383,7 @@ language, name and admin_secondary_email are present in gam update customer
 Submitted by Seth Stein
 
 50) Added command to show revisions of a file.
-    gam <Users> show filerevisions <DriveFileItem>|<DriveFileEntity>
+    gam <Users> show filerevisions <DriveFileEntity>
 Submitted by Seth Stein
 
 51) Added command to show Google+ profile.
@@ -392,11 +392,39 @@ Submitted by Seth Stein
 52) Warning messages are now written to stderr.
 To capture all stdout and stderr ouput from a command in a single file, do: gam command > file 2>&1
 
-53) Added domain <DomainName and member <EmailAddress> arguments to gam print group-members to allow selecting subsets of groups.
-    gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+4.15.0
 
-54) Add arguments to gam show fileinfo to allow field selectionam.
-    gam <Users> show fileinfo <DriveFileItem>|<DriveFileEntity> [filepath] [allfields|<DriveFieldNames>*]
+53) Added domain <DomainName> and member <UserItem> arguments to gam print group-members to allow selecting subsets of groups.
+    gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+These new arguments are the same as for gam print groups.
+
+54) Add arguments to gam show fileinfo to allow field selection.
+    gam <Users> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldNames>*]
+
+55) Allow selection of CrOS devices by Organizational Unit.
+    gam cros_ous <OrgUnitList> ...
+    gam cros_ous_and_children <OrgUnitList> ..
+The first form selects only the CrOS devices directly in the Org Units; the second form selects CrOS devices from the Org Units and all child Org Units.
+Google does not support this selection directly in the API; gam has to download all CrOS devices and then perform the selection locally;
+this could be time consumimg with very largs lists of CrOS devices.
+
+56) Any place you can specify a Google Drive folder id, you can enter root to select the root folder.
+    gam <Users> show fileinfo root
+
+57) Add arguments to gam show filetree to allow selection of starting folder and specification of output ordering.
+    gam <Users> show filetree [<DriveFileEntity>] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+If <DriveFileEntity> is omitted, the filetree output starts with the root folder.
+
+58) Add arguments to gam show filelist to allow specification of output ordering.
+    gam <Users> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+
+59) Processing of the arguments orderby <OrderByFieldName> and ascending|descending has been slightly restricted. Previously, these areguments
+could appear in any order and they could be separated by other arguments; now, they must appear as: orderby <OrderByFieldName> [ascending|descending]
+gam show filelist/filetree allow specification of multiple orderby fields; all other commands allow specification of a single orderby field. 
+
+60) The commands gam get drivefile, gam copy drivefile and gam update drivefile have been slightly restricted. Previously, these commands
+allowed the <DriveFileEntity> to be specified anywhere in the list of arguments; now, <DriveFileEntity> must appear as the first argument after
+the argument drivefile. This makes these commands consistent with get delete drivefile and gam undelete drivefile.
 
 *** Calendar Enhancements ***
 

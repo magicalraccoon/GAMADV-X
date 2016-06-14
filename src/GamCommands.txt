@@ -164,6 +164,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	ownedbyme|
 	ownernames|
 	owners|
+	parents|
 	permissions|
 	quotabytesused|quotaused|
 	restricted|
