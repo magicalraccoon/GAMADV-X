@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.15.0'
+__version__ = u'4.15.1'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -65,7 +65,6 @@ ERROR_PREFIX = ERROR+u': '
 WARNING = u'WARNING'
 WARNING_PREFIX = WARNING+u': '
 NEVER = u'Never'
-ANYONE = u'Anyone'
 DEFAULT_CHARSET = [u'mbcs', u'utf-8'][os.name != u'nt']
 ONE_KILO_BYTES = 1024
 ONE_MEGA_BYTES = 1048576
@@ -1243,6 +1242,8 @@ USER_PROPERTIES = {
     {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'First Name',},
   u'familyName':
     {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Last Name',},
+  u'fullName':
+    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Full Name',},
   u'password':
     {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Password',},
   u'isAdmin':
@@ -1444,7 +1445,6 @@ PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
 
 MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes\nSee: {1}'
-MESSAGE_CSV_ARGUMENT_REQUIRED = u'csv <FileName> required'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
@@ -1459,12 +1459,10 @@ MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not ex
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
 MESSAGE_NO_SCOPES_FOR_API = u'There are no scopes authorized for the {0}'
 MESSAGE_NO_TRANSFER_LACK_OF_DISK_SPACE = u'Cowardly refusing to perform migration due to lack of target drive space.'
-MESSAGE_PRIMARY_ARGUMENT_REQUIRED = u'primary required'
 MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files were returned, try requesting again'
 MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloading, current status is: {0}'
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
 MESSAGE_SERVICE_NOT_APPLICABLE = u'Service not applicable for this address: {0}'
-MESSAGE_SUMMARY_ARGUMENT_REQUIRED = u'summary <String> required'
 MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please follow the instructions at this site to setup a Service account.'
 
@@ -1974,31 +1972,22 @@ def getEmailAddress(noUid=False, emptyOK=False, optional=False):
     return None
   missingArgumentExit([OB_EMAIL_ADDRESS_OR_UID, OB_EMAIL_ADDRESS][noUid])
 
-def getPermissionId(anyoneAllowed=False):
+def getPermissionId():
   global CL_argvI
   if CL_argvI < CL_argvLen:
     emailAddress = CL_argv[CL_argvI].strip().lower()
     if emailAddress:
       if emailAddress[:3] == u'id:':
-        emailAddress = emailAddress[3:]
-        if emailAddress in [u'anyone', u'anyonewithlink']:
-          if anyoneAllowed:
-            CL_argvI += 1
-            if emailAddress == u'anyonewithlink':
-              emailAddress = u'anyoneWithLink'
-            return (False, emailAddress)
-          invalidArgumentExit(u'anyone not allowed')
         CL_argvI += 1
-        return (False, emailAddress)
+        return (False, CL_argv[CL_argvI-1].strip()[3:])
       atLoc = emailAddress.find(u'@')
       if atLoc == -1:
-        if emailAddress in [u'anyone', u'anyonewithlink']:
-          if anyoneAllowed:
-            CL_argvI += 1
-            if emailAddress == u'anyonewithlink':
-              emailAddress = u'anyoneWithLink'
-            return (False, emailAddress)
-          invalidArgumentExit(u'anyone not allowed')
+        if emailAddress == u'anyone':
+          CL_argvI += 1
+          return (False, emailAddress)
+        if emailAddress == u'anyonewithlink':
+          CL_argvI += 1
+          return (False, u'anyoneWithLink')
         if GC_Values[GC_DOMAIN]:
           emailAddress = u'{0}@{1}'.format(emailAddress, GC_Values[GC_DOMAIN])
         CL_argvI += 1
@@ -5920,7 +5909,7 @@ def doCreateDomain():
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
-# gam update domain <DomainName> [primary]
+# gam update domain <DomainName> primary
 def doUpdateDomain():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   domainName = getString(OB_DOMAIN_NAME)
@@ -5932,7 +5921,7 @@ def doUpdateDomain():
     else:
       unknownArgumentExit()
   if not body:
-    usageErrorExit(MESSAGE_PRIMARY_ARGUMENT_REQUIRED)
+    missingArgumentExit(u'primary')
   try:
     callGAPI(cd.customers(), u'update',
              throw_reasons=[GAPI_DOMAIN_NOT_VERIFIED_SECONDARY, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
@@ -11988,6 +11977,7 @@ def doUndeleteUser(getEntityListArg=False):
 USER_NAME_PROPERTY_PRINT_ORDER = [
   u'givenName',
   u'familyName',
+  u'fullName',
   ]
 USER_SCALAR_PROPERTY_PRINT_ORDER = [
   u'isAdmin',
@@ -14372,7 +14362,7 @@ def getCalendarSettings(summaryRequired=False):
     else:
       unknownArgumentExit()
   if summaryRequired and not body.get(u'summary', None):
-    usageErrorExit(MESSAGE_SUMMARY_ARGUMENT_REQUIRED)
+    missingArgumentExit(u'summary <String>')
   return body
 
 # Process Calendar functions
@@ -14471,7 +14461,7 @@ def updateCalendarAttendees(users):
     else:
       unknownArgumentExit()
   if not csv_file:
-    usageErrorExit(MESSAGE_CSV_ARGUMENT_REQUIRED)
+    missingArgumentExit(u'csv <FileName>')
   attendee_map = {}
   f = openFile(csv_file)
   csvFile = csv.reader(f)
@@ -15949,13 +15939,17 @@ def deleteEmptyDriveFolders(users):
 def printPermission(permission):
   if u'name' in permission:
     printKeyValueList([permission[u'name']])
-  elif (u'id' in permission) and (permission[u'id'] == u'anyone'):
-    printKeyValueList([ANYONE])
+  elif u'id' in permission:
+    if permission[u'id'] == u'anyone':
+      printKeyValueList([u'Anyone'])
+    elif permission[u'id'] == u'anyoneWithLink':
+      printKeyValueList([u'Anyone with Link'])
+    else:
+      printKeyValueList([permission[u'id']])
   incrementIndentLevel()
   for key in permission:
-    if key in [u'kind', u'etag', u'selfLink', u'name']:
-      continue
-    printKeyValueList([key, permission[key]])
+    if key not in [u'kind', u'etag', u'selfLink', u'name']:
+      printKeyValueList([key, permission[key]])
   decrementIndentLevel()
 #
 DRIVEFILE_ACL_ROLES_MAP = {
@@ -15969,7 +15963,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
 DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',]
 
 # gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-#	[withlink|(allowfilediscovery <Boolean>)] [role reader|commenter|writer|owner|editor] [sendmail] [emailmessage <String>] [showtitles]
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [sendmail] [emailmessage <String>] [showtitles]
 def addDriveFileACL(users):
   sendNotificationEmails = showTitles = False
   emailMessage = None
@@ -16004,6 +15998,8 @@ def addDriveFileACL(users):
       emailMessage = getString(OB_STRING)
     else:
       unknownArgumentExit()
+  if u'role' not in body:
+    missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
   i = 0
   count = len(users)
   for user in users:
@@ -16040,12 +16036,12 @@ def addDriveFileACL(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> update drivefileacl <DriveFileEntity> id:<String>|<EmailAddress>
-#	[withlink|(allowfilediscovery <Boolean>)] [role reader|commenter|writer|owner|editor] [transferownership] [showtitles]
+# gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [transferownership] [showtitles]
 def updateDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
-  isEmail, permissionId = getPermissionId(anyoneAllowed=False)
+  isEmail, permissionId = getPermissionId()
   transferOwnership = showTitles = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -16064,6 +16060,8 @@ def updateDriveFileACL(users):
       transferOwnership = getBoolean()
     else:
       unknownArgumentExit()
+  if u'role' not in body:
+    missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
   if isEmail:
     permissionId = validateUserGetPermissionId(permissionId)
     if not permissionId:
@@ -16104,11 +16102,11 @@ def updateDriveFileACL(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> id:<String>|<EmailAddress> [showtitles]
+# gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
 def deleteDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
-  isEmail, permissionId = getPermissionId(anyoneAllowed=True)
+  isEmail, permissionId = getPermissionId()
   showTitles = checkArgumentPresent(SHOWTITLES_ARGUMENT)
   checkForExtraneousArguments()
   if isEmail:
