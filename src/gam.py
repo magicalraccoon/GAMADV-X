@@ -5242,7 +5242,7 @@ OAUTH2_SCOPES = [
   u'https://www.googleapis.com/auth/classroom.profile.photos',         #  6:Classroom API - Profile Photos
   u'https://www.googleapis.com/auth/classroom.rosters',                #  7:Classroom API - Rosters (RO)
   u'https://www.googleapis.com/auth/cloudprint',                       #  8:Cloudprint API
-  u'https://www.google.com/m8/feeds/contacts/',                        #  9:Contacts API - Domain Shared and Users
+  u'https://www.google.com/m8/feeds/contacts',                         #  9:Contacts API - Domain Shared and Users
   u'https://www.googleapis.com/auth/admin.datatransfer',               # 10:Data Transfer API (RO)
   u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  # 11:Directory API - Chrome OS Devices (RO)
   u'https://www.googleapis.com/auth/admin.directory.customer',         # 12:Directory API - Customers (RO)
