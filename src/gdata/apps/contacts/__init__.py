@@ -313,9 +313,9 @@ class Jot(ContactsBase):
   _attributes = ContactsBase._attributes.copy()
   _attributes['rel'] = 'rel'
 
-  def __init__(self, rel=None, text=None, 
+  def __init__(self, rel=None, text=None,
                extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text, 
+    ContactsBase.__init__(self, text=text,
                           extension_elements=extension_elements,
                           extension_attributes=extension_attributes)
     self.rel = rel
@@ -691,13 +691,13 @@ class StructuredPostalAddress(GDataBase):
   _children['{%s}formattedAddress' % GDataBase._namespace] = ('formatted_address', FormattedAddress)
 
   def __init__(self, rel=None, label=None, primary='false',
-               street = None,
-               pobox = None,
-               neighborhood = None,
-               city = None,
-               region = None,
-               postcode = None,
-               country = None,
+               street=None,
+               pobox=None,
+               neighborhood=None,
+               city=None,
+               region=None,
+               postcode=None,
+               country=None,
                formatted_address=None, text=None,
                extension_elements=None, extension_attributes=None):
     GDataBase.__init__(self, text=text, extension_elements=extension_elements,

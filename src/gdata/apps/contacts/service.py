@@ -69,9 +69,9 @@ class ContactsService(gdata.service.GDataService):
     """
 
     self.contact_list = contact_list
-    gdata.service.GDataService.__init__(
-        self, email=email, password=password, service='cp', source=source,
-        server=server, additional_headers=additional_headers, **kwargs)
+    gdata.service.GDataService.__init__(self,
+                                        email=email, password=password, service='cp', source=source,
+                                        server=server, additional_headers=additional_headers, **kwargs)
     self.ssl = True
     self.port = 443
 
@@ -169,7 +169,7 @@ class ContactsService(gdata.service.GDataService):
       raise gdata.apps.service.AppsForYourDomainException(e.args[0])
 
   def DeleteContact(self, edit_uri, extra_headers=None,
-      url_params=None, escape_params=True):
+                    url_params=None, escape_params=True):
     """Removes an contact with the specified ID from Google Contacts.
 
     Args:
@@ -194,7 +194,7 @@ class ContactsService(gdata.service.GDataService):
     except gdata.service.RequestError, e:
       raise gdata.apps.service.AppsForYourDomainException(e.args[0])
 
-  def ChangePhoto(self, media, contact_entry_or_url, content_type=None, 
+  def ChangePhoto(self, media, contact_entry_or_url, content_type=None,
                   content_length=None):
     """Change the photo for the contact by uploading a new photo.
 
@@ -226,25 +226,25 @@ class ContactsService(gdata.service.GDataService):
     # If the media object is a file-like object, then use it as the file
     # handle in the in the MediaSource.
     elif hasattr(media, 'read'):
-      payload = gdata.MediaSource(file_handle=media, 
-          content_type=content_type, content_length=content_length)
+      payload = gdata.MediaSource(file_handle=media,
+                                  content_type=content_type, content_length=content_length)
     # Assume that the media object is a file name.
     else:
-      payload = gdata.MediaSource(content_type=content_type, 
-          content_length=content_length, file_path=media)
+      payload = gdata.MediaSource(content_type=content_type,
+                                  content_length=content_length, file_path=media)
     return self.Put(payload, url)
 
   def GetPhoto(self, contact_entry_or_url):
     """Retrives the binary data for the contact's profile photo as a string.
-    
+
     Args:
       contact_entry_or_url: a gdata.apps.contacts.ContactEntry objecr or a string
-         containing the photo link's URL. If the contact entry does not 
+         containing the photo link's URL. If the contact entry does not
          contain a photo link, the image will not be fetched and this method
          will return None.
     """
-    # TODO: add the ability to write out the binary image data to a file, 
-    # reading and writing a chunk at a time to avoid potentially using up 
+    # TODO: add the ability to write out the binary image data to a file,
+    # reading and writing a chunk at a time to avoid potentially using up
     # large amounts of memory.
     url = None
     if isinstance(contact_entry_or_url, gdata.apps.contacts.ContactEntry):
@@ -273,7 +273,7 @@ class ContactsService(gdata.service.GDataService):
   def ExecuteBatch(self, batch_feed, url,
                    converter=gdata.apps.contacts.ContactsFeedFromString):
     """Sends a batch request feed to the server.
-    
+
     Args:
       batch_feed: gdata.apps.contacts.ContactFeed A feed containing batch
           request entries. Each entry contains the operation to be performed
@@ -283,13 +283,13 @@ class ContactsService(gdata.service.GDataService):
       url: str The batch URL to which these operations should be applied.
       converter: Function (optional) The function used to convert the server's
           response to an object. The default value is ContactsFeedFromString.
-    
+
     Returns:
       The results of the batch request's execution on the server. If the
       default converter is used, this is stored in a ContactsFeed.
     """
     return self.Post(batch_feed, url, converter=converter)
-  
+
   def _CleanUri(self, uri):
     """Sanitizes a feed URI.
 
@@ -308,7 +308,7 @@ class ContactsService(gdata.service.GDataService):
 class ContactsQuery(gdata.service.Query):
 
   def __init__(self, feed=None, text_query=None, params=None,
-      categories=None):
+               categories=None):
     self.feed = feed or '/m8/feeds/contacts/default/full'
     gdata.service.Query.__init__(self, feed=self.feed, text_query=text_query,
-        params=params, categories=categories)
+                                 params=params, categories=categories)
