@@ -14,14 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Contains extensions to ElementWrapper objects used with Google Contacts."""
-
-__author__ = 'dbrattli (Dag Brattli)'
-
+"""Data model classes for parsing and generating XML for the Contacts API."""
 
 import atom
 import gdata
-
 
 ## Constants from http://code.google.com/apis/gdata/elements.html ##
 REL_HOME = 'http://schemas.google.com/g/2005#home'
@@ -85,48 +81,34 @@ CONTACTS_NAMESPACE = 'http://schemas.google.com/contact/2008'
 
 class GDataBase(atom.AtomBase):
   """The Google Contacts intermediate class from atom.AtomBase."""
-
   _namespace = gdata.GDATA_NAMESPACE
   _children = atom.AtomBase._children.copy()
   _attributes = atom.AtomBase._attributes.copy()
 
-  def __init__(self, text=None,
-               extension_elements=None, extension_attributes=None):
-    self.text = text
-    self.extension_elements = extension_elements or []
-    self.extension_attributes = extension_attributes or {}
-
+  def __init__(self, text=None):
+    atom.AtomBase.__init__(self, text=text)
 
 class ContactsBase(GDataBase):
   """The Google Contacts intermediate class for Contacts namespace."""
-
   _namespace = CONTACTS_NAMESPACE
-
 
 class BillingInformation(ContactsBase):
   """The gContact:billingInformation element."""
-
   _tag = 'billingInformation'
 
 class Birthday(ContactsBase):
   """The gContact:birthday element."""
-
   _tag = 'birthday'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['when'] = 'when'
 
-  def __init__(self, when=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, when=None):
+    ContactsBase.__init__(self)
     self.when = when
-
 
 class CalendarLink(ContactsBase):
   """The gContact:calendarLink element."""
-
   _tag = 'calendarLink'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
@@ -135,41 +117,27 @@ class CalendarLink(ContactsBase):
   _attributes['primary'] = 'primary'
   _attributes['rel'] = 'rel'
 
-  def __init__(self, href=None, label=None, primary='false', rel=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, href=None, label=None, primary='false', rel=None):
+    ContactsBase.__init__(self)
     self.href = href
     self.label = label
     self.primary = primary
     self.rel = rel
 
-
-class Content(ContactsBase):
+class Content(atom.AtomBase):
   """The Google Contacts Content element."""
-
   _tag = 'content'
   _namespace = atom.ATOM_NAMESPACE
-  _children = ContactsBase._children.copy()
-  _attributes = ContactsBase._attributes.copy()
 
-  def __init__(self,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
-
+  def __init__(self, text=None):
+    atom.AtomBase.__init__(self, text=text)
 
 class DirectoryServer(ContactsBase):
   """The gContact:directoryServer element."""
-
   _tag = 'directoryServer'
-
 
 class Email(GDataBase):
   """The gd:email element."""
-
   _tag = 'email'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -178,36 +146,28 @@ class Email(GDataBase):
   _attributes['rel'] = 'rel'
   _attributes['label'] = 'label'
 
-  def __init__(self, label=None, rel=None, address=None, primary='false',
-               text=None, extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+  def __init__(self, label=None, rel=None, address=None, primary='false'):
+    GDataBase.__init__(self)
     self.label = label
     self.rel = rel
     self.address = address
     self.primary = primary
 
-
 class When(GDataBase):
   """The Google Contacts when element."""
-
   _tag = 'when'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
   _attributes['startTime'] = 'startTime'
   _attributes['label'] = 'label'
 
-  def __init__(self, startTime=None, label=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+  def __init__(self, startTime=None, label=None):
+    GDataBase.__init__(self)
     self.startTime = startTime
     self.label = label
 
-
 class Event(ContactsBase):
   """The gContact:event element."""
-
   _tag = 'event'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
@@ -215,23 +175,17 @@ class Event(ContactsBase):
   _attributes['rel'] = 'rel'
   _children['{%s}when' % GDataBase._namespace] = ('when', When)
 
-  def __init__(self, label=None, rel=None, when=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, label=None, rel=None, when=None):
+    ContactsBase.__init__(self)
     self.label = label
     self.rel = rel
     self.when = when
 
-
 def EventFromString(xml_string):
   return atom.CreateClassFromXMLString(Event, xml_string)
 
-
 class ExternalId(ContactsBase):
   """The gContact:externalId element."""
-
   _tag = 'externalId'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
@@ -239,45 +193,32 @@ class ExternalId(ContactsBase):
   _attributes['rel'] = 'rel'
   _attributes['value'] = 'value'
 
-  def __init__(self, label=None, rel=None, value=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, label=None, rel=None, value=None):
+    ContactsBase.__init__(self)
     self.label = label
     self.rel = rel
     self.value = value
 
-
 def ExternalIdFromString(xml_string):
   return atom.CreateClassFromXMLString(ExternalId, xml_string)
 
-
 class Gender(ContactsBase):
   """The gContact:gender element."""
-
   _tag = 'gender'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['value'] = 'value'
 
-  def __init__(self, value=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, value=None):
+    ContactsBase.__init__(self)
     self.value = value
-
 
 class Hobby(ContactsBase):
   """The gContact:hobby element."""
-
   _tag = 'hobby'
-
 
 class IM(GDataBase):
   """The gd:im element."""
-
   _tag = 'im'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -287,108 +228,76 @@ class IM(GDataBase):
   _attributes['label'] = 'label'
   _attributes['rel'] = 'rel'
 
-  def __init__(self, primary='false', rel=None, address=None, protocol=None,
-               label=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+  def __init__(self, primary='false', rel=None, address=None, protocol=None, label=None):
+    GDataBase.__init__(self)
     self.protocol = protocol
     self.address = address
     self.primary = primary
     self.rel = rel
     self.label = label
 
-
 class Initials(ContactsBase):
   """The gContact:initials element."""
-
   _tag = 'initials'
-
 
 class Jot(ContactsBase):
   """The gContact:jot element."""
-
   _tag = 'jot'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['rel'] = 'rel'
 
-  def __init__(self, rel=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, rel=None, text=None):
+    ContactsBase.__init__(self, text=text)
     self.rel = rel
-
 
 class Language(ContactsBase):
   """The gContact:language element."""
-
   _tag = 'language'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['code'] = 'code'
   _attributes['label'] = 'label'
 
-  def __init__(self, code=None, label=None,
-               extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, code=None, label=None):
+    ContactsBase.__init__(self)
     self.code = code
     self.label = label
 
 class MaidenName(ContactsBase):
   """The gContact:maidenName element."""
-
   _tag = 'maidenName'
-
 
 class Mileage(ContactsBase):
   """The gContact:mileage element."""
-
   _tag = 'mileage'
-
 
 class NamePrefix(GDataBase):
   """The gd:namePrefix element."""
-
   _tag = 'namePrefix'
-
 
 class GivenName(GDataBase):
   """The gd:givenName element."""
-
   _tag = 'givenName'
-
 
 class AdditionalName(GDataBase):
   """The gd:additionalName element."""
-
   _tag = 'additionalName'
-
 
 class FamilyName(GDataBase):
   """The gd:familyName element."""
-
   _tag = 'familyName'
-
 
 class NameSuffix(GDataBase):
   """The gd:nameSuffix element."""
-
   _tag = 'nameSuffix'
-
 
 class FullName(GDataBase):
   """The gd:fullName element."""
-
   _tag = 'fullName'
-
 
 class Name(GDataBase):
   """The gd:name element."""
-
   _tag = 'name'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -400,10 +309,8 @@ class Name(GDataBase):
   _children['{%s}fullName' % GDataBase._namespace] = ('full_name', FullName)
 
   def __init__(self, given_name=None, additional_name=None, family_name=None,
-               name_prefix=None, name_suffix=None, full_name=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+               name_prefix=None, name_suffix=None, full_name=None,):
+    GDataBase.__init__(self)
     self.given_name = given_name
     self.additional_name = additional_name
     self.family_name = family_name
@@ -411,22 +318,16 @@ class Name(GDataBase):
     self.name_suffix = name_suffix
     self.full_name = full_name
 
-
 class Nickname(ContactsBase):
   """The gContact:nickname element."""
-
   _tag = 'nickname'
-
 
 class Occupation(ContactsBase):
   """The gContact:occupation element."""
-
   _tag = 'occupation'
-
 
 class PhoneNumber(GDataBase):
   """The gd:phoneNumber element."""
-
   _tag = 'phoneNumber'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -435,65 +336,46 @@ class PhoneNumber(GDataBase):
   _attributes['uri'] = 'uri'
   _attributes['primary'] = 'primary'
 
-  def __init__(self, label=None, rel=None, uri=None, primary='false',
-               text=None, extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+  def __init__(self, label=None, rel=None, uri=None, primary='false', text=None):
+    GDataBase.__init__(self, text=text)
     self.label = label
     self.rel = rel
     self.uri = uri
     self.primary = primary
 
-
 class OrgName(GDataBase):
   """The gd:orgName element."""
-
   _tag = 'orgName'
-
 
 class OrgTitle(GDataBase):
   """The gd:orgTitle element."""
-
   _tag = 'orgTitle'
-
 
 class OrgSymbol(GDataBase):
   """The gd:orgSymbol element."""
-
   _tag = 'orgSymbol'
-
 
 class OrgDepartment(GDataBase):
   """The gd:orgDepartment element."""
-
   _tag = 'orgDepartment'
-
 
 class OrgJobDescription(GDataBase):
   """The gd:orgJobDescription element."""
-
   _tag = 'orgJobDescription'
-
 
 class Where(GDataBase):
   """The gd:where element."""
-
   _tag = 'where'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
   _attributes['valueString'] = 'value_string'
 
-  def __init__(self, value_string=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
-
+  def __init__(self, value_string=None):
+    GDataBase.__init__(self)
     self.value_string = value_string
-
 
 class Organization(GDataBase):
   """The gd:organization element."""
-
   _tag = 'organization'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -508,11 +390,8 @@ class Organization(GDataBase):
   _children['{%s}where' % GDataBase._namespace] = ('where', Where)
 
   def __init__(self, label=None, rel=None, primary='false', name=None,
-               title=None, symbol=None, department=None, job_description=None,
-               where=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+               title=None, symbol=None, department=None, job_description=None, where=None,):
+    GDataBase.__init__(self)
     self.label = label
     self.rel = rel
     self.primary = primary
@@ -523,10 +402,8 @@ class Organization(GDataBase):
     self.job_description = job_description
     self.where = where
 
-
 class PostalAddress(GDataBase):
   """The gd:postalAddress element."""
-
   _tag = 'postalAddress'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -534,95 +411,70 @@ class PostalAddress(GDataBase):
   _attributes['rel'] = 'rel'
   _attributes['primary'] = 'primary'
 
-  def __init__(self, primary=None, rel=None, label=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+  def __init__(self, primary=None, rel=None, label=None, text=None):
+    GDataBase.__init__(self, text=text)
     self.label = label
     self.rel = rel
     self.primary = primary
 
-
 class Priority(ContactsBase):
   """The gContact:priority element."""
-
   _tag = 'priority'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['rel'] = 'rel'
 
-  def __init__(self, rel=None,
-               extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, rel=None):
+    ContactsBase.__init__(self)
     self.rel = rel
-
 
 class Relation(ContactsBase):
   """The gContact:relation element."""
-
   _tag = 'relation'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['label'] = 'label'
   _attributes['rel'] = 'rel'
 
-  def __init__(self, label=None, rel=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, label=None, rel=None, text=None):
+    ContactsBase.__init__(self, text=text)
     self.label = label
     self.rel = rel
-
 
 def RelationFromString(xml_string):
   return atom.CreateClassFromXMLString(Relation, xml_string)
 
-
 class Sensitivity(ContactsBase):
   """The gContact:sensitivity element."""
-
   _tag = 'sensitivity'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['rel'] = 'rel'
 
-  def __init__(self, rel=None,
-               extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, rel=None):
+    ContactsBase.__init__(self)
     self.rel = rel
 
 class ShortName(ContactsBase):
   """The gContact:shortName element."""
-
   _tag = 'shortName'
-
 
 class Street(GDataBase):
   """The gd:street element.
-
   Can be street, avenue, road, etc. This element also includes the
   house number and room/apartment/flat/floor number.
   """
   _tag = 'street'
 
-
 class PoBox(GDataBase):
   """The gd:pobox element.
-
   Covers actual P.O. boxes, drawers, locked bags, etc. This is usually
   but not always mutually exclusive with street.
   """
   _tag = 'pobox'
 
-
 class Neighborhood(GDataBase):
   """The gd:neighborhood element.
-
   This is used to disambiguate a street address when a city contains more
   than one street with the same name, or to specify a small place whose
   mail is routed through a larger postal town. In China it could be a
@@ -630,51 +482,39 @@ class Neighborhood(GDataBase):
   """
   _tag = 'neighborhood'
 
-
 class City(GDataBase):
   """The gd:city element.
-
   Can be city, village, town, borough, etc. This is the postal town and
   not necessarily the place of residence or place of business.
   """
   _tag = 'city'
 
-
 class Region(GDataBase):
   """The gd:region element.
-
   A state, province, county (in Ireland), Land (in Germany),
   departement (in France), etc.
   """
   _tag = 'region'
 
-
 class Postcode(GDataBase):
   """The gd:postcode element.
-
   Postal code. Usually country-wide, but sometimes specific to the
   city (e.g. "2" in "Dublin 2, Ireland" addresses).
   """
   _tag = 'postcode'
 
-
 class Country(GDataBase):
   """The gd:country element.
-
   The name or code of the country.
   """
   _tag = 'country'
 
-
 class FormattedAddress(GDataBase):
   """The gd:formattedAddress element."""
-
   _tag = 'formattedAddress'
-
 
 class StructuredPostalAddress(GDataBase):
   """The gd:structuredPostalAddress element."""
-
   _tag = 'structuredPostalAddress'
   _children = GDataBase._children.copy()
   _attributes = GDataBase._attributes.copy()
@@ -698,10 +538,8 @@ class StructuredPostalAddress(GDataBase):
                region=None,
                postcode=None,
                country=None,
-               formatted_address=None, text=None,
-               extension_elements=None, extension_attributes=None):
-    GDataBase.__init__(self, text=text, extension_elements=extension_elements,
-                       extension_attributes=extension_attributes)
+               formatted_address=None):
+    GDataBase.__init__(self)
     self.label = label
     self.rel = rel
     self.primary = primary
@@ -714,38 +552,28 @@ class StructuredPostalAddress(GDataBase):
     self.country = country
     self.formatted_address = formatted_address
 
-
 class Subject(ContactsBase):
   """The gContact:Subject element."""
-
   _tag = 'subject'
-
 
 class UserDefinedField(ContactsBase):
   """The gContact:userDefinedField element."""
-
   _tag = 'userDefinedField'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
   _attributes['key'] = 'key'
   _attributes['value'] = 'value'
 
-  def __init__(self, key=None, value=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, key=None, value=None):
+    ContactsBase.__init__(self)
     self.key = key
     self.value = value
-
 
 def UserDefinedFieldFromString(xml_string):
   return atom.CreateClassFromXMLString(UserDefinedField, xml_string)
 
-
 class Website(ContactsBase):
   """The gContact:Website element."""
-
   _tag = 'website'
   _children = ContactsBase._children.copy()
   _attributes = ContactsBase._attributes.copy()
@@ -754,24 +582,18 @@ class Website(ContactsBase):
   _attributes['primary'] = 'primary'
   _attributes['rel'] = 'rel'
 
-  def __init__(self, href=None, label=None, primary='false', rel=None,
-               text=None, extension_elements=None, extension_attributes=None):
-    ContactsBase.__init__(self, text=text,
-                          extension_elements=extension_elements,
-                          extension_attributes=extension_attributes)
+  def __init__(self, href=None, label=None, primary='false', rel=None):
+    ContactsBase.__init__(self)
     self.href = href
     self.label = label
     self.primary = primary
     self.rel = rel
 
-
 def WebsiteFromString(xml_string):
   return atom.CreateClassFromXMLString(Website, xml_string)
 
-
 class PersonEntry(gdata.BatchEntry):
   """Base class for ContactEntry and ProfileEntry."""
-
   _children = gdata.BatchEntry._children.copy()
   _children['{%s}billingInformation' % CONTACTS_NAMESPACE] = ('billingInformation', BillingInformation)
   _children['{%s}birthday' % CONTACTS_NAMESPACE] = ('birthday', Birthday)
@@ -804,8 +626,7 @@ class PersonEntry(gdata.BatchEntry):
   _children['{%s}userDefinedField' % CONTACTS_NAMESPACE] = ('userDefinedField', [UserDefinedField])
   _children['{%s}website' % CONTACTS_NAMESPACE] = ('website', [Website])
   _children['{%s}where' % gdata.GDATA_NAMESPACE] = ('where', Where)
-  # The following line should be removed once the Python support
-  # for GData 2.0 is mature.
+
   _attributes = gdata.BatchEntry._attributes.copy()
   _attributes['{%s}etag' % gdata.GDATA_NAMESPACE] = 'etag'
 
@@ -843,30 +664,8 @@ class PersonEntry(gdata.BatchEntry):
                userDefinedField=None,
                website=None,
                where=None,
-               atom_id=None,
-               author=None,
-               batch_id=None,
-               batch_operation=None,
-               batch_status=None,
-               category=None,
-               etag=None,
-               extension_attributes=None,
-               extension_elements=None,
-               link=None,
-               published=None,
-               updated=None):
-    gdata.BatchEntry.__init__(self,
-                              atom_id=atom_id,
-                              author=author,
-                              batch_id=batch_id,
-                              batch_operation=batch_operation,
-                              batch_status=batch_status,
-                              category=category,
-                              content=content,
-                              link=link,
-                              published=published,
-                              title=title,
-                              updated=updated)
+               etag=None):
+    gdata.BatchEntry.__init__(self)
     self.billingInformation = billingInformation
     self.birthday = birthday
     self.calendarLink = calendarLink or []
@@ -899,26 +698,35 @@ class PersonEntry(gdata.BatchEntry):
     self.userDefinedField = userDefinedField or []
     self.website = website or []
     self.where = where
-    self.extension_attributes = extension_attributes or {}
-    self.extension_elements = extension_elements or []
-    # The following line should be removed once the Python support
-    # for GData 2.0 is mature.
+    self.extension_attributes = {}
+    self.extension_elements = []
     self.etag = etag
 
 class Deleted(GDataBase):
   """The gd:Deleted element."""
-
   _tag = 'deleted'
 
+class GroupMembershipInfo(ContactsBase):
+  """The Google Contacts GroupMembershipInfo element."""
+  _tag = 'groupMembershipInfo'
+  _children = ContactsBase._children.copy()
+  _attributes = ContactsBase._attributes.copy()
+  _attributes['deleted'] = 'deleted'
+  _attributes['href'] = 'href'
+
+  def __init__(self, deleted=None, href=None, text=None):
+    ContactsBase.__init__(self, text=text)
+    self.deleted = deleted
+    self.href = href
 
 class ContactEntry(PersonEntry):
-  """A Google Contact flavor of an Atom Entry."""
-
+  """Represents a contact."""
   _tag = 'entry'
   _namespace = atom.ATOM_NAMESPACE
   _children = PersonEntry._children.copy()
 
   _children['{%s}deleted' % gdata.GDATA_NAMESPACE] = ('deleted', Deleted)
+  _children['{%s}groupMembershipInfo' % CONTACTS_NAMESPACE] = ('groupMembershipInfo', [GroupMembershipInfo])
   _children['{%s}extendedProperty' % gdata.GDATA_NAMESPACE] = ('extended_property', [gdata.ExtendedProperty])
   # Overwrite the organization rule in PersonEntry so that a ContactEntry
   # may only contain one <gd:organization> element.
@@ -929,12 +737,14 @@ class ContactEntry(PersonEntry):
                birthday=None,
                calendarLink=None,
                content=None,
+               deleted=None,
                directoryServer=None,
                email=None,
                event=None,
                extended_property=None,
                externalId=None,
                gender=None,
+               groupMembershipInfo=None,
                hobby=None,
                im=None,
                initials=None,
@@ -959,19 +769,7 @@ class ContactEntry(PersonEntry):
                userDefinedField=None,
                website=None,
                where=None,
-               atom_id=None,
-               author=None,
-               batch_id=None,
-               batch_operation=None,
-               batch_status=None,
-               category=None,
-               deleted=None,
-               etag=None,
-               extension_attributes=None,
-               extension_elements=None,
-               link=None,
-               published=None,
-               updated=None):
+               etag=None):
     PersonEntry.__init__(self,
                          billingInformation=billingInformation,
                          birthday=birthday,
@@ -1006,20 +804,10 @@ class ContactEntry(PersonEntry):
                          userDefinedField=userDefinedField,
                          website=website,
                          where=where,
-                         atom_id=atom_id,
-                         author=author,
-                         batch_id=batch_id,
-                         batch_operation=batch_operation,
-                         batch_status=batch_status,
-                         category=category,
-                         etag=etag,
-                         extension_attributes=extension_attributes,
-                         extension_elements=extension_elements,
-                         link=link,
-                         published=published,
-                         updated=updated)
+                         etag=etag)
     self.deleted = deleted
     self.extended_property = extended_property or []
+    self.groupMembershipInfo = groupMembershipInfo or []
 
   def GetPhotoLink(self):
     for a_link in self.link:
@@ -1033,38 +821,54 @@ class ContactEntry(PersonEntry):
         return a_link
     return None
 
-
 def ContactEntryFromString(xml_string):
   return atom.CreateClassFromXMLString(ContactEntry, xml_string)
 
-
 class ContactsFeed(gdata.BatchFeed, gdata.LinkFinder):
-  """A Google Contacts feed flavor of an Atom Feed."""
-
+  """A Google contacts feed flavor of an Atom Feed."""
   _tag = 'feed'
   _namespace = atom.ATOM_NAMESPACE
   _children = gdata.BatchFeed._children.copy()
-
   _children['{%s}entry' % atom.ATOM_NAMESPACE] = ('entry', [ContactEntry])
 
-  def __init__(self, author=None, category=None, contributor=None,
-               generator=None, icon=None, atom_id=None, link=None, logo=None,
-               rights=None, subtitle=None, title=None, updated=None,
-               entry=None, total_results=None, start_index=None,
-               items_per_page=None, extension_elements=None,
-               extension_attributes=None, text=None):
-    gdata.BatchFeed.__init__(self, author=author, category=category,
-                             contributor=contributor, generator=generator,
-                             icon=icon, atom_id=atom_id, link=link,
-                             logo=logo, rights=rights, subtitle=subtitle,
-                             title=title, updated=updated, entry=entry,
-                             total_results=total_results,
-                             start_index=start_index,
-                             items_per_page=items_per_page,
-                             extension_elements=extension_elements,
-                             extension_attributes=extension_attributes,
-                             text=text)
-
+  def __init__(self):
+    gdata.BatchFeed.__init__(self)
 
 def ContactsFeedFromString(xml_string):
   return atom.CreateClassFromXMLString(ContactsFeed, xml_string)
+
+class GroupEntry(gdata.BatchEntry):
+  """Represents a contact group."""
+  _children = gdata.BatchEntry._children.copy()
+  _children['{%s}deleted' % gdata.GDATA_NAMESPACE] = ('deleted', Deleted)
+  _children['{%s}extendedProperty' % gdata.GDATA_NAMESPACE] = ('extended_property', [gdata.ExtendedProperty])
+
+  _attributes = gdata.BatchEntry._attributes.copy()
+  _attributes['{%s}etag' % gdata.GDATA_NAMESPACE] = 'etag'
+
+  def __init__(self,
+               title=None,
+               deleted=None,
+               extended_property=None,
+               etag=None):
+    gdata.BatchEntry.__init__(self)
+    self.title = title
+    self.deleted = deleted
+    self.extended_property = extended_property or []
+    self.etag = etag
+
+def GroupEntryFromString(xml_string):
+  return atom.CreateClassFromXMLString(GroupEntry, xml_string)
+
+class GroupsFeed(gdata.BatchFeed):
+  """A Google contact groups feed flavor of an Atom Feed."""
+  _tag = 'feed'
+  _namespace = atom.ATOM_NAMESPACE
+  _children = gdata.BatchFeed._children.copy()
+  _children['{%s}entry' % atom.ATOM_NAMESPACE] = ('entry', [GroupEntry])
+
+  def __init__(self):
+    gdata.BatchFeed.__init__(self)
+
+def GroupsFeedFromString(xml_string):
+  return atom.CreateClassFromXMLString(GroupsFeed, xml_string)
