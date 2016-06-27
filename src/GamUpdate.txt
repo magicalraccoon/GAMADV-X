@@ -426,6 +426,11 @@ gam show filelist/filetree allow specification of multiple orderby fields; all o
 allowed the <DriveFileEntity> to be specified anywhere in the list of arguments; now, <DriveFileEntity> must appear as the first argument after
 the argument drivefile. This makes these commands consistent with get delete drivefile and gam undelete drivefile.
 
+4.16.0
+
+61) The output of the command gam print contacts has been modified; the column heading User has been changed to Domain.
+The output of the command gam <Users> print contacts has not changed.
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
@@ -456,3 +461,10 @@ See GamConfig.txt
 01) Implement Contacts
 See GamContacts.txt
 
+4.16.0
+
+02) Implement user Contact Groups
+See GamContacts.txt
+
+03) Implement Sites
+See GamSites.txt

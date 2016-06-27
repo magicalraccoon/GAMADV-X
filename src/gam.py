@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.15.1'
+__version__ = u'4.16.0'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -471,18 +471,25 @@ GDATA_ADMIN_SETTINGS_API = GAPI_ADMIN_SETTINGS_API
 GDATA_CONTACTS_API = u'contacts'
 GDATA_EMAIL_AUDIT_API = u'email-audit'
 GDATA_EMAIL_SETTINGS_API = u'email-settings'
+GDATA_SITES_API = u'sites'
 # callGData throw errors
-GDATA_BAD_REQUEST = 601
+GDATA_BAD_GATEWAY = 601
+GDATA_BAD_REQUEST = 602
 GDATA_DOES_NOT_EXIST = 1301
 GDATA_ENTITY_EXISTS = 1300
 GDATA_INSUFFICIENT_PERMISSIONS = 603
 GDATA_INTERNAL_SERVER_ERROR = 1000
-GDATA_INVALID_DOMAIN = 602
+GDATA_INVALID_DOMAIN = 604
 GDATA_INVALID_VALUE = 1801
 GDATA_NAME_NOT_VALID = 1303
-GDATA_NOT_FOUND = 600
+GDATA_NOT_FOUND = 605
+GDATA_QUOTA_EXCEEDED = 606
 GDATA_SERVICE_NOT_APPLICABLE = 1410
+GDATA_TOKEN_EXPIRED = 607
+GDATA_TOKEN_INVALID = 403
+GDATA_UNKNOWN_ERROR = 600
 #
+GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR]
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
@@ -562,14 +569,15 @@ OAUTH2_GDATA_SCOPES = u'gdata'
 OAUTH2_SCOPES_LIST = [OAUTH2_GAPI_SCOPES, OAUTH2_GDATA_SCOPES]
 # Object BNF names
 OB_ACCESS_TOKEN = u'AccessToken'
+OB_ACL_ENTITY = u'ACLEntity'
 OB_ARGUMENT = u'argument'
 OB_ASP_ID = u'AspID'
-OB_CALENDAR_ACL_ENTITY = u'CalendarACLEntity'
 OB_CALENDAR_ITEM = U'CalendarItem'
 OB_CHAR_SET = u'CharacterSet'
 OB_CIDR_NETMASK = u'CIDRnetmask'
 OB_CLIENT_ID = u'ClientID'
 OB_CONTACT_ENTITY = u'ContactEntity'
+OB_CONTACT_GROUP_ID = u'ContactGroupID'
 OB_COURSE_ALIAS = u'CourseAlias'
 OB_COURSE_ALIAS_ENTITY = u'CourseAliasEntity'
 OB_COURSE_ENTITY = u'CourseEntity'
@@ -633,6 +641,7 @@ OB_SCHEMA_NAME = u'SchemaName'
 OB_SCHEMA_NAME_LIST = u'SchemaNameList'
 OB_SECTION_NAME = u'SectionName'
 OB_SERVICE_NAME = u'ServiceName'
+OB_SITE_NAME = u'SiteName'
 OB_SKU_ID = u'SKUID'
 OB_SKU_ID_LIST = u'SKUIDList'
 OB_STRING = u'String'
@@ -662,6 +671,7 @@ EN_CALENDAR = u'cale'
 EN_CALENDAR_SETTINGS = u'cset'
 EN_CONFIG_FILE = u'conf'
 EN_CONTACT = u'cont'
+EN_CONTACT_GROUP = u'cogr'
 EN_COURSE = u'cour'
 EN_COURSE_ALIAS = u'coal'
 EN_COURSE_ID = u'coid'
@@ -733,6 +743,7 @@ EN_SECTION = u'sect'
 EN_SEND_AS_ALIAS = u'sasa'
 EN_SERVICE = u'serv'
 EN_SIGNATURE = u'sign'
+EN_SITE = u'site'
 EN_SKU = u'sku '
 EN_SNIPPETS = u'snip'
 EN_SSO_KEY = u'ssok'
@@ -774,6 +785,7 @@ ENTITY_NAMES = {
   EN_CALENDAR_SETTINGS: [u'Calendar Settings', u'Calendar Settings'],
   EN_CONFIG_FILE: [u'Config File', u'Config File'],
   EN_CONTACT: [u'Contacts', u'Contact'],
+  EN_CONTACT_GROUP: [u'Contact Groups', u'Contact Group'],
   EN_COURSE: [u'Courses', u'Course'],
   EN_COURSE_ALIAS: [u'Course Aliases', u'Course Alias'],
   EN_COURSE_ID: [u'Course IDs', u'Course ID'],
@@ -845,6 +857,7 @@ ENTITY_NAMES = {
   EN_SEND_AS_ALIAS: [u'Send As Aliases', u'Send As Alias'],
   EN_SERVICE: [u'Services', u'Service'],
   EN_SIGNATURE: [u'Signatures', u'Signature'],
+  EN_SITE: [u'Sites', u'Site'],
   EN_SKU: [u'SKUs', u'SKU'],
   EN_SNIPPETS: [u'Preview Snippets Enabled', u'Preview Snippets Enabled'],
   EN_SSO_KEY: [u'SSO Key', u'SSO Key'],
@@ -997,6 +1010,8 @@ CL_OB_CALENDARS = u'calendars'
 CL_OB_CALSETTINGS = u'calsettings'
 CL_OB_CONTACT = u'contact'
 CL_OB_CONTACTS = u'contacts'
+CL_OB_CONTACT_GROUP = u'contactgroup'
+CL_OB_CONTACT_GROUPS = u'contactgroups'
 CL_OB_COURSE = u'course'
 CL_OB_COURSES = u'courses'
 CL_OB_COURSE_PARTICIPANTS = u'course-participants'
@@ -1030,6 +1045,7 @@ CL_OB_GROUP_MEMBERS = u'group-members'
 CL_OB_IMAP = u'imap'
 CL_OB_INSTANCE = u'instance'
 CL_OB_LABEL = u'label'
+CL_OB_LABELS = u'labels'
 CL_OB_LABELSETTINGS = u'labelsettings'
 CL_OB_LICENSE = u'license'
 CL_OB_LICENSES = u'licenses'
@@ -1055,6 +1071,11 @@ CL_OB_SCHEMAS = u'schemas'
 CL_OB_SECCALS = u'seccals'
 CL_OB_SENDAS = u'sendas'
 CL_OB_SIGNATURE = u'signature'
+CL_OB_SITE = u'site'
+CL_OB_SITES = u'sites'
+CL_OB_SITEACL = u'siteacl'
+CL_OB_SITEACLS = u'siteacls'
+CL_OB_SITEACTIVITY = u'siteactivity'
 CL_OB_TOKEN = u'token'
 CL_OB_TOKENS = u'tokens'
 CL_OB_TRANSFERAPPS = u'transferapps'
@@ -1363,6 +1384,7 @@ IM_PROTOCOLS = {
 PHRASE_ACCESS_FORBIDDEN = u'Access Forbidden'
 PHRASE_ACTION_APPLIED = u'Action Applied'
 PHRASE_ADMIN_STATUS_CHANGED_TO = u'Admin Status Changed to'
+PHRASE_ALL = u'All'
 PHRASE_ALREADY_EXISTS_USE_MERGE_ARGUMENT = u'Already exists; use the "merge" argument to merge the labels'
 PHRASE_AUTHORIZED = u'Authorized'
 PHRASE_BAD_REQUEST = u'Bad Request'
@@ -1404,6 +1426,7 @@ PHRASE_INVALID_REQUEST = u'Invalid Request'
 PHRASE_INVALID_ROLE = u'Invalid Role'
 PHRASE_INVALID_SCHEMA_VALUE = u'Invalid Schema Value'
 PHRASE_INVALID_SCOPE = u'Invalid Scope'
+PHRASE_INVALID_SITE = u'Invalid Site ({0}), must match pattern ({1})'
 PHRASE_IS_REQD_TO_CHG_PWD_NO_DELEGATION = u'is required to change password at next login. You must change password or clear changepassword flag for delegation.'
 PHRASE_IS_SUSPENDED_NO_DELEGATION = u'is suspended. You must unsuspend for delegation.'
 PHRASE_LABELS_NOT_FOUND = u'Labels ({0}) not found'
@@ -1429,6 +1452,7 @@ PHRASE_ONLY_ONE_OWNER_ALLOWED = u'Only one owner allowed'
 PHRASE_OR = u'or'
 PHRASE_PATH_NOT_AVAILABLE = u'Path not available'
 PHRASE_PLEASE_SELECT_USER_TO_UNDELETE = u'Please select the correct one to undelete and specify with "gam undelete user uid:<uid>"'
+PHRASE_SELECTED = u'Selected'
 PHRASE_SERVICE_NOT_APPLICABLE = u'Service not applicable/Does not exist'
 PHRASE_STARTING_N_WORKER_THREADS = u'Starting {0} worker threads...\n'
 PHRASE_STARTING_THREAD = u'Starting thread'
@@ -1678,6 +1702,7 @@ def systemErrorExit(sysRC, message):
     stderrErrorMsg(message)
   sys.exit(sysRC)
 
+# Something's wrong with CustomerID
 def accessErrorMessage(cd):
   try:
     callGAPI(cd.customers(), u'get',
@@ -1703,10 +1728,7 @@ def accessErrorMessage(cd):
   return None
 
 def accessErrorExit(cd):
-  if not cd:
-    cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  message = accessErrorMessage(cd)
-  systemErrorExit(INVALID_DOMAIN_RC, message)
+  systemErrorExit(INVALID_DOMAIN_RC, accessErrorMessage(cd or buildGAPIObject(GAPI_DIRECTORY_API)))
 
 def APIAccessDeniedExit():
 #  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
@@ -1718,6 +1740,12 @@ def checkEntityDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
   if message:
     systemErrorExit(INVALID_DOMAIN_RC, message)
   entityDoesNotExistWarning(entityType, entityName, i, count)
+
+def checkEntityAFDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
+  message = accessErrorMessage(cd)
+  if message:
+    systemErrorExit(INVALID_DOMAIN_RC, message)
+  entityActionFailedWarning(entityType, entityName, PHRASE_DOES_NOT_EXIST, i, count)
 
 def invalidJSONExit(fileName):
   systemErrorExit(INVALID_JSON_RC, MESSAGE_INVALID_JSON.format(fileName))
@@ -1810,7 +1838,7 @@ def checkArgumentPresent(choices, required=False):
     if choice:
       if choice in choices:
         CL_argvI += 1
-        return True
+        return choice
     if not required:
       return False
     invalidChoiceExit(choices)
@@ -2319,6 +2347,34 @@ def getREPattern():
         usageErrorExit(u'{0} {1}: {2}'.format(OB_RE_PATTERN, PHRASE_ERROR, e))
   missingArgumentExit(OB_RE_PATTERN)
 
+SITENAME_PATTERN = re.compile(r'^[a-z0-9\-]+$')
+SITENAME_FORMAT_REQUIRED = u'[a-z,0-9,-]+'
+
+def validateSplitSiteName(fullSite):
+  siteParts = fullSite.lower().split(u'/', 1)
+  if (len(siteParts) == 1) or (len(siteParts[1]) == 0):
+    domain = GC_Values[GC_DOMAIN]
+    site = siteParts[0]
+  elif len(siteParts[0]) == 0:
+    domain = GC_Values[GC_DOMAIN]
+    site = siteParts[1]
+  else:
+    domain = siteParts[0]
+    site = siteParts[1]
+  if SITENAME_PATTERN.match(site):
+    return (domain, site, u'{0}/{1}'.format(domain, site))
+  return (domain, site, None)
+
+def getSiteName():
+  global CL_argvI
+  if CL_argvI < CL_argvLen:
+    domain, site, domainSite = validateSplitSiteName(CL_argv[CL_argvI])
+    if domainSite:
+      CL_argvI += 1
+      return (domain, site, domainSite)
+    invalidArgumentExit(SITENAME_FORMAT_REQUIRED)
+  missingArgumentExit(SITENAME_FORMAT_REQUIRED)
+
 def getString(item, checkBlank=False, emptyOK=False, optional=False):
   global CL_argvI
   if CL_argvI < CL_argvLen:
@@ -2362,21 +2418,21 @@ def getYYYYMMDD(emptyOK=False):
       return u''
   missingArgumentExit(YYMMDD_FORMAT_REQUIRED)
 
-YYYYMMDDTHHMM_FORMAT = u'%Y-%m-%dT%H:%M'
-YYYYMMDDTHHMM_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm'
+YYYYMMDD_HHMM_FORMAT = u'%Y-%m-%d %H:%M'
+YYYYMMDD_HHMM_FORMAT_REQUIRED = u'yyyy-mm-dd hh:mm'
 
-def getYYYYMMDDTHHMM():
+def getYYYYMMDD_HHMM():
   global CL_argvI
   if CL_argvI < CL_argvLen:
-    argstr = CL_argv[CL_argvI].strip().upper().replace(u' ', u'T')
+    argstr = CL_argv[CL_argvI].strip().upper().replace(u'T', u' ')
     if argstr:
       try:
-        datetime.datetime.strptime(argstr, YYYYMMDDTHHMM_FORMAT)
+        datetime.datetime.strptime(argstr, YYYYMMDD_HHMM_FORMAT)
         CL_argvI += 1
         return argstr
       except ValueError:
-        invalidArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
-  missingArgumentExit(YYYYMMDDTHHMM_FORMAT_REQUIRED)
+        invalidArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
+  missingArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
 
 YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
@@ -2634,6 +2690,13 @@ def entityItemValueItemValueActionFailedWarning(entityType, entityName, item1Typ
                                        singularEntityName(item1Type), item1Value,
                                        singularEntityName(item2Type), item2Value,
                                        GM_Globals[GM_ACTION_FAILED], errMessage],
+                                      currentCountNL(i, count)))
+
+def entityActionNotPerformedWarning(entityType, entityName, errMessage, i=0, count=0):
+  setSysExitRC(AC_NOT_PERFORMED_RC)
+  sys.stderr.write(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
+                                      [singularEntityName(entityType), entityName,
+                                       GM_Globals[GM_ACTION_NOT_PERFORMED], errMessage],
                                       currentCountNL(i, count)))
 
 def entityItemValueActionNotPerformedWarning(entityType, entityName, itemType, itemValue, errMessage, i=0, count=0):
@@ -3432,25 +3495,34 @@ def checkGDataError(e, service):
     keep_domain = service.domain
     getGDataOAuthToken(service)
     service.domain = keep_domain
-    return False
-  if e[0][u'body'].startswith(u'Required field must not be blank:') or e[0][u'body'].startswith(u'These characters are not allowed:'):
-    return u'{0} - {1}'.format(GDATA_BAD_REQUEST, e[0][u'body'])
-  if e.error_code == 600 and e[0][u'body'] == u'Quota exceeded for the current request' or e[0][u'reason'] == u'Bad Gateway':
-    return False
-  if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
-    return u'403 - Token disabled, revoked, or expired. Please delete and re-create oauth.txt'
-  if e.error_code == 600 and e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
-    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
-  if e.error_code == 600 and e[0][u'reason'].startswith(u'Only administrators can request entries belonging to'):
-    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
-  if e.error_code == 600 and e[0][u'reason'] == u'You are not authorized to access this API':
-    return u'{0} - {1}'.format(GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
-  if e.error_code == 600 and e[0][u'reason'] == u'Invalid domain.':
-    return u'{0} - {1}'.format(GDATA_INVALID_DOMAIN, e[0][u'reason'])
-  if e.error_code == 600 and e[0][u'reason'].startswith(u'You are not authorized to perform operations on the domain'):
-    return u'{0} - {1}'.format(GDATA_INVALID_DOMAIN, e[0][u'reason'])
-  if e.error_code == 600 and e[0][u'reason'] == u'Bad Request':
-    return u'{0} - {1}'.format(GDATA_BAD_REQUEST, e[0][u'reason'])
+    return (GDATA_TOKEN_EXPIRED, e[0][u'reason'])
+  if e.error_code == 600:
+    if e[0][u'body'] == u'Quota exceeded for the current request':
+      return (GDATA_QUOTA_EXCEEDED, e[0][u'body'])
+    if e[0][u'reason'] == u'Bad Gateway':
+      return (GDATA_BAD_GATEWAY, e[0][u'reason'])
+    if e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
+      return (GDATA_TOKEN_INVALID, u'Token disabled, revoked, or expired. Please delete and re-create oauth.txt')
+    if e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
+      return (GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
+    if e[0][u'reason'].startswith(u'Only administrators can request entries belonging to'):
+      return (GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
+    if e[0][u'reason'] == u'You are not authorized to access this API':
+      return (GDATA_INSUFFICIENT_PERMISSIONS, e[0][u'reason'])
+    if e[0][u'reason'] == u'Invalid domain.':
+      return (GDATA_INVALID_DOMAIN, e[0][u'reason'])
+    if e[0][u'reason'].startswith(u'You are not authorized to perform operations on the domain'):
+      return (GDATA_INVALID_DOMAIN, e[0][u'reason'])
+    if e[0][u'reason'] == u'Bad Request':
+      if u'already exists' in e[0][u'body']:
+        return (GDATA_ENTITY_EXISTS, e[0][u'body'])
+      return (GDATA_BAD_REQUEST, e[0][u'body'])
+    if e[0][u'reason'] == u'Not Found':
+      return (GDATA_NOT_FOUND, e[0][u'body'])
+  elif e.error_code == 602:
+    if e[0][u'reason'] == u'Bad Request':
+      return (GDATA_BAD_REQUEST, e[0][u'body'])
+
   # We got a "normal" error, define the mapping below
   error_code_map = {
     1000: e[0][u'reason'],
@@ -3487,12 +3559,12 @@ def checkGDataError(e, service):
     1800: u'Group Cannot Contain Cycle',
     1801: u'Invalid value %s' % getattr(e, u'invalidInput', u'<unknown>'),
   }
-  return u'{0} - {1}'.format(e.error_code, error_code_map.get(e.error_code, u'Unknown Error: {0}'.format(str(e))))
+  return (e.error_code, error_code_map.get(e.error_code, u'Unknown Error: {0}'.format(str(e))))
 
-def waitOnFailure(n, retries, errMsg):
+def waitOnFailure(n, retries, error_code, error_message):
   wait_on_fail = min(2 ** n, 60) + float(random.randint(1, 1000)) / 1000
   if n > 3:
-    sys.stderr.write(u'Temp error {0}. Backing off {1} seconds...'.format(errMsg, int(wait_on_fail)))
+    sys.stderr.write(u'Temporary error: {0} - {1}. Backing off {2} seconds...'.format(error_code, error_message, int(wait_on_fail)))
   time.sleep(wait_on_fail)
   if n > 3:
     sys.stderr.write(u'attempt {0}/{1}\n'.format(n+1, retries))
@@ -3538,24 +3610,20 @@ def callGData(service, function,
     try:
       return method(**kwargs)
     except gdata.apps.service.AppsForYourDomainException as e:
-      terminating_error = checkGDataError(e, service)
-      if terminating_error:
-        throw_error_code = int(terminating_error.split(u' - ')[0])
-      else:
-        throw_error_code = e.error_code
-      if throw_error_code in throw_errors:
-        if throw_error_code in GDATA_ERROR_CODE_EXCEPTION_MAP:
-          raise GDATA_ERROR_CODE_EXCEPTION_MAP[throw_error_code](terminating_error)
+      error_code, error_message = checkGDataError(e, service)
+      if error_code in throw_errors:
+        if error_code in GDATA_ERROR_CODE_EXCEPTION_MAP:
+          raise GDATA_ERROR_CODE_EXCEPTION_MAP[error_code](error_message)
         raise
-      if (n != retries) and not terminating_error:
-        waitOnFailure(n, retries, str(e.error_code))
+      if (n != retries) and (error_code in GDATA_NON_TERMINATING_ERRORS):
+        waitOnFailure(n, retries, error_code, error_message)
         continue
       if soft_errors:
-        stderrErrorMsg(u'{0}{1}'.format(terminating_error, [u'', u': Giving up.\n'][n > 1]))
+        stderrErrorMsg(u'{0} - {1}{2}'.format(error_code, error_message, [u'', u': Giving up.\n'][n > 1]))
         return None
-      if throw_error_code == GDATA_INSUFFICIENT_PERMISSIONS:
+      if error_code == GDATA_INSUFFICIENT_PERMISSIONS:
         APIAccessDeniedExit()
-      systemErrorExit(GOOGLE_API_ERROR_RC, terminating_error)
+      systemErrorExit(GOOGLE_API_ERROR_RC, u'{0} - {1}'.format(error_code, error_message))
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GDATA_SERVICE_NOT_APPLICABLE in throw_errors)
       raise GDATA_ERROR_CODE_EXCEPTION_MAP[GDATA_SERVICE_NOT_APPLICABLE](e.message)
@@ -3853,14 +3921,14 @@ def callGAPI(service, function,
           raise GAPI_REASON_EXCEPTION_MAP[reason](message)
         raise e
       if (n != retries) and (reason in GAPI_DEFAULT_RETRY_REASONS+retry_reasons):
-        waitOnFailure(n, retries, reason)
+        waitOnFailure(n, retries, reason, message)
         continue
       if soft_errors:
-        stderrErrorMsg(u'{0}: {1} - {2}{3}'.format(http_status, message, reason, [u'', u': Giving up.\n'][n > 1]))
+        stderrErrorMsg(u'{0}: {1} - {2}{3}'.format(http_status, reason, message, [u'', u': Giving up.\n'][n > 1]))
         return None
       if reason == GAPI_INSUFFICIENT_PERMISSIONS:
         APIAccessDeniedExit()
-      systemErrorExit(HTTP_ERROR_RC, u'{0}: {1} - {2}'.format(http_status, message, reason))
+      systemErrorExit(HTTP_ERROR_RC, u'{0}: {1} - {2}'.format(http_status, reason, message))
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GAPI_SERVICE_NOT_AVAILABLE in throw_reasons)
       raise GAPI_REASON_EXCEPTION_MAP[GAPI_SERVICE_NOT_AVAILABLE](e.message)
@@ -3973,6 +4041,7 @@ API_VER_MAPPING = {
   GAPI_GROUPSSETTINGS_API: u'v1',
   GAPI_LICENSING_API: u'v1',
   GAPI_REPORTS_API: u'reports_v1',
+  GDATA_SITES_API: u'v1',
   GAPI_SITEVERIFICATION_API: u'v1',
   }
 
@@ -4099,22 +4168,9 @@ def initGDataObject(gdataObj, api):
     gdataObj.debug = True
   return gdataObj
 
-def getAdminSettingsObject():
-  import gdata.apps.adminsettings.service
-  return initGDataObject(gdata.apps.adminsettings.service.AdminSettingsService(), GDATA_ADMIN_SETTINGS_API)
-
-def getAuditObject():
-  import gdata.apps.audit.service
-  return initGDataObject(gdata.apps.audit.service.AuditService(), GDATA_EMAIL_AUDIT_API)
-
-def getContactsObject(user, i=0, count=0):
-  import gdata.apps.contacts.service
-  if (not user) or (user == GC_Values[GC_DOMAIN]):
-    contactsObject = initGDataObject(gdata.apps.contacts.service.ContactsService(additional_headers={u'GData-Version': u'3.1'}),
-                                     GDATA_CONTACTS_API)
-    return (GC_Values[GC_DOMAIN], contactsObject)
+def getGDataUserCredentials(api, user, i=0, count=0):
   userEmail = convertUserUIDtoEmailAddress(user)
-  _, _, api_version = getAPIVersion(GDATA_CONTACTS_API)
+  _, _, api_version = getAPIVersion(api)
   disc_file, discovery = readDiscoveryFile(api_version)
   GM_Globals[GM_CURRENT_API_USER] = None
   credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
@@ -4128,14 +4184,34 @@ def getContactsObject(user, i=0, count=0):
   try:
     credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
                                       cache=GC_Values[GC_CACHE_DIR]))
+    return (userEmail, credentials)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(NETWORK_ERROR_RC, e)
+
   except oauth2client.client.AccessTokenRefreshError as e:
     handleOAuthTokenError(e, True)
     entityUnknownWarning(EN_USER, userEmail, i, count)
     return (userEmail, None)
+
+def getAdminSettingsObject():
+  import gdata.apps.adminsettings.service
+  return initGDataObject(gdata.apps.adminsettings.service.AdminSettingsService(), GDATA_ADMIN_SETTINGS_API)
+
+def getAuditObject():
+  import gdata.apps.audit.service
+  return initGDataObject(gdata.apps.audit.service.AuditService(), GDATA_EMAIL_AUDIT_API)
+
+def getContactsObject(entityType=EN_DOMAIN, entityName=None, i=0, count=0):
+  import gdata.apps.contacts.service
+  if entityType == EN_DOMAIN:
+    contactsObject = initGDataObject(gdata.apps.contacts.service.ContactsService(),
+                                     GDATA_CONTACTS_API)
+    return (entityName or GC_Values[GC_DOMAIN], contactsObject)
+  userEmail, credentials = getGDataUserCredentials(GDATA_CONTACTS_API, entityName, i=i, count=count)
+  if not credentials:
+    return (userEmail, None)
   contactsObject = gdata.apps.contacts.service.ContactsService(source=GAM_INFO,
-                                                               additional_headers={u'GData-Version': u'3.1', u'Authorization': u'Bearer {0}'.format(credentials.access_token)})
+                                                               additional_headers={u'Authorization': u'Bearer {0}'.format(credentials.access_token)})
   if GC_Values[GC_DEBUG_LEVEL] > 0:
     contactsObject.debug = True
   return (userEmail, contactsObject)
@@ -4147,6 +4223,24 @@ def getContactsQuery(**kwargs):
 def getEmailSettingsObject():
   import gdata.apps.emailsettings.service
   return initGDataObject(gdata.apps.emailsettings.service.EmailSettingsService(), GDATA_EMAIL_SETTINGS_API)
+
+def getSitesObject(entityType=EN_DOMAIN, entityName=None, i=0, count=0):
+  import gdata.apps.sites.service
+  if entityType == EN_DOMAIN:
+    sitesObject = initGDataObject(gdata.apps.sites.service.SitesService(), GDATA_SITES_API)
+    return (entityName or GC_Values[GC_DOMAIN], sitesObject)
+  userEmail, credentials = getGDataUserCredentials(GDATA_SITES_API, entityName, i=i, count=count)
+  if not credentials:
+    return (userEmail, None)
+  sitesObject = gdata.apps.sites.service.SitesService(source=GAM_INFO,
+                                                      additional_headers={u'Authorization': u'Bearer {0}'.format(credentials.access_token)})
+  if GC_Values[GC_DEBUG_LEVEL] > 0:
+    sitesObject.debug = True
+  return (userEmail, sitesObject)
+
+def getSitesQuery(**kwargs):
+  import gdata.apps.sites.service
+  return gdata.apps.sites.service.SitesQuery(**kwargs)
 
 def geturl(url, dst):
   import urllib2
@@ -5263,12 +5357,13 @@ OAUTH2_SCOPES = [
   u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     # 27:Reports API - Audit Reports
   u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     # 28:Reports API - Usage Reports
   u'https://www.googleapis.com/auth/siteverification',                 # 29:Site Verification API
+  u'https://sites.google.com/feeds',                                   # 30:Sites API
   ]
 OAUTH2_RO_SCOPES = [3, 4, 7, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 22]
 OAUTH2_AO_SCOPES = [15]
 OAUTH2_SCOPES_MAP = {
   OAUTH2_GAPI_SCOPES: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29],
-  OAUTH2_GDATA_SCOPES: [0, 9, 23, 24]
+  OAUTH2_GDATA_SCOPES: [0, 9, 23, 24, 30]
   }
 OAUTH2_MENU = u'''
 Select the authorized scopes by entering a number.
@@ -5304,6 +5399,7 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 [%s]  27)  Reports API - Audit Reports
 [%s]  28)  Reports API - Usage Reports
 [%s]  29)  Site Verification API
+[%s]  30)  Sites API
 
       s)  Select all scopes
       u)  Unselect all scopes
@@ -5486,7 +5582,7 @@ def doOAuthInfo():
         _printCredentials(credentials)
         break
     else:
-      entityDoesNotExistWarning(EN_ACCESS_TOKEN, access_token)
+      entityActionFailedWarning(EN_ACCESS_TOKEN, access_token, PHRASE_DOES_NOT_EXIST)
   else:
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
       printKeyValueList([singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
@@ -5811,7 +5907,7 @@ def doCreateDomainAlias():
              customer=GC_Values[GC_CUSTOMER_ID], body=body)
     entityItemValueActionPerformed(EN_DOMAIN, body[u'parentDomainName'], EN_DOMAIN_ALIAS, body[u'domainAliasName'])
   except GAPI_domainNotFound:
-    entityDoesNotExistWarning(EN_DOMAIN, body[u'parentDomainName'])
+    entityActionFailedWarning(EN_DOMAIN, body[u'parentDomainName'], PHRASE_DOES_NOT_EXIST)
   except GAPI_duplicate:
     entityItemValueActionFailedWarning(EN_DOMAIN, body[u'parentDomainName'], EN_DOMAIN_ALIAS, body[u'domainAliasName'], PHRASE_DUPLICATE)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
@@ -5828,7 +5924,7 @@ def doDeleteDomainAlias():
              customer=GC_Values[GC_CUSTOMER_ID], domainAliasName=domainAliasName)
     entityActionPerformed(EN_DOMAIN_ALIAS, domainAliasName)
   except GAPI_domainAliasNotFound:
-    entityDoesNotExistWarning(EN_DOMAIN_ALIAS, domainAliasName)
+    entityActionFailedWarning(EN_DOMAIN_ALIAS, domainAliasName, PHRASE_DOES_NOT_EXIST)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
@@ -5858,7 +5954,7 @@ def doInfoDomainAlias():
     alias_skip_objects = [u'kind', u'etag', u'domainAliasName']
     printDomainAlias(result, alias_skip_objects)
   except GAPI_domainAliasNotFound:
-    entityDoesNotExistWarning(EN_DOMAIN_ALIAS, domainAliasName)
+    entityActionFailedWarning(EN_DOMAIN_ALIAS, domainAliasName, PHRASE_DOES_NOT_EXIST)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
@@ -5979,7 +6075,7 @@ def doInfoDomain():
     print_json(None, result, skip_objects=skip_objects)
     decrementIndentLevel()
   except GAPI_domainNotFound:
-    entityDoesNotExistWarning(EN_DOMAIN, domainName)
+    entityActionFailedWarning(EN_DOMAIN, domainName, PHRASE_DOES_NOT_EXIST)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
@@ -6196,7 +6292,7 @@ def doDeleteAdmin():
              customer=GC_Values[GC_CUSTOMER_ID], roleAssignmentId=roleAssignmentId)
     entityActionPerformed(EN_ROLE_ASSIGNMENT_ID, roleAssignmentId)
   except GAPI_notFound:
-    entityDoesNotExistWarning(EN_ROLE_ASSIGNMENT_ID, roleAssignmentId)
+    entityActionFailedWarning(EN_ROLE_ASSIGNMENT_ID, roleAssignmentId, PHRASE_DOES_NOT_EXIST)
   except (GAPI_badRequest, GAPI_customerNotFound, GAPI_forbidden):
     accessErrorExit(cd)
 
@@ -6444,7 +6540,7 @@ def doInfoDataTransfer():
     decrementIndentLevel()
     printBlankLine()
   except GAPI_notFound:
-    entityDoesNotExistWarning(EN_TRANSFER_ID, dtId)
+    entityActionFailedWarning(EN_TRANSFER_ID, dtId, PHRASE_DOES_NOT_EXIST)
 
 DATA_TRANSFER_STATUS_MAP = {
   u'completed': u'completed',
@@ -6669,7 +6765,7 @@ def checkOrgUnitPathExists(cd, orgUnitPath, i=0, count=0):
                       customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath, fields=u'orgUnitPath')
     return result[u'orgUnitPath']
   except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
-    entityDoesNotExistWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
+    entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     return None
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
@@ -6796,7 +6892,7 @@ def doUpdateOrg(getEntityListArg=False):
                  customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), body=body)
         entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
       except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
-        entityDoesNotExistWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
+        entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
       except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
         accessErrorExit(cd)
 
@@ -6820,7 +6916,7 @@ def doDeleteOrg(getEntityListArg=False):
                customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath)
       entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
     except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
-      entityDoesNotExistWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
+      entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
       accessErrorExit(cd)
 
@@ -6885,7 +6981,7 @@ def doInfoOrg(getEntityListArg=False):
         decrementIndentLevel()
       decrementIndentLevel()
     except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
-      entityDoesNotExistWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
+      entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
 
@@ -6947,7 +7043,7 @@ def doPrintOrgs():
                     throw_reasons=[GAPI_ORGUNIT_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                     customerId=GC_Values[GC_CUSTOMER_ID], fields=fields, type=listType, orgUnitPath=orgUnitPath)
   except GAPI_orgunitNotFound:
-    entityDoesNotExistWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
+    entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST)
     orgs = []
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
@@ -7357,7 +7453,7 @@ def printMailboxExportRequestStatus(request, i, count, showFilter=False, showDat
     printFileURLs(request)
   decrementIndentLevel()
 
-# gam audit export request <EmailAddress> [begin <Time>] [end <Time>] [search <Query>] [headersonly] [includedeleted]
+# gam audit export request <EmailAddress> [begin <DateTime>] [end <DateTime>] [search <Query>] [headersonly] [includedeleted]
 def doSubmitExportRequest():
   auditObject, parameters = getAuditParameters(emailAddressRequired=True, requestIdRequired=False, destUserRequired=False)
   begin_date = end_date = search_query = None
@@ -7365,9 +7461,9 @@ def doSubmitExportRequest():
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'begin':
-      begin_date = getYYYYMMDDTHHMM()
+      begin_date = getYYYYMMDD_HHMM()
     elif myarg == u'end':
-      end_date = getYYYYMMDDTHHMM()
+      end_date = getYYYYMMDD_HHMM()
     elif myarg == u'search':
       search_query = getString(OB_QUERY)
     elif myarg == u'headersonly':
@@ -7516,9 +7612,9 @@ def doCreateMonitor():
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'begin':
-      begin_date = getYYYYMMDDTHHMM()
+      begin_date = getYYYYMMDD_HHMM()
     elif myarg == u'end':
-      end_date = getYYYYMMDDTHHMM()
+      end_date = getYYYYMMDD_HHMM()
     elif myarg == u'incomingheaders':
       incoming_headers_only = True
     elif myarg == u'outgoingheaders':
@@ -7590,21 +7686,11 @@ def checkCalendarExists(cal, calendarId):
     return True
   except GAPI_notFound:
     return None
-#
-CALENDAR_ACL_ROLE_CHOICES_MAP = {
-  u'freebusyreader': u'freeBusyReader',
-  u'freebusy': u'freeBusyReader',
-  u'read': u'reader',
-  u'reader': u'reader',
-  u'writer': u'writer',
-  u'editor': u'writer',
-  u'owner': u'owner',
-  u'none': u'none',
-  }
-CALENDAR_ACL_SCOPE_CHOICES = [u'default', u'user', u'group', u'domain',]
 
-def getCalendarACLScope():
-  scopeType = getChoice(CALENDAR_ACL_SCOPE_CHOICES, defaultChoice=u'user')
+ACL_SCOPE_CHOICES = [u'default', u'user', u'group', u'domain',]
+
+def getACLScope():
+  scopeType = getChoice(ACL_SCOPE_CHOICES, defaultChoice=u'user')
   if scopeType == u'domain':
     entity = getString(OB_DOMAIN_NAME, optional=True)
     if entity:
@@ -7617,21 +7703,21 @@ def getCalendarACLScope():
     scopeValue = None
   return (scopeType, scopeValue)
 
-def getCalendarACLRuleId():
-  scopeType, scopeValue = getCalendarACLScope()
+def getACLRuleId():
+  scopeType, scopeValue = getACLScope()
   if scopeType != u'default':
     ruleId = u'{0}:{1}'.format(scopeType, scopeValue)
   else:
     ruleId = scopeType
   return ruleId
 
-def formatCalendarACLScopeRole(scope, role):
+def formatACLScopeRole(scope, role):
   if role:
     return formatKeyValueList(u'(', [u'Scope', scope, u'Role', role], u')')
   else:
     return formatKeyValueList(u'(', [u'Scope', scope], u')')
 
-def formatCalendarACLRule(rule):
+def formatACLRule(rule):
   if rule[u'scope'][u'type'] != u'default':
     return formatKeyValueList(u'(', [u'Scope', u'{0}:{1}'.format(rule[u'scope'][u'type'], rule[u'scope'][u'value']), u'Role', rule[u'role']], u')')
   else:
@@ -7659,30 +7745,41 @@ def normalizeRuleId(ruleId):
     return u'{0}:{1}'.format(ruleIdParts[0], normalizeEmailAddressOrUID(ruleIdParts[1], noUid=True))
   return ruleId
 
+CALENDAR_ACL_ROLES_MAP = {
+  u'editor': u'writer',
+  u'freebusy': u'freeBusyReader',
+  u'freebusyreader': u'freeBusyReader',
+  u'owner': u'owner',
+  u'read': u'reader',
+  u'reader': u'reader',
+  u'writer': u'writer',
+  u'none': u'none',
+  }
+
 def processCalendarAddACL(calendarId, i, count, j, jcount, cal, body):
   result = True
   try:
     callGAPI(cal.acl(), u'insert',
              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_SCOPE_VALUE, GAPI_CANNOT_CHANGE_OWNER_ACL],
              calendarId=calendarId, body=body)
-    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLRule(body), j, jcount)
+    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatACLRule(body), j, jcount)
   except GAPI_notFound:
     if not checkCalendarExists(cal, calendarId):
       entityUnknownWarning(EN_CALENDAR, calendarId, i, count)
       result = False
     else:
-      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLRule(body), PHRASE_DOES_NOT_EXIST, j, jcount)
+      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLRule(body), PHRASE_DOES_NOT_EXIST, j, jcount)
   except GAPI_invalidScopeValue:
-    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLRule(body), PHRASE_INVALID_SCOPE, j, jcount)
+    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLRule(body), PHRASE_INVALID_SCOPE, j, jcount)
   except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLRule(body), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLRule(body), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
   return result
 
 # gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 # gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 def doCalendarAddACL(cal, calendarList):
-  role = getChoice(CALENDAR_ACL_ROLE_CHOICES_MAP, mapChoice=True)
-  scopeType, scopeValue = getCalendarACLScope()
+  role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
+  scopeType, scopeValue = getACLScope()
   body = {u'role': role, u'scope': {u'type': scopeType}}
   if scopeType != u'default':
     body[u'scope'][u'value'] = scopeValue
@@ -7694,10 +7791,10 @@ def doCalendarAddACL(cal, calendarList):
     calendarId = convertUserUIDtoEmailAddress(calendarId)
     processCalendarAddACL(calendarId, i, count, i, count, cal, body)
 
-# gam calendars <CalendarEntity> add acls <CalendarACLRole> <CalendarACLEntity>
+# gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLEntity>
 def doCalendarAddACLs(cal, calendarList):
-  role = getChoice(CALENDAR_ACL_ROLE_CHOICES_MAP, mapChoice=True)
-  ruleIds = getEntityList(OB_CALENDAR_ACL_ENTITY)
+  role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
+  ruleIds = getEntityList(OB_ACL_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
@@ -7727,22 +7824,22 @@ def processCalendarUpdateACL(calendarId, i, count, j, jcount, cal, ruleId, body)
     callGAPI(cal.acl(), u'patch',
              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID, GAPI_CANNOT_CHANGE_OWNER_ACL],
              calendarId=calendarId, ruleId=ruleId, body=body)
-    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, body[u'role']), j, jcount)
+    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, body[u'role']), j, jcount)
   except (GAPI_notFound, GAPI_invalid):
     if not checkCalendarExists(cal, calendarId):
       entityUnknownWarning(EN_CALENDAR, calendarId, i, count)
       result = False
     else:
-      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, body[u'role']), PHRASE_DOES_NOT_EXIST, j, jcount)
+      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, body[u'role']), PHRASE_DOES_NOT_EXIST, j, jcount)
   except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, body[u'role']), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, body[u'role']), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
   return result
 
 # gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 # gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 def doCalendarUpdateACL(cal, calendarList):
-  body = {u'role': getChoice(CALENDAR_ACL_ROLE_CHOICES_MAP, mapChoice=True)}
-  ruleId = getCalendarACLRuleId()
+  body = {u'role': getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)}
+  ruleId = getACLRuleId()
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
@@ -7751,10 +7848,10 @@ def doCalendarUpdateACL(cal, calendarList):
     calendarId = convertUserUIDtoEmailAddress(calendarId)
     processCalendarUpdateACL(calendarId, i, count, i, count, cal, ruleId, body)
 
-# gam calendars <CalendarEntity> update acls <CalendarACLRole> <CalendarACLEntity>
+# gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLEntity>
 def doCalendarUpdateACLs(cal, calendarList):
-  body = {u'role': getChoice(CALENDAR_ACL_ROLE_CHOICES_MAP, mapChoice=True)}
-  ruleIds = getEntityList(OB_CALENDAR_ACL_ENTITY)
+  body = {u'role': getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)}
+  ruleIds = getEntityList(OB_ACL_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
@@ -7783,21 +7880,21 @@ def processCalendarDeleteACL(calendarId, i, count, j, jcount, cal, ruleId):
     callGAPI(cal.acl(), u'delete',
              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_SCOPE_VALUE, GAPI_CANNOT_CHANGE_OWNER_ACL],
              calendarId=calendarId, ruleId=ruleId)
-    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, None), j, jcount)
+    entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, None), j, jcount)
   except GAPI_notFound:
     entityUnknownWarning(EN_CALENDAR, calendarId, i, count)
     result = False
   except GAPI_invalidScopeValue:
-    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
+    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
   except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, None), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+    entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, None), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
   return result
 
 # gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 # gam calendar <CalendarItem> del|delete <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 def doCalendarDeleteACL(cal, calendarList):
-  getChoice(CALENDAR_ACL_ROLE_CHOICES_MAP, defaultChoice=None, mapChoice=True)
-  ruleId = getCalendarACLRuleId()
+  getChoice(CALENDAR_ACL_ROLES_MAP, defaultChoice=None, mapChoice=True)
+  ruleId = getACLRuleId()
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
@@ -7806,9 +7903,9 @@ def doCalendarDeleteACL(cal, calendarList):
     calendarId = convertUserUIDtoEmailAddress(calendarId)
     processCalendarDeleteACL(calendarId, i, count, i, count, cal, ruleId)
 
-# gam calendars <CalendarEntity> del|delete acls <CalendarACLEntity>
+# gam calendars <CalendarEntity> del|delete acls <ACLEntity>
 def doCalendarDeleteACLs(cal, calendarList):
-  ruleIds = getEntityList(OB_CALENDAR_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
@@ -7831,9 +7928,9 @@ def doCalendarDeleteACLs(cal, calendarList):
         break
     decrementIndentLevel()
 
-# gam calendars <CalendarEntity> info acl|acls <CalendarACLEntity>
+# gam calendars <CalendarEntity> info acl|acls <ACLEntity>
 def doCalendarInfoACLs(cal, calendarList):
-  ruleIds = getEntityList(OB_CALENDAR_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
@@ -7857,14 +7954,14 @@ def doCalendarInfoACLs(cal, calendarList):
                           throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                           calendarId=calendarId, ruleId=ruleId, fields=u'id,role')
         printEntityItemValue(EN_CALENDAR, calendarId,
-                             EN_ACL, formatCalendarACLScopeRole(result[u'id'], result[u'role']),
+                             EN_ACL, formatACLScopeRole(result[u'id'], result[u'role']),
                              j, jcount)
       except (GAPI_notFound, GAPI_invalid):
         if not checkCalendarExists(cal, calendarId):
           entityUnknownWarning(EN_CALENDAR, calendarId, i, count)
           break
         else:
-          entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
+          entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
     decrementIndentLevel()
 
 # gam calendars <CalendarEntity> show acls
@@ -7885,11 +7982,12 @@ def doCalendarShowACLs(cal, calendarList):
       if jcount == 0:
         continue
       incrementIndentLevel()
+      j = 0
       for rule in acls:
-        if rule[u'scope'][u'type'] != u'default':
-          printKeyValueList([u'Scope', u'{0}:{1}'.format(rule[u'scope'][u'type'], rule[u'scope'][u'value']), u'Role', rule[u'role']])
-        else:
-          printKeyValueList([u'Scope', u'{0}'.format(rule[u'scope'][u'type']), u'Role', rule[u'role']])
+        j += 1
+        printEntityItemValue(EN_CALENDAR, calendarId,
+                             EN_ACL, formatACLRule(rule),
+                             j, jcount)
       decrementIndentLevel()
     except GAPI_notFound:
       entityUnknownWarning(EN_CALENDAR, calendarId, i, count)
@@ -8298,6 +8396,10 @@ CONTACT_PHONES = u'Phones'
 CONTACT_RELATIONS = u'Relations'
 CONTACT_USER_DEFINED_FIELDS = u'User Defined Fields'
 CONTACT_WEBSITES = u'Websites'
+CONTACT_GROUPS = u'ContactGroups'
+#
+CONTACT_GROUP_ID = u'ContactGroupID'
+CONTACT_GROUP_NAME = u'ContactGroupName'
 #
 class ContactsManager(object):
   import gdata.apps.contacts
@@ -8355,6 +8457,8 @@ class ContactsManager(object):
     u'userdefinedfields': CONTACT_USER_DEFINED_FIELDS,
     u'website': CONTACT_WEBSITES,
     u'websites': CONTACT_WEBSITES,
+    u'contactgroup': CONTACT_GROUPS,
+    u'contactgroups': CONTACT_GROUPS,
     }
 
   GENDER_CHOICE_MAP = {u'male': u'male', u'female': u'female',}
@@ -8717,6 +8821,14 @@ class ContactsManager(object):
     CONTACT_WEBSITES: {u'relMap': WEBSITE_REL_TO_TYPE_ARGUMENT_TITLE, u'dfltRel': u'Custom Website', u'infoTitle': u'value', u'primary': True},
     }
 
+  CONTACT_GROUP_ARGUMENT_TO_PROPERTY_MAP = {
+    u'name': CONTACT_GROUP_NAME,
+    }
+
+  CONTACT_GROUP_PROPERTY_PRINT_ORDER = [
+    CONTACT_GROUP_NAME,
+    ]
+
   @staticmethod
   def GetContactShortId(contactEntry):
     full_id = contactEntry.id.text
@@ -8878,12 +8990,14 @@ class ContactsManager(object):
         website[u'value'] = getString(OB_STRING)
         website[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
         AppendItemToFieldsList(fieldName, website)
+      elif fieldName == CONTACT_GROUPS:
+        fields[fieldName] = getString(OB_STRING, emptyOK=True).split(u',')
       else:
         fields[fieldName] = getString(OB_STRING, emptyOK=True)
     return fields
 
   @staticmethod
-  def FieldsToContactEntry(fields):
+  def FieldsToContact(fields):
     import gdata.apps.contacts
 
     def GetField(fieldName):
@@ -8913,32 +9027,32 @@ class ContactsManager(object):
     def GetListEntryField(entry, fieldName, fieldClass, processNLs=False, attr=u'text'):
       return SetClassAttribute(entry.get(fieldName), fieldClass, processNLs, attr)
 
-    contact_entry = gdata.apps.contacts.ContactEntry()
+    contactEntry = gdata.apps.contacts.ContactEntry()
     value = GetField(CONTACT_NAME)
     if not value:
       value = u' '.join([fields[fieldName] for fieldName in ContactsManager.CONTACT_NAME_FIELDS if fieldName in fields])
-    contact_entry.name = gdata.apps.contacts.Name(full_name=gdata.apps.contacts.FullName(text=value))
-    contact_entry.name.name_prefix = GetContactField(CONTACT_NAME_PREFIX, gdata.apps.contacts.NamePrefix)
-    contact_entry.name.given_name = GetContactField(CONTACT_GIVEN_NAME, gdata.apps.contacts.GivenName)
-    contact_entry.name.additional_name = GetContactField(CONTACT_ADDITIONAL_NAME, gdata.apps.contacts.AdditionalName)
-    contact_entry.name.family_name = GetContactField(CONTACT_FAMILY_NAME, gdata.apps.contacts.FamilyName)
-    contact_entry.name.name_suffix = GetContactField(CONTACT_NAME_SUFFIX, gdata.apps.contacts.NameSuffix)
-    contact_entry.nickname = GetContactField(CONTACT_NICKNAME, gdata.apps.contacts.Nickname)
-    contact_entry.maidenName = GetContactField(CONTACT_MAIDENNAME, gdata.apps.contacts.MaidenName)
-    contact_entry.shortName = GetContactField(CONTACT_SHORTNAME, gdata.apps.contacts.ShortName)
-    contact_entry.initials = GetContactField(CONTACT_INITIALS, gdata.apps.contacts.Initials)
-    contact_entry.birthday = GetContactField(CONTACT_BIRTHDAY, gdata.apps.contacts.Birthday, attr=u'when')
-    contact_entry.gender = GetContactField(CONTACT_GENDER, gdata.apps.contacts.Gender, attr=u'value')
-    contact_entry.where = GetContactField(CONTACT_LOCATION, gdata.apps.contacts.Where, attr=u'value_string')
-    contact_entry.priority = GetContactField(CONTACT_PRIORITY, gdata.apps.contacts.Priority, attr=u'rel')
-    contact_entry.sensitivity = GetContactField(CONTACT_SENSITIVITY, gdata.apps.contacts.Sensitivity, attr=u'rel')
-    contact_entry.subject = GetContactField(CONTACT_SUBJECT, gdata.apps.contacts.Subject)
-    contact_entry.language = GetContactField(CONTACT_LANGUAGE, gdata.apps.contacts.Language, attr=u'code')
-    contact_entry.content = GetContactField(CONTACT_NOTES, gdata.apps.contacts.Content, processNLs=True)
-    contact_entry.occupation = GetContactField(CONTACT_OCCUPATION, gdata.apps.contacts.Occupation)
-    contact_entry.billingInformation = GetContactField(CONTACT_BILLING_INFORMATION, gdata.apps.contacts.BillingInformation, processNLs=True)
-    contact_entry.mileage = GetContactField(CONTACT_MILEAGE, gdata.apps.contacts.Mileage)
-    contact_entry.directoryServer = GetContactField(CONTACT_DIRECTORY_SERVER, gdata.apps.contacts.DirectoryServer)
+    contactEntry.name = gdata.apps.contacts.Name(full_name=gdata.apps.contacts.FullName(text=value))
+    contactEntry.name.name_prefix = GetContactField(CONTACT_NAME_PREFIX, gdata.apps.contacts.NamePrefix)
+    contactEntry.name.given_name = GetContactField(CONTACT_GIVEN_NAME, gdata.apps.contacts.GivenName)
+    contactEntry.name.additional_name = GetContactField(CONTACT_ADDITIONAL_NAME, gdata.apps.contacts.AdditionalName)
+    contactEntry.name.family_name = GetContactField(CONTACT_FAMILY_NAME, gdata.apps.contacts.FamilyName)
+    contactEntry.name.name_suffix = GetContactField(CONTACT_NAME_SUFFIX, gdata.apps.contacts.NameSuffix)
+    contactEntry.nickname = GetContactField(CONTACT_NICKNAME, gdata.apps.contacts.Nickname)
+    contactEntry.maidenName = GetContactField(CONTACT_MAIDENNAME, gdata.apps.contacts.MaidenName)
+    contactEntry.shortName = GetContactField(CONTACT_SHORTNAME, gdata.apps.contacts.ShortName)
+    contactEntry.initials = GetContactField(CONTACT_INITIALS, gdata.apps.contacts.Initials)
+    contactEntry.birthday = GetContactField(CONTACT_BIRTHDAY, gdata.apps.contacts.Birthday, attr=u'when')
+    contactEntry.gender = GetContactField(CONTACT_GENDER, gdata.apps.contacts.Gender, attr=u'value')
+    contactEntry.where = GetContactField(CONTACT_LOCATION, gdata.apps.contacts.Where, attr=u'value_string')
+    contactEntry.priority = GetContactField(CONTACT_PRIORITY, gdata.apps.contacts.Priority, attr=u'rel')
+    contactEntry.sensitivity = GetContactField(CONTACT_SENSITIVITY, gdata.apps.contacts.Sensitivity, attr=u'rel')
+    contactEntry.subject = GetContactField(CONTACT_SUBJECT, gdata.apps.contacts.Subject)
+    contactEntry.language = GetContactField(CONTACT_LANGUAGE, gdata.apps.contacts.Language, attr=u'code')
+    contactEntry.content = GetContactField(CONTACT_NOTES, gdata.apps.contacts.Content, processNLs=True)
+    contactEntry.occupation = GetContactField(CONTACT_OCCUPATION, gdata.apps.contacts.Occupation)
+    contactEntry.billingInformation = GetContactField(CONTACT_BILLING_INFORMATION, gdata.apps.contacts.BillingInformation, processNLs=True)
+    contactEntry.mileage = GetContactField(CONTACT_MILEAGE, gdata.apps.contacts.Mileage)
+    contactEntry.directoryServer = GetContactField(CONTACT_DIRECTORY_SERVER, gdata.apps.contacts.DirectoryServer)
     value = GetField(CONTACT_ADDRESSES)
     if value:
       for address in value:
@@ -8950,40 +9064,40 @@ class ContactsManager(object):
         postcode = GetListEntryField(address, u'postcode', gdata.apps.contacts.Postcode)
         country = GetListEntryField(address, u'country', gdata.apps.contacts.Country)
         formatted_address = GetListEntryField(address, u'value', gdata.apps.contacts.FormattedAddress, processNLs=True)
-        contact_entry.structuredPostalAddress.append(gdata.apps.contacts.StructuredPostalAddress(street=street, pobox=pobox, neighborhood=neighborhood,
-                                                                                                 city=city, region=region,
-                                                                                                 postcode=postcode, country=country,
-                                                                                                 formatted_address=formatted_address,
-                                                                                                 rel=address[u'rel'], label=address[u'label'], primary=address[u'primary']))
+        contactEntry.structuredPostalAddress.append(gdata.apps.contacts.StructuredPostalAddress(street=street, pobox=pobox, neighborhood=neighborhood,
+                                                                                                city=city, region=region,
+                                                                                                postcode=postcode, country=country,
+                                                                                                formatted_address=formatted_address,
+                                                                                                rel=address[u'rel'], label=address[u'label'], primary=address[u'primary']))
     value = GetField(CONTACT_CALENDARS)
     if value:
       for calendarLink in value:
-        contact_entry.calendarLink.append(gdata.apps.contacts.CalendarLink(href=calendarLink[u'value'], rel=calendarLink[u'rel'], label=calendarLink[u'label'], primary=calendarLink[u'primary']))
+        contactEntry.calendarLink.append(gdata.apps.contacts.CalendarLink(href=calendarLink[u'value'], rel=calendarLink[u'rel'], label=calendarLink[u'label'], primary=calendarLink[u'primary']))
     value = GetField(CONTACT_EMAILS)
     if value:
       for email in value:
-        contact_entry.email.append(gdata.apps.contacts.Email(address=email[u'value'], rel=email[u'rel'], label=email[u'label'], primary=email[u'primary']))
+        contactEntry.email.append(gdata.apps.contacts.Email(address=email[u'value'], rel=email[u'rel'], label=email[u'label'], primary=email[u'primary']))
     value = GetField(CONTACT_EXTERNALIDS)
     if value:
       for externalid in value:
-        contact_entry.externalId.append(gdata.apps.contacts.ExternalId(value=externalid[u'value'], rel=externalid[u'rel'], label=externalid[u'label']))
+        contactEntry.externalId.append(gdata.apps.contacts.ExternalId(value=externalid[u'value'], rel=externalid[u'rel'], label=externalid[u'label']))
     value = GetField(CONTACT_EVENTS)
     if value:
       for event in value:
-        contact_entry.event.append(gdata.apps.contacts.Event(rel=event[u'rel'], label=event[u'label'],
-                                                             when=gdata.apps.contacts.When(startTime=event[u'value'])))
+        contactEntry.event.append(gdata.apps.contacts.Event(rel=event[u'rel'], label=event[u'label'],
+                                                            when=gdata.apps.contacts.When(startTime=event[u'value'])))
     value = GetField(CONTACT_HOBBIES)
     if value:
       for hobby in value:
-        contact_entry.hobby.append(gdata.apps.contacts.Hobby(text=hobby[u'value']))
+        contactEntry.hobby.append(gdata.apps.contacts.Hobby(text=hobby[u'value']))
     value = GetField(CONTACT_IMS)
     if value:
       for im in value:
-        contact_entry.im.append(gdata.apps.contacts.IM(address=im[u'value'], protocol=im[u'protocol'], rel=im[u'rel'], label=im[u'label'], primary=im[u'primary']))
+        contactEntry.im.append(gdata.apps.contacts.IM(address=im[u'value'], protocol=im[u'protocol'], rel=im[u'rel'], label=im[u'label'], primary=im[u'primary']))
     value = GetField(CONTACT_JOTS)
     if value:
       for jot in value:
-        contact_entry.jot.append(gdata.apps.contacts.Jot(text=jot[u'value'], rel=jot[u'rel']))
+        contactEntry.jot.append(gdata.apps.contacts.Jot(text=jot[u'value'], rel=jot[u'rel']))
     value = GetField(CONTACT_ORGANIZATIONS)
     if value:
       for organization in value:
@@ -8993,34 +9107,44 @@ class ContactsManager(object):
         job_description = GetListEntryField(organization, u'jobdescription', gdata.apps.contacts.OrgJobDescription)
         symbol = GetListEntryField(organization, u'symbol', gdata.apps.contacts.OrgSymbol)
         where = GetListEntryField(organization, u'where', gdata.apps.contacts.Where, attr=u'value_string')
-        contact_entry.organization.append(gdata.apps.contacts.Organization(name=org_name, department=department,
-                                                                           title=title, job_description=job_description,
-                                                                           symbol=symbol, where=where,
-                                                                           rel=organization[u'rel'], label=organization[u'label'], primary=organization[u'primary']))
+        contactEntry.organization.append(gdata.apps.contacts.Organization(name=org_name, department=department,
+                                                                          title=title, job_description=job_description,
+                                                                          symbol=symbol, where=where,
+                                                                          rel=organization[u'rel'], label=organization[u'label'], primary=organization[u'primary']))
     value = GetField(CONTACT_PHONES)
     if value:
       for phone in value:
-        contact_entry.phoneNumber.append(gdata.apps.contacts.PhoneNumber(text=phone[u'value'], rel=phone[u'rel'], label=phone[u'label'], primary=phone[u'primary']))
+        contactEntry.phoneNumber.append(gdata.apps.contacts.PhoneNumber(text=phone[u'value'], rel=phone[u'rel'], label=phone[u'label'], primary=phone[u'primary']))
     value = GetField(CONTACT_RELATIONS)
     if value:
       for relation in value:
-        contact_entry.relation.append(gdata.apps.contacts.Relation(text=relation[u'value'], rel=relation[u'rel'], label=relation[u'label']))
+        contactEntry.relation.append(gdata.apps.contacts.Relation(text=relation[u'value'], rel=relation[u'rel'], label=relation[u'label']))
     value = GetField(CONTACT_USER_DEFINED_FIELDS)
     if value:
       for userdefinedfield in value:
-        contact_entry.userDefinedField.append(gdata.apps.contacts.UserDefinedField(key=userdefinedfield[u'rel'], value=userdefinedfield[u'value']))
+        contactEntry.userDefinedField.append(gdata.apps.contacts.UserDefinedField(key=userdefinedfield[u'rel'], value=userdefinedfield[u'value']))
     value = GetField(CONTACT_WEBSITES)
     if value:
       for website in value:
-        contact_entry.website.append(gdata.apps.contacts.Website(href=website[u'value'], rel=website[u'rel'], label=website[u'label'], primary=website[u'primary']))
-    return contact_entry
+        contactEntry.website.append(gdata.apps.contacts.Website(href=website[u'value'], rel=website[u'rel'], label=website[u'label'], primary=website[u'primary']))
+    return contactEntry
 
   @staticmethod
-  def ContactEntryToFields(contact_entry):
+  def AddContactGroupsToContact(contactsObject, fields, user, contactEntry):
+    import gdata.apps.contacts
+
+    value = fields.get(CONTACT_GROUPS)
+    if value:
+      for group in value:
+        contactEntry.groupMembershipInfo.append(gdata.apps.contacts.GroupMembershipInfo(deleted=u'false',
+                                                                                        href=contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=group)))
+
+  @staticmethod
+  def ContactToFields(contactEntry):
     fields = {}
 
     def GetContactField(fieldName, attrlist):
-      objAttr = contact_entry
+      objAttr = contactEntry
       for attr in attrlist:
         objAttr = getattr(objAttr, attr)
         if not objAttr:
@@ -9039,8 +9163,8 @@ class ContactsManager(object):
       fields.setdefault(fieldName, [])
       fields[fieldName].append(fieldValue)
 
-    fields[CONTACT_ID] = ContactsManager.GetContactShortId(contact_entry)
-    if not contact_entry.deleted:
+    fields[CONTACT_ID] = ContactsManager.GetContactShortId(contactEntry)
+    if not contactEntry.deleted:
       GetContactField(CONTACT_NAME, [u'title', u'text'])
     else:
       fields[CONTACT_NAME] = u'Deleted'
@@ -9065,7 +9189,7 @@ class ContactsManager(object):
     GetContactField(CONTACT_BILLING_INFORMATION, [u'billingInformation', u'text'])
     GetContactField(CONTACT_MILEAGE, [u'mileage', u'text'])
     GetContactField(CONTACT_DIRECTORY_SERVER, [u'directoryServer', u'text'])
-    for address in contact_entry.structuredPostalAddress:
+    for address in contactEntry.structuredPostalAddress:
       AppendItemToFieldsList(CONTACT_ADDRESSES,
                              {u'rel': address.rel,
                               u'label': address.label,
@@ -9078,43 +9202,43 @@ class ContactsManager(object):
                               u'postcode': GetListEntryField(address, [u'postcode', u'text']),
                               u'country': GetListEntryField(address, [u'country', u'text']),
                               u'primary': address.primary})
-    for calendarLink in contact_entry.calendarLink:
+    for calendarLink in contactEntry.calendarLink:
       AppendItemToFieldsList(CONTACT_CALENDARS,
                              {u'rel': calendarLink.rel,
                               u'label': calendarLink.label,
                               u'value': calendarLink.href,
                               u'primary': calendarLink.primary})
-    for email in contact_entry.email:
+    for email in contactEntry.email:
       AppendItemToFieldsList(CONTACT_EMAILS,
                              {u'rel': email.rel,
                               u'label': email.label,
                               u'value': email.address,
                               u'primary': email.primary})
-    for externalid in contact_entry.externalId:
+    for externalid in contactEntry.externalId:
       AppendItemToFieldsList(CONTACT_EXTERNALIDS,
                              {u'rel': externalid.rel,
                               u'label': externalid.label,
                               u'value': externalid.value})
-    for event in contact_entry.event:
+    for event in contactEntry.event:
       AppendItemToFieldsList(CONTACT_EVENTS,
                              {u'rel': event.rel,
                               u'label': event.label,
                               u'value': GetListEntryField(event, [u'when', u'startTime'])})
-    for hobby in contact_entry.hobby:
+    for hobby in contactEntry.hobby:
       AppendItemToFieldsList(CONTACT_HOBBIES,
                              {u'value': hobby.text})
-    for im in contact_entry.im:
+    for im in contactEntry.im:
       AppendItemToFieldsList(CONTACT_IMS,
                              {u'rel': im.rel,
                               u'label': im.label,
                               u'value': im.address,
                               u'protocol': im.protocol,
                               u'primary': im.primary})
-    for jot in contact_entry.jot:
+    for jot in contactEntry.jot:
       AppendItemToFieldsList(CONTACT_JOTS,
                              {u'rel': jot.rel,
                               u'value': jot.text})
-    for organization in contact_entry.organization:
+    for organization in contactEntry.organization:
       AppendItemToFieldsList(CONTACT_ORGANIZATIONS,
                              {u'rel': organization.rel,
                               u'label': organization.label,
@@ -9125,71 +9249,113 @@ class ContactsManager(object):
                               u'jobdescription': GetListEntryField(organization, [u'job_description', u'text']),
                               u'where': GetListEntryField(organization, [u'where', u'value_string']),
                               u'primary': organization.primary})
-    for phone in contact_entry.phoneNumber:
+    for phone in contactEntry.phoneNumber:
       AppendItemToFieldsList(CONTACT_PHONES,
                              {u'rel': phone.rel,
                               u'label': phone.label,
                               u'value': phone.text,
                               u'primary': phone.primary})
-    for relation in contact_entry.relation:
+    for relation in contactEntry.relation:
       AppendItemToFieldsList(CONTACT_RELATIONS,
                              {u'rel': relation.rel,
                               u'label': relation.label,
                               u'value': relation.text})
-    for userdefinedfield in contact_entry.userDefinedField:
+    for userdefinedfield in contactEntry.userDefinedField:
       AppendItemToFieldsList(CONTACT_USER_DEFINED_FIELDS,
                              {u'rel': userdefinedfield.key,
                               u'value': userdefinedfield.value})
-    for website in contact_entry.website:
+    for website in contactEntry.website:
       AppendItemToFieldsList(CONTACT_WEBSITES,
                              {u'rel': website.rel,
                               u'label': website.label,
                               u'value': website.href,
                               u'primary': website.primary})
+    for group in contactEntry.groupMembershipInfo:
+      AppendItemToFieldsList(CONTACT_GROUPS, group.href[group.href.rfind(u'/')+1:])
+    return fields
+
+  @staticmethod
+  def GetContactGroupFields():
+
+    fields = {}
+    while CL_argvI < CL_argvLen:
+      fieldName = getChoice(ContactsManager.CONTACT_GROUP_ARGUMENT_TO_PROPERTY_MAP, mapChoice=True)
+      if fieldName == CONTACT_GROUP_NAME:
+        fields[fieldName] = getString(OB_STRING)
+      else:
+        fields[fieldName] = getString(OB_STRING, emptyOK=True)
+    return fields
+
+  @staticmethod
+  def FieldsToContactGroup(fields):
+    import atom
+    import gdata.apps.contacts
+
+    groupEntry = gdata.apps.contacts.GroupEntry(title=atom.Title(text=fields[CONTACT_GROUP_NAME]))
+    return groupEntry
+
+  @staticmethod
+  def ContactGroupToFields(groupEntry):
+    fields = {}
+
+    def GetGroupField(fieldName, attrlist):
+      objAttr = groupEntry
+      for attr in attrlist:
+        objAttr = getattr(objAttr, attr)
+        if not objAttr:
+          return
+      fields[fieldName] = objAttr
+
+    fields[CONTACT_GROUP_ID] = ContactsManager.GetContactShortId(groupEntry)
+    if not groupEntry.deleted:
+      GetGroupField(CONTACT_GROUP_NAME, [u'title', u'text'])
+    else:
+      fields[CONTACT_GROUP_NAME] = u'Deleted'
     return fields
 
 CONTACTS_PROJECTION_CHOICES_MAP = {u'basic': u'thin', u'thin': u'thin', u'full': u'full',}
 CONTACTS_ORDERBY_CHOICES_MAP = {u'lastmodified': u'lastmodified',}
 
-def contactsFeedUri(userId, projection=u'full', contactId=None):
-  url = u'{0}{1}'.format(u'https://www.google.com/m8/feeds/contacts/', userId)
-  if projection:
-    url += u'/{0}'.format(projection)
-  if contactId:
-    url += u'/{0}'.format(contactId)
-  return url
-
-def getContactsList():
-  if checkArgumentPresent(QUERY_ARGUMENT):
-    query = getString(OB_QUERY)
+def getContactsList(contactGroupAllowed):
+  choice = checkArgumentPresent([u'query', u'contactgroup'])
+  if choice:
+    url_params = {}
+    if choice == u'query':
+      query = getString(OB_QUERY, emptyOK=True)
+    else:
+      if not contactGroupAllowed:
+        unknownArgumentExit()
+      url_params[u'group'] = getString(OB_CONTACT_GROUP_ID)
+      query = None
     projection = u'full'
-    params = {}
     while CL_argvI < CL_argvLen:
       myarg = getArgument()
       if myarg == u'orderby':
-        params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
-        params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
+        url_params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
+        url_params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
       elif myarg in CONTACTS_PROJECTION_CHOICES_MAP:
         projection = CONTACTS_PROJECTION_CHOICES_MAP[myarg]
-      elif myarg == u'updated-min':
-        params[u'updated-min'] = getYYYYMMDD()
+      elif myarg == u'updatedmin':
+        url_params[u'updated-min'] = getYYYYMMDD()
       else:
         unknownArgumentExit()
-    return (None, {u'query': query, u'projection': projection, u'params': params})
+    return (None, {u'query': query, u'projection': projection, u'url_params': url_params})
   else:
     entityList = getEntityList(OB_CONTACT_ENTITY)
     return (entityList, None)
 
 def queryContacts(contactsObject, contactsQuery, entityType, user, i=0, count=0):
-  url = getContactsQuery(feed=contactsFeedUri(user, projection=contactsQuery[u'projection']),
-                         text_query=contactsQuery[u'query'], params=contactsQuery[u'params']).ToUri()
+  uri = getContactsQuery(feed=contactsObject.GetContactFeedUri(contact_list=user, projection=contactsQuery[u'projection']),
+                         text_query=contactsQuery[u'query']).ToUri()
   printGettingAllEntityItemsForWhom(EN_CONTACT, user, i, count, qualifier=queryQualifier(contactsQuery[u'query']))
+  if u'group' in contactsQuery[u'url_params']:
+    contactsQuery[u'url_params'][u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=contactsQuery[u'url_params'][u'group'])
   page_message = getPageMessage()
   try:
     entityList = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
                                 throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
-                                uri=url)
+                                uri=uri, url_params=contactsQuery[u'url_params'])
     return entityList
   except GData_badRequest:
     entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
@@ -9197,61 +9363,60 @@ def queryContacts(contactsObject, contactsQuery, entityType, user, i=0, count=0)
     entityUnknownWarning(entityType, user, i, count)
   return None
 
-#<ContactAttributes> ::=
-#	[name <String>] [prefix <String>] [givenname|firstname <String>] [additionalname|middlename <String>] [familyname|lastname <String>] [suffix <String>]
-#	[nickname <String>] [maidenname <String>] [shortname <String>] [initials <String>] [birthday <YYYY-MM-DD>] [gender female|male]
-#	[location <String>] [note <String>|(file <FileName>)] [subject <String>] [language <Language>]
-#	[occupation <String>] [billinginfo <String>] [mileage <String>] [directoryserver <String>]
-#	(address clear|(work|home|other|<String> [formatted|unstructured <String>] [streetaddress <String>] [pobox <String>]
-#	   [neighborhood <String>] [locality <String>] [region <String>] [postalcode <String>] [country <String>] notprimary|primary))
-#	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))
-#	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))
-#       (externalid clear|(account|customer|network|organization|<String> <String>))
-#	(event clear(anniversary|other|<String> <YYYY-MM-DD>))
-#	(hobby clear|(<String>))
-#	(im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))
-#	(jot clear|(work|home|other|keywords|user <String>))
-#	(organization clear|(work|other|<String> <String> [location <String>] [department <String>] [title <String>] [jobdescription <String>] [symbol <String>] notprimary|primary))
-#	(phone clear|(work|home|other|fax|work_faxhome_fax||other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|<String> <String> notprimary|primary))
-#       (relation clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))
-#	(userdefinedfield clear|(<String> <String>))
-#	(website clear|(home-page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))
+# <ContactAttributes> ::=
+#	(contactgroup <ContactGroupID>)|
+#	(name <String>)|(prefix <String>)|(givenname|firstname <String>)|(additionalname|middlename <String>)|(familyname|lastname <String>)|(suffix <String>)|
+#	(nickname <String>)|(maidenname <String>)|(shortname <String>)|(initials <String>)|(birthday <YYYY-MM-DD>)|(gender female|male)|
+#	(location <String>)|(note <String>|(file <FileName>))|(subject <String>)|(language <Language>)|
+#	(occupation <String>)|(billinginfo <String>)|(mileage <String>)|(directoryserver <String>)|
+#	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
+#	  |(neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
+#	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))|
+#	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
+#	(externalid clear|(account|customer|network|organization|<String> <String>))|
+#	(event clear(anniversary|other|<String> <YYYY-MM-DD>))|
+#	(hobby clear|(<String>))|
+#	(im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))|
+#	(jot clear|(work|home|other|keywords|user> <String>))|
+#	(organization clear|(work|other|<String> <String>|(location <String>)|(department <String>)|(title <String>)|(jobdescription <String>)|(symbol <String>) notprimary|primary))|
+#	(phone clear|(work|home|other|fax|work_fax|home_fax|other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|<String> <String> notprimary|primary))|
+#	(relation clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
+#	(userdefinedfield clear|(<String> <String>))|
+#	(website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))
 
-# gam <UserTypeEntity> create contact ...
-# gam create contact <ContactAttributes>
+# gam [<UserTypeEntity>] create contact <ContactAttributes>
 def createUserContact(users):
   doCreateContact(users, EN_USER)
 
-def createDomainContact():
+def doCreateDomainContact():
   doCreateContact([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
 def doCreateContact(users, entityType):
   contactsManager = ContactsManager()
   fields = contactsManager.GetContactFields()
-  contactEntry = contactsManager.FieldsToContactEntry(fields)
+  contactEntry = contactsManager.FieldsToContact(fields)
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
     try:
       contact = callGData(contactsObject, u'CreateContact',
                           throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
-                          new_contact=contactEntry, insert_uri=contactsFeedUri(user))
+                          new_contact=contactEntry, insert_uri=contactsObject.GetContactFeedUri(contact_list=user))
       entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactsManager.GetContactShortId(contact), i, count)
     except GData_badRequest:
       entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
 
-# gam <UserTypeEntity> update contacts ...
-# gam update contacts <ContactEntity> <ContactAttributes>
+# gam [<UserTypeEntity>] update contacts <ContactEntity> <ContactAttributes>
 def updateUserContacts(users):
   doUpdateContacts(users, EN_USER)
 
-def updateDomainContacts():
+def doUpdateDomainContacts():
   doUpdateContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
 def doUpdateContacts(users, entityType):
@@ -9262,7 +9427,7 @@ def doUpdateContacts(users, entityType):
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
     j = 0
@@ -9276,18 +9441,20 @@ def doUpdateContacts(users, entityType):
       try:
         contact = callGData(contactsObject, u'GetContact',
                             throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
-                            uri=contactsFeedUri(user, contactId=contactId))
-        fields = contactsManager.ContactEntryToFields(contact)
+                            uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
+        fields = contactsManager.ContactToFields(contact)
         for field in update_fields:
           fields[field] = update_fields[field]
-        contactEntry = contactsManager.FieldsToContactEntry(fields)
+        contactEntry = contactsManager.FieldsToContact(fields)
+        if entityType == EN_USER:
+          contactsManager.AddContactGroupsToContact(contactsObject, fields, user, contactEntry)
         contactEntry.category = contact.category
         contactEntry.link = contact.link
         contactEntry.etag = contact.etag
         contactEntry.id = contact.id
         callGData(contactsObject, u'UpdateContact',
                   throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
-                  edit_uri=contactsFeedUri(user, contactId=contactId), updated_contact=contactEntry, extra_headers={u'If-Match': contact.etag})
+                  edit_uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId), updated_contact=contactEntry, extra_headers={u'If-Match': contact.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactId, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -9298,23 +9465,22 @@ def doUpdateContacts(users, entityType):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> delete contacts ...
-# gam delete contacts <ContactEntity>|
+# gam [<UserTypeEntity>] delete contacts <ContactEntity>|
 #	query <Query> [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 def deleteUserContacts(users):
   doDeleteContacts(users, EN_USER)
 
-def deleteDomainContacts():
+def doDeleteDomainContacts():
   doDeleteContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
 def doDeleteContacts(users, entityType):
   contactsManager = ContactsManager()
-  entityList, contactsQuery = getContactsList()
+  entityList, contactsQuery = getContactsList(entityType == EN_USER)
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
     if contactsQuery:
@@ -9334,12 +9500,12 @@ def doDeleteContacts(users, entityType):
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
-                              uri=contactsFeedUri(user, contactId=contactId))
+                              uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         else:
           contactId = contactsManager.GetContactShortId(contact)
         callGData(contactsObject, u'DeleteContact',
                   throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
-                  edit_uri=contactsFeedUri(user, contactId=contactId), extra_headers={u'If-Match': contact.etag})
+                  edit_uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId), extra_headers={u'If-Match': contact.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactId, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -9348,23 +9514,22 @@ def doDeleteContacts(users, entityType):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> info contacts ...
-# gam info contacts <ContactEntity>|
+# gam [<UserTypeEntity>] info contacts <ContactEntity>|
 #	query <Query> [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 def infoUserContacts(users):
   doInfoContacts(users, EN_USER)
 
-def infoDomainContacts():
+def doInfoDomainContacts():
   doInfoContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
 def doInfoContacts(users, entityType):
   contactsManager = ContactsManager()
-  entityList, contactsQuery = getContactsList()
+  entityList, contactsQuery = getContactsList(entityType == EN_USER)
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
     if contactsQuery:
@@ -9384,8 +9549,8 @@ def doInfoContacts(users, entityType):
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
-                              uri=contactsFeedUri(user, contactId=contactId))
-        fields = contactsManager.ContactEntryToFields(contact)
+                              uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
+        fields = contactsManager.ContactToFields(contact)
         printEntityName(EN_CONTACT, fields[CONTACT_ID], j, jcount)
         incrementIndentLevel()
         for key in contactsManager.CONTACT_NAME_PROPERTY_PRINT_ORDER:
@@ -9439,29 +9604,34 @@ def doInfoContacts(users, entityType):
               if keymap[u'relMap']:
                 decrementIndentLevel()
             decrementIndentLevel()
+        if CONTACT_GROUPS in fields:
+          printKeyValueList([u'Contact Group IDs', u''])
+          incrementIndentLevel()
+          for group in fields[CONTACT_GROUPS]:
+            printKeyValueList([u'id', group])
+          decrementIndentLevel()
         decrementIndentLevel()
       except GData_notFound:
-        entityDoesNotExistWarning(EN_CONTACT, contactId, j, jcount)
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print contacts ...
-# gam print contacts [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+# gam [<UserTypeEntity>] print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupID>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 #         [orderby <ContactOrderByFieldName> [ascending|descending]]
 def printUserContacts(users):
   doPrintContacts(users, EN_USER)
 
-def printDomainContacts():
+def doPrintDomainContacts():
   doPrintContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
 def doPrintContacts(users, entityType):
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'User', CONTACT_ID, CONTACT_NAME], None)
+  titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_ID, CONTACT_NAME], None)
   query = None
   projection = u'full'
-  params = {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])}
+  url_params = {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -9470,15 +9640,19 @@ def doPrintContacts(users, entityType):
       pass
     elif myarg == u'query':
       query = getString(OB_QUERY)
+      url_params.pop(u'group', None)
     elif myarg == u'orderby':
-      params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
-      params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
+      url_params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
+      url_params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
     elif myarg in CONTACTS_PROJECTION_CHOICES_MAP:
       projection = CONTACTS_PROJECTION_CHOICES_MAP[myarg]
     elif myarg == u'showdeleted':
-      params[u'showdeleted'] = u'true'
-    elif myarg == u'updated-min':
-      params[u'updated-min'] = getYYYYMMDD()
+      url_params[u'showdeleted'] = u'true'
+    elif myarg == u'updatedmin':
+      url_params[u'updated-min'] = getYYYYMMDD()
+    elif (myarg == u'contactgroup') and (entityType == EN_USER):
+      url_params[u'group'] = getString(OB_CONTACT_GROUP_ID)
+      query = None
     else:
       unknownArgumentExit()
   contactsManager = ContactsManager()
@@ -9486,24 +9660,26 @@ def doPrintContacts(users, entityType):
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
     printGettingAllEntityItemsForWhom(EN_CONTACT, user, i, count, qualifier=queryQualifier(query))
-    if query or params:
-      url = getContactsQuery(feed=contactsFeedUri(user, projection=projection), text_query=query, params=params).ToUri()
+    if query:
+      uri = getContactsQuery(feed=contactsObject.GetContactFeedUri(contact_list=user, projection=projection), text_query=query).ToUri()
     else:
-      url = contactsFeedUri(user, projection=projection)
+      uri = contactsObject.GetContactFeedUri(contact_list=user, projection=projection)
     try:
       page_message = getPageMessage()
+      if u'group' in url_params:
+        url_params[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=url_params[u'group'])
       contacts = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
-                                throw_errors=[GDATA_SERVICE_NOT_APPLICABLE],
-                                uri=url)
+                                throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                                uri=uri, url_params=url_params)
       if contacts:
         for contact in contacts:
-          fields = contactsManager.ContactEntryToFields(contact)
-          contactRow = {u'User': user, CONTACT_ID: fields[CONTACT_ID]}
+          fields = contactsManager.ContactToFields(contact)
+          contactRow = {singularEntityName(entityType): user, CONTACT_ID: fields[CONTACT_ID]}
           for key in contactsManager.CONTACT_NAME_PROPERTY_PRINT_ORDER:
             if key in fields:
               if (key != CONTACT_NOTES) and (key != CONTACT_BILLING_INFORMATION):
@@ -9554,11 +9730,280 @@ def doPrintContacts(users, entityType):
                   contactRow[fn] = value
                 else:
                   contactRow[fn] = value
+          if CONTACT_GROUPS in fields:
+            fn = CONTACT_GROUPS
+            j = 1
+            for group in fields[CONTACT_GROUPS]:
+              j += 1
+              contactRow[fn] = group
+              fn = u'{0} {1}'.format(CONTACT_GROUPS, j)
           csvRows.append(contactRow)
           addTitlesToCSVfile(csvRows[-1], titles)
+    except GData_badRequest:
+      entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
   writeCSVfile(csvRows, titles, u'Contacts', todrive)
+
+def getContactGroupNames(contactsManager, contactsObject, entityType, entityName, i, count):
+  printGettingAllEntityItemsForWhom(EN_CONTACT_GROUP, entityName, i, count)
+  uri = contactsObject.GetContactGroupFeedUri(contact_list=entityName)
+  contactGroupNames = {}
+  try:
+    page_message = getPageMessage()
+    groups = callGDataPages(contactsObject, u'GetGroupsFeed',
+                            page_message=page_message,
+                            throw_errors=[GDATA_SERVICE_NOT_APPLICABLE],
+                            uri=uri)
+    if groups:
+      for group in groups:
+        fields = contactsManager.ContactGroupToFields(group)
+        contactGroupNames.setdefault(fields[CONTACT_GROUP_NAME], [])
+        contactGroupNames[fields[CONTACT_GROUP_NAME]].append(fields[CONTACT_GROUP_ID])
+  except GData_serviceNotApplicable:
+    entityUnknownWarning(entityType, entityName, i, count)
+    return False
+  return contactGroupNames
+
+# gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>
+def createUserContactGroup(users):
+  doCreateContactGroup(users, EN_USER)
+
+def doCreateContactGroup(users, entityType):
+  contactsManager = ContactsManager()
+  fields = contactsManager.GetContactGroupFields()
+  contactGroup = contactsManager.FieldsToContactGroup(fields)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, contactsObject = getContactsObject(entityType, user, i, count)
+    if not contactsObject:
+      continue
+    contactGroupNames = getContactGroupNames(contactsManager, contactsObject, entityType, user, i, count)
+    if contactGroupNames == False:
+      continue
+    if fields[CONTACT_GROUP_NAME] in contactGroupNames:
+      entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, u'', u'{0} {1}'.format(PHRASE_DUPLICATE, fields[CONTACT_GROUP_NAME]), i, count)
+      continue
+    try:
+      group = callGData(contactsObject, u'CreateGroup',
+                        throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                        new_group=contactGroup, insert_uri=contactsObject.GetContactGroupFeedUri(contact_list=user))
+      entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, contactsManager.GetContactShortId(group), i, count)
+    except GData_badRequest:
+      entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, u'', PHRASE_BAD_REQUEST, i, count)
+    except GData_serviceNotApplicable:
+      entityUnknownWarning(entityType, user, i, count)
+
+# gam <UserTypeEntity> update contactgroups <ContactGroupID> <ContactAttributes>
+def updateUserContactGroup(users):
+  doUpdateContactGroup(users, EN_USER)
+
+def doUpdateContactGroup(users, entityType):
+  contactsManager = ContactsManager()
+  entityList = getStringReturnInList(OB_CONTACT_GROUP_ID)
+  update_fields = contactsManager.GetContactGroupFields()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, contactsObject = getContactsObject(entityType, user, i, count)
+    if not contactsObject:
+      continue
+    contactGroupNames = getContactGroupNames(contactsManager, contactsObject, entityType, user, i, count)
+    if contactGroupNames == False:
+      continue
+    j = 0
+    jcount = len(entityList)
+    entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    for groupId in entityList:
+      j += 1
+      if update_fields[CONTACT_GROUP_NAME] in contactGroupNames and groupId not in contactGroupNames[update_fields[CONTACT_GROUP_NAME]]:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, u'{0} {1}'.format(PHRASE_DUPLICATE, update_fields[CONTACT_GROUP_NAME]), i, count)
+        continue
+      try:
+        group = callGData(contactsObject, u'GetGroup',
+                          throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                          uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
+        fields = contactsManager.ContactGroupToFields(group)
+        for field in update_fields:
+          fields[field] = update_fields[field]
+        groupEntry = contactsManager.FieldsToContactGroup(fields)
+        groupEntry.category = group.category
+        groupEntry.link = group.link
+        groupEntry.etag = group.etag
+        groupEntry.id = group.id
+        callGData(contactsObject, u'UpdateGroup',
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                  edit_uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId), updated_group=groupEntry, extra_headers={u'If-Match': group.etag})
+        entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, groupId, j, jcount)
+      except GData_notFound:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_badRequest:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, PHRASE_BAD_REQUEST, j, jcount)
+      except GData_serviceNotApplicable:
+        entityUnknownWarning(entityType, user, i, count)
+        break
+    decrementIndentLevel()
+
+# gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>|
+#	(query <Query>)|(contactgroup <ContactGroupID>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+def deleteUserContactGroups(users):
+  doDeleteContactGroups(users, EN_USER)
+
+def doDeleteContactGroups(users, entityType):
+  contactsManager = ContactsManager()
+  entityList, contactsQuery = getContactsList(False)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, contactsObject = getContactsObject(entityType, user, i, count)
+    if not contactsObject:
+      continue
+    if contactsQuery:
+      entityList = queryContacts(contactsObject, contactsQuery, entityType, user, i, count)
+      if entityList == None:
+        continue
+    j = 0
+    jcount = len(entityList)
+    entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    for group in entityList:
+      j += 1
+      try:
+        if not contactsQuery:
+          groupId = group
+          group = callGData(contactsObject, u'GetGroup',
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                            uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
+        else:
+          groupId = contactsManager.GetContactShortId(group)
+        callGData(contactsObject, u'DeleteGroup',
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                  edit_uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId), extra_headers={u'If-Match': group.etag})
+        entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, groupId, j, jcount)
+      except GData_notFound:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_serviceNotApplicable:
+        entityUnknownWarning(entityType, user, i, count)
+        break
+    decrementIndentLevel()
+
+# gam <UserTypeEntity> info contactgroups <ContactGroupEntity>|
+#	query <Query> [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+def infoUserContactGroups(users):
+  doInfoContactGroups(users, EN_USER)
+
+def doInfoContactGroups(users, entityType):
+  contactsManager = ContactsManager()
+  entityList, contactsQuery = getContactsList(False)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, contactsObject = getContactsObject(entityType, user, i, count)
+    if not contactsObject:
+      continue
+    if contactsQuery:
+      entityList = queryContacts(contactsObject, contactsQuery, entityType, user, i, count)
+      if entityList == None:
+        continue
+    j = 0
+    jcount = len(entityList)
+    entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    for group in entityList:
+      j += 1
+      try:
+        if not contactsQuery:
+          groupId = group
+          group = callGData(contactsObject, u'GetGroup',
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                            uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
+        fields = contactsManager.ContactGroupToFields(group)
+        printEntityName(EN_CONTACT_GROUP, fields[CONTACT_GROUP_ID], j, jcount)
+        incrementIndentLevel()
+        for key in contactsManager.CONTACT_GROUP_PROPERTY_PRINT_ORDER:
+          if key in fields:
+            printKeyValueList([key, fields[key]])
+        decrementIndentLevel()
+      except GData_notFound:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_serviceNotApplicable:
+        entityUnknownWarning(entityType, user, i, count)
+        break
+    decrementIndentLevel()
+
+# gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+#         [orderby <ContactOrderByFieldName> [ascending|descending]]
+def printUserContactGroups(users):
+  doPrintContactGroups(users, EN_USER)
+
+def doPrintContactGroups(users, entityType):
+  todrive = False
+  titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_GROUP_ID, CONTACT_GROUP_NAME], None)
+  query = None
+  projection = u'full'
+  url_params = {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])}
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg == u'idfirst':
+      pass
+    elif myarg == u'query':
+      query = getString(OB_QUERY)
+    elif myarg == u'orderby':
+      url_params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
+      url_params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
+    elif myarg in CONTACTS_PROJECTION_CHOICES_MAP:
+      projection = CONTACTS_PROJECTION_CHOICES_MAP[myarg]
+    elif myarg == u'showdeleted':
+      url_params[u'showdeleted'] = u'true'
+    elif myarg == u'updatedmin':
+      url_params[u'updated-min'] = getYYYYMMDD()
+    else:
+      unknownArgumentExit()
+  contactsManager = ContactsManager()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, contactsObject = getContactsObject(entityType, user, i, count)
+    if not contactsObject:
+      continue
+    printGettingAllEntityItemsForWhom(EN_CONTACT_GROUP, user, i, count, qualifier=queryQualifier(query))
+    if query:
+      uri = getContactsQuery(feed=contactsObject.GetContactGroupFeedUri(contact_list=user, projection=projection), text_query=query).ToUri()
+    else:
+      uri = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=projection)
+    try:
+      page_message = getPageMessage()
+      groups = callGDataPages(contactsObject, u'GetGroupsFeed',
+                              page_message=page_message,
+                              throw_errors=[GDATA_SERVICE_NOT_APPLICABLE],
+                              uri=uri, url_params=url_params)
+      if groups:
+        for group in groups:
+          fields = contactsManager.ContactGroupToFields(group)
+          groupRow = {singularEntityName(entityType): user, CONTACT_GROUP_ID: fields[CONTACT_GROUP_ID]}
+          for key in contactsManager.CONTACT_GROUP_PROPERTY_PRINT_ORDER:
+            if key in fields:
+              groupRow[key] = fields[key]
+          csvRows.append(groupRow)
+          addTitlesToCSVfile(csvRows[-1], titles)
+    except GData_serviceNotApplicable:
+      entityUnknownWarning(entityType, user, i, count)
+  writeCSVfile(csvRows, titles, u'Contact Groups', todrive)
 
 # Utilities for cros commands
 def getCrOSDeviceEntity(cd, getEntityListArg):
@@ -9659,7 +10104,7 @@ def updateCrOSDevices(entityList):
     except GAPI_invalid as e:
       entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.value, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
 
 CROS_ARGUMENT_TO_PROPERTY_MAP = {
   u'activetimeranges': [u'activeTimeRanges',],
@@ -9727,7 +10172,7 @@ def doInfoCrOSDevice(getEntityListArg=False):
       decrementIndentLevel()
       printBlankLine()
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
 
 CROS_ORDERBY_CHOICES_MAP = {
   u'lastsync': u'lastSync',
@@ -9936,7 +10381,7 @@ def doUpdateMobileDevice(getEntityListArg=False):
                           [PHRASE_ACTION_APPLIED, action_body[u'action']],
                           i, count)
     except GAPI_resourceIdNotFound:
-      entityDoesNotExistWarning(EN_MOBILE_DEVICE, resourceId, i, count)
+      entityActionFailedWarning(EN_MOBILE_DEVICE, resourceId, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_internalError, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
 
@@ -9959,7 +10404,7 @@ def doDeleteMobileDevice(getEntityListArg=False):
                customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId)
       entityActionPerformed(EN_MOBILE_DEVICE, resourceId, i, count)
     except GAPI_resourceIdNotFound:
-      entityDoesNotExistWarning(EN_MOBILE_DEVICE, resourceId, i, count)
+      entityActionFailedWarning(EN_MOBILE_DEVICE, resourceId, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_internalError, GAPI_badRequest, GAPI_resourceIdNotFound, GAPI_forbidden):
       accessErrorExit(cd)
 
@@ -9985,7 +10430,7 @@ def doInfoMobileDevice(getEntityListArg=False):
       print_json(None, info)
       decrementIndentLevel()
     except GAPI_resourceIdNotFound:
-      entityDoesNotExistWarning(EN_MOBILE_DEVICE, resourceId, i, count)
+      entityActionFailedWarning(EN_MOBILE_DEVICE, resourceId, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_internalError, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
     printBlankLine()
@@ -10316,7 +10761,7 @@ def batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role):
 
 UPDATE_GROUP_SUBCMDS = [u'add', u'clear', u'update', u'sync', u'remove',]
 
-UPDATE_GROUP_ROLE_CHOICES_MAP = {
+UPDATE_GROUP_ROLES_MAP = {
   u'owner': ROLE_OWNER,
   u'owners': ROLE_OWNER,
   u'manager': ROLE_MANAGER,
@@ -10389,7 +10834,7 @@ def doUpdateGroup(getEntityListArg=False):
           continue
       entityActionPerformed(EN_GROUP, group, i, count)
   elif CL_subCommand == u'add':
-    role = getChoice(UPDATE_GROUP_ROLE_CHOICES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
     _, addMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
     groupMemberLists = addMembers if isinstance(addMembers, dict) else None
@@ -10404,7 +10849,7 @@ def doUpdateGroup(getEntityListArg=False):
       if group:
         batchAddMembersToGroup(cd, group, i, count, addMembers, role)
   elif CL_subCommand == u'remove':
-    role = getChoice(UPDATE_GROUP_ROLE_CHOICES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True) # Argument ignored
+    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True) # Argument ignored
     _, removeMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
     groupMemberLists = removeMembers if isinstance(removeMembers, dict) else None
     checkForExtraneousArguments()
@@ -10418,7 +10863,7 @@ def doUpdateGroup(getEntityListArg=False):
       if group:
         batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, role)
   elif CL_subCommand == u'sync':
-    role = getChoice(UPDATE_GROUP_ROLE_CHOICES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
     _, syncMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
     groupMemberLists = syncMembers if isinstance(syncMembers, dict) else None
@@ -10444,10 +10889,10 @@ def doUpdateGroup(getEntityListArg=False):
     roles = []
     while CL_argvI < CL_argvLen:
       myarg = getArgument()
-      if myarg in UPDATE_GROUP_ROLE_CHOICES_MAP:
-        roles.append(UPDATE_GROUP_ROLE_CHOICES_MAP[myarg])
+      if myarg in UPDATE_GROUP_ROLES_MAP:
+        roles.append(UPDATE_GROUP_ROLES_MAP[myarg])
       else:
-        invalidChoiceExit(UPDATE_GROUP_ROLE_CHOICES_MAP)
+        invalidChoiceExit(UPDATE_GROUP_ROLES_MAP)
     setActionName(AC_REMOVE)
     if not roles:
       roles.append(ROLE_MEMBER)
@@ -10461,7 +10906,7 @@ def doUpdateGroup(getEntityListArg=False):
         removeMembers = getUsersToModify(CL_ENTITY_GROUP, group, memberRole=roles)
         batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, ROLE_MEMBER)
   elif CL_subCommand == u'update':
-    role = getChoice(UPDATE_GROUP_ROLE_CHOICES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
     groupMemberLists = updateMembers if isinstance(updateMembers, dict) else None
     checkForExtraneousArguments()
@@ -10857,6 +11302,7 @@ def doPrintGroupMembers():
   todrive = groupname = membernames = noduplicates = recursive = False
   customer = GC_Values[GC_CUSTOMER_ID]
   domain = usemember = None
+  subTitle = u'{0} {1}'.format(PHRASE_ALL, pluralEntityName(EN_GROUP))
   fieldsList = []
   fieldsTitles = {}
   titles, csvRows = initializeTitlesCSVfile(None, None)
@@ -10870,9 +11316,17 @@ def doPrintGroupMembers():
     elif myarg == u'domain':
       domain = getString(OB_DOMAIN_NAME).lower()
       customer = None
+      subTitle = u'{0}={1}'.format(singularEntityName(EN_DOMAIN), domain)
     elif myarg == u'member':
       usemember = getEmailAddress()
       customer = None
+      subTitle = u'{0}={1}'.format(singularEntityName(EN_MEMBER), usemember)
+    elif myarg == u'group':
+      entityList = getStringReturnInList(OB_GROUP_ITEM)
+      subTitle = u'{0}={1}'.format(singularEntityName(EN_GROUP), entityList[0])
+    elif myarg == u'select':
+      entityList = getEntityList(OB_GROUP_ENTITY)
+      subTitle = u'{0} {1}'.format(PHRASE_SELECTED, pluralEntityName(EN_GROUP))
     elif myarg == u'fields':
       fieldNameList = getString(OB_FIELD_NAME_LIST)
       for field in fieldNameList.lower().replace(u',', u' ').split():
@@ -10887,10 +11341,6 @@ def doPrintGroupMembers():
       noduplicates = True
     elif myarg == u'recursive':
       recursive = True
-    elif myarg == u'group':
-      entityList = getStringReturnInList(OB_GROUP_ITEM)
-    elif myarg == u'select':
-      entityList = getEntityList(OB_GROUP_ENTITY)
     else:
       unknownArgumentExit()
   if entityList == None:
@@ -10967,7 +11417,7 @@ def doPrintGroupMembers():
           memberName = u'Unknown'
         member_attr[u'name'] = memberName
       csvRows.append(member_attr)
-  writeCSVfile(csvRows, titles, u'Group Members', todrive)
+  writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
 # gam print licenses [todrive] [idfirst] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 def doPrintLicenses(return_list=False, skus=None):
@@ -11095,7 +11545,7 @@ def doUpdateNotification():
                         [PHRASE_MARKED_AS, [u'read', u'unread'][result[u'isUnread']]],
                         i, count)
     except (GAPI_domainNotFound, GAPI_internalError, GAPI_badRequest, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
 
 # gam delete notification|notifications (id all)|(id <NotificationID>)* [unreadonly|unread|read]
 def doDeleteNotification():
@@ -11111,7 +11561,7 @@ def doDeleteNotification():
                customer=GC_Values[GC_CUSTOMER_ID], notificationId=notificationId)
       entityActionPerformed(EN_NOTIFICATION, notificationId, i, count)
     except (GAPI_domainNotFound, GAPI_internalError, GAPI_badRequest, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
 
 # gam info notification|notifications (id all)|(id <NotificationID>)* [unreadonly|unread|read]
 def doInfoNotification():
@@ -11126,7 +11576,7 @@ def doInfoNotification():
                                 throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
                                 customer=GC_Values[GC_CUSTOMER_ID], notificationId=notificationId)
       except (GAPI_domainNotFound, GAPI_internalError, GAPI_badRequest, GAPI_forbidden):
-        checkEntityDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
+        checkEntityAFDNEorAccessErrorExit(cd, EN_NOTIFICATION, notificationId, i, count)
         continue
     else:
       for notification in notifications:
@@ -11208,7 +11658,7 @@ def doUpdateResourceCalendar(getEntityListArg=False):
     except GAPI_invalid as e:
       entityActionFailedWarning(EN_RESOURCE_CALENDAR, resourceId, e.message, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
 
 # gam delete resources <ResourceEntity>
 # gam delete resource <ResourceID>
@@ -11229,7 +11679,7 @@ def doDeleteResourceCalendar(getEntityListArg=False):
                customer=GC_Values[GC_CUSTOMER_ID], calendarResourceId=resourceId)
       entityActionPerformed(EN_RESOURCE_CALENDAR, resourceId, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
 
 # gam info resources <ResourceEntity>
 # gam info resource <ResourceID>
@@ -11256,7 +11706,7 @@ def doInfoResourceCalendar(getEntityListArg=False):
       printKeyValueList([u'Description', resource.get(u'resourceDescription', u'')])
       decrementIndentLevel()
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_RESOURCE_CALENDAR, resourceId, i, count)
 
 RESCAL_DFLTFIELDS = [u'id', u'name', u'email',]
 RESCAL_ALLFIELDS = [u'id', u'name', u'email', u'description', u'type',]
@@ -11399,7 +11849,7 @@ def doCreateOrUpdateUserSchema(function, getEntityListArg=False):
     except GAPI_duplicate:
       entityDuplicateWarning(EN_USER_SCHEMA, schemaName, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaName, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaName, i, count)
 
 # gam delete schemas <SchemaEntity>
 # gam delete schema <SchemaName>
@@ -11420,7 +11870,7 @@ def doDeleteUserSchema(getEntityListArg=False):
                customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
       entityActionPerformed(EN_USER_SCHEMA, schemaKey, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, i, count)
 
 # gam info schemas <SchemaEntity>
 # gam info schema <SchemaName>
@@ -11441,7 +11891,7 @@ def doInfoUserSchema(getEntityListArg=False):
                         customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
       printSchema(schema, i, count)
     except (GAPI_invalid, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, i, count)
+      checkEntityAFDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, i, count)
 
 # gam print schema|schemas
 def doPrintUserSchemas():
@@ -11461,6 +11911,628 @@ def doPrintUserSchemas():
       printKeyValueList([u'No User Schemas found.'])
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
+
+def checkSiteExists(sitesObject, domain, site):
+  try:
+    callGData(sitesObject, u'GetSite',
+              throw_errors=[GDATA_NOT_FOUND],
+              domain=domain, site=site)
+    return True
+  except GData_notFound:
+    return None
+
+SITE_ACLS = 'ACLs'
+SITE_CATEGORIES = u'Categories'
+SITE_LINK = u'Link'
+SITE_NAME = u'Name'
+SITE_SITE = u'Site'
+SITE_SOURCELINK = u'SourceLink'
+SITE_SUMMARY = u'Summary'
+SITE_THEME = u'Theme'
+SITE_UPDATED = u'Updated'
+SITE_WEB_ADDRESS_MAPPINGS = 'WebAddressMappings'
+
+SITE_DATA_DOMAIN = u'domain'
+SITE_DATA_SITE = u'site'
+SITE_DATA_DOMAIN_SITE = u'domainSite'
+SITE_DATA_FIELDS = u'fields'
+
+class SitesManager(object):
+
+  SITE_ARGUMENT_TO_PROPERTY_MAP = {
+    u'categories': SITE_CATEGORIES,
+    u'name': SITE_NAME,
+    u'sourcelink': SITE_SOURCELINK,
+    u'summary': SITE_SUMMARY,
+    u'theme': SITE_THEME,
+    }
+
+  @staticmethod
+  def AclEntryToFields(acl_entry):
+
+    def GetAclAttr(attrlist):
+      objAttr = acl_entry
+      for attr in attrlist:
+        objAttr = getattr(objAttr, attr)
+        if not objAttr:
+          return None
+      return objAttr
+
+    fields = {}
+    fields[u'role'] = GetAclAttr([u'role', u'value'])
+    if not fields[u'role']:
+      fields[u'role'] = GetAclAttr([u'withKey', u'role', u'value']) + u' (with link)'
+    fields[u'scope'] = {u'type': GetAclAttr([u'scope', u'type']),
+                        u'value': GetAclAttr([u'scope', u'value'])}
+    link = acl_entry.FindInviteLink()
+    if link:
+      fields[u'inviteLink'] = link
+    return fields
+
+  @staticmethod
+  def FieldsToAclEntry(fields):
+    import gdata.apps.sites
+
+    acl_entry = gdata.apps.sites.AclEntry()
+    acl_entry.role = gdata.apps.sites.AclRole(value=fields[u'role'])
+    acl_entry.scope = gdata.apps.sites.AclScope(stype=fields[u'scope'][u'type'], value=fields[u'scope'].get(u'value'))
+    return acl_entry
+
+  @staticmethod
+  def ActivityEntryToFields(activity_entry):
+    fields = {}
+
+    def GetActivityField(fieldName, attrlist):
+      objAttr = activity_entry
+      for attr in attrlist:
+        objAttr = getattr(objAttr, attr)
+        if not objAttr:
+          return
+      fields[fieldName] = objAttr
+
+    def AppendItemToFieldsList(fieldName, fieldValue):
+      fields.setdefault(fieldName, [])
+      fields[fieldName].append(fieldValue)
+
+
+    GetActivityField(u'Summary', [u'title', u'text'])
+    GetActivityField(u'Updated', [u'updated', u'text'])
+    for author in activity_entry.author:
+      AppendItemToFieldsList('Authors', u'{0}/{1}'.format(author.name.text, author.email.text))
+    fields[u'Operation'] = activity_entry.Kind()
+    return fields
+
+  @staticmethod
+  def SiteToFields(site_entry):
+    fields = {}
+
+    def GetSiteField(fieldName, attrlist):
+      objAttr = site_entry
+      for attr in attrlist:
+        objAttr = getattr(objAttr, attr)
+        if not objAttr:
+          return
+      fields[fieldName] = objAttr
+
+    def AppendItemToFieldsList(fieldName, fieldValue):
+      fields.setdefault(fieldName, [])
+      fields[fieldName].append(fieldValue)
+
+    GetSiteField(SITE_SITE, [u'siteName', u'text'])
+    GetSiteField(SITE_NAME, [u'title', u'text'])
+    GetSiteField(SITE_SUMMARY, [u'summary', u'text'])
+    GetSiteField(SITE_THEME, [u'theme', u'text'])
+    GetSiteField(SITE_UPDATED, [u'updated', u'text'])
+    if len(site_entry.category) > 0:
+      for category in site_entry.category:
+        AppendItemToFieldsList(SITE_CATEGORIES, category.term)
+    link = site_entry.FindAlternateLink()
+    if link:
+      fields[SITE_LINK] = link
+    link = site_entry.FindSourceLink()
+    if link:
+      fields[SITE_SOURCELINK] = link
+    for link in site_entry.FindWebAddressMappings():
+      AppendItemToFieldsList(SITE_WEB_ADDRESS_MAPPINGS, link)
+    return fields
+
+  @staticmethod
+  def GetSiteFields():
+
+    fields = {}
+    while CL_argvI < CL_argvLen:
+      myarg = getArgument()
+      if myarg in SitesManager.SITE_ARGUMENT_TO_PROPERTY_MAP:
+        fieldName = SitesManager.SITE_ARGUMENT_TO_PROPERTY_MAP[myarg]
+        if fieldName == SITE_NAME:
+          fields[fieldName] = getString(OB_STRING)
+        elif fieldName == SITE_SOURCELINK:
+          fields[fieldName] = getString(OB_URI)
+        elif fieldName == SITE_SUMMARY:
+          fields[fieldName] = getString(OB_STRING, emptyOK=True)
+        elif fieldName == SITE_THEME:
+          fields[fieldName] = getString(OB_STRING)
+        elif fieldName == SITE_CATEGORIES:
+          fields[fieldName] = getString(OB_STRING, emptyOK=True).split(u',')
+      else:
+        unknownArgumentExit()
+    return fields
+
+  @staticmethod
+  def FieldsToSite(fields):
+    import atom
+    import gdata.apps.sites
+
+    def GetField(fieldName):
+      return fields.get(fieldName)
+
+    def GetSiteField(fieldName, fieldClass):
+      value = fields.get(fieldName)
+      if value:
+        return fieldClass(text=value)
+      return None
+
+    site_entry = gdata.apps.sites.SiteEntry(sourceSite=GetField(SITE_SOURCELINK))
+    site_entry.siteName = GetSiteField(SITE_SITE, gdata.apps.sites.SiteName)
+    site_entry.title = GetSiteField(SITE_NAME, atom.Title)
+    site_entry.summary = GetSiteField(SITE_SUMMARY, atom.Summary)
+    site_entry.theme = GetSiteField(SITE_THEME, gdata.apps.sites.Theme)
+    value = GetField(SITE_CATEGORIES)
+    if value:
+      for category in value:
+        site_entry.category.append(atom.Category(term=category, scheme=gdata.apps.sites.TAG_KIND_TERM))
+    return site_entry
+
+def validateSite(fullSite, i, count):
+  domain, site, domainSite = validateSplitSiteName(fullSite)
+  if domainSite:
+    return (domain, site, domainSite)
+  entityActionNotPerformedWarning(EN_SITE, site, PHRASE_INVALID_SITE.format(site, SITENAME_FORMAT_REQUIRED), i=i, count=count)
+  return (domain, site, None)
+
+# gam [<UserTypeEntity>] create site <SiteName> [name <String>] [summary <String>] [theme <String>] [categories <String>] [sourcelink <URI>]
+def createUserSite(users):
+  doCreateSite(users, EN_USER)
+
+def doCreateDomainSite():
+  doCreateSite([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doCreateSite(users, entityType):
+  sitesManager = SitesManager()
+  domain, site, domainSite = getSiteName()
+  fields = sitesManager.GetSiteFields()
+  if not fields.get(SITE_NAME):
+    fields[SITE_NAME] = site
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    try:
+      siteEntry = sitesManager.FieldsToSite(fields)
+      callGData(sitesObject, u'CreateSite',
+                throw_errors=[GDATA_NOT_FOUND, GDATA_ENTITY_EXISTS, GDATA_BAD_REQUEST],
+                siteentry=siteEntry, domain=domain, site=None)
+      entityActionPerformed(EN_SITE, domainSite)
+    except GData_notFound:
+      entityActionFailedWarning(EN_DOMAIN, domain, PHRASE_DOES_NOT_EXIST)
+    except GData_entityExists:
+      entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DUPLICATE)
+
+# gam [<UserTypeEntity>] update site <SiteEntity> [name <String>] [summary <String>] [theme <String>] [categories <String>]
+def updateUserSites(users):
+  doUpdateSites(users, EN_USER)
+
+def doUpdateDomainSites():
+  doUpdateSites([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doUpdateSites(users, entityType):
+  sitesManager = SitesManager()
+  sites = getEntityList(OB_SITE_NAME)
+  siteLists = sites if isinstance(sites, dict) else None
+  updateFields = sitesManager.GetSiteFields()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    if siteLists:
+      sites = siteLists[user]
+    jcount = len(sites)
+    entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    j = 0
+    for site in sites:
+      j += 1
+      domain, site, domainSite = validateSite(site, j, jcount)
+      if not domainSite:
+        continue
+      try:
+        siteEntry = callGData(sitesObject, u'GetSite',
+                              throw_errors=[GDATA_NOT_FOUND],
+                              domain=domain, site=site)
+        fields = sitesManager.SiteToFields(siteEntry)
+        for field in updateFields:
+          if field != SITE_SOURCELINK:
+            fields[field] = updateFields[field]
+        newSiteEntry = sitesManager.FieldsToSite(fields)
+        callGData(sitesObject, u'UpdateSite',
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST],
+                  siteentry=newSiteEntry, domain=domain, site=site, extra_headers={u'If-Match': siteEntry.etag})
+        entityActionPerformed(EN_SITE, domainSite)
+      except GData_notFound:
+        entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
+
+SITE_FIELD_PRINT_ORDER = [
+  SITE_NAME,
+  SITE_SUMMARY,
+  SITE_THEME,
+  SITE_SOURCELINK,
+  SITE_CATEGORIES,
+  SITE_UPDATED,
+  SITE_LINK,
+  ]
+
+# gam [<UserTypeEntity>] info site <SiteEntity> [withmappings] [acls]
+def infoUserSites(users):
+  doInfoSites(users, EN_USER)
+
+def doInfoDomainSites():
+  doInfoSites([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doInfoSites(users, entityType):
+  sites = getEntityList(OB_SITE_NAME)
+  siteLists = sites if isinstance(sites, dict) else None
+  url_params = {}
+  showacls = False
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'withmappings':
+      url_params[u'with-mappings'] = u'true'
+    elif myarg == u'acls':
+      showacls = True
+    else:
+      unknownArgumentExit()
+  sitesManager = SitesManager()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    if siteLists:
+      sites = siteLists[user]
+    jcount = len(sites)
+    entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    j = 0
+    for site in sites:
+      j += 1
+      domain, site, domainSite = validateSite(site, j, jcount)
+      if not domainSite:
+        continue
+      try:
+        result = callGData(sitesObject, u'GetSite',
+                           throw_errors=[GDATA_NOT_FOUND],
+                           domain=domain, site=site, url_params=url_params)
+        if result:
+          fields = sitesManager.SiteToFields(result)
+          printKeyValueList([SITE_SITE, u'{0}/{1}'.format(domain, fields[SITE_SITE])])
+          incrementIndentLevel()
+          for field in SITE_FIELD_PRINT_ORDER:
+            if field in fields:
+              if not isinstance(fields[field], list):
+                printKeyValueList([field, fields[field]])
+              else:
+                printKeyValueList([field, u','.join(fields[field])])
+          if fields.get(SITE_WEB_ADDRESS_MAPPINGS):
+            printKeyValueList([SITE_WEB_ADDRESS_MAPPINGS, None])
+            incrementIndentLevel()
+            for link in fields[SITE_WEB_ADDRESS_MAPPINGS]:
+              printKeyValueList([link, None])
+            decrementIndentLevel()
+          if showacls:
+            acls = callGDataPages(sitesObject, u'GetAclFeed',
+                                  throw_errors=[GDATA_NOT_FOUND],
+                                  domain=domain, site=fields[SITE_SITE])
+            printKeyValueList([SITE_ACLS, None])
+            incrementIndentLevel()
+            for acl in acls:
+              fields = sitesManager.AclEntryToFields(acl)
+              printKeyValueList([formatACLRule(fields)])
+            decrementIndentLevel()
+          decrementIndentLevel()
+      except GData_notFound:
+        entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
+    decrementIndentLevel()
+
+# gam [<UserTypeEntity>] print sites [todrive] [idfirst] [domain <DomainName>] [withmappings] [acls] [maxresults <Number>]
+def printUserSites(users):
+  doPrintSites(users, EN_USER)
+
+def doPrintDomainSites():
+  doPrintSites([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doPrintSites(users, entityType):
+  domain = GC_Values[GC_DOMAIN]
+  url_params = {u'include-all-sites': [u'false', u'true'][entityType == EN_DOMAIN]}
+  showacls = todrive = False
+  titles, csvRows = initializeTitlesCSVfile([u'User', SITE_SITE, SITE_NAME], None)
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg == u'idfirst':
+      pass
+    elif myarg == u'domain':
+      domain = getString(OB_DOMAIN_NAME)
+      if entityType == EN_DOMAIN:
+        users[0] = domain
+    elif myarg == u'maxresults':
+      url_params[u'max-results'] = getInteger(minVal=1)
+    elif myarg == u'withmappings':
+      url_params[u'with-mappings'] = u'true'
+    elif myarg == u'acls':
+      showacls = True
+    else:
+      unknownArgumentExit()
+  sitesManager = SitesManager()
+  sitesSet = set()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    printGettingAllEntityItemsForWhom(EN_SITE, user)
+    try:
+      page_message = getPageMessage()
+      sites = callGDataPages(sitesObject, u'GetSiteFeed',
+                             page_message=page_message,
+                             throw_errors=[GDATA_NOT_FOUND],
+                             domain=domain, url_params=url_params)
+      for site in sites:
+        fields = sitesManager.SiteToFields(site)
+        if fields[SITE_SITE] in sitesSet:
+          continue
+        sitesSet.add(fields[SITE_SITE])
+        siteRow = {u'User': user, SITE_SITE: U'{0}/{1}'.format(domain, fields[SITE_SITE])}
+        for key in fields:
+          if key != SITE_SITE:
+            if not isinstance(fields[key], list):
+              siteRow[key] = fields[key]
+            else:
+              siteRow[key] = u','.join(fields[key])
+        if not showacls:
+          csvRows.append(siteRow)
+        else:
+          acls = callGDataPages(sitesObject, u'GetAclFeed',
+                                throw_errors=[GDATA_NOT_FOUND],
+                                domain=domain, site=fields[SITE_SITE])
+          for acl in acls:
+            fields = sitesManager.AclEntryToFields(acl)
+            siteACLRow = siteRow.copy()
+            siteACLRow[u'Role'] = fields[u'role']
+            if fields[u'scope'][u'type'] != u'default':
+              siteACLRow[u'Scope'] = u'{0}:{1}'.format(fields[u'scope'][u'type'], fields[u'scope'][u'value'])
+            else:
+              siteACLRow[u'Scope'] = fields[u'scope'][u'type']
+            csvRows.append(siteACLRow)
+        addTitlesToCSVfile(csvRows[-1], titles)
+    except GData_notFound:
+      entityActionFailedWarning(entityType, user, PHRASE_DOES_NOT_EXIST, i, count)
+  writeCSVfile(csvRows, titles, u'Sites', todrive)
+
+SITE_ACL_ROLES_MAP = {
+  u'editor': u'writer',
+  u'invite': u'invite',
+  u'owner': u'owner',
+  u'read': u'reader',
+  u'reader': u'reader',
+  u'writer': u'writer',
+  }
+
+# gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
+# gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
+# gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLEntity>
+# gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLEntity>
+# gam [<UserTypeEntity>] show siteacls <SiteEntity>
+def processUserSiteACLs(users):
+  doProcessSiteACLs(users, EN_USER)
+
+def doProcessDomainSiteACLs():
+  doProcessSiteACLs([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doProcessSiteACLs(users, entityType):
+  action = GM_Globals[GM_ACTION_COMMAND]
+  sites = getEntityList(OB_SITE_NAME)
+  siteLists = sites if isinstance(sites, dict) else None
+  if action in [AC_ADD, AC_UPDATE]:
+    role = getChoice(SITE_ACL_ROLES_MAP, mapChoice=True)
+  else:
+    role = None
+  if action != AC_SHOW:
+    ruleIds = getEntityList(OB_ACL_ENTITY)
+    ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
+  checkForExtraneousArguments()
+  sitesManager = SitesManager()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    if siteLists:
+      sites = siteLists[user]
+    jcount = len(sites)
+    entityPerformActionModifierNumItems(entityType, user, u'{0} {1}'.format(pluralEntityName(EN_ACL), PHRASE_FOR), jcount, EN_SITE, i, count)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    j = 0
+    for site in sites:
+      j += 1
+      domain, site, domainSite = validateSite(site, j, jcount)
+      if not domainSite:
+        continue
+      if action != AC_SHOW:
+        if ruleIdLists:
+          ruleIds = ruleIdLists[site]
+        kcount = len(ruleIds)
+        entityPerformActionNumItems(EN_SITE, domainSite, kcount, EN_ACL, j, jcount)
+        if kcount == 0:
+          continue
+        incrementIndentLevel()
+        k = 0
+        for ruleId in ruleIds:
+          k += 1
+          ruleId = normalizeRuleId(ruleId)
+          try:
+            if action == AC_ADD:
+              fields = convertRuleId(role, ruleId)
+              acl = sitesManager.FieldsToAclEntry(fields)
+              acl = callGData(sitesObject, u'CreateAclEntry',
+                              throw_errors=[GDATA_NOT_FOUND, GDATA_ENTITY_EXISTS, GDATA_BAD_REQUEST],
+                              aclentry=acl, domain=domain, site=site)
+              fields = sitesManager.AclEntryToFields(acl)
+              if not fields.get(u'inviteLink'):
+                entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, formatACLRule(fields), k, kcount)
+              else:
+                entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, u'{0} (Link: {1})'.format(formatACLRule(fields), fields[u'inviteLink']), k, kcount)
+            elif action == AC_UPDATE:
+              acl = callGData(sitesObject, u'GetAclEntry',
+                              throw_errors=[GDATA_NOT_FOUND],
+                              domain=domain, site=site, ruleId=ruleId)
+              acl.role.value = role
+              acl = callGData(sitesObject, u'UpdateAclEntry',
+                              throw_errors=[GDATA_NOT_FOUND],
+                              aclentry=acl, domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
+              fields = sitesManager.AclEntryToFields(acl)
+              entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, formatACLRule(fields), k, kcount)
+            elif action == AC_DELETE:
+              acl = callGData(sitesObject, u'GetAclEntry',
+                              throw_errors=[GDATA_NOT_FOUND],
+                              domain=domain, site=site, ruleId=ruleId)
+              callGData(sitesObject, u'DeleteAclEntry',
+                        throw_errors=[GDATA_NOT_FOUND],
+                        domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
+              entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, None), k, kcount)
+            elif action == AC_INFO:
+              acl = callGData(sitesObject, u'GetAclEntry',
+                              throw_errors=[GDATA_NOT_FOUND],
+                              domain=domain, site=site, ruleId=ruleId)
+              fields = sitesManager.AclEntryToFields(acl)
+              printEntityItemValue(EN_SITE, domainSite, EN_ACL, formatACLRule(fields), k, kcount)
+          except GData_notFound:
+            if not checkSiteExists(sitesObject, domain, site):
+              entityUnknownWarning(EN_SITE, domainSite, j, jcount)
+              break
+            entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, k, kcount)
+          except GData_entityExists:
+            entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), PHRASE_DUPLICATE, k, kcount)
+          except GData_badRequest as e:
+            entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), e.value, k, kcount)
+        decrementIndentLevel()
+      else:
+        try:
+          acls = callGDataPages(sitesObject, u'GetAclFeed',
+                                throw_errors=[GDATA_NOT_FOUND],
+                                domain=domain, site=site)
+          kcount = len(acls)
+          entityPerformActionNumItems(EN_SITE, domainSite, kcount, EN_ACL, j, jcount)
+          if kcount == 0:
+            continue
+          incrementIndentLevel()
+          k = 0
+          for acl in acls:
+            k += 1
+            fields = sitesManager.AclEntryToFields(acl)
+            printEntityItemValue(EN_SITE, domainSite,
+                                 EN_ACL, formatACLRule(fields),
+                                 k, kcount)
+          decrementIndentLevel()
+        except GData_notFound:
+          entityUnknownWarning(EN_SITE, domainSite, j, jcount)
+    decrementIndentLevel()
+
+# gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [idfirst] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
+def printUserSiteActivity(users):
+  doPrintSiteActivity(users, EN_USER)
+
+def doPrintDomainSiteActivity():
+  doPrintSiteActivity([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+
+def doPrintSiteActivity(users, entityType):
+  sitesManager = SitesManager()
+  todrive = False
+  url_params = {}
+  titles, csvRows = initializeTitlesCSVfile([SITE_SITE], None)
+  sites = getEntityList(OB_SITE_NAME)
+  siteLists = sites if isinstance(sites, dict) else None
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg == u'idfirst':
+      pass
+    elif myarg == u'maxresults':
+      url_params[u'max-results'] = getInteger(minVal=1)
+    elif myarg == u'updatedmin':
+      url_params[u'updated-min'] = getYYYYMMDD()
+    elif myarg == u'updatedmax':
+      url_params[u'updated-max'] = getYYYYMMDD()
+    else:
+      unknownArgumentExit()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, sitesObject = getSitesObject(entityType, user, i, count)
+    if not sitesObject:
+      continue
+    if siteLists:
+      sites = siteLists[user]
+    jcount = len(sites)
+    if jcount == 0:
+      continue
+    incrementIndentLevel()
+    j = 0
+    for site in sites:
+      j += 1
+      domain, site, domainSite = validateSite(site, j, jcount)
+      if not domainSite:
+        continue
+      printGettingAllEntityItemsForWhom(EN_ACTIVITY, domainSite)
+      try:
+        page_message = getPageMessage()
+        activities = callGDataPages(sitesObject, u'GetActivityFeed',
+                                    page_message=page_message,
+                                    throw_errors=[GDATA_NOT_FOUND],
+                                    domain=domain, site=site, url_params=url_params)
+        for activity in activities:
+          fields = sitesManager.ActivityEntryToFields(activity)
+          activityRow = {SITE_SITE: domainSite}
+          for key in fields:
+            if not isinstance(fields[key], list):
+              activityRow[key] = fields[key]
+            else:
+              activityRow[key] = u','.join(fields[key])
+          csvRows.append(activityRow)
+          addTitlesToCSVfile(csvRows[-1], titles)
+      except GData_notFound:
+        entityUnknownWarning(EN_SITE, domainSite, j, jcount)
+  writeCSVfile(csvRows, titles, u'Site Activities', todrive)
 
 # gam print tokens|token [todrive] [idfirst] [<UserTypeEntity>]
 def doPrintTokens():
@@ -12724,7 +13796,7 @@ def doUpdateCourse(getEntityListArg=False):
                         id=body[u'id'], body=body, updateMask=updateMask)
       entityActionPerformed(EN_COURSE, result[u'id'], i, count)
     except GAPI_notFound:
-      entityDoesNotExistWarning(EN_COURSE, cleanCourseId(body[u'id']), i, count)
+      entityActionFailedWarning(EN_COURSE, cleanCourseId(body[u'id']), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_permissionDenied:
       entityActionFailedWarning(EN_COURSE, cleanCourseId(body[u'id']), PHRASE_NOT_ALLOWED, i, count)
 
@@ -12748,7 +13820,7 @@ def doDeleteCourse(getEntityListArg=False):
                id=courseId)
       entityActionPerformed(EN_COURSE, cleanCourseId(courseId), i, count)
     except GAPI_notFound:
-      entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId), i, count)
+      entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_permissionDenied:
       entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_NOT_ALLOWED, i, count)
 
@@ -12813,7 +13885,7 @@ def doInfoCourse(getEntityListArg=False):
       decrementIndentLevel()
       decrementIndentLevel()
     except GAPI_notFound:
-      entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId), i, count)
+      entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_forbidden:
       APIAccessDeniedExit()
 
@@ -12887,7 +13959,7 @@ def checkCourseExists(croom, courseId, i=0, count=0):
                       id=courseId)
     return result[u'id']
   except GAPI_notFound:
-    entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId), i, count)
+    entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     return None
 
 def callbackAddParticipantsToCourse(request_id, response, exception):
@@ -13325,7 +14397,7 @@ def doUpdatePrinter(getEntityListArg=False):
               printerid=printerId, **kwargs)
       entityActionPerformed(EN_PRINTER, printerId, i, count)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
 
 # gam delete printers <PrinterIDEntity>
 # gam delete printer <PrinterID>
@@ -13346,7 +14418,7 @@ def doDeletePrinter(getEntityListArg=False):
               printerid=printerId)
       entityActionPerformed(EN_PRINTER, printerId, i, count)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
 
 # gam info printers <PrinterIDEntity> [everything]
 # gam info printer <PrinterID> [everything]
@@ -13384,7 +14456,7 @@ def doInfoPrinter(getEntityListArg=False):
       print_json(None, printer_info)
       decrementIndentLevel()
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
 
 # gam print printers [todrive] [idfirst] [query <Query>] [type <String>] [status <String>] [extrafields <String>]
 def doPrintPrinters():
@@ -13484,7 +14556,7 @@ def batchAddACLsToPrinter(cp, printerId, i, count, scopeList, role):
     except GCP_failedToShareThePrinter:
       entityItemValueActionFailedWarning(EN_PRINTER, printerId, roleForScope, scope, PHRASE_INVALID_SCOPE, j, jcount)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
       break
   decrementIndentLevel()
 
@@ -13526,7 +14598,7 @@ def batchDeleteACLsFromPrinter(cp, printerId, i, count, scopeList, role):
         scope = u'public'
       entityItemValueActionPerformed(EN_PRINTER, printerId, EN_SCOPE, scope, j, jcount)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
       break
   decrementIndentLevel()
 
@@ -13560,7 +14632,7 @@ def getPrinterScopeListsForRole(cp, printerId, i, count, role):
           scopeList.append(acl[u'scope'].lower())
     return scopeList
   except GCP_unknownPrinter:
-    entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+    entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
     return None
 
 # gam printers <PrinterIDEntity> sync user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
@@ -13642,7 +14714,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
           csvRows.append(flatten_json(acl, flattened=printer))
           addTitlesToCSVfile(csvRows[-1], titles)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId, i, count)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
   if csv_format:
     writeCSVfile(csvRows, titles, u'PrinterACLs', todrive)
 
@@ -13662,7 +14734,7 @@ def doPrintJobCancel(jobIdList):
               jobid=jobId, semantic_state_diff=ssd)
       entityActionPerformed(EN_PRINTJOB, jobId, i, count)
     except GCP_unknownJobId:
-      entityDoesNotExistWarning(EN_PRINTJOB, jobId, i, count)
+      entityActionFailedWarning(EN_PRINTJOB, jobId, PHRASE_DOES_NOT_EXIST, i, count)
 
 # gam printjobs <PrintJobEntity> delete
 # gam printjob <PrintJobID> delete
@@ -13679,7 +14751,7 @@ def doPrintJobDelete(jobIdList):
               jobid=jobId)
       entityActionPerformed(EN_PRINTJOB, jobId, i, count)
     except GCP_unknownJobId:
-      entityDoesNotExistWarning(EN_PRINTJOB, jobId, i, count)
+      entityActionFailedWarning(EN_PRINTJOB, jobId, PHRASE_DOES_NOT_EXIST, i, count)
 
 # gam printjobs <PrintJobEntity> resubmit <PrinterID>
 # gam printjob <PrintJobID> resubmit <PrinterID>
@@ -13705,7 +14777,7 @@ def doPrintJobResubmit(jobIdList):
     except GCP_cantModifyFinishedJob:
       entityItemValueActionFailedWarning(EN_PRINTJOB, jobId, EN_PRINTER, printerId, PHRASE_FINISHED, i, count)
     except GCP_unknownJobId:
-      entityDoesNotExistWarning(EN_PRINTJOB, jobId, i, count)
+      entityActionFailedWarning(EN_PRINTJOB, jobId, PHRASE_DOES_NOT_EXIST, count)
     except GCP_unknownPrinter:
       entityItemValueActionFailedWarning(EN_PRINTJOB, jobId, EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
 #
@@ -13786,7 +14858,7 @@ def doPrintJobFetch(printerIdList):
               throw_messages=[GCP_UNKNOWN_PRINTER],
               printerid=printerId)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST)
       return
   ssd = u'{"state": {"type": "DONE"}}'
   jobCount = offset = 0
@@ -13855,7 +14927,7 @@ def doPrintPrintJobs():
               throw_messages=[GCP_UNKNOWN_PRINTER],
               printerid=printerId)
     except GCP_unknownPrinter:
-      entityDoesNotExistWarning(EN_PRINTER, printerId)
+      entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST)
       return
   jobCount = offset = 0
   while True:
@@ -13930,7 +15002,7 @@ def doPrintJobSubmit(printerIdList):
     result = checkCloudPrintResult(result)
     entityItemValueActionPerformed(EN_PRINTER, printerId, EN_PRINTJOB, result[u'job'][u'id'])
   except GCP_unknownPrinter:
-    entityDoesNotExistWarning(EN_PRINTER, printerId)
+    entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST)
 
 def printASPs(user, asps, i=0, count=0):
   setActionName(AC_SHOW)
@@ -14572,7 +15644,7 @@ def transferSecCals(users):
             result = callGAPI(source_cal.acl(), u'insert',
                               throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                               calendarId=calendarId, body=addBody, fields=u'id,role')
-            entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(result[u'id'], result[u'role']), j, jcount)
+            entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(result[u'id'], result[u'role']), j, jcount)
           except (GAPI_notFound, GAPI_invalid):
             entityUnknownWarning(EN_CALENDAR, calendarId, j, jcount)
             continue
@@ -14583,7 +15655,7 @@ def transferSecCals(users):
               callGAPI(target_cal.acl(), u'delete',
                        throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                        calendarId=calendarId, ruleId=ruleId)
-              entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatCalendarACLScopeRole(ruleId, None), j, jcount)
+              entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_ACL, formatACLScopeRole(ruleId, None), j, jcount)
             except (GAPI_notFound, GAPI_invalid):
               entityUnknownWarning(EN_CALENDAR, calendarId, j, jcount)
     except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -15956,6 +17028,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
   u'commenter': u'commenter',
   u'editor': u'writer',
   u'owner': u'owner',
+  u'read': u'read',
   u'reader': u'reader',
   u'writer': u'writer',
   }
@@ -16284,7 +17357,7 @@ def batchAddUserToGroups(cd, user, i, count, groupKeys, body):
 # gam <UserTypeEntity> add group|groups [owner|manager|member] <GroupEntity>
 def addUserToGroups(users):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  role = getChoice(UPDATE_GROUP_ROLE_CHOICES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+  role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
   groupKeys = getEntityList(OB_GROUP_ENTITY)
   userGroupLists = groupKeys if isinstance(groupKeys, dict) else None
   checkForExtraneousArguments()
@@ -17243,7 +18316,7 @@ def processEmailSettings(user, i, count, service, function, **kwargs):
                      throw_errors=GDATA_EMAILSETTINGS_THROW_LIST,
                      **kwargs)
   except GData_doesNotExist:
-    entityDoesNotExistWarning(EN_USER, user, i, count)
+    entityActionFailedWarning(EN_USER, user, PHRASE_DOES_NOT_EXIST, i, count)
   except (GData_serviceNotApplicable, GData_invalidDomain):
     entityServiceNotApplicableWarning(EN_USER, user, i, count)
   except GData_badRequest as e:
@@ -17390,11 +18463,11 @@ def delegateTo(users, checkForTo=True):
             setSysExitRC(USER_SUSPENDED_ERROR_RC)
             break
           # Guess it was just a normal backoff error then?
-          terminating_error = checkGDataError(e, emailSettingsObject)
+          error_code, error_message = checkGDataError(e, emailSettingsObject)
           if n != retries:
-            waitOnFailure(n, retries, str(e.error_code))
+            waitOnFailure(n, retries, error_code, error_message)
             continue
-          systemErrorExit(GOOGLE_API_ERROR_RC, terminating_error)
+          systemErrorExit(GOOGLE_API_ERROR_RC, u'{0} - {1}'.format(error_code, error_message))
       time.sleep(10) # on success, sleep 10 seconds before exiting or moving on to next user to prevent ghost delegates
       if delete_alias:
         doDeleteAlias(entityList=[use_delegate_address], getArguments=False)
@@ -18021,13 +19094,22 @@ MAIN_COMMANDS = {
 
 # Main commands with objects
 MAIN_COMMANDS_WITH_OBJECTS = {
+  u'add':
+    {CMD_ACTION: AC_ADD,
+     CMD_FUNCTION:
+       {CL_OB_SITEACLS:	doProcessDomainSiteACLs,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_SITEACL:	CL_OB_SITEACLS,
+       },
+    },
   u'create':
     {CMD_ACTION: AC_CREATE,
      CMD_FUNCTION:
        {CL_OB_ADMIN:	doCreateAdmin,
         CL_OB_ALIAS:	doCreateAlias,
         CL_OB_ALIASES:	doCreateAliases,
-        CL_OB_CONTACT:	createDomainContact,
+        CL_OB_CONTACT:	doCreateDomainContact,
         CL_OB_COURSE:	doCreateCourse,
         CL_OB_DATA_TRANSFER:doCreateDataTransfer,
         CL_OB_DOMAIN:	doCreateDomain,
@@ -18036,6 +19118,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_ORG:	doCreateOrg,
         CL_OB_RESOURCE:	doCreateResourceCalendar,
         CL_OB_SCHEMA:	doCreateUserSchema,
+        CL_OB_SITE:	doCreateDomainSite,
         CL_OB_USER:	doCreateUser,
         CL_OB_VERIFY:	doCreateSiteVerification,
        },
@@ -18048,6 +19131,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'nicknames':	CL_OB_ALIASES,
         u'ou':		CL_OB_ORG,
         u'schemas':	CL_OB_SCHEMA,
+        CL_OB_SITES:	CL_OB_SITE,
         u'verification':CL_OB_VERIFY,
        },
     },
@@ -18057,7 +19141,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {CL_OB_ADMIN:	doDeleteAdmin,
         CL_OB_ALIAS:	doDeleteAlias,
         CL_OB_ALIASES:	doDeleteAliases,
-        CL_OB_CONTACTS:	deleteDomainContacts,
+        CL_OB_CONTACTS:	doDeleteDomainContacts,
         CL_OB_COURSE:	doDeleteCourse,
         CL_OB_COURSES:	doDeleteCourses,
         CL_OB_DOMAIN:	doDeleteDomain,
@@ -18075,6 +19159,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_RESOURCES:doDeleteResourceCalendars,
         CL_OB_SCHEMA:	doDeleteUserSchema,
         CL_OB_SCHEMAS:	doDeleteUserSchemas,
+        CL_OB_SITEACLS:	doProcessDomainSiteACLs,
         CL_OB_USER:	doDeleteUser,
         CL_OB_USERS:	doDeleteUsers,
        },
@@ -18088,6 +19173,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'ous':		CL_OB_ORGS,
         u'print':	CL_OB_PRINTER,
         u'notifications':	CL_OB_NOTIFICATION,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
        },
     },
   u'info':
@@ -18095,7 +19181,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {CL_OB_ALIAS:	doInfoAlias,
         CL_OB_ALIASES:	doInfoAliases,
-        CL_OB_CONTACTS:	infoDomainContacts,
+        CL_OB_CONTACTS:	doInfoDomainContacts,
         CL_OB_COURSE:	doInfoCourse,
         CL_OB_COURSES:	doInfoCourses,
         CL_OB_CROS:	doInfoCrOSDevice,
@@ -18118,6 +19204,8 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_RESOURCES:doInfoResourceCalendars,
         CL_OB_SCHEMA:	doInfoUserSchema,
         CL_OB_SCHEMAS:	doInfoUserSchemas,
+        CL_OB_SITES:	doInfoDomainSites,
+        CL_OB_SITEACLS:	doProcessDomainSiteACLs,
         CL_OB_USER:	doInfoUser,
         CL_OB_USERS:	doInfoUsers,
         CL_OB_VERIFY:	doInfoSiteVerification,
@@ -18132,60 +19220,10 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'ou':		CL_OB_ORG,
         u'ous':		CL_OB_ORGS,
         u'print':	CL_OB_PRINTER,
+        CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
         u'transfer':	CL_OB_DATA_TRANSFER,
         u'verification':CL_OB_VERIFY,
-       },
-    },
-  u'update':
-    {CMD_ACTION: AC_UPDATE,
-     CMD_FUNCTION:
-       {CL_OB_ALIAS:	doUpdateAlias,
-        CL_OB_ALIASES:	doUpdateAliases,
-        CL_OB_CONTACTS:	updateDomainContacts,
-        CL_OB_COURSE:	doUpdateCourse,
-        CL_OB_COURSES:	doUpdateCourses,
-        CL_OB_CROS:	doUpdateSingleCrOSDevice,
-        CL_OB_CROSES:	doUpdateMultipleCrOSDevices,
-        CL_OB_CUSTOMER:	doUpdateCustomer,
-        CL_OB_DOMAIN:	doUpdateDomain,
-        CL_OB_INSTANCE:	doUpdateInstance,
-        CL_OB_GROUP:	doUpdateGroup,
-        CL_OB_GROUPS:	doUpdateGroups,
-        CL_OB_MOBILE:	doUpdateMobileDevice,
-        CL_OB_MOBILES:	doUpdateMobileDevices,
-        CL_OB_NOTIFICATION:	doUpdateNotification,
-        CL_OB_ORG:	doUpdateOrg,
-        CL_OB_ORGS:	doUpdateOrgs,
-        CL_OB_PRINTER:	doUpdatePrinter,
-        CL_OB_PRINTERS:	doUpdatePrinters,
-        CL_OB_RESOURCE:	doUpdateResourceCalendar,
-        CL_OB_RESOURCES:doUpdateResourceCalendars,
-        CL_OB_SCHEMA:	doUpdateUserSchema,
-        CL_OB_SCHEMAS:	doUpdateUserSchemas,
-        CL_OB_USER:	doUpdateSingleUser,
-        CL_OB_USERS:	doUpdateMultipleUsers,
-        CL_OB_VERIFY:	doUpdateSiteVerification,
-       },
-     CMD_OBJ_ALIASES:
-       {u'class':	CL_OB_COURSE,
-        CL_OB_CONTACT:	CL_OB_CONTACTS,
-        u'nickname':	CL_OB_ALIAS,
-        u'nicknames':	CL_OB_ALIASES,
-        u'ou':		CL_OB_ORG,
-        u'ous':		CL_OB_ORGS,
-        u'print':	CL_OB_PRINTER,
-        u'notifications':	CL_OB_NOTIFICATION,
-        u'verification':CL_OB_VERIFY,
-       },
-    },
-  u'undelete':
-    {CMD_ACTION: AC_UNDELETE,
-     CMD_FUNCTION:
-       {CL_OB_USER:	doUndeleteUser,
-        CL_OB_USERS:	doUndeleteUsers,
-       },
-     CMD_OBJ_ALIASES:
-       {
        },
     },
   u'print':
@@ -18194,7 +19232,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {CL_OB_ADMINROLES:	doPrintAdminRoles,
         CL_OB_ADMINS:	doPrintAdmins,
         CL_OB_ALIASES:	doPrintAliases,
-        CL_OB_CONTACTS:	printDomainContacts,
+        CL_OB_CONTACTS:	doPrintDomainContacts,
         CL_OB_COURSES:	doPrintCourses,
         CL_OB_COURSE_PARTICIPANTS:	doPrintCourseParticipants,
         CL_OB_CROS:	doPrintCrOSDevices,
@@ -18211,6 +19249,8 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_ORGS:	doPrintOrgs,
         CL_OB_RESOURCES:doPrintResourceCalendars,
         CL_OB_SCHEMAS:	doPrintUserSchemas,
+        CL_OB_SITES:	doPrintDomainSites,
+        CL_OB_SITEACTIVITY:	doPrintDomainSiteActivity,
         CL_OB_TOKENS:	doPrintTokens,
         CL_OB_TRANSFERAPPS:	doPrintTransferApps,
         CL_OB_USERS:	doPrintUsers,
@@ -18231,7 +19271,73 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'nicknames':		CL_OB_ALIASES,
         u'ous':			CL_OB_ORGS,
         u'roles':		CL_OB_ADMINROLES,
+        CL_OB_SITE:		CL_OB_SITES,
         u'token':		CL_OB_TOKENS,
+       },
+    },
+  u'show':
+    {CMD_ACTION: AC_SHOW,
+     CMD_FUNCTION:
+       {CL_OB_SITEACLS:	doProcessDomainSiteACLs,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_SITEACL:	CL_OB_SITEACLS,
+       },
+    },
+  u'update':
+    {CMD_ACTION: AC_UPDATE,
+     CMD_FUNCTION:
+       {CL_OB_ALIAS:	doUpdateAlias,
+        CL_OB_ALIASES:	doUpdateAliases,
+        CL_OB_CONTACTS:	doUpdateDomainContacts,
+        CL_OB_COURSE:	doUpdateCourse,
+        CL_OB_COURSES:	doUpdateCourses,
+        CL_OB_CROS:	doUpdateSingleCrOSDevice,
+        CL_OB_CROSES:	doUpdateMultipleCrOSDevices,
+        CL_OB_CUSTOMER:	doUpdateCustomer,
+        CL_OB_DOMAIN:	doUpdateDomain,
+        CL_OB_INSTANCE:	doUpdateInstance,
+        CL_OB_GROUP:	doUpdateGroup,
+        CL_OB_GROUPS:	doUpdateGroups,
+        CL_OB_MOBILE:	doUpdateMobileDevice,
+        CL_OB_MOBILES:	doUpdateMobileDevices,
+        CL_OB_NOTIFICATION:	doUpdateNotification,
+        CL_OB_ORG:	doUpdateOrg,
+        CL_OB_ORGS:	doUpdateOrgs,
+        CL_OB_PRINTER:	doUpdatePrinter,
+        CL_OB_PRINTERS:	doUpdatePrinters,
+        CL_OB_RESOURCE:	doUpdateResourceCalendar,
+        CL_OB_RESOURCES:doUpdateResourceCalendars,
+        CL_OB_SCHEMA:	doUpdateUserSchema,
+        CL_OB_SCHEMAS:	doUpdateUserSchemas,
+        CL_OB_SITES:	doUpdateDomainSites,
+        CL_OB_SITEACLS:	doProcessDomainSiteACLs,
+        CL_OB_USER:	doUpdateSingleUser,
+        CL_OB_USERS:	doUpdateMultipleUsers,
+        CL_OB_VERIFY:	doUpdateSiteVerification,
+       },
+     CMD_OBJ_ALIASES:
+       {u'class':	CL_OB_COURSE,
+        CL_OB_CONTACT:	CL_OB_CONTACTS,
+        u'nickname':	CL_OB_ALIAS,
+        u'nicknames':	CL_OB_ALIASES,
+        u'ou':		CL_OB_ORG,
+        u'ous':		CL_OB_ORGS,
+        u'print':	CL_OB_PRINTER,
+        u'notifications':	CL_OB_NOTIFICATION,
+        CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
+        u'verification':CL_OB_VERIFY,
+       },
+    },
+  u'undelete':
+    {CMD_ACTION: AC_UNDELETE,
+     CMD_FUNCTION:
+       {CL_OB_USER:	doUndeleteUser,
+        CL_OB_USERS:	doUndeleteUsers,
+       },
+     CMD_OBJ_ALIASES:
+       {
        },
     },
   }
@@ -18474,7 +19580,8 @@ COMMANDS_MAP = {
 
 # Commands aliases
 COMMANDS_ALIASES = {
-  u'oauth2':		u'oauth',
+  u'oauth2':	u'oauth',
+  u'site':	u'sites',
   }
 
 # <CrOSTypeEntity> commands
@@ -18521,12 +19628,14 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_GROUP:	addUserToGroups,
         CL_OB_LABEL:	addLabel,
         CL_OB_LICENSE:	addLicense,
+        CL_OB_SITEACLS:	processUserSiteACLs,
        },
      CMD_OBJ_ALIASES:
        {u'delegates':	CL_OB_DELEGATE,
         u'groups':	CL_OB_GROUP,
-        u'labels':	CL_OB_LABEL,
+        CL_OB_LABELS:	CL_OB_LABEL,
         u'licence':	CL_OB_LICENSE,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
        },
     },
   u'copy':
@@ -18544,9 +19653,13 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_CALENDAR:	createCalendar,
         CL_OB_CALENDARS:createCalendar,
         CL_OB_CONTACT:	createUserContact,
+        CL_OB_CONTACT_GROUP:	createUserContactGroup,
+        CL_OB_SITE:	createUserSite,
        },
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACTS:	CL_OB_CONTACT,
+        CL_OB_CONTACT_GROUPS:	CL_OB_CONTACT_GROUP,
+        CL_OB_SITES:	CL_OB_SITE,
        },
     },
   u'delete':
@@ -18558,6 +19671,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CALENDAR:	deleteCalendar,
         CL_OB_CALENDARS:deleteCalendars,
         CL_OB_CONTACTS:	deleteUserContacts,
+        CL_OB_CONTACT_GROUPS:	deleteUserContactGroups,
         CL_OB_DELEGATE:	deleteDelegate,
         CL_OB_DRIVEFILE:deleteDriveFile,
         CL_OB_DRIVEFILEACL:	deleteDriveFileACL,
@@ -18567,6 +19681,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_LICENSE:	deleteLicense,
         CL_OB_MESSAGES:	processMessages,
         CL_OB_PHOTO:	deletePhoto,
+        CL_OB_SITEACLS:	processUserSiteACLs,
         CL_OB_TOKEN:	deleteTokens,
        },
      CMD_OBJ_ALIASES:
@@ -18575,12 +19690,14 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'asps':	CL_OB_ASP,
         u'backupcode':	CL_OB_BACKUPCODES,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
         u'delegates':	CL_OB_DELEGATE,
         u'verificationcodes':	CL_OB_BACKUPCODES,
         u'groups':	CL_OB_GROUP,
         u'licence':	CL_OB_LICENSE,
-        u'labels':	CL_OB_LABEL,
+        CL_OB_LABELS:	CL_OB_LABEL,
         u'message':	CL_OB_MESSAGES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
         u'tokens':	CL_OB_TOKEN,
         u'3lo':		CL_OB_TOKEN,
         u'oauth':	CL_OB_TOKEN,
@@ -18602,9 +19719,15 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_CALENDAR:	infoCalendar,
         CL_OB_CALENDARS:infoCalendars,
         CL_OB_CONTACTS:	infoUserContacts,
+        CL_OB_CONTACT_GROUPS:	infoUserContactGroups,
+        CL_OB_SITES:	infoUserSites,
+        CL_OB_SITEACLS:	processUserSiteACLs,
        },
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
+        CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
        },
     },
   u'modify':
@@ -18622,10 +19745,15 @@ USER_COMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: AC_PRINT,
      CMD_FUNCTION:
        {CL_OB_CONTACTS:	printUserContacts,
+        CL_OB_CONTACT_GROUPS:	printUserContactGroups,
+        CL_OB_SITES:	printUserSites,
+        CL_OB_SITEACTIVITY:	printUserSiteActivity,
         CL_OB_USERS:	doPrintUserEntity,
        },
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
+        CL_OB_SITE:	CL_OB_SITES,
         CL_OB_USER:	CL_OB_USERS,
        },
     },
@@ -18659,11 +19787,12 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_GMAILPROFILE:	showGmailProfile,
         CL_OB_GPLUSPROFILE:	showGplusProfile,
         CL_OB_IMAP:	showImap,
-        CL_OB_LABEL:	showLabels,
+        CL_OB_LABELS:	showLabels,
         CL_OB_POP:	showPop,
         CL_OB_PROFILE:	showProfile,
         CL_OB_SENDAS:	showSendAs,
         CL_OB_SIGNATURE:showSignature,
+        CL_OB_SITEACLS:	processUserSiteACLs,
         CL_OB_TOKEN:	showTokens,
         CL_OB_VACATION:	showVacation,
        },
@@ -18675,8 +19804,9 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'delegates':	CL_OB_DELEGATE,
         u'imap4':	CL_OB_IMAP,
         u'pop3':	CL_OB_POP,
-        u'labels':	CL_OB_LABEL,
+        CL_OB_LABELS:	CL_OB_LABEL,
         u'sig':		CL_OB_SIGNATURE,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
         u'tokens':	CL_OB_TOKEN,
         u'3lo':		CL_OB_TOKEN,
         u'oauth':	CL_OB_TOKEN,
@@ -18737,20 +19867,26 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CALENDAR:	updateCalendar,
         CL_OB_CALENDARS:updateCalendars,
         CL_OB_CONTACTS:	updateUserContacts,
+        CL_OB_CONTACT_GROUP:	updateUserContactGroup,
         CL_OB_DRIVEFILE:updateDriveFile,
         CL_OB_DRIVEFILEACL:	updateDriveFileACL,
-        CL_OB_LABEL:	updateLabels,
+        CL_OB_LABELS:	updateLabels,
         CL_OB_LABELSETTINGS:updateLabelSettings,
         CL_OB_LICENSE:	updateLicense,
         CL_OB_PHOTO:	updatePhoto,
+        CL_OB_SITES:	updateUserSites,
+        CL_OB_SITEACLS:	processUserSiteACLs,
         CL_OB_USER:	updateUser,
        },
      CMD_OBJ_ALIASES:
        {u'backupcode':	CL_OB_BACKUPCODES,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_CONTACT_GROUPS:	CL_OB_CONTACT_GROUP,
         u'verificationcodes':	CL_OB_BACKUPCODES,
-        u'labels':	CL_OB_LABEL,
+        CL_OB_LABEL:	CL_OB_LABELS,
         u'licence':	CL_OB_LICENSE,
+        CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
        },
     },
   }

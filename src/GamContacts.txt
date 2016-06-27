@@ -1,8 +1,15 @@
-These are the new commands to support Domain Shared Contacts/User Contacts.
+These are the new commands to support Domain Shared Contacts/User Contacts and User Contact Groups.
 
 <ContactID> ::= <String>
 <ContactIDList> ::= '<ContactID>(,<ContactID>)*'
 <ContactEntity> ::= <ContactIDList>|<ArgsEntity>|<FileEntity>|<CSVFileEntity>
+
+<ContactGroupID> ::= <String>
+<ContactGroupIDList> ::= '<ContactGroupID>(,<ContactGroupID>)*'
+<ContactGroupEntity> ::= <ContactGroupIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+
+<ContactOrderByFieldName> ::=
+	lastmodified
 
 <ContactAttributes> ::=
 	(name <String>)|(prefix <String>)|(givenname|firstname <String>)|(additionalname|middlename <String>)|(familyname|lastname <String>)|(suffix <String>)|
@@ -10,7 +17,7 @@ These are the new commands to support Domain Shared Contacts/User Contacts.
 	(location <String>)|(note <String>|(file <FileName>))|(subject <String>)|(language <Language>)|
 	(occupation <String>)|(billinginfo <String>)|(mileage <String>)|(directoryserver <String>)|
 	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
-	  |(neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
+	    (neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
 	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))|
 	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
 	(externalid clear|(account|customer|network|organization|<String> <String>))|
@@ -24,21 +31,47 @@ These are the new commands to support Domain Shared Contacts/User Contacts.
 	(userdefinedfield clear|(<String> <String>))|
 	(website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))
 
-gam [<UserTypeEntity>] create contact <ContactAttributes>
-gam [<UserTypeEntity>] update contacts <ContactEntity> <ContactAttributes>
-gam [<UserTypeEntity>] delete contacts <ContactEntity>|
-	query <Query> [updated_min yyyy-mm-dd] [orderby lastmodified] [ascending|descending]
-gam [<UserTypeEntity>] info contacts <ContactEntity>|
-	query <Query> [basic|full] [updated_min yyyy-mm-dd] [orderby lastmodified] [ascending|descending]
-gam [<UserTypeEntity>] print contacts [todrive] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
-	[orderby lastmodified] [ascending|descending]
+<ContactGroupAttributes> ::=
+	(name <String>)
 
-If [<UserTypeEntity>] is omitted, you are manipulating your Domain Shared contacts.
+Manipulate your Domain Shared contacts.
+
+gam create contact <ContactAttributes>+
+gam update contacts <ContactEntity> <ContactAttributes>+
+gam delete contacts <ContactEntity>|
+	(query <Query>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam info contacts <ContactEntity>|
+	(query <Query>)[basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam print contacts [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+	[orderby <ContactOrderByFieldName> [ascending|descending]]
+
 This command will print all of your Domain Shared Contacts.
 	gam print contacts
 
-If [<UserTypeEntity>] is included, you are manipulating your User contacts.
-This command will print contacts for testuser@domain.com.
-	gam user testuser@domain.com print contacts
+Manipulate your User contacts.
+
+gam <UserTypeEntity> create contact [contactgroup <ContactGroupID>] <ContactAttributes>+
+gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupID>] <ContactAttributes>+
+gam <UserTypeEntity> delete contacts <ContactEntity>|
+	(query <Query>)|(contactgroup <ContactGroupID>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> info contacts <ContactEntity>|
+	(query <Query>)|(contactgroup <ContactGroupID>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupID>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+	[orderby <ContactOrderByFieldName> [ascending|descending]]
+
+This command will print contacts for testuser@domain.com from the contact group 987654321.
+	gam user testuser@domain.com print contacts contactgroup 987654321
 This command will print contacts for all members of testgroup@domain.com.
 	gam group testgroup@domain.com print contacts
+
+gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
+gam <UserTypeEntity> update contactgroup <ContactGroupID> <ContactGroupAttributes>+
+gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>|
+	(query <Query>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> info contactgroups <ContactGroupEntity>|
+	(query <Query>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+	[orderby <ContactOrderByFieldName> [ascending|descending]]
+
+This command will print contactgroups for testuser@domain.com.
+	gam user testuser@domain.com print contactgroups
