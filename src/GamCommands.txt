@@ -54,7 +54,9 @@ If an item contains spaces, it should be surrounded by " or '.
 <CalendarItem> ::= <EmailAddress>|<String>
 <ClientID> ::= <String>
 <ContactID> ::= <String>
-<ContactGroupID> ::= <String>
+<ContactGroupID> ::= id:<String>
+<ContactGroupName> ::= <String>
+<ContactGroupItem> ::= <ContactGroupID>|<ContactGroupName>
 <CourseAlias> ::= <String>
 <CourseID> ::= <Number>|d:<CourseAlias>
 <CourseParticipantType> ::= teacher|teachers|student|students
@@ -290,7 +292,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ACLList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
 <ContactIDList> ::= '<ContactID>(,<ContactID>)*'
-<ContactGroupIDList> ::= '<ContactGroupID>(,<ContactGroupID>)*'
+<ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
 <CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
 <CourseIDList> ::= '<CourseID>(,<CourseID>)*'
 <CrOSFieldNameList> ::= '<CrOSFieldName(,<CrOSFieldName>)*'
@@ -313,6 +315,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <SKUIDList> ='<SKUID>(,<SKUID>)*'
 <SchemaNameList> ::= '<SchemaName>(,<SchemaName>)*'
 <SiteList> ::= '<SiteItem>(,<SiteItem>)*'
+<SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
 <UserFieldNameList> ::= '<UserFieldName(,<UserFieldName>)*'
 <UserList> ::= '<UserItem>(,<UserItem>)*'
 
@@ -369,7 +372,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <ContactEntity> ::= <ContactIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<ContactGroupEntity> ::= <ContactGroupIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+<ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <CourseEntity> ::= <CourseIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CrOSEntity> ::= <CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
@@ -668,22 +671,20 @@ gam info contacts <ContactEntity>|
 gam print contacts [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
-gam <UserTypeEntity> create contact [contactgroup <ContactGroupID>] <ContactAttributes>+
-gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupID>] <ContactAttributes>+
+gam <UserTypeEntity> create contact [contactgroup <ContactGroupItem>] <ContactAttributes>+
+gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupItem>] <ContactAttributes>+
 gam <UserTypeEntity> delete contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupID>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+	(query <Query>)|(contactgroup <ContactGroupItem>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 gam <UserTypeEntity> info contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupID>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupID>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+	(query <Query>)|(contactgroup <ContactGroupItem>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupItem>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
 gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
-gam <UserTypeEntity> update contactgroup <ContactGroupID> <ContactGroupAttributes>+
-gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>|
-	(query <Query>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> info contactgroups <ContactGroupEntity>|
-	(query <Query>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> update contactgroup <ContactGroupItem> <ContactGroupAttributes>+
+gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>
+gam <UserTypeEntity> info contactgroups <ContactGroupEntity>
+gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
 gam update cros <CrOSItem> <CrOSAttributes>+
@@ -759,8 +760,8 @@ gam info schemas <SchemaEntity>
 
 gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
-gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [acls]
-gam [<UserTypeEntity>] print sites [todrive] [idfirst] [domain <DomainName>] [withmappings] [acls] [maxresults <Number>]
+gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [roles all|<SiteACLRoleList>]
+gam [<UserTypeEntity>] print sites [todrive] [idfirst] [domain <DomainName>] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [idfirst] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 

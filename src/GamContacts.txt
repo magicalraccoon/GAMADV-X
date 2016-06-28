@@ -4,9 +4,11 @@ These are the new commands to support Domain Shared Contacts/User Contacts and U
 <ContactIDList> ::= '<ContactID>(,<ContactID>)*'
 <ContactEntity> ::= <ContactIDList>|<ArgsEntity>|<FileEntity>|<CSVFileEntity>
 
-<ContactGroupID> ::= <String>
-<ContactGroupIDList> ::= '<ContactGroupID>(,<ContactGroupID>)*'
-<ContactGroupEntity> ::= <ContactGroupIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+<ContactGroupID> ::= id:<String>
+<ContactGroupName> ::= <String>
+<ContactGroupItem> ::= <ContactGroupID>|<ContactGroupName>
+<ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
+<ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 
 <ContactOrderByFieldName> ::=
 	lastmodified
@@ -50,13 +52,13 @@ This command will print all of your Domain Shared Contacts.
 
 Manipulate your User contacts.
 
-gam <UserTypeEntity> create contact [contactgroup <ContactGroupID>] <ContactAttributes>+
-gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupID>] <ContactAttributes>+
+gam <UserTypeEntity> create contact [contactgroup <ContactGroupItem>] <ContactAttributes>+
+gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupItem>] <ContactAttributes>+
 gam <UserTypeEntity> delete contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupID>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+	(query <Query>)|(contactgroup <ContactGroupItem>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
 gam <UserTypeEntity> info contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupID>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupID>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+	(query <Query>)|(contactgroup <ContactGroupItem>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupItem>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
 This command will print contacts for testuser@domain.com from the contact group 987654321.
@@ -65,12 +67,10 @@ This command will print contacts for all members of testgroup@domain.com.
 	gam group testgroup@domain.com print contacts
 
 gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
-gam <UserTypeEntity> update contactgroup <ContactGroupID> <ContactGroupAttributes>+
-gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>|
-	(query <Query>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> info contactgroups <ContactGroupEntity>|
-	(query <Query>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> update contactgroup <ContactGroupItem> <ContactGroupAttributes>+
+gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>
+gam <UserTypeEntity> info contactgroups <ContactGroupEntity>
+gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
 	[orderby <ContactOrderByFieldName> [ascending|descending]]
 
 This command will print contactgroups for testuser@domain.com.
