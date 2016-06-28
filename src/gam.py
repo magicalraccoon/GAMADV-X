@@ -10930,15 +10930,12 @@ def doUpdateGroup(getEntityListArg=False):
   elif CL_subCommand == u'clear':
     roles = []
     while CL_argvI < CL_argvLen:
-      myarg = getArgument()
-      if myarg in UPDATE_GROUP_ROLES_MAP:
-        roles.append(UPDATE_GROUP_ROLES_MAP[myarg])
-      else:
-        invalidChoiceExit(UPDATE_GROUP_ROLES_MAP)
+      roles.append(getChoice(UPDATE_GROUP_ROLES_MAP, mapChoice=True))
     setActionName(AC_REMOVE)
-    if not roles:
-      roles.append(ROLE_MEMBER)
-    roles = u','.join(sorted(set(roles)))
+    if roles:
+      roles = u','.join(sorted(set(roles)))
+    else:
+      roles = ROLE_MEMBER
     i = 0
     count = len(entityList)
     for group in entityList:
