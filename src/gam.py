@@ -490,7 +490,7 @@ GDATA_TOKEN_EXPIRED = 608
 GDATA_TOKEN_INVALID = 403
 GDATA_UNKNOWN_ERROR = 600
 #
-GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
+GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR]
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
@@ -630,6 +630,7 @@ OB_JOB_ID = u'JobID'
 OB_JOB_OR_PRINTER_ID = u'JobID|PrinterID'
 OB_LABEL_NAME = u'LabelName'
 OB_LABEL_REPLACEMENT = u'LabelReplacement'
+OB_MESSAGE_ID = u'MessageID'
 OB_MOBILE_DEVICE_ENTITY = u'MobileDeviceEntity'
 OB_MOBILE_ENTITY = u'MobileEntity'
 OB_NAME = u'Name'
@@ -665,6 +666,7 @@ OB_SKU_ID_LIST = u'SKUIDList'
 OB_STRING = u'String'
 OB_STUDENT_ID = u'StudentID'
 OB_TEACHER_ID = u'TeacherID'
+OB_THREAD_ID = u'ThreadID'
 OB_TRANSFER_ID = u'TransferID'
 OB_URI = u'URI'
 OB_URL = u'URL'
@@ -3526,6 +3528,8 @@ def checkGDataError(e, service):
       return (GDATA_BAD_GATEWAY, e[0][u'reason'])
     if e[0][u'reason'] == u'Service Unavailable':
       return (GDATA_SERVICE_UNAVAILABLE, e[0][u'reason'])
+    if e[0][u'reason'] == u'Internal Server Error':
+      return (GDATA_INTERNAL_SERVER_ERROR, e[0][u'reason'])
     if e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
       return (GDATA_TOKEN_INVALID, u'Token disabled, revoked, or expired. Please delete and re-create oauth.txt')
     if e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
@@ -18272,6 +18276,7 @@ def processMessages(users):
   maxToProcess = 1
   function = {AC_DELETE: u'delete', AC_MODIFY: u'modify', AC_TRASH: u'trash', AC_SPAM: u'modify', AC_UNTRASH: u'untrash'}[GM_Globals[GM_ACTION_COMMAND]]
   body = {}
+  messageIds = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'query':
@@ -18280,6 +18285,8 @@ def processMessages(users):
       labelName = getString(OB_LABEL_NAME)
       labelNames.append(labelName)
       labelNamesLower.append(labelName.lower())
+    elif myarg == u'ids':
+      messageIds = getEntityList(OB_MESSAGE_ID)
     elif myarg == u'doit':
       doIt = True
     elif myarg in [u'maxtodelete', u'maxtomodify', u'maxtotrash', u'maxtountrash']:
@@ -18292,40 +18299,48 @@ def processMessages(users):
       body[u'removeLabelIds'].append(getString(OB_LABEL_NAME))
     else:
       unknownArgumentExit()
-  if (not query) and (not labelNames):
-    missingArgumentExit(u'query|label')
+  if (not query) and (not labelNames) and (not messageIds):
+    missingArgumentExit(u'query|matchlabel|ids')
+  userMessageLists = messageIds if isinstance(messageIds, dict) else None
   includeSpamTrash = GM_Globals[GM_ACTION_COMMAND] in [AC_DELETE, AC_MODIFY, AC_UNTRASH]
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if userMessageLists:
+      messageIds = userMessageLists[user]
+    if messageIds:
+      listResult = []
+      for messageId in messageIds:
+        listResult.append({u'id': messageId})
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
     try:
-      if labelNames:
-        badLabels = []
-        labelIds = []
-        labels = callGAPI(gmail.users().labels(), u'list',
-                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                          userId=user, fields=u'labels(id,name)')
-        if labels:
-          for j, labelName in enumerate(labelNamesLower):
-            for label in labels[u'labels']:
-              if label[u'name'].lower() == labelName:
-                labelIds.append(label[u'id'])
-                break
-            else:
-              badLabels.append(labelNames[j])
-        if badLabels:
-          entityItemValueActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
-          continue
-      printGettingAllEntityItemsForWhom(EN_MESSAGE, user, i, count)
-      page_message = getPageMessage()
-      listResult = callGAPIpages(gmail.users().messages(), u'list', u'messages',
-                                 page_message=page_message,
-                                 throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                 userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
+      if not messageIds:
+        if labelNames:
+          badLabels = []
+          labelIds = []
+          labels = callGAPI(gmail.users().labels(), u'list',
+                            throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                            userId=user, fields=u'labels(id,name)')
+          if labels:
+            for j, labelName in enumerate(labelNamesLower):
+              for label in labels[u'labels']:
+                if label[u'name'].lower() == labelName:
+                  labelIds.append(label[u'id'])
+                  break
+              else:
+                badLabels.append(labelNames[j])
+          if badLabels:
+            entityItemValueActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
+            continue
+        printGettingAllEntityItemsForWhom(EN_MESSAGE, user, i, count)
+        page_message = getPageMessage()
+        listResult = callGAPIpages(gmail.users().messages(), u'list', u'messages',
+                                   page_message=page_message,
+                                   throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                   userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
       jcount = len(listResult)
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
@@ -18410,6 +18425,7 @@ def showMessagesThreads(users, entityType):
   labelNamesLower = []
   includeSpamTrash = False
   maxToProcess = 0
+  messageIds = []
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -18419,6 +18435,8 @@ def showMessagesThreads(users, entityType):
       labelName = getString(OB_LABEL_NAME)
       labelNames.append(labelName)
       labelNamesLower.append(labelName.lower())
+    elif myarg == u'ids':
+      messageIds = getEntityList(OB_MESSAGE_ID)
     elif myarg == u'maxtoshow':
       maxToProcess = getInteger(minVal=0)
     elif myarg == u'includespamtrash':
@@ -18426,10 +18444,17 @@ def showMessagesThreads(users, entityType):
     else:
       unknownArgumentExit()
   listType = u'messages'if entityType == EN_MESSAGE else u'threads'
+  userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if userMessageLists:
+      messageIds = userMessageLists[user]
+    if messageIds:
+      listResult = []
+      for messageId in messageIds:
+        listResult.append({u'id': messageId})
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
@@ -18440,29 +18465,30 @@ def showMessagesThreads(users, entityType):
                         userId=user, fields=u'labels(id,name)')
       if not labels:
         labels = {u'labels': []}
-      if labelNames:
-        badLabels = []
-        labelIds = []
-        labels = callGAPI(gmail.users().labels(), u'list',
-                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                          userId=user, fields=u'labels(id,name)')
-        if labels:
-          for j, labelName in enumerate(labelNamesLower):
-            for label in labels[u'labels']:
-              if label[u'name'].lower() == labelName:
-                labelIds.append(label[u'id'])
-                break
-            else:
-              badLabels.append(labelNames[j])
-        if badLabels:
-          entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
-          continue
-      printGettingAllEntityItemsForWhom(entityType, user, i, count)
-      page_message = getPageMessage()
-      listResult = callGAPIpages(service, u'list', listType,
-                                 page_message=page_message,
-                                 throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                 userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
+      if not messageIds:
+        if labelNames:
+          badLabels = []
+          labelIds = []
+          labels = callGAPI(gmail.users().labels(), u'list',
+                            throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                            userId=user, fields=u'labels(id,name)')
+          if labels:
+            for j, labelName in enumerate(labelNamesLower):
+              for label in labels[u'labels']:
+                if label[u'name'].lower() == labelName:
+                  labelIds.append(label[u'id'])
+                  break
+              else:
+                badLabels.append(labelNames[j])
+          if badLabels:
+            entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
+            continue
+        printGettingAllEntityItemsForWhom(entityType, user, i, count)
+        page_message = getPageMessage()
+        listResult = callGAPIpages(service, u'list', listType,
+                                   page_message=page_message,
+                                   throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                   userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
       jcount = len(listResult)
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
