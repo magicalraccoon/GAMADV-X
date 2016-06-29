@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.2'
+__version__ = u'4.16.3'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -12396,6 +12396,7 @@ def doPrintSites(users, entityType):
           acls = callGDataPages(sitesObject, u'GetAclFeed',
                                 throw_errors=[GDATA_NOT_FOUND],
                                 domain=domain, site=fields[SITE_SITE])
+          rowShown = False
           for acl in acls:
             fields = sitesManager.AclEntryToFields(acl)
             if fields[u'role'] in roles:
@@ -12405,7 +12406,10 @@ def doPrintSites(users, entityType):
                 siteACLRow[u'Scope'] = u'{0}:{1}'.format(fields[u'scope'][u'type'], fields[u'scope'][u'value'])
               else:
                 siteACLRow[u'Scope'] = fields[u'scope'][u'type']
+              rowShown = True  
               addRowTitlesToCSVfile(siteACLRow, csvRows, titles)
+          if not rowShown:    
+            addRowTitlesToCSVfile(siteRow, csvRows, titles)
     except GData_notFound:
       entityActionFailedWarning(entityType, user, PHRASE_DOES_NOT_EXIST, i, count)
   writeCSVfile(csvRows, titles, u'Sites', todrive)
