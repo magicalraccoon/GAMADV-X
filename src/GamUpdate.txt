@@ -440,6 +440,11 @@ gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(
 This is especially useful with CSV files.
 gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace '#User#' '~User' replace '#Title#' '~Title'
 
+4.16.4
+
+63) Added commands to show messages/threads.
+gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
+gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
 
 *** Calendar Enhancements ***
 

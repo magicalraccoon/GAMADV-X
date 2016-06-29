@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.3'
+__version__ = u'4.16.4'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -485,11 +485,12 @@ GDATA_NAME_NOT_VALID = 1303
 GDATA_NOT_FOUND = 605
 GDATA_QUOTA_EXCEEDED = 606
 GDATA_SERVICE_NOT_APPLICABLE = 1410
-GDATA_TOKEN_EXPIRED = 607
+GDATA_SERVICE_UNAVAILABLE = 607
+GDATA_TOKEN_EXPIRED = 608
 GDATA_TOKEN_INVALID = 403
 GDATA_UNKNOWN_ERROR = 600
 #
-GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_TOKEN_EXPIRED]
+GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR]
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
@@ -769,6 +770,7 @@ EN_SOURCE_USER = u'srcu'
 EN_STUDENT = u'stud'
 EN_TARGET_USER = u'tgtu'
 EN_TEACHER = u'teac'
+EN_THREAD = u'thre'
 EN_TOKEN = u'tokn'
 EN_TRANSFER_ID = u'trid'
 EN_TRANSFER_REQUEST = u'trnr'
@@ -883,6 +885,7 @@ ENTITY_NAMES = {
   EN_STUDENT: [u'Students', u'Student'],
   EN_TARGET_USER: [u'Target Users', u'Target User'],
   EN_TEACHER: [u'Teachers', u'Teacher'],
+  EN_THREAD: [u'Threads', u'Thread'],
   EN_TOKEN: [u'Tokens', u'Token'],
   EN_TRANSFER_ID: [u'Transfer IDs', u'Transfer ID'],
   EN_TRANSFER_REQUEST: [u'Transfer Requests', u'Transfer Request'],
@@ -1067,6 +1070,7 @@ CL_OB_LABELSETTINGS = u'labelsettings'
 CL_OB_LICENSE = u'license'
 CL_OB_LICENSES = u'licenses'
 CL_OB_LOGO = u'logo'
+CL_OB_MESSAGE = u'message'
 CL_OB_MESSAGES = u'messages'
 CL_OB_MOBILE = u'mobile'
 CL_OB_MOBILES = u'mobiles'
@@ -1093,6 +1097,8 @@ CL_OB_SITES = u'sites'
 CL_OB_SITEACL = u'siteacl'
 CL_OB_SITEACLS = u'siteacls'
 CL_OB_SITEACTIVITY = u'siteactivity'
+CL_OB_THREAD = u'thread'
+CL_OB_THREADS = u'threads'
 CL_OB_TOKEN = u'token'
 CL_OB_TOKENS = u'tokens'
 CL_OB_TRANSFERAPPS = u'transferapps'
@@ -3518,6 +3524,8 @@ def checkGDataError(e, service):
       return (GDATA_QUOTA_EXCEEDED, e[0][u'body'])
     if e[0][u'reason'] == u'Bad Gateway':
       return (GDATA_BAD_GATEWAY, e[0][u'reason'])
+    if e[0][u'reason'] == u'Service Unavailable':
+      return (GDATA_SERVICE_UNAVAILABLE, e[0][u'reason'])
     if e[0][u'reason'] == u'Token invalid - Invalid token: Token disabled, revoked, or expired.':
       return (GDATA_TOKEN_INVALID, u'Token disabled, revoked, or expired. Please delete and re-create oauth.txt')
     if e[0][u'reason'] == u'Token invalid - AuthSub token has wrong scope':
@@ -9343,6 +9351,7 @@ def getContactsList():
     url_params = {}
     if choice == u'query':
       query = getString(OB_QUERY, emptyOK=True)
+      contactGroup = None
     else:
       contactGroup = getString(OB_CONTACT_GROUP_ITEM)
       query = None
@@ -12404,9 +12413,9 @@ def doPrintSites(users, entityType):
                 siteACLRow[u'Scope'] = u'{0}:{1}'.format(fields[u'scope'][u'type'], fields[u'scope'][u'value'])
               else:
                 siteACLRow[u'Scope'] = fields[u'scope'][u'type']
-              rowShown = True  
+              rowShown = True
               addRowTitlesToCSVfile(siteACLRow, csvRows, titles)
-        if not rowShown:    
+        if not rowShown:
           addRowTitlesToCSVfile(siteRow, csvRows, titles)
     except GData_notFound:
       entityActionFailedWarning(entityType, user, PHRASE_DOES_NOT_EXIST, i, count)
@@ -18368,6 +18377,133 @@ def processMessages(users):
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
+# gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
+# gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
+def showMessages(users):
+  showMessagesThreads(users, EN_MESSAGE)
+
+def showThreads(users):
+  showMessagesThreads(users, EN_THREAD)
+
+def showMessagesThreads(users, entityType):
+
+  def _printMessage(result, labels):
+    printKeyValueList([u'Snippet', result[u'snippet']])
+    incrementIndentLevel()
+    printKeyValueList([u'id', result[u'id']])
+    for name in headersToShow:
+      for header in result[u'payload'][u'headers']:
+        if name == header[u'name']:
+          printKeyValueList([name, header[u'value']])
+          break
+    messageLabels = []
+    for labelId in result[u'labelIds']:
+      for label in labels[u'labels']:
+        if label[u'id'] == labelId:
+          messageLabels.append(label[u'name'])
+          break
+    printKeyValueList([u'Labels', u','.join(messageLabels)])
+    decrementIndentLevel()
+
+  labelIds = query = None
+  labelNames = []
+  labelNamesLower = []
+  includeSpamTrash = False
+  maxToProcess = 0
+  headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'query':
+      query = getString(OB_QUERY)
+    elif myarg == u'matchlabel':
+      labelName = getString(OB_LABEL_NAME)
+      labelNames.append(labelName)
+      labelNamesLower.append(labelName.lower())
+    elif myarg == u'maxtoshow':
+      maxToProcess = getInteger(minVal=0)
+    elif myarg == u'includespamtrash':
+      includeSpamTrash = True
+    else:
+      unknownArgumentExit()
+  listType = u'messages'if entityType == EN_MESSAGE else u'threads'
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, gmail = buildGmailGAPIObject(user)
+    if not gmail:
+      continue
+    service = gmail.users().messages() if entityType == EN_MESSAGE else gmail.users().threads()
+    try:
+      labels = callGAPI(gmail.users().labels(), u'list',
+                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                        userId=user, fields=u'labels(id,name)')
+      if not labels:
+        labels = {u'labels': []}
+      if labelNames:
+        badLabels = []
+        labelIds = []
+        labels = callGAPI(gmail.users().labels(), u'list',
+                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                          userId=user, fields=u'labels(id,name)')
+        if labels:
+          for j, labelName in enumerate(labelNamesLower):
+            for label in labels[u'labels']:
+              if label[u'name'].lower() == labelName:
+                labelIds.append(label[u'id'])
+                break
+            else:
+              badLabels.append(labelNames[j])
+        if badLabels:
+          entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
+          continue
+      printGettingAllEntityItemsForWhom(entityType, user, i, count)
+      page_message = getPageMessage()
+      listResult = callGAPIpages(service, u'list', listType,
+                                 page_message=page_message,
+                                 throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                 userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
+      jcount = len(listResult)
+      if jcount == 0:
+        entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
+        continue
+      if maxToProcess and (jcount > maxToProcess):
+        jcount = maxToProcess
+      entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
+      incrementIndentLevel()
+      if entityType == EN_MESSAGE:
+        for j in xrange(jcount):
+          pmessage = listResult[j]
+          try:
+            result = callGAPI(service, u'get',
+                              throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                              id=pmessage[u'id'], userId=u'me', format=u'metadata')
+            _printMessage(result, labels)
+          except GAPI_serviceNotAvailable:
+            pass
+      else:
+        for j in xrange(jcount):
+          pthread = listResult[j]
+          printKeyValueList([u'Snippet', pthread[u'snippet']])
+          incrementIndentLevel()
+          printKeyValueList([u'id', pthread[u'id']])
+          printKeyValueList([pluralEntityName(EN_MESSAGE)])
+          incrementIndentLevel()
+          try:
+            result = callGAPI(service, u'get',
+                              throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                              id=pthread[u'id'], userId=u'me', format=u'metadata')
+            for pmessage in result[u'messages']:
+              _printMessage(pmessage, labels)
+          except GAPI_serviceNotAvailable:
+            pass
+          decrementIndentLevel()
+          decrementIndentLevel()
+        decrementIndentLevel()
+      decrementIndentLevel()
+    except GAPI_serviceNotAvailable:
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
+
 # Process Email Settings
 def processEmailSettings(user, i, count, service, function, **kwargs):
   try:
@@ -19767,7 +19903,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'groups':	CL_OB_GROUP,
         u'licence':	CL_OB_LICENSE,
         CL_OB_LABELS:	CL_OB_LABEL,
-        u'message':	CL_OB_MESSAGES,
+        CL_OB_MESSAGE:	CL_OB_MESSAGES,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
         u'tokens':	CL_OB_TOKEN,
         u'3lo':		CL_OB_TOKEN,
@@ -19809,7 +19945,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_MESSAGES:	processMessages,
        },
      CMD_OBJ_ALIASES:
-       {u'message':	CL_OB_MESSAGES,
+       {CL_OB_MESSAGE:	CL_OB_MESSAGES,
        },
     },
   u'print':
@@ -19859,11 +19995,13 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_GPLUSPROFILE:	showGplusProfile,
         CL_OB_IMAP:	showImap,
         CL_OB_LABELS:	showLabels,
+        CL_OB_MESSAGES:	showMessages,
         CL_OB_POP:	showPop,
         CL_OB_PROFILE:	showProfile,
         CL_OB_SENDAS:	showSendAs,
         CL_OB_SIGNATURE:showSignature,
         CL_OB_SITEACLS:	processUserSiteACLs,
+        CL_OB_THREADS:	showThreads,
         CL_OB_TOKEN:	showTokens,
         CL_OB_VACATION:	showVacation,
        },
@@ -19875,9 +20013,11 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'delegates':	CL_OB_DELEGATE,
         u'imap4':	CL_OB_IMAP,
         u'pop3':	CL_OB_POP,
-        CL_OB_LABELS:	CL_OB_LABEL,
+        CL_OB_LABEL:	CL_OB_LABELS,
+        CL_OB_MESSAGE:	CL_OB_MESSAGES,
         u'sig':		CL_OB_SIGNATURE,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
+        CL_OB_THREAD:	CL_OB_THREADS,
         u'tokens':	CL_OB_TOKEN,
         u'3lo':		CL_OB_TOKEN,
         u'oauth':	CL_OB_TOKEN,
@@ -19889,7 +20029,7 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_MESSAGES:	processMessages,
        },
      CMD_OBJ_ALIASES:
-       {u'message':	CL_OB_MESSAGES,
+       {CL_OB_MESSAGE:	CL_OB_MESSAGES,
        },
     },
   u'transfer':
@@ -19909,7 +20049,7 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_MESSAGES:	processMessages,
        },
      CMD_OBJ_ALIASES:
-       {u'message':	CL_OB_MESSAGES,
+       {CL_OB_MESSAGE:	CL_OB_MESSAGES,
        },
     },
   u'undelete':
@@ -19927,7 +20067,7 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_MESSAGES:	processMessages,
        },
      CMD_OBJ_ALIASES:
-       {u'message':	CL_OB_MESSAGES,
+       {CL_OB_MESSAGE:	CL_OB_MESSAGES,
        },
     },
   u'update':
