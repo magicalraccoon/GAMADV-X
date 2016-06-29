@@ -12390,13 +12390,11 @@ def doPrintSites(users, entityType):
               siteRow[key] = fields[key]
             else:
               siteRow[key] = u','.join(fields[key])
-        if not roles:
-          addRowTitlesToCSVfile(siteRow, csvRows, titles)
-        else:
+        rowShown = False
+        if roles:
           acls = callGDataPages(sitesObject, u'GetAclFeed',
                                 throw_errors=[GDATA_NOT_FOUND],
                                 domain=domain, site=fields[SITE_SITE])
-          rowShown = False
           for acl in acls:
             fields = sitesManager.AclEntryToFields(acl)
             if fields[u'role'] in roles:
@@ -12408,8 +12406,8 @@ def doPrintSites(users, entityType):
                 siteACLRow[u'Scope'] = fields[u'scope'][u'type']
               rowShown = True  
               addRowTitlesToCSVfile(siteACLRow, csvRows, titles)
-          if not rowShown:    
-            addRowTitlesToCSVfile(siteRow, csvRows, titles)
+        if not rowShown:    
+          addRowTitlesToCSVfile(siteRow, csvRows, titles)
     except GData_notFound:
       entityActionFailedWarning(entityType, user, PHRASE_DOES_NOT_EXIST, i, count)
   writeCSVfile(csvRows, titles, u'Sites', todrive)
