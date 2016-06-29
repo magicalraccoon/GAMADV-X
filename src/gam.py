@@ -649,7 +649,7 @@ OB_RECURRENCE = u'RRULE EXRULE RDATE and EXDATE lines'
 OB_REQUEST_ID = u'RequestID'
 OB_RESOURCE_ENTITY = u'ResourceEntity'
 OB_RESOURCE_ID = u'ResourceID'
-OB_RE_PATTERN = u'PythonRegularExpression'
+OB_RE_PATTERN = u'REPattern'
 OB_ROLE_ASSIGNMENT_ID = u'RoleAssignmentId'
 OB_ROLE_ID = u'RoleId'
 OB_ROLE_LIST = u'RoleList'
@@ -18945,7 +18945,7 @@ def setShortCuts(users):
                            EN_KEYBOARD_SHORTCUTS, result[u'shortcuts'],
                            i, count)
 
-# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>])
+# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*
 def setSignature(users):
   emailSettingsObject = getEmailSettingsObject()
   if checkArgumentPresent(FILE_ARGUMENT):
@@ -18954,7 +18954,14 @@ def setSignature(users):
     signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
   else:
     signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
-  checkForExtraneousArguments()
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'replace':
+      matchPattern = getREPattern()
+      matchReplacement = getString(OB_STRING, emptyOK=True)
+      signature = matchPattern.sub(matchReplacement, signature)
+    else:
+      unknownArgumentExit()
   i = 0
   count = len(users)
   for user in users:
@@ -19031,7 +19038,8 @@ def setUnicode(users):
                            i, count)
 
 # gam <UserTypeEntity> vacation <FalseValues>
-# gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+# gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*
+#	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
 def setVacation(users):
   emailSettingsObject = getEmailSettingsObject()
   subject = message = u''
@@ -19062,6 +19070,10 @@ def setVacation(users):
       filename = getString(OB_FILE_NAME)
       encoding = getCharSet()
       message = readFile(filename, encoding=encoding)
+    elif myarg == u'replace':
+      matchPattern = getREPattern()
+      matchReplacement = getString(OB_STRING, emptyOK=True)
+      message = matchPattern.sub(matchReplacement, message)
     else:
       unknownArgumentExit()
   if enable:

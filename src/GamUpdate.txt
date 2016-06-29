@@ -431,6 +431,16 @@ the argument drivefile. This makes these commands consistent with get delete dri
 61) The output of the command gam print contacts has been modified; the column heading User has been changed to Domain.
 The output of the command gam <Users> print contacts has not changed.
 
+4.16.2
+
+62) Added argument to gam <Users> signature and gam <Users> vacation to allow pattern substitution in the signature and vacation message.
+gam <Users> signature <String>|(file <FileName> [charset <Charset>]) (replace <REPattern> <String>)*
+gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
+	[startdate <Date>] [enddate <Date>] (replace <REPattern> <String>)*
+This is especially useful with CSV files.
+gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace '#User#' '~User' replace '#Title#' '~Title'
+
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
