@@ -18419,9 +18419,8 @@ def showMessagesThreads(users, entityType, csvFormat):
     printKeyValueList([u'id', result[u'id']])
     for name in headersToShow:
       for header in result[u'payload'][u'headers']:
-        if name == header[u'name']:
-          printKeyValueList([name, header[u'value']])
-          break
+        if name == header[u'name'].lower():
+          printKeyValueList([header[u'name'], header[u'value']])
     if show_labels:
       messageLabels = []
       for labelId in result[u'labelIds']:
@@ -18435,10 +18434,14 @@ def showMessagesThreads(users, entityType, csvFormat):
   def _printMessage(user, result):
     row = {u'User': user, u'threadId': result[u'threadId'], u'id': result[u'id']}
     for name in headersToShow:
+      j = 0
       for header in result[u'payload'][u'headers']:
-        if name == header[u'name']:
-          row[name] = header[u'value']
-          break
+        if name == header[u'name'].lower():
+          j += 1
+          if j == 1:
+            row[header[u'name']] = header[u'value']
+          else:
+            row[u'{0} {1}'.format(header[u'name'], j)] = header[u'value']
     if show_labels:
       messageLabels = []
       for labelId in result[u'labelIds']:
@@ -18485,6 +18488,8 @@ def showMessagesThreads(users, entityType, csvFormat):
       unknownArgumentExit()
   if csvFormat:
     addTitlesToCSVfile(headersToShow, titles)
+  for j, header in enumerate(headersToShow):
+    headersToShow[j] = header.lower()
   listType = u'messages'if entityType == EN_MESSAGE else u'threads'
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
