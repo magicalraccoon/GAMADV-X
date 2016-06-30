@@ -431,24 +431,15 @@ the argument drivefile. This makes these commands consistent with get delete dri
 61) The output of the command gam print contacts has been modified; the column heading User has been changed to Domain.
 The output of the command gam <Users> print contacts has not changed.
 
-4.16.2
-
-62) Added argument to gam <Users> signature and gam <Users> vacation to allow pattern substitution in the signature and vacation message.
-gam <Users> signature <String>|(file <FileName> [charset <Charset>]) (replace <REPattern> <String>)*
-gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
-	[startdate <Date>] [enddate <Date>] (replace <REPattern> <String>)*
-This is especially useful with CSV files.
-gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace '#User#' '~User' replace '#Title#' '~Title'
-
 4.16.4
 
-63) Added commands to show messages/threads.
+62) Added commands to show messages/threads.
 gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
 gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
 
 4.16.5
 
-64) Added argument to gam xxx messages/threads to allow id lists to be specified. In this case doit and max_to_xxx are not required.
+63) Added argument to gam xxx messages/threads to allow id lists to be specified. In this case doit and max_to_xxx are not required.
 gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
 gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageIDEntity>)
@@ -456,6 +447,18 @@ gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelNam
 gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+
+4.16.6
+
+Credit to Steve Main suggesting the following enhancement.
+64) Added argument to gam <Users> signature and gam <Users> vacation to allow pattern substitution in the signature and vacation message.
+gam <Users> signature <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
+gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
+	[startdate <Date>] [enddate <Date>] (replace <Tag> <String>)*
+Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Text}...{/RT} will be eliminated
+if there was no <Tag> specified that matches Text or if a <Tag> matching Text was specified but the matching <String> is empty.
+This is especially useful with CSV files.
+gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 'User' '~User' replace 'Title' '~Title'
 
 *** Calendar Enhancements ***
 

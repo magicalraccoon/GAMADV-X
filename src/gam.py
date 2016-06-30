@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.5'
+__version__ = u'4.16.6'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -665,6 +665,7 @@ OB_SKU_ID = u'SKUID'
 OB_SKU_ID_LIST = u'SKUIDList'
 OB_STRING = u'String'
 OB_STUDENT_ID = u'StudentID'
+OB_TAG = u'Tag'
 OB_TEACHER_ID = u'TeacherID'
 OB_THREAD_ID = u'ThreadID'
 OB_TRANSFER_ID = u'TransferID'
@@ -19111,9 +19112,33 @@ def setShortCuts(users):
                            EN_KEYBOARD_SHORTCUTS, result[u'shortcuts'],
                            i, count)
 
+RT_PATTERN = re.compile(r'(?s){RT}.*?{(.*?)}.*?{/RT}')
+RT_OPEN_PATTERN = re.compile(r'{RT}')
+RT_CLOSE_PATTERN = re.compile(r'{/RT}')
+RT_STRIP_PATTERN = re.compile(r'(?s){RT}.*?{/RT}')
+RT_TAG_REPLACE_PATTERN = re.compile(r'{(.*?)}')
+
+def processTags(tagReplacements, message):
+  while True:
+    match = RT_PATTERN.search(message)
+    if not match:
+      break
+    if tagReplacements.get(match.group(1)):
+      message = RT_OPEN_PATTERN.sub(u'', message, count=1)
+      message = RT_CLOSE_PATTERN.sub(u'', message, count=1)
+    else:
+      message = RT_STRIP_PATTERN.sub(u'', message, count=1)
+  while True:
+    match = RT_TAG_REPLACE_PATTERN.search(message)
+    if not match:
+      break
+    message = re.sub(match.group(0), tagReplacements.get(match.group(1), u''), message)
+  return message
+
 # gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*
 def setSignature(users):
   emailSettingsObject = getEmailSettingsObject()
+  tagReplacements = {}
   if checkArgumentPresent(FILE_ARGUMENT):
     filename = getString(OB_FILE_NAME)
     encoding = getCharSet()
@@ -19123,11 +19148,13 @@ def setSignature(users):
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'replace':
-      matchPattern = getREPattern()
+      matchTag = getString(OB_TAG)
       matchReplacement = getString(OB_STRING, emptyOK=True)
-      signature = matchPattern.sub(matchReplacement, signature)
+      tagReplacements[matchTag] = matchReplacement
     else:
       unknownArgumentExit()
+  if tagReplacements:
+    signature = processTags(tagReplacements, signature)
   i = 0
   count = len(users)
   for user in users:
@@ -19212,6 +19239,7 @@ def setVacation(users):
   enable = getBoolean()
   contacts_only = domain_only = False
   start_date = end_date = None
+  tagReplacements = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'subject':
@@ -19237,9 +19265,9 @@ def setVacation(users):
       encoding = getCharSet()
       message = readFile(filename, encoding=encoding)
     elif myarg == u'replace':
-      matchPattern = getREPattern()
+      matchTag = getString(OB_TAG)
       matchReplacement = getString(OB_STRING, emptyOK=True)
-      message = matchPattern.sub(matchReplacement, message)
+      tagReplacements[matchTag] = matchReplacement
     else:
       unknownArgumentExit()
   if enable:
@@ -19248,6 +19276,10 @@ def setVacation(users):
     if not subject:
       missingArgumentExit(u'subject')
   message = message.replace(u'\\n', u'\n')
+  if tagReplacements:
+    message = processTags(tagReplacements, message)
+  if enable and not message:
+    emptyArgumentExit(u'message')
   i = 0
   count = len(users)
   for user in users:
