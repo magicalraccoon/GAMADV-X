@@ -18276,7 +18276,7 @@ def processMessages(users):
   maxToProcess = 1
   function = {AC_DELETE: u'delete', AC_MODIFY: u'modify', AC_SPAM: u'modify', AC_TRASH: u'trash', AC_UNTRASH: u'untrash'}[GM_Globals[GM_ACTION_COMMAND]]
   body = {}
-  messageIds = []
+  messageIds = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'query':
@@ -18299,7 +18299,7 @@ def processMessages(users):
       body[u'removeLabelIds'].append(getString(OB_LABEL_NAME))
     else:
       unknownArgumentExit()
-  if (not query) and (not labelNames) and (not messageIds):
+  if (not query) and (not labelNames) and (messageIds == None):
     missingArgumentExit(u'query|matchlabel|ids')
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   includeSpamTrash = GM_Globals[GM_ACTION_COMMAND] in [AC_DELETE, AC_MODIFY, AC_UNTRASH]
@@ -18309,7 +18309,7 @@ def processMessages(users):
     i += 1
     if userMessageLists:
       messageIds = userMessageLists[user]
-    if messageIds:
+    if messageIds != None:
       listResult = []
       for messageId in messageIds:
         listResult.append({u'id': messageId})
@@ -18317,7 +18317,7 @@ def processMessages(users):
     if not gmail:
       continue
     try:
-      if not messageIds:
+      if messageIds == None:
         if labelNames:
           badLabels = []
           labelIds = []
@@ -18345,7 +18345,7 @@ def processMessages(users):
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
         continue
-      if not messageIds:
+      if messageIds == None:
         if not doIt:
           entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
           continue
@@ -18426,7 +18426,7 @@ def showMessagesThreads(users, entityType):
   labelNamesLower = []
   includeSpamTrash = False
   maxToProcess = 0
-  messageIds = []
+  messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -18452,7 +18452,7 @@ def showMessagesThreads(users, entityType):
     i += 1
     if userMessageLists:
       messageIds = userMessageLists[user]
-    if messageIds:
+    if messageIds != None:
       listResult = []
       for messageId in messageIds:
         listResult.append({u'id': messageId})
@@ -18466,7 +18466,7 @@ def showMessagesThreads(users, entityType):
                         userId=user, fields=u'labels(id,name)')
       if not labels:
         labels = {u'labels': []}
-      if not messageIds:
+      if messageIds == None:
         if labelNames:
           badLabels = []
           labelIds = []
@@ -18494,7 +18494,7 @@ def showMessagesThreads(users, entityType):
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
         continue
-      if not messageIds:
+      if messageIds == None:
         if maxToProcess and (jcount > maxToProcess):
           jcount = maxToProcess
       entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
