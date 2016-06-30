@@ -18263,11 +18263,11 @@ def deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
   except GAPI_serviceNotAvailable:
     pass
 
-# gam <UserTypeEntity> delete message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>]
-# gam <UserTypeEntity> modify message|messages query <Query> (matchlabel <LabelName>)* (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
-# gam <UserTypeEntity> spam message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>]
-# gam <UserTypeEntity> trash message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>]
-# gam <UserTypeEntity> untrash message|messages query <Query> (matchlabel <LabelName>*) [doit] [max_to_untrash <Number>]
+# gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_delete <Number>]
+# gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
+# gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_trash <Number>]
+# gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_untrash <Number>]
+# gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_modify <Number>]
 def processMessages(users):
   labelIds = query = None
   labelNames = []
@@ -18392,8 +18392,8 @@ def processMessages(users):
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
-# gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
 def showMessages(users):
   showMessagesThreads(users, EN_MESSAGE)
 

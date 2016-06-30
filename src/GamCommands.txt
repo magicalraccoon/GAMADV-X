@@ -86,6 +86,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <LabelName> ::= <String>
 <LabelReplacement> ::= <String>
 <Marker> ::= <String>
+<MessageID> ::= <String>
 <MobileID> ::= <String>
 <MobileItem> ::= <MobileID>|(query:<Query>)|(query <Query>)
 <Name> ::= <String>
@@ -108,6 +109,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <SiteItem> ::= [<domainName>/]<Site>
 <StudentID> ::= <String>
 <TeacherID> ::= <String>
+<ThreadID> ::= <String>
 <Timezone> ::= <String>
 <Title> ::= <String>
 <URI> ::= <String>
@@ -307,6 +309,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <GroupList> ::= '<GroupItem>(,<GroupItem>)*'
 <LabelNameList> ::= '<LabelName>(,<LabelName)*'
 <MembersFieldNameList> ::= '<MembersFieldName(,<MembersFieldName>)*'
+<MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
 <OrgUnitList> ::== '<OrgUnitPath>(,<OrgUnitPath>)*'
 <PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
@@ -317,6 +320,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <SchemaNameList> ::= '<SchemaName>(,<SchemaName>)*'
 <SiteList> ::= '<SiteItem>(,<SiteItem>)*'
 <SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
+<ThreadIDList> ::= '<ThreadID>(,<ThreadID>)*'
 <UserFieldNameList> ::= '<UserFieldName(,<UserFieldName>)*'
 <UserList> ::= '<UserItem>(,<UserItem>)*'
 
@@ -381,6 +385,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <GroupEntity> ::= <GroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<MessageEntity> ::= <MessageIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <MobileEntity> ::= <MobileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <OrgUnitEntity> ::= <OrgUnitList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <PrinterIDEntity> ::= <PrinterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
@@ -388,6 +393,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ResourceEntity> ::= <ResourceIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <SchemaEntity> ::= <SchemaNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <SiteEntity> ::= <SiteList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<ThreadEntity> ::= <ThreadIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <UserEntity> ::= <UserList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 
 # Item attributes
@@ -946,14 +952,13 @@ gam <UserTypeEntity> update label|labels [search <PythonRegularExpression>] [rep
 gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<REPattern>|--ALL_LABELS--
 gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
 
-gam <UserTypeEntity> delete message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>]
-gam <UserTypeEntity> modify message|messages query <Query> (matchlabel <LabelName>)* (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
-gam <UserTypeEntity> spam message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>]
-gam <UserTypeEntity> trash message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>]
-gam <UserTypeEntity> untrash message|messages query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>]
-gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
-gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
-
+gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_delete <Number>]
+gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
+gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_trash <Number>]
+gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_untrash <Number>]
+gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_modify <Number>]
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
 #
 # Update user Gmail settings
 #
