@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.4'
+__version__ = u'4.16.5'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -18265,16 +18265,16 @@ def deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
 
 # gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_delete <Number>]
 # gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
+# gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_spam <Number>]
 # gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_trash <Number>]
 # gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_untrash <Number>]
-# gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_modify <Number>]
 def processMessages(users):
   labelIds = query = None
   labelNames = []
   labelNamesLower = []
   doIt = False
   maxToProcess = 1
-  function = {AC_DELETE: u'delete', AC_MODIFY: u'modify', AC_TRASH: u'trash', AC_SPAM: u'modify', AC_UNTRASH: u'untrash'}[GM_Globals[GM_ACTION_COMMAND]]
+  function = {AC_DELETE: u'delete', AC_MODIFY: u'modify', AC_SPAM: u'modify', AC_TRASH: u'trash', AC_UNTRASH: u'untrash'}[GM_Globals[GM_ACTION_COMMAND]]
   body = {}
   messageIds = []
   while CL_argvI < CL_argvLen:
@@ -18289,7 +18289,7 @@ def processMessages(users):
       messageIds = getEntityList(OB_MESSAGE_ID)
     elif myarg == u'doit':
       doIt = True
-    elif myarg in [u'maxtodelete', u'maxtomodify', u'maxtotrash', u'maxtountrash']:
+    elif myarg in [u'maxtodelete', u'maxtomodify', u'maxtospam', u'maxtotrash', u'maxtountrash']:
       maxToProcess = getInteger(minVal=0)
     elif (function == u'modify') and (myarg == u'addlabel'):
       body.setdefault(u'addLabelIds', [])
@@ -18355,19 +18355,19 @@ def processMessages(users):
       incrementIndentLevel()
       if function == u'delete':
         mcount = 0
-        messageIds = []
+        delMessageIds = []
         bcount = 0
         for pmessage in listResult:
-          messageIds.append(pmessage[u'id'])
+          delMessageIds.append(pmessage[u'id'])
           bcount += 1
           if bcount == GC_Values[GC_BATCH_SIZE]:
             mcount += bcount
-            deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount)
-            messageIds = []
+            deleteMessageBatch(gmail, user, i, count, delMessageIds, mcount, jcount)
+            delMessageIds = []
             bcount = 0
         if bcount > 0:
           mcount += bcount
-          deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount)
+          deleteMessageBatch(gmail, user, i, count, delMessageIds, mcount, jcount)
         decrementIndentLevel()
         continue
       if GM_Globals[GM_ACTION_COMMAND] == AC_SPAM:
