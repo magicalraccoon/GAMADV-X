@@ -477,16 +477,17 @@ GDATA_BAD_GATEWAY = 601
 GDATA_BAD_REQUEST = 602
 GDATA_DOES_NOT_EXIST = 1301
 GDATA_ENTITY_EXISTS = 1300
-GDATA_INSUFFICIENT_PERMISSIONS = 603
+GDATA_FORBIDDEN = 603
+GDATA_INSUFFICIENT_PERMISSIONS = 604
 GDATA_INTERNAL_SERVER_ERROR = 1000
-GDATA_INVALID_DOMAIN = 604
+GDATA_INVALID_DOMAIN = 605
 GDATA_INVALID_VALUE = 1801
 GDATA_NAME_NOT_VALID = 1303
-GDATA_NOT_FOUND = 605
-GDATA_QUOTA_EXCEEDED = 606
+GDATA_NOT_FOUND = 606
+GDATA_QUOTA_EXCEEDED = 607
 GDATA_SERVICE_NOT_APPLICABLE = 1410
-GDATA_SERVICE_UNAVAILABLE = 607
-GDATA_TOKEN_EXPIRED = 608
+GDATA_SERVICE_UNAVAILABLE = 608
+GDATA_TOKEN_EXPIRED = 609
 GDATA_TOKEN_INVALID = 403
 GDATA_UNKNOWN_ERROR = 600
 #
@@ -3551,6 +3552,8 @@ def checkGDataError(e, service):
       if u'already exists' in e[0][u'body']:
         return (GDATA_ENTITY_EXISTS, e[0][u'body'])
       return (GDATA_BAD_REQUEST, e[0][u'body'])
+    if e[0][u'reason'] == u'Forbidden':
+      return (GDATA_FORBIDDEN, e[0][u'body'])
     if e[0][u'reason'] == u'Not Found':
       return (GDATA_NOT_FOUND, e[0][u'body'])
   elif e.error_code == 602:
@@ -3613,6 +3616,7 @@ class GData_exception(Exception):
 class GData_badRequest(GData_exception): pass
 class GData_doesNotExist(GData_exception): pass
 class GData_entityExists(GData_exception): pass
+class GData_forbidden(GData_exception): pass
 class GData_insufficientPermissions(GData_exception): pass
 class GData_internalServerError(GData_exception): pass
 class GData_invalidDomain(GData_exception): pass
@@ -3625,6 +3629,7 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_BAD_REQUEST: GData_badRequest,
   GDATA_DOES_NOT_EXIST: GData_doesNotExist,
   GDATA_ENTITY_EXISTS: GData_entityExists,
+  GDATA_FORBIDDEN: GData_forbidden,
   GDATA_INSUFFICIENT_PERMISSIONS: GData_insufficientPermissions,
   GDATA_INTERNAL_SERVER_ERROR: GData_internalServerError,
   GDATA_INVALID_DOMAIN: GData_invalidDomain,
@@ -9387,11 +9392,13 @@ def queryContacts(contactsObject, contactsQuery, entityType, user, i=0, count=0)
   try:
     entityList = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
-                                throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                                throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                                 uri=uri, url_params=contactsQuery[u'url_params'])
     return entityList
   except GData_badRequest:
     entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
+  except GData_forbidden:
+    entityServiceNotApplicableWarning(entityType, user, i, count)
   except GData_serviceNotApplicable:
     entityUnknownWarning(entityType, user, i, count)
   return None
@@ -9402,7 +9409,7 @@ def getContactGroupsInfo(contactsManager, contactsObject, entityType, entityName
   contactGroupNames = {}
   try:
     groups = callGDataPages(contactsObject, u'GetGroupsFeed',
-                            throw_errors=[GDATA_SERVICE_NOT_APPLICABLE],
+                            throw_errors=[GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                             uri=uri)
     if groups:
       for group in groups:
@@ -9410,6 +9417,9 @@ def getContactGroupsInfo(contactsManager, contactsObject, entityType, entityName
         contactGroupIDs[fields[CONTACT_GROUP_ID]] = fields[CONTACT_GROUP_NAME]
         contactGroupNames.setdefault(fields[CONTACT_GROUP_NAME], [])
         contactGroupNames[fields[CONTACT_GROUP_NAME]].append(fields[CONTACT_GROUP_ID])
+  except GData_forbidden:
+    entityServiceNotApplicableWarning(entityType, entityName, i, count)
+    return (contactGroupIDs, False)
   except GData_serviceNotApplicable:
     entityUnknownWarning(entityType, entityName, i, count)
     return (contactGroupIDs, False)
@@ -9469,11 +9479,13 @@ def doCreateContact(users, entityType):
       continue
     try:
       contact = callGData(contactsObject, u'CreateContact',
-                          throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                          throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                           new_contact=contactEntry, insert_uri=contactsObject.GetContactFeedUri(contact_list=user))
       entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactsManager.GetContactShortId(contact), i, count)
     except GData_badRequest:
       entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
+    except GData_forbidden:
+      entityServiceNotApplicableWarning(entityType, user, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
 
@@ -9505,7 +9517,7 @@ def doUpdateContacts(users, entityType):
       j += 1
       try:
         contact = callGData(contactsObject, u'GetContact',
-                            throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         fields = contactsManager.ContactToFields(contact)
         for field in update_fields:
@@ -9518,13 +9530,16 @@ def doUpdateContacts(users, entityType):
         contactEntry.etag = contact.etag
         contactEntry.id = contact.id
         callGData(contactsObject, u'UpdateContact',
-                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                   edit_uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId), updated_contact=contactEntry, extra_headers={u'If-Match': contact.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactId, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GData_badRequest:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_BAD_REQUEST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -9571,16 +9586,19 @@ def doDeleteContacts(users, entityType):
         if not contactsQuery:
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
-                              throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                              throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                               uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         else:
           contactId = contactsManager.GetContactShortId(contact)
         callGData(contactsObject, u'DeleteContact',
-                  throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                   edit_uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId), extra_headers={u'If-Match': contact.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactId, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -9628,7 +9646,7 @@ def doInfoContacts(users, entityType):
         if not contactsQuery:
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
-                              throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                              throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                               uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         fields = contactsManager.ContactToFields(contact)
         printEntityName(EN_CONTACT, fields[CONTACT_ID], j, jcount)
@@ -9701,6 +9719,9 @@ def doInfoContacts(users, entityType):
         decrementIndentLevel()
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -9769,7 +9790,7 @@ def doPrintContacts(users, entityType):
         url_params[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
       contacts = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
-                                throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                                throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                                 uri=uri, url_params=url_params)
       if contacts:
         for contact in contacts:
@@ -9841,6 +9862,8 @@ def doPrintContacts(users, entityType):
           addRowTitlesToCSVfile(contactRow, csvRows, titles)
     except GData_badRequest:
       entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, u'', PHRASE_BAD_REQUEST, i, count)
+    except GData_forbidden:
+      entityServiceNotApplicableWarning(entityType, user, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
   writeCSVfile(csvRows, titles, u'Contacts', todrive)
@@ -9868,11 +9891,13 @@ def doCreateContactGroup(users, entityType):
       continue
     try:
       group = callGData(contactsObject, u'CreateGroup',
-                        throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                        throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                         new_group=contactGroup, insert_uri=contactsObject.GetContactGroupFeedUri(contact_list=user))
       entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, contactsManager.GetContactShortId(group), i, count)
     except GData_badRequest:
       entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, u'', PHRASE_BAD_REQUEST, i, count)
+    except GData_forbidden:
+      entityServiceNotApplicableWarning(entityType, user, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
 
@@ -9912,7 +9937,7 @@ def doUpdateContactGroup(users, entityType):
       contactGroup = contactGroupIDs.get(groupId, contactGroup)
       try:
         group = callGData(contactsObject, u'GetGroup',
-                          throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                          throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         fields = contactsManager.ContactGroupToFields(group)
         for field in update_fields:
@@ -9923,13 +9948,15 @@ def doUpdateContactGroup(users, entityType):
         groupEntry.etag = group.etag
         groupEntry.id = group.id
         callGData(contactsObject, u'UpdateGroup',
-                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE],
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                   edit_uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId), updated_group=groupEntry, extra_headers={u'If-Match': group.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, contactGroup, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GData_badRequest:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_BAD_REQUEST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -9967,14 +9994,16 @@ def doDeleteContactGroups(users, entityType):
           break
         contactGroup = contactGroupIDs.get(groupId, contactGroup)
         group = callGData(contactsObject, u'GetGroup',
-                          throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                          throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         callGData(contactsObject, u'DeleteGroup',
-                  throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                  throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                   edit_uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId), extra_headers={u'If-Match': group.etag})
         entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, contactGroup, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -10012,7 +10041,7 @@ def doInfoContactGroups(users, entityType):
           break
         contactGroup = contactGroupIDs.get(groupId, contactGroup)
         group = callGData(contactsObject, u'GetGroup',
-                          throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE],
+                          throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         fields = contactsManager.ContactGroupToFields(group)
         printEntityName(EN_CONTACT_GROUP, fields[CONTACT_GROUP_NAME], j, jcount)
@@ -10022,6 +10051,8 @@ def doInfoContactGroups(users, entityType):
         decrementIndentLevel()
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_forbidden:
+        entityServiceNotApplicableWarning(entityType, user, i, count)
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -10069,7 +10100,7 @@ def doPrintContactGroups(users, entityType):
       page_message = getPageMessage()
       groups = callGDataPages(contactsObject, u'GetGroupsFeed',
                               page_message=page_message,
-                              throw_errors=[GDATA_SERVICE_NOT_APPLICABLE],
+                              throw_errors=[GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                               uri=uri, url_params=url_params)
       if groups:
         for group in groups:
@@ -10077,6 +10108,8 @@ def doPrintContactGroups(users, entityType):
           groupRow = {singularEntityName(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
                       CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: [NEVER, fields[CONTACT_GROUP_UPDATED]][fields[CONTACT_GROUP_UPDATED] != NEVER_TIME]}
           addRowTitlesToCSVfile(groupRow, csvRows, titles)
+    except GData_forbidden:
+      entityServiceNotApplicableWarning(entityType, user, i, count)
     except GData_serviceNotApplicable:
       entityUnknownWarning(entityType, user, i, count)
   writeCSVfile(csvRows, titles, u'Contact Groups', todrive)

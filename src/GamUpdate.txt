@@ -469,6 +469,10 @@ gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>
 66) Added command to empty drive drive trash.
 gam <UserTypeEntity> empty drivetrash
 
+4.17.1
+
+67) Handle errors when contact commands are applied to aliases.
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
