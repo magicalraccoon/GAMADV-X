@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.6'
+__version__ = u'4.16.7'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -562,7 +562,7 @@ GAPI_DEFAULT_RETRY_REASONS = [GAPI_QUOTA_EXCEEDED, GAPI_RATE_LIMIT_EXCEEDED, GAP
 GAPI_ACTIVITY_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 GAPI_CALENDAR_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
-GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
+GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_BAD_REQUEST]
 GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 #
 DRIVE_API_VERSION = u'v2'
@@ -14750,7 +14750,7 @@ def doPrinterWipeACL(printerIdList, getEntityListArg):
 # gam printer <PrinterID> showacl [csv] [todrive] [idfirst]
 def doPrinterShowACL(printerIdList, getEntityListArg):
   cp = buildGAPIObject(GAPI_CLOUDPRINT_API)
-  csv_format = todrive = False
+  csvFormat = todrive = False
   titles, csvRows = initializeTitlesCSVfile(None, [u'id',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -14759,7 +14759,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
     elif myarg == u'idfirst':
       addDefaultTitlesToCSVfile(titles)
     elif myarg == u'csv':
-      csv_format = True
+      csvFormat = True
     else:
       unknownArgumentExit()
   i = 0
@@ -14774,7 +14774,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
         jcount = len(result[u'printers'][0][u'access'])
       except KeyError:
         jcount = 0
-      if not csv_format:
+      if not csvFormat:
         entityPerformActionNumItems(EN_PRINTER, printerId, jcount, EN_ACL, i, count)
         if jcount == 0:
           continue
@@ -14793,7 +14793,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
           addRowTitlesToCSVfile(flatten_json(acl, flattened=printer), csvRows, titles)
     except GCP_unknownPrinter:
       entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
-  if csv_format:
+  if csvFormat:
     writeCSVfile(csvRows, titles, u'PrinterACLs', todrive)
 
 # gam printjobs <PrintJobEntity> cancel
@@ -15425,7 +15425,7 @@ def infoCalendar(users, getEntityListArg=False):
 
 # gam <UserTypeEntity> show calendars [csv] [todrive] [idfirst]
 def showCalendars(users):
-  csv_format = todrive = False
+  csvFormat = todrive = False
   titles, csvRows = initializeTitlesCSVfile(None, [u'primaryEmail', u'id'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -15434,7 +15434,7 @@ def showCalendars(users):
     elif myarg == u'idfirst':
       addDefaultTitlesToCSVfile(titles)
     elif myarg == u'csv':
-      csv_format = True
+      csvFormat = True
     else:
       unknownArgumentExit()
   i = 0
@@ -15448,7 +15448,7 @@ def showCalendars(users):
       feed = callGAPI(cal.calendarList(), u'list',
                       throw_reasons=GAPI_CALENDAR_THROW_REASONS)
       if feed:
-        if not csv_format:
+        if not csvFormat:
           printEntityKVList(EN_USER, user,
                             [pluralEntityName(EN_CALENDAR), u''],
                             i, count)
@@ -15462,7 +15462,7 @@ def showCalendars(users):
             addRowTitlesToCSVfile(flatten_json(userCalendar, flattened=userCal), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
-  if csv_format:
+  if csvFormat:
     writeCSVfile(csvRows, titles, u'Calendars', todrive)
 
 # gam <UserTypeEntity> show calsettings
@@ -17884,7 +17884,7 @@ def showGmailProfile(users):
                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
                          userId=u'me')
       addRowTitlesToCSVfile(results, csvRows, titles)
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   sortCSVTitles(u'emailAddress', titles)
   writeCSVfile(csvRows, titles, u'Gmail Profiles', todrive)
@@ -17952,7 +17952,7 @@ def addLabel(users):
       entityItemValueActionPerformed(EN_USER, user, EN_LABEL, label, i, count)
     except GAPI_duplicate:
       entityItemValueActionFailedWarning(EN_USER, user, EN_LABEL, label, PHRASE_DUPLICATE, i, count)
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
 # gam <UserTypeEntity> update labelsettings <LabelName> [name <Name>] [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
@@ -17993,7 +17993,7 @@ def updateLabelSettings(users):
         entityItemValueActionFailedWarning(EN_USER, user, EN_LABEL, label_name, PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_notFound:
       entityItemValueActionFailedWarning(EN_USER, user, EN_LABEL, label_name, PHRASE_DOES_NOT_EXIST, i, count)
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 #
 LABEL_TYPE_SYSTEM = u'system'
@@ -18080,7 +18080,7 @@ def updateLabels(users):
         printEntityKVList(EN_USER, user,
                           [PHRASE_NO_LABELS_MATCH, search],
                           i, count)
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
 def callbackDeleteLabel(request_id, response, exception):
@@ -18153,7 +18153,7 @@ def deleteLabel(users):
           entityItemValueActionFailedWarning(EN_USER, user, EN_LABEL, label, PHRASE_DOES_NOT_EXIST, i, count)
           continue
       batchDeleteLabels(gmail, user, i, count, del_labels)
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
 # gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
@@ -18206,7 +18206,7 @@ def showLabels(users):
             printKeyValueList([a_key, counts[a_key]])
         decrementIndentLevel()
       decrementIndentLevel()
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
 def labelsToLabelIds(gmail, labels):
@@ -18261,7 +18261,7 @@ def deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
              throw_reasons=GAPI_GMAIL_THROW_REASONS,
              userId=u'me', body={u'ids': messageIds})
     entityItemValueActionPerformed(EN_USER, user, EN_MESSAGE, u'{0} of {1}'.format(mcount, jcount), i, count)
-  except GAPI_serviceNotAvailable:
+  except (GAPI_serviceNotAvailable, GAPI_badRequest):
     pass
 
 # gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageIDEntity>)
@@ -18388,14 +18388,15 @@ def processMessages(users):
                    throw_reasons=GAPI_GMAIL_THROW_REASONS,
                    id=pmessage[u'id'], userId=u'me', **kwargs)
           entityItemValueActionPerformed(EN_USER, user, EN_MESSAGE, pmessage[u'id'], j, jcount)
-        except GAPI_serviceNotAvailable:
+        except (GAPI_serviceNotAvailable, GAPI_badRequest):
           pass
       decrementIndentLevel()
-    except GAPI_serviceNotAvailable:
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [csv] [todrive] [idfirst]
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [csv] [todrive] [idfirst]
+
 def showMessages(users):
   showMessagesThreads(users, EN_MESSAGE)
 
@@ -18404,7 +18405,7 @@ def showThreads(users):
 
 def showMessagesThreads(users, entityType):
 
-  def _printMessage(result, labels):
+  def _showMessage(result):
     printKeyValueList([u'Snippet', result[u'snippet']])
     incrementIndentLevel()
     printKeyValueList([u'id', result[u'id']])
@@ -18413,25 +18414,52 @@ def showMessagesThreads(users, entityType):
         if name == header[u'name']:
           printKeyValueList([name, header[u'value']])
           break
-    messageLabels = []
-    for labelId in result[u'labelIds']:
-      for label in labels[u'labels']:
-        if label[u'id'] == labelId:
-          messageLabels.append(label[u'name'])
-          break
-    printKeyValueList([u'Labels', u','.join(messageLabels)])
+    if show_labels:
+      messageLabels = []
+      for labelId in result[u'labelIds']:
+        for label in labels[u'labels']:
+          if label[u'id'] == labelId:
+            messageLabels.append(label[u'name'])
+            break
+      printKeyValueList([u'Labels', u','.join(messageLabels)])
     decrementIndentLevel()
+
+  def _printMessage(user, result):
+    row = {u'User': user, u'threadId': result[u'threadId'], u'id': result[u'id']}
+    for name in headersToShow:
+      for header in result[u'payload'][u'headers']:
+        if name == header[u'name']:
+          row[name] = header[u'value']
+          break
+    if show_labels:
+      messageLabels = []
+      for labelId in result[u'labelIds']:
+        for label in labels[u'labels']:
+          if label[u'id'] == labelId:
+            messageLabels.append(label[u'name'])
+            break
+      row[u'Labels'] = u','.join(messageLabels)
+    addRowTitlesToCSVfile(row, csvRows, titles)
 
   labelIds = query = None
   labelNames = []
   labelNamesLower = []
   includeSpamTrash = False
   maxToProcess = 0
+  show_labels = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
+  csvFormat = todrive = False
+  titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'query':
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg == u'idfirst':
+      pass
+    elif myarg == u'csv':
+      csvFormat = True
+    elif myarg == u'query':
       query = getString(OB_QUERY)
     elif myarg == u'matchlabel':
       labelName = getString(OB_LABEL_NAME)
@@ -18441,10 +18469,16 @@ def showMessagesThreads(users, entityType):
       messageIds = getEntityList(OB_MESSAGE_ID)
     elif myarg == u'maxtoshow':
       maxToProcess = getInteger(minVal=0)
+    elif myarg == u'headers':
+      headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
+    elif myarg == u'showlabels':
+      show_labels = True
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     else:
       unknownArgumentExit()
+  if csvFormat:
+    addTitlesToCSVfile(headersToShow, titles)
   listType = u'messages'if entityType == EN_MESSAGE else u'threads'
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
@@ -18462,26 +18496,23 @@ def showMessagesThreads(users, entityType):
       continue
     service = gmail.users().messages() if entityType == EN_MESSAGE else gmail.users().threads()
     try:
-      labels = callGAPI(gmail.users().labels(), u'list',
-                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                        userId=user, fields=u'labels(id,name)')
-      if not labels:
-        labels = {u'labels': []}
+      if show_labels or labelNames:
+        labels = callGAPI(gmail.users().labels(), u'list',
+                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                          userId=user, fields=u'labels(id,name)')
+        if not labels:
+          labels = {u'labels': []}
       if messageIds == None:
         if labelNames:
           badLabels = []
           labelIds = []
-          labels = callGAPI(gmail.users().labels(), u'list',
-                            throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                            userId=user, fields=u'labels(id,name)')
-          if labels:
-            for j, labelName in enumerate(labelNamesLower):
-              for label in labels[u'labels']:
-                if label[u'name'].lower() == labelName:
-                  labelIds.append(label[u'id'])
-                  break
-              else:
-                badLabels.append(labelNames[j])
+          for j, labelName in enumerate(labelNamesLower):
+            for label in labels[u'labels']:
+              if label[u'name'].lower() == labelName:
+                labelIds.append(label[u'id'])
+                break
+            else:
+              badLabels.append(labelNames[j])
           if badLabels:
             entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, u'', PHRASE_LABELS_NOT_FOUND.format(u','.join(badLabels)), i, count)
             continue
@@ -18493,45 +18524,68 @@ def showMessagesThreads(users, entityType):
                                    userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
       jcount = len(listResult)
       if jcount == 0:
-        entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
+        if not csvFormat:
+          entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
         continue
       if messageIds == None:
         if maxToProcess and (jcount > maxToProcess):
           jcount = maxToProcess
-      entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
-      incrementIndentLevel()
-      if entityType == EN_MESSAGE:
-        for j in xrange(jcount):
-          pmessage = listResult[j]
-          try:
-            result = callGAPI(service, u'get',
-                              throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                              id=pmessage[u'id'], userId=u'me', format=u'metadata')
-            _printMessage(result, labels)
-          except GAPI_serviceNotAvailable:
-            pass
-      else:
-        for j in xrange(jcount):
-          pthread = listResult[j]
-          printKeyValueList([u'Snippet', pthread[u'snippet']])
-          incrementIndentLevel()
-          printKeyValueList([u'id', pthread[u'id']])
-          printKeyValueList([pluralEntityName(EN_MESSAGE)])
-          incrementIndentLevel()
-          try:
-            result = callGAPI(service, u'get',
-                              throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                              id=pthread[u'id'], userId=u'me', format=u'metadata')
-            for pmessage in result[u'messages']:
-              _printMessage(pmessage, labels)
-          except GAPI_serviceNotAvailable:
-            pass
-          decrementIndentLevel()
+      if not csvFormat:
+        entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
+        incrementIndentLevel()
+        if entityType == EN_MESSAGE:
+          for j in xrange(jcount):
+            try:
+              result = callGAPI(service, u'get',
+                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+              _showMessage(result)
+            except (GAPI_serviceNotAvailable, GAPI_badRequest):
+              pass
+        else:
+          for j in xrange(jcount):
+            pthread = listResult[j]
+            printKeyValueList([u'Snippet', pthread[u'snippet']])
+            incrementIndentLevel()
+            printKeyValueList([u'id', pthread[u'id']])
+            printKeyValueList([pluralEntityName(EN_MESSAGE)])
+            incrementIndentLevel()
+            try:
+              result = callGAPI(service, u'get',
+                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                id=pthread[u'id'], userId=u'me', format=u'metadata')
+              for pmessage in result[u'messages']:
+                _showMessage(pmessage)
+            except (GAPI_serviceNotAvailable, GAPI_badRequest):
+              pass
+            decrementIndentLevel()
+            decrementIndentLevel()
           decrementIndentLevel()
         decrementIndentLevel()
-      decrementIndentLevel()
-    except GAPI_serviceNotAvailable:
+      else:
+        if entityType == EN_MESSAGE:
+          for j in xrange(jcount):
+            try:
+              result = callGAPI(service, u'get',
+                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+              _printMessage(user, result)
+            except (GAPI_serviceNotAvailable, GAPI_badRequest):
+              pass
+        else:
+          for j in xrange(jcount):
+            try:
+              result = callGAPI(service, u'get',
+                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+              for pmessage in result[u'messages']:
+                _printMessage(user, pmessage)
+            except (GAPI_serviceNotAvailable, GAPI_badRequest):
+              pass
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
+  if csvFormat:
+    writeCSVfile(csvRows, titles, u'Messages', todrive)
 
 # Process Email Settings
 def processEmailSettings(user, i, count, service, function, **kwargs):
@@ -18738,11 +18792,11 @@ def deleteDelegate(users):
 # gam <UserTypeEntity> show delegates|delegate [csv]
 def showDelegates(users):
   emailSettingsObject = getEmailSettingsObject()
-  csv_format = False
+  csvFormat = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'csv':
-      csv_format = True
+      csvFormat = True
     else:
       unknownArgumentExit()
   i = 0
@@ -18755,7 +18809,7 @@ def showDelegates(users):
                                   delegator=delegatorName)
     if result != None:
       jcount = len(result) if (result) else 0
-      if not csv_format:
+      if not csvFormat:
         entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
         if jcount == 0:
           continue
@@ -19112,7 +19166,7 @@ def setShortCuts(users):
                            EN_KEYBOARD_SHORTCUTS, result[u'shortcuts'],
                            i, count)
 
-RT_PATTERN = re.compile(r'(?s){RT}.*?{(.*?)}.*?{/RT}')
+RT_PATTERN = re.compile(r'(?s){RT}.*?{(.+?)}.*?{/RT}')
 RT_OPEN_PATTERN = re.compile(r'{RT}')
 RT_CLOSE_PATTERN = re.compile(r'{/RT}')
 RT_STRIP_PATTERN = re.compile(r'(?s){RT}.*?{/RT}')
