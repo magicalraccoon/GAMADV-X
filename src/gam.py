@@ -18263,11 +18263,11 @@ def deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
   except GAPI_serviceNotAvailable:
     pass
 
-# gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_delete <Number>]
-# gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
-# gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_spam <Number>]
-# gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_trash <Number>]
-# gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_untrash <Number>]
+# gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageIDEntity>)
+# gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
+# gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageIDEntity>)
+# gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageIDEntity>)
+# gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageIDEntity>)
 def processMessages(users):
   labelIds = query = None
   labelNames = []
@@ -18345,12 +18345,13 @@ def processMessages(users):
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
         continue
-      if not doIt:
-        entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
-        continue
-      if jcount > maxToProcess:
-        entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_COUNT_N_EXCEEDS_MAX_TO_PROCESS_M.format(jcount, GM_Globals[GM_ACTION_TO_PERFORM], maxToProcess), i, count)
-        continue
+      if not messageIds:
+        if not doIt:
+          entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
+          continue
+        if jcount > maxToProcess:
+          entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_COUNT_N_EXCEEDS_MAX_TO_PROCESS_M.format(jcount, GM_Globals[GM_ACTION_TO_PERFORM], maxToProcess), i, count)
+          continue
       entityPerformActionNumItems(EN_USER, user, jcount, EN_MESSAGE, i, count)
       incrementIndentLevel()
       if function == u'delete':
@@ -18392,8 +18393,8 @@ def processMessages(users):
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
-# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 def showMessages(users):
   showMessagesThreads(users, EN_MESSAGE)
 
@@ -18493,8 +18494,9 @@ def showMessagesThreads(users, entityType):
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
         continue
-      if maxToProcess and (jcount > maxToProcess):
-        jcount = maxToProcess
+      if not messageIds:
+        if maxToProcess and (jcount > maxToProcess):
+          jcount = maxToProcess
       entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
       incrementIndentLevel()
       if entityType == EN_MESSAGE:

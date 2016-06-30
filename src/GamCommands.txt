@@ -952,13 +952,13 @@ gam <UserTypeEntity> update label|labels [search <PythonRegularExpression>] [rep
 gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<REPattern>|--ALL_LABELS--
 gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
 
-gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_delete <Number>]
-gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)* [doit] [max_to_modify <Number>]
-gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_spam <Number>]
-gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_trash <Number>]
-gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [doit] [max_to_untrash <Number>]
-gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
-gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)*)|(ids <MessageIDEntity>) [max_to_show <Number>] [includespamtrash]
+gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
+gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 #
 # Update user Gmail settings
 #
