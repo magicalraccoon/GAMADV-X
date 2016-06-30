@@ -9957,6 +9957,7 @@ def doUpdateContactGroup(users, entityType):
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_BAD_REQUEST, j, jcount)
       except GData_forbidden:
         entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -10004,6 +10005,7 @@ def doDeleteContactGroups(users, entityType):
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GData_forbidden:
         entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -10053,6 +10055,7 @@ def doInfoContactGroups(users, entityType):
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GData_forbidden:
         entityServiceNotApplicableWarning(entityType, user, i, count)
+        break
       except GData_serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
