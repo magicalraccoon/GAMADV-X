@@ -450,7 +450,7 @@ gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)
 
 4.16.6
 
-Credit to Steve Main suggesting the following enhancement.
+Credit to Steve Main for suggesting the following enhancement.
 64) Added argument to gam <Users> signature and gam <Users> vacation to allow pattern substitution in the signature and vacation message.
 gam <Users> signature <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
 gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
@@ -460,7 +460,7 @@ if there was no <Tag> specified that matches Text or if a <Tag> matching Text wa
 This is especially useful with CSV files.
 gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 'User' '~User' replace 'Title' '~Title'
 
-4.16.7
+4.17.0
 
 65) Added commands to print messages/threads.
 gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]

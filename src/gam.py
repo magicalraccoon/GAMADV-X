@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.16.7'
+__version__ = u'4.17.0'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -490,7 +490,7 @@ GDATA_TOKEN_EXPIRED = 608
 GDATA_TOKEN_INVALID = 403
 GDATA_UNKNOWN_ERROR = 600
 #
-GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
+GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR]
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
@@ -568,6 +568,7 @@ GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 DRIVE_API_VERSION = u'v2'
 #
 DRIVE_FILE_NAME = u'title'
+DRIVE_FILE_VIEW_LINK = u'alternateLink'
 DRIVE_FILES_LIST = u'items'
 DRIVE_CREATE_FILE = u'insert'
 DRIVE_PATCH_FILE = u'patch'
@@ -777,6 +778,7 @@ EN_THREAD = u'thre'
 EN_TOKEN = u'tokn'
 EN_TRANSFER_ID = u'trid'
 EN_TRANSFER_REQUEST = u'trnr'
+EN_TRASH = u'trsh'
 EN_UNICODE = u'unic'
 EN_UNIQUE_ID = u'uniq'
 EN_USER = u'user'
@@ -892,6 +894,7 @@ ENTITY_NAMES = {
   EN_TOKEN: [u'Tokens', u'Token'],
   EN_TRANSFER_ID: [u'Transfer IDs', u'Transfer ID'],
   EN_TRANSFER_REQUEST: [u'Transfer Requests', u'Transfer Request'],
+  EN_TRASH: [u'Trash', u'Trash'],
   EN_UNICODE: [u'UTF-8 Encoding Enabled', u'UTF-8 Encoding Enabled'],
   EN_UNIQUE_ID: [u'Unique IDs', u'Unique ID'],
   EN_USER: [u'Users', u'User'],
@@ -1105,6 +1108,7 @@ CL_OB_THREADS = u'threads'
 CL_OB_TOKEN = u'token'
 CL_OB_TOKENS = u'tokens'
 CL_OB_TRANSFERAPPS = u'transferapps'
+CL_OB_TRASH = u'trash'
 CL_OB_USER = u'user'
 CL_OB_USERS = u'users'
 CL_OB_VACATION = u'vacation'
@@ -5012,7 +5016,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
                         throw_reasons=[GAPI_INSUFFICIENT_PERMISSIONS],
                         convert=convert, body={u'description': u' '.join(CL_argv), DRIVE_FILE_NAME: u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type), u'mimeType': u'text/csv'},
                         media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True))
-      file_url = result[u'alternateLink']
+      file_url = result[DRIVE_FILE_VIEW_LINK]
       if GC_Values[GC_NO_BROWSER]:
         msg_txt = u'{0}:\n{1}'.format(PHRASE_DATA_UPLOADED_TO_DRIVE_FILE, file_url)
         msg_subj = u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
@@ -16028,6 +16032,7 @@ def getFilePath(drive, initialResult):
 
 DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'appdatacontents': u'appDataContents',
+  u'alternatelink': DRIVE_FILE_VIEW_LINK,
   u'cancomment': u'canComment',
   u'canreadrevisions': u'canReadRevisions',
   u'copyable': u'copyable',
@@ -16084,7 +16089,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   u'viewerscancopycontent': u'labels(restricted)',
   u'webcontentlink': u'webContentLink',
-  u'webviewlink': u'webViewLink',
+  u'webviewlink': DRIVE_FILE_VIEW_LINK,
   u'writerscanshare': u'writersCanShare',
   }
 
@@ -16217,7 +16222,7 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
 # gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
 def showDriveFileList(users):
   filepath = todrive = False
-  fieldsList = [DRIVE_FILE_NAME, u'alternateLink']
+  fieldsList = [DRIVE_FILE_NAME, DRIVE_FILE_VIEW_LINK]
   labelsList = []
   orderByList = []
   titles, csvRows = initializeTitlesCSVfile([u'Owner',], None)
@@ -18398,7 +18403,6 @@ def processMessages(users):
 # gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels]
 # gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
 # gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
-
 def printMessages(users):
   showMessagesThreads(users, EN_MESSAGE, True)
 
@@ -18414,7 +18418,7 @@ def showThreads(users):
 def showMessagesThreads(users, entityType, csvFormat):
 
   def _showMessage(result):
-    printKeyValueList([u'Snippet', result[u'snippet']])
+    printKeyValueList([u'Snippet', dehtml(result[u'snippet']).replace(u'\n', u' ')])
     incrementIndentLevel()
     printKeyValueList([u'id', result[u'id']])
     for name in headersToShow:
@@ -18459,7 +18463,7 @@ def showMessagesThreads(users, entityType, csvFormat):
   maxToProcess = 0
   show_labels = False
   messageIds = None
-  headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
+  headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type']
   todrive = False
   titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
   while CL_argvI < CL_argvLen:
@@ -20088,8 +20092,8 @@ USER_COMMANDS_WITH_OBJECTS = {
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
         CL_OB_MESSAGE:	CL_OB_MESSAGES,
-        CL_OB_THREAD:	CL_OB_THREADS,
         CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_THREAD:	CL_OB_THREADS,
         CL_OB_USER:	CL_OB_USERS,
        },
     },
