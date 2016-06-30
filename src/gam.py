@@ -18399,10 +18399,10 @@ def processMessages(users):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels]
-# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels]
-# gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
-# gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [showsnippet]
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [showsnippet]
+# gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [showsnippet] [todrive] [idfirst]
+# gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [showsnippet] [todrive] [idfirst]
 def printMessages(users):
   showMessagesThreads(users, EN_MESSAGE, True)
 
@@ -18418,9 +18418,10 @@ def showThreads(users):
 def showMessagesThreads(users, entityType, csvFormat):
 
   def _showMessage(result):
-    printKeyValueList([u'Snippet', dehtml(result[u'snippet']).replace(u'\n', u' ')])
-    incrementIndentLevel()
     printKeyValueList([u'id', result[u'id']])
+    incrementIndentLevel()
+    if show_snippet:
+      printKeyValueList([u'Snippet', dehtml(result[u'snippet']).replace(u'\n', u' ')])
     for name in headersToShow:
       for header in result[u'payload'][u'headers']:
         if name == header[u'name'].lower():
@@ -18437,6 +18438,8 @@ def showMessagesThreads(users, entityType, csvFormat):
 
   def _printMessage(user, result):
     row = {u'User': user, u'threadId': result[u'threadId'], u'id': result[u'id']}
+    if show_snippet:
+      row[u'Snippet'] = dehtml(result[u'snippet']).replace(u'\n', u' ')
     for name in headersToShow:
       j = 0
       for header in result[u'payload'][u'headers']:
@@ -18461,7 +18464,7 @@ def showMessagesThreads(users, entityType, csvFormat):
   labelNamesLower = []
   includeSpamTrash = False
   maxToProcess = 0
-  show_labels = False
+  show_labels = show_snippet = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type']
   todrive = False
@@ -18486,6 +18489,12 @@ def showMessagesThreads(users, entityType, csvFormat):
       headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
     elif myarg == u'showlabels':
       show_labels = True
+      if csvFormat:
+        addTitleToCSVfile(u'Labels', titles)
+    elif myarg == u'showsnippet':
+      show_snippet = True
+      if csvFormat:
+        addTitleToCSVfile(u'Snippet', titles)
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     else:
@@ -18560,9 +18569,10 @@ def showMessagesThreads(users, entityType, csvFormat):
         else:
           for j in xrange(jcount):
             pthread = listResult[j]
-            printKeyValueList([u'Snippet', pthread[u'snippet']])
-            incrementIndentLevel()
             printKeyValueList([u'id', pthread[u'id']])
+            incrementIndentLevel()
+            if show_snippet:
+              printKeyValueList([u'Snippet', dehtml(pthread[u'snippet']).replace(u'\n', u' ')])
             printKeyValueList([pluralEntityName(EN_MESSAGE)])
             incrementIndentLevel()
             try:
