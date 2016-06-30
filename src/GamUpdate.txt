@@ -434,8 +434,8 @@ The output of the command gam <Users> print contacts has not changed.
 4.16.4
 
 62) Added commands to show messages/threads.
-gam <UserTypeEntity> show message|messages query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
-gam <UserTypeEntity> show thread|threads query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash]
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels]
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels]
 
 4.16.5
 
@@ -459,6 +459,12 @@ Every instance of {<Tag>} in the signature/message will be replaced by <String>.
 if there was no <Tag> specified that matches Text or if a <Tag> matching Text was specified but the matching <String> is empty.
 This is especially useful with CSV files.
 gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 'User' '~User' replace 'Title' '~Title'
+
+4.16.7
+
+65) Added commands to print messages/threads.
+gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
+gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
 
 *** Calendar Enhancements ***
 

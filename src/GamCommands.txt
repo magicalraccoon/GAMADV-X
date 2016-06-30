@@ -958,8 +958,10 @@ gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelNa
 gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageIDEntity>)
-gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [csv] [todrive] [idfirst]
-gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [csv] [todrive] [idfirst]
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels]
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels]
+gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
+gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
 #
 # Update user Gmail settings
 #

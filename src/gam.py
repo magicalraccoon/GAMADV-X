@@ -18394,16 +18394,24 @@ def processMessages(users):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [csv] [todrive] [idfirst]
-# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [csv] [todrive] [idfirst]
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels]
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels]
+# gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
+# gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [threads <String>] [showlabels] [todrive] [idfirst]
+
+def printMessages(users):
+  showMessagesThreads(users, EN_MESSAGE, True)
+
+def printThreads(users):
+  showMessagesThreads(users, EN_THREAD, True)
 
 def showMessages(users):
-  showMessagesThreads(users, EN_MESSAGE)
+  showMessagesThreads(users, EN_MESSAGE, False)
 
 def showThreads(users):
-  showMessagesThreads(users, EN_THREAD)
+  showMessagesThreads(users, EN_THREAD, False)
 
-def showMessagesThreads(users, entityType):
+def showMessagesThreads(users, entityType, csvFormat):
 
   def _showMessage(result):
     printKeyValueList([u'Snippet', result[u'snippet']])
@@ -18449,16 +18457,14 @@ def showMessagesThreads(users, entityType):
   show_labels = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To']
-  csvFormat = todrive = False
+  todrive = False
   titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'todrive':
+    if csvFormat and myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
+    elif csvFormat and myarg == u'idfirst':
       pass
-    elif myarg == u'csv':
-      csvFormat = True
     elif myarg == u'query':
       query = getString(OB_QUERY)
     elif myarg == u'matchlabel':
@@ -20067,13 +20073,17 @@ USER_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {CL_OB_CONTACTS:	printUserContacts,
         CL_OB_CONTACT_GROUPS:	printUserContactGroups,
+        CL_OB_MESSAGES:	printMessages,
         CL_OB_SITES:	printUserSites,
         CL_OB_SITEACTIVITY:	printUserSiteActivity,
+        CL_OB_THREADS:	printThreads,
         CL_OB_USERS:	doPrintUserEntity,
        },
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
+        CL_OB_MESSAGE:	CL_OB_MESSAGES,
+        CL_OB_THREAD:	CL_OB_THREADS,
         CL_OB_SITE:	CL_OB_SITES,
         CL_OB_USER:	CL_OB_USERS,
        },
