@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.0'
+__version__ = u'4.17.1'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -711,8 +711,9 @@ EN_DRIVE_FILE_OR_FOLDER = u'fifo'
 EN_DRIVE_FILE_OR_FOLDER_ACL = u'fiac'
 EN_DRIVE_FOLDER = u'fold'
 EN_DRIVE_FOLDER_ID = u'foli'
-EN_DRIVE_PATH = u'path'
-EN_DRIVE_SETTINGS = u'driv'
+EN_DRIVE_PATH = u'drvp'
+EN_DRIVE_SETTINGS = u'drvs'
+EN_DRIVE_TRASH = u'drvt'
 EN_EMAIL = u'emai'
 EN_EMAIL_ALIAS = u'emal'
 EN_EMAIL_SETTINGS = u'emse'
@@ -778,7 +779,6 @@ EN_THREAD = u'thre'
 EN_TOKEN = u'tokn'
 EN_TRANSFER_ID = u'trid'
 EN_TRANSFER_REQUEST = u'trnr'
-EN_TRASH = u'trsh'
 EN_UNICODE = u'unic'
 EN_UNIQUE_ID = u'uniq'
 EN_USER = u'user'
@@ -829,6 +829,7 @@ ENTITY_NAMES = {
   EN_DRIVE_FOLDER_ID: [u'Drive Folder IDs', u'Drive Folder ID'],
   EN_DRIVE_PATH: [u'Drive Paths', u'Drive Path'],
   EN_DRIVE_SETTINGS: [u'Drive Settings', u'Drive Settings'],
+  EN_DRIVE_TRASH: [u'Drive Trash', u'Drive Trash'],
   EN_EMAIL: [u'Email Addresses', u'Email Address'],
   EN_EMAIL_ALIAS: [u'Email Aliases', u'Email Alias'],
   EN_EMAIL_SETTINGS: [u'Email Settings', u'Email Settings'],
@@ -894,7 +895,6 @@ ENTITY_NAMES = {
   EN_TOKEN: [u'Tokens', u'Token'],
   EN_TRANSFER_ID: [u'Transfer IDs', u'Transfer ID'],
   EN_TRANSFER_REQUEST: [u'Transfer Requests', u'Transfer Request'],
-  EN_TRASH: [u'Trash', u'Trash'],
   EN_UNICODE: [u'UTF-8 Encoding Enabled', u'UTF-8 Encoding Enabled'],
   EN_UNIQUE_ID: [u'Unique IDs', u'Unique ID'],
   EN_USER: [u'Users', u'User'],
@@ -1056,6 +1056,7 @@ CL_OB_DRIVEACTIVITY = u'driveactivity'
 CL_OB_DRIVEFILE = u'drivefile'
 CL_OB_DRIVEFILEACL = u'drivefileacl'
 CL_OB_DRIVESETTINGS = u'drivesettings'
+CL_OB_DRIVETRASH = u'drivetrash'
 CL_OB_EMPTYDRIVEFOLDERS = u'emptydrivefolders'
 CL_OB_FILEINFO = u'fileinfo'
 CL_OB_FILELIST = u'filelist'
@@ -1108,7 +1109,6 @@ CL_OB_THREADS = u'threads'
 CL_OB_TOKEN = u'token'
 CL_OB_TOKENS = u'tokens'
 CL_OB_TRANSFERAPPS = u'transferapps'
-CL_OB_TRASH = u'trash'
 CL_OB_USER = u'user'
 CL_OB_USERS = u'users'
 CL_OB_VACATION = u'vacation'
@@ -17087,6 +17087,23 @@ def deleteEmptyDriveFolders(users):
       break
     decrementIndentLevel()
 
+# gam <UserTypeEntity> empty drivetrash
+def emptyDriveTrash(users):
+  checkForExtraneousArguments()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user, drive = buildDriveGAPIObject(user)
+    if not drive:
+      continue
+    try:
+      callGAPI(drive.files(), u'emptyTrash',
+               throw_reasons=GAPI_DRIVE_THROW_REASONS)
+      entityItemValueActionPerformed(EN_USER, user, EN_DRIVE_TRASH, None, i, count)
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
+
 # Utilities for DriveFileACL commands
 def printPermission(permission):
   if DRIVE_PERMISSIONS_NAME in permission:
@@ -20047,6 +20064,15 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'tokens':	CL_OB_TOKEN,
         u'3lo':		CL_OB_TOKEN,
         u'oauth':	CL_OB_TOKEN,
+       },
+    },
+  u'empty':
+    {CMD_ACTION: AC_EMPTY,
+     CMD_FUNCTION:
+       {CL_OB_DRIVETRASH:	emptyDriveTrash,
+       },
+     CMD_OBJ_ALIASES:
+       {
        },
     },
   u'get':

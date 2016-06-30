@@ -912,6 +912,7 @@ gam <UserTypeEntity> undelete drivefile <DriveFileEntity>
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
 gam <UserTypeEntity> delete|del emptydrivefolders
+gam <UserTypeEntity> empty drivetrash
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink] [sendmail] [emailmessage <String>] [showtitles]
