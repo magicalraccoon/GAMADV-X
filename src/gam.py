@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.1'
+__version__ = u'4.17.2'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -3472,8 +3472,7 @@ def handleOAuthTokenError(e, soft_errors):
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
 
 def getClientCredentials(oauth2Scope):
-  storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-  credentials = storage.get()
+  credentials = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
   if not credentials or credentials.invalid:
     systemErrorExit(OAUTH2_TXT_REQUIRED_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT))
   credentials.user_agent = GAM_INFO
@@ -5456,8 +5455,7 @@ OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 def revokeCredentials():
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
   for oauth2Scope in OAUTH2_SCOPES_LIST:
-    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-    credentials = storage.get()
+    credentials = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
     if credentials and not credentials.invalid:
       credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
       try:
@@ -5483,8 +5481,7 @@ See this site for instructions:
   num_scopes = len(OAUTH2_SCOPES)
   selected_scopes = [u' '] * num_scopes
   for oauth2Scope in OAUTH2_SCOPES_LIST:
-    storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
-    credentials = storage.get()
+    credentials = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
     if credentials and not credentials.invalid:
       currentScopes = sorted(credentials.scopes)
       for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
@@ -5631,10 +5628,8 @@ def doOAuthInfo():
   else:
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
       printKeyValueList([singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
-      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GAPI_SCOPES)
-      gapiCredentials = storage.get()
-      storage = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GDATA_SCOPES)
-      gdataCredentials = storage.get()
+      gapiCredentials = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GAPI_SCOPES).get()
+      gdataCredentials = oauth2client.contrib.multistore_file.get_credential_storage_custom_string_key(GC_Values[GC_OAUTH2_TXT], OAUTH2_GDATA_SCOPES).get()
       if (gapiCredentials and not gapiCredentials.invalid and
           gdataCredentials and not gdataCredentials.invalid and
           gapiCredentials.client_id == gdataCredentials.client_id and
