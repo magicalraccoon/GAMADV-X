@@ -377,8 +377,8 @@ If an item contains spaces, it should be surrounded by " or '.
 
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<ContactEntity> ::= <ContactIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+<ContactEntity> ::= <ContactIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CourseEntity> ::= <CourseIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CrOSEntity> ::= <CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>

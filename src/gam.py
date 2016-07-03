@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.2'
+__version__ = u'4.17.3'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -9551,10 +9551,13 @@ def doDeleteDomainContacts():
 def doDeleteContacts(users, entityType):
   contactsManager = ContactsManager()
   entityList, contactsQuery, contactGroup = getContactsList()
+  contactIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if contactIdLists:
+      entityList = contactIdLists[user]
     user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
@@ -9610,10 +9613,13 @@ def doInfoDomainContacts():
 def doInfoContacts(users, entityType):
   contactsManager = ContactsManager()
   entityList, contactsQuery, contactGroup = getContactsList()
+  contactIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if contactIdLists:
+      entityList = contactIdLists[user]
     user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
@@ -9965,10 +9971,13 @@ def deleteUserContactGroups(users):
 def doDeleteContactGroups(users, entityType):
   contactsManager = ContactsManager()
   entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, noSpaceSplit=True)
+  contactGroupIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if contactGroupIdLists:
+      entityList = contactGroupIdLists[user]
     user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
@@ -10013,10 +10022,13 @@ def infoUserContactGroups(users):
 def doInfoContactGroups(users, entityType):
   contactsManager = ContactsManager()
   entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, noSpaceSplit=True)
+  contactGroupIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
   for user in users:
     i += 1
+    if contactGroupIdLists:
+      entityList = contactGroupIdLists[user]
     user, contactsObject = getContactsObject(entityType, user, i, count)
     if not contactsObject:
       continue
