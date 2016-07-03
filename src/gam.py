@@ -12252,11 +12252,11 @@ def doUpdateSites(users, entityType):
   count = len(users)
   for user in users:
     i += 1
+    if siteLists:
+      sites = siteLists[user]
     user, sitesObject = getSitesObject(entityType, user, i, count)
     if not sitesObject:
       continue
-    if siteLists:
-      sites = siteLists[user]
     jcount = len(sites)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
     if jcount == 0:
@@ -12340,11 +12340,11 @@ def doInfoSites(users, entityType):
   count = len(users)
   for user in users:
     i += 1
+    if siteLists:
+      sites = siteLists[user]
     user, sitesObject = getSitesObject(entityType, user, i, count)
     if not sitesObject:
       continue
-    if siteLists:
-      sites = siteLists[user]
     jcount = len(sites)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
     if jcount == 0:
@@ -12501,11 +12501,11 @@ def doProcessSiteACLs(users, entityType):
   count = len(users)
   for user in users:
     i += 1
+    if siteLists:
+      sites = siteLists[user]
     user, sitesObject = getSitesObject(entityType, user, i, count)
     if not sitesObject:
       continue
-    if siteLists:
-      sites = siteLists[user]
     jcount = len(sites)
     entityPerformActionModifierNumItems(entityType, user, u'{0} {1}'.format(pluralEntityName(EN_ACL), PHRASE_FOR), jcount, EN_SITE, i, count)
     if jcount == 0:
@@ -12629,11 +12629,11 @@ def doPrintSiteActivity(users, entityType):
   count = len(users)
   for user in users:
     i += 1
+    if siteLists:
+      sites = siteLists[user]
     user, sitesObject = getSitesObject(entityType, user, i, count)
     if not sitesObject:
       continue
-    if siteLists:
-      sites = siteLists[user]
     jcount = len(sites)
     if jcount == 0:
       continue

@@ -386,7 +386,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <GroupEntity> ::= <GroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<MessageEntity> ::= <MessageIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+<MessageEntity> ::= <MessageIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <MobileEntity> ::= <MobileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <OrgUnitEntity> ::= <OrgUnitList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <PrinterIDEntity> ::= <PrinterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
@@ -394,7 +394,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ResourceEntity> ::= <ResourceIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <SchemaEntity> ::= <SchemaNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <SiteEntity> ::= <SiteList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<ThreadEntity> ::= <ThreadIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
+<ThreadEntity> ::= <ThreadIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <UserEntity> ::= <UserList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 
 # Item attributes
@@ -954,15 +954,15 @@ gam <UserTypeEntity> update label|labels [search <PythonRegularExpression>] [rep
 gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<REPattern>|--ALL_LABELS--
 gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
 
-gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageIDEntity>)
-gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
-gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageIDEntity>)
-gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageIDEntity>)
-gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageIDEntity>)
-gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet]
-gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet]
-gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
-gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
+gam <UserTypeEntity> delete message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_delete <Number>])|(ids <MessageEntity>)
+gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_modify <Number>])|(ids <MessageEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
+gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageEntity>)
+gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageEntity>)
+gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageEntity>)
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsnippet]
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsnippet]
+gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
+gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
 #
 # Update user Gmail settings
 #
