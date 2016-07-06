@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.3'
+__version__ = u'4.17.4'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -3639,7 +3639,7 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
 }
 
 def callGData(service, function,
-              soft_errors=False, throw_errors=[],
+              soft_errors=False, throw_errors=[], retry_errors=[],
               **kwargs):
   import gdata.apps.service
   method = getattr(service, function)
@@ -3653,7 +3653,7 @@ def callGData(service, function,
         if error_code in GDATA_ERROR_CODE_EXCEPTION_MAP:
           raise GDATA_ERROR_CODE_EXCEPTION_MAP[error_code](error_message)
         raise
-      if (n != retries) and (error_code in GDATA_NON_TERMINATING_ERRORS):
+      if (n != retries) and (error_code in GDATA_NON_TERMINATING_ERRORS+retry_errors):
         waitOnFailure(n, retries, error_code, error_message)
         continue
       if soft_errors:
@@ -3668,7 +3668,7 @@ def callGData(service, function,
 
 def callGDataPages(service, function,
                    page_message=None,
-                   soft_errors=False, throw_errors=[],
+                   soft_errors=False, throw_errors=[], retry_errors=[],
                    uri=None,
                    **kwargs):
   nextLink = None
@@ -3676,7 +3676,7 @@ def callGDataPages(service, function,
   total_items = 0
   while True:
     this_page = callGData(service, function,
-                          soft_errors=soft_errors, throw_errors=throw_errors,
+                          soft_errors=soft_errors, throw_errors=throw_errors, retry_errors=retry_errors,
                           uri=uri,
                           **kwargs)
     if this_page:
@@ -9792,6 +9792,7 @@ def doPrintContacts(users, entityType):
       contacts = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
                                 throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                                retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                 uri=uri, url_params=url_params)
       if contacts:
         for contact in contacts:
