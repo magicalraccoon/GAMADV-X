@@ -18482,10 +18482,10 @@ def processMessages(users):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet]
-# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet]
-# gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
-# gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
+# gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+# gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+# gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
+# gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
 def printMessages(users):
   showMessagesThreads(users, EN_MESSAGE, True)
 
@@ -18509,6 +18509,8 @@ def showMessagesThreads(users, entityType, csvFormat):
       for header in result[u'payload'][u'headers']:
         if name == header[u'name'].lower():
           printKeyValueList([header[u'name'], header[u'value']])
+    if show_size:        
+      printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])      
     if show_labels:
       messageLabels = []
       for labelId in result[u'labelIds']:
@@ -18532,6 +18534,8 @@ def showMessagesThreads(users, entityType, csvFormat):
             row[header[u'name']] = header[u'value']
           else:
             row[u'{0} {1}'.format(header[u'name'], j)] = header[u'value']
+    if show_size:        
+      row[u'SizeEstimate'] = result[u'sizeEstimate']
     if show_labels:
       messageLabels = []
       for labelId in result[u'labelIds']:
@@ -18547,7 +18551,7 @@ def showMessagesThreads(users, entityType, csvFormat):
   labelNamesLower = []
   includeSpamTrash = False
   maxToProcess = 0
-  show_labels = show_snippet = False
+  show_labels = show_size = show_snippet = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-Id']
   todrive = False
@@ -18574,6 +18578,10 @@ def showMessagesThreads(users, entityType, csvFormat):
       show_labels = True
       if csvFormat:
         addTitleToCSVfile(u'Labels', titles)
+    elif myarg == u'showsize':
+      show_size = True
+      if csvFormat:
+        addTitleToCSVfile(u'SizeEstimate', titles)
     elif myarg == u'showsnippet':
       show_snippet = True
       if csvFormat:

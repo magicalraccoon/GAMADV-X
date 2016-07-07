@@ -959,10 +959,10 @@ gam <UserTypeEntity> modify message|messages (query <Query> (matchlabel <LabelNa
 gam <UserTypeEntity> spam message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_spam <Number>])|(ids <MessageEntity>)
 gam <UserTypeEntity> trash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_trash <Number>])|(ids <MessageEntity>)
 gam <UserTypeEntity> untrash message|messages (query <Query> (matchlabel <LabelName>)* [doit] [max_to_untrash <Number>])|(ids <MessageEntity>)
-gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsnippet]
-gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsnippet]
-gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
-gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsnippet] [todrive] [idfirst]
+gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
+gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <ThreadEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
 #
 # Update user Gmail settings
 #

@@ -473,6 +473,11 @@ gam <UserTypeEntity> empty drivetrash
 
 67) Handle errors when contact commands are applied to aliases.
 
+4.17.7
+
+68) Added Message-Id to default list of message headers in print/show messages.
+Added showsize argument to gam print/show messages to have message size output/
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
