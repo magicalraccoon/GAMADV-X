@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.5'
+__version__ = u'4.17.6'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -3665,6 +3665,14 @@ def callGData(service, function,
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GDATA_SERVICE_NOT_APPLICABLE in throw_errors)
       raise GDATA_ERROR_CODE_EXCEPTION_MAP[GDATA_SERVICE_NOT_APPLICABLE](e.message)
+    except socket.error as e:
+      if n != retries:
+        waitOnFailure(n, retries, e.errno, e.strerror)
+        continue
+      if soft_errors:
+        stderrErrorMsg(u'{0} - {1}{2}'.format(e.errno, e.strerror, [u'', u': Giving up.\n'][n > 1]))
+        return None
+      systemErrorExit(SOCKET_ERROR_RC, e.strerror)
 
 def callGDataPages(service, function,
                    page_message=None,
@@ -3677,8 +3685,7 @@ def callGDataPages(service, function,
   while True:
     this_page = callGData(service, function,
                           soft_errors=soft_errors, throw_errors=throw_errors, retry_errors=retry_errors,
-                          uri=uri,
-                          **kwargs)
+                          uri=uri, **kwargs)
     if this_page:
       nextLink = this_page.GetNextLink()
       page_items = len(this_page.entry)
@@ -3688,11 +3695,14 @@ def callGDataPages(service, function,
       nextLink = None
       page_items = 0
     if page_message:
-      show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-      show_message = show_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
+      if NUM_ITEMS_MARKER in page_message:
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
+        count = page_items if nextLink else total_items
+      else:
+        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
+        count = total_items
       sys.stderr.write(u'\r')
       sys.stderr.flush()
-      count = page_items if nextLink else total_items
       gettingItemInfo = GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]]
       sys.stderr.write(show_message.format(gettingItemInfo))
     if nextLink is None:
@@ -3972,18 +3982,28 @@ def callGAPI(service, function,
       raise GAPI_REASON_EXCEPTION_MAP[GAPI_SERVICE_NOT_AVAILABLE](e.message)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
+    except socket.error as e:
+      if n != retries:
+        waitOnFailure(n, retries, e.errno, e.strerror)
+        continue
+      if soft_errors:
+        stderrErrorMsg(u'{0} - {1}{2}'.format(e.errno, e.strerror, [u'', u': Giving up.\n'][n > 1]))
+        return None
+      systemErrorExit(SOCKET_ERROR_RC, e.strerror)
     except TypeError as e:
       systemErrorExit(GOOGLE_API_ERROR_RC, e)
 
 def callGAPIpages(service, function, items,
                   page_message=None, message_attribute=None,
-                  throw_reasons=[],
+                  throw_reasons=[], retry_reasons=[],
                   **kwargs):
   pageToken = None
   all_pages = list()
   total_items = 0
   while True:
-    this_page = callGAPI(service, function, throw_reasons=throw_reasons, pageToken=pageToken, **kwargs)
+    this_page = callGAPI(service, function,
+                         throw_reasons=throw_reasons, retry_reasons=retry_reasons,
+                         pageToken=pageToken, **kwargs)
     if this_page:
       pageToken = this_page.get(u'nextPageToken')
       if items in this_page:
@@ -3998,8 +4018,12 @@ def callGAPIpages(service, function, items,
       this_page = {items: []}
       page_items = 0
     if page_message:
-      show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-      show_message = show_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
+      if NUM_ITEMS_MARKER in page_message:
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
+        count = page_items if pageToken else total_items
+      else:
+        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
+        count = total_items
       if message_attribute:
         try:
           show_message = show_message.replace(FIRST_ITEM_MARKER, str(this_page[items][0][message_attribute]))
@@ -4009,7 +4033,6 @@ def callGAPIpages(service, function, items,
           show_message = show_message.replace(LAST_ITEM_MARKER, u'')
       sys.stderr.write(u'\r')
       sys.stderr.flush()
-      count = page_items if pageToken else total_items
       gettingItemInfo = GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]]
       sys.stderr.write(show_message.format(gettingItemInfo))
     if not pageToken:
@@ -20389,7 +20412,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
   except KeyboardInterrupt:
     setSysExitRC(KEYBOARD_INTERRUPT_RC)
   except socket.error as e:
-    printErrorMessage(SOCKET_ERROR_RC, e.strerror)
+    printErrorMessage(SOCKET_ERROR_RC, u'{0} - {1}'.format(e.errno, e.strerror))
   except MemoryError:
     printErrorMessage(MEMORY_ERROR_RC, MESSAGE_GAM_OUT_OF_MEMORY)
   except SystemExit as e:
