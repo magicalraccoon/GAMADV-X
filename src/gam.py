@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.4'
+__version__ = u'4.17.5'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -496,7 +496,7 @@ GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GD
 # oauth errors
 OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
                        u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID',
-                       u'invalid_request: Invalid impersonation prn email address.']
+                       u'invalid_request: Invalid impersonation prn email address.', u'internal_failure: Backend Error']
 # callGAPI throw reasons
 GAPI_ABORTED = u'aborted'
 GAPI_ALREADY_EXISTS = u'alreadyExists'
@@ -4210,7 +4210,7 @@ def getGDataUserCredentials(api, user, i=0, count=0):
   userEmail = convertUserUIDtoEmailAddress(user)
   _, _, api_version = getAPIVersion(api)
   disc_file, discovery = readDiscoveryFile(api_version)
-  GM_Globals[GM_CURRENT_API_USER] = None
+  GM_Globals[GM_CURRENT_API_USER] = userEmail
   credentials = getClientCredentials(OAUTH2_GDATA_SCOPES)
   try:
     GM_Globals[GM_CURRENT_API_SCOPES] = list(set(discovery[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
@@ -4225,7 +4225,6 @@ def getGDataUserCredentials(api, user, i=0, count=0):
     return (userEmail, credentials)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(NETWORK_ERROR_RC, e)
-
   except oauth2client.client.AccessTokenRefreshError as e:
     handleOAuthTokenError(e, True)
     entityUnknownWarning(EN_USER, userEmail, i, count)
