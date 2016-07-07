@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.7'
+__version__ = u'4.17.8'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -9410,6 +9410,7 @@ def queryContacts(contactsObject, contactsQuery, entityType, user, i=0, count=0)
     entityList = callGDataPages(contactsObject, u'GetContactsFeed',
                                 page_message=page_message,
                                 throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                                retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                 uri=uri, url_params=contactsQuery[u'url_params'])
     return entityList
   except GData_badRequest:
@@ -9427,6 +9428,7 @@ def getContactGroupsInfo(contactsManager, contactsObject, entityType, entityName
   try:
     groups = callGDataPages(contactsObject, u'GetGroupsFeed',
                             throw_errors=[GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                            retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             uri=uri)
     if groups:
       for group in groups:
@@ -9497,6 +9499,7 @@ def doCreateContact(users, entityType):
     try:
       contact = callGData(contactsObject, u'CreateContact',
                           throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                          retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                           new_contact=contactEntry, insert_uri=contactsObject.GetContactFeedUri(contact_list=user))
       entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactsManager.GetContactShortId(contact), i, count)
     except GData_badRequest:
@@ -9535,6 +9538,7 @@ def doUpdateContacts(users, entityType):
       try:
         contact = callGData(contactsObject, u'GetContact',
                             throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                            retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         fields = contactsManager.ContactToFields(contact)
         for field in update_fields:
@@ -9607,6 +9611,7 @@ def doDeleteContacts(users, entityType):
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         else:
           contactId = contactsManager.GetContactShortId(contact)
@@ -9670,6 +9675,7 @@ def doInfoContacts(users, entityType):
           contactId = contact
           contact = callGData(contactsObject, u'GetContact',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         fields = contactsManager.ContactToFields(contact)
         printEntityName(EN_CONTACT, fields[CONTACT_ID], j, jcount)
@@ -9916,6 +9922,7 @@ def doCreateContactGroup(users, entityType):
     try:
       group = callGData(contactsObject, u'CreateGroup',
                         throw_errors=[GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                        retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                         new_group=contactGroup, insert_uri=contactsObject.GetContactGroupFeedUri(contact_list=user))
       entityItemValueActionPerformed(entityType, user, EN_CONTACT_GROUP, contactsManager.GetContactShortId(group), i, count)
     except GData_badRequest:
@@ -9962,6 +9969,7 @@ def doUpdateContactGroup(users, entityType):
       try:
         group = callGData(contactsObject, u'GetGroup',
                           throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                          retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         fields = contactsManager.ContactGroupToFields(group)
         for field in update_fields:
@@ -10023,6 +10031,7 @@ def doDeleteContactGroups(users, entityType):
         contactGroup = contactGroupIDs.get(groupId, contactGroup)
         group = callGData(contactsObject, u'GetGroup',
                           throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                          retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         callGData(contactsObject, u'DeleteGroup',
                   throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
@@ -10074,6 +10083,7 @@ def doInfoContactGroups(users, entityType):
         contactGroup = contactGroupIDs.get(groupId, contactGroup)
         group = callGData(contactsObject, u'GetGroup',
                           throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                          retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                           uri=contactsObject.GetContactGroupFeedUri(contact_list=user, groupId=groupId))
         fields = contactsManager.ContactGroupToFields(group)
         printEntityName(EN_CONTACT_GROUP, fields[CONTACT_GROUP_NAME], j, jcount)
@@ -10134,6 +10144,7 @@ def doPrintContactGroups(users, entityType):
       groups = callGDataPages(contactsObject, u'GetGroupsFeed',
                               page_message=page_message,
                               throw_errors=[GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=uri, url_params=url_params)
       if groups:
         for group in groups:
