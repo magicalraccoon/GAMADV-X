@@ -1440,6 +1440,7 @@ PHRASE_DOMAIN_NOT_VERIFIED_SECONDARY = u'Domain is not a verified secondary doma
 PHRASE_DO_NOT_EXIST = u'Do not exist'
 PHRASE_DUPLICATE = u'Duplicate'
 PHRASE_EITHER = u'Either'
+PHRASE_ENTITY_DOES_NOT_EXIST = u'{0} does not exist'
 PHRASE_ERROR = u'error'
 PHRASE_EXPECTED = u'Expected'
 PHRASE_FAILED_TO_PARSE_AS_JSON = u'Failed to parse as JSON'
@@ -6317,7 +6318,7 @@ def getOrgUnitId(cd):
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
 
-ADMIN_SCOPE_TYPE_CHOICE_MAP = {u'customer': u'CUSTOMER', u'orgunit': u'ORG_UNIT', u'org': u'ORG_UNIT', u'ou': u'ORG_UNIT',}
+ADMIN_SCOPE_TYPE_CHOICE_MAP = {u'customer': u'CUSTOMER', u'orgunit': u'ORG_UNIT', u'org': u'ORG_UNIT', u'ou': u'ORG_UNIT'}
 
 # gam create admin <UserItem> <RoleItem> customer|(org_unit <OrgUnitItem>)
 def doCreateAdmin():
@@ -6817,13 +6818,14 @@ def doCreateOrg():
     else:
       body[u'parentOrgUnitPath'] = u'/'
       body[u'name'] = orgUnitPath[1:]
+    parent = body[u'parentOrgUnitPath']
   try:
     callGAPI(cd.orgunits(), u'insert',
              throw_reasons=[GAPI_INVALID_PARENT_ORGUNIT, GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
              customerId=GC_Values[GC_CUSTOMER_ID], body=body)
     entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
   except GAPI_invalidParentOrgUnit:
-    entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_PARENT_ORGANIZATIONAL_UNIT, body.get(u'parentOrgUnitPath', body[u'parentOrgUnitId']), PHRASE_DOES_NOT_EXIST)
+    entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_PARENT_ORGANIZATIONAL_UNIT, parent, PHRASE_ENTITY_DOES_NOT_EXIST.format(singularEntityName(EN_PARENT_ORGANIZATIONAL_UNIT)))
   except (GAPI_invalidOrgUnit, GAPI_backendError):
     entityDuplicateWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
