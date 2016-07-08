@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.8'
+__version__ = u'4.17.9'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -133,6 +133,7 @@ GM_CSV_DATA_FIELD = u'csdf'
 # printGetting... globals, set so that callGAPIpages has access to them for status messages
 GM_GETTING_ENTITY_ITEM = u'gtei'
 GM_GETTING_FOR_WHOM = u'gtfw'
+GM_GETTING_SHOW_TOTAL = u'gtst'
 # Control indented printing
 GM_INDENT_LEVEL = u'inlv'
 GM_INDENT_SPACES = u'insp'
@@ -178,6 +179,7 @@ GM_Globals = {
   GM_ENTITY_CL_INDEX: 1,
   GM_GETTING_ENTITY_ITEM: u'',
   GM_GETTING_FOR_WHOM: u'',
+  GM_GETTING_SHOW_TOTAL: True,
   GM_INDENT_LEVEL: 0,
   GM_INDENT_SPACES: u'',
   GM_ACTION_COMMAND: u'',
@@ -526,6 +528,7 @@ GAPI_INVALID_CUSTOMER_ID = u'invalidCustomerId'
 GAPI_INVALID_INPUT = u'invalidInput'
 GAPI_INVALID_MEMBER = u'invalidMember'
 GAPI_INVALID_ORGUNIT = u'invalidOrgunit'
+GAPI_INVALID_PARENT_ORGUNIT = u'invalidParentOrgunit'
 GAPI_INVALID_QUERY = u'invalidQuery'
 GAPI_INVALID_RESOURCE = u'invalidResource'
 GAPI_INVALID_SCHEMA_VALUE = u'invalidSchemaValue'
@@ -746,6 +749,7 @@ EN_NOTIFICATION = u'noti'
 EN_OAUTH2_TXT_FILE = u'oaut'
 EN_ORGANIZATIONAL_UNIT = u'orgu'
 EN_PAGE_SIZE = u'page'
+EN_PARENT_ORGANIZATIONAL_UNIT = u'porg'
 EN_PARTICIPANT = u'part'
 EN_PERMISSIONS = u'perm'
 EN_PERMISSION_ID = u'peid'
@@ -862,6 +866,7 @@ ENTITY_NAMES = {
   EN_OAUTH2_TXT_FILE: [u'Client OAuth2 File', u'Client OAuth2 File'],
   EN_ORGANIZATIONAL_UNIT: [u'Organizational Units', u'Organizational Unit'],
   EN_PAGE_SIZE: [u'Page Size', u'Page Size'],
+  EN_PARENT_ORGANIZATIONAL_UNIT: [u'Parent Organizational Units', u'Parent Organizational Unit'],
   EN_PARTICIPANT: [u'Participants', u'Participant'],
   EN_PERMISSIONS: [u'Permissions', u'Permissions'],
   EN_PERMISSION_ID: [u'Permission IDs', u'Permission ID'],
@@ -1447,6 +1452,7 @@ PHRASE_GETTING = u'Getting'
 PHRASE_GETTING_ALL = u'Getting all'
 PHRASE_GOOGLE_EARLIEST_REPORT_TIME = u'Google earliest report time'
 PHRASE_GOT = u'Got'
+PHRASE_HAS_CHILD_ORGS = 'Has child {0}'
 PHRASE_INVALID = u'Invalid'
 PHRASE_INVALID_ALIAS = u'Invalid Alias'
 PHRASE_INVALID_CUSTOMER_ID = u'Invalid Customer ID'
@@ -2014,13 +2020,12 @@ def getEmailAddress(noUid=False, emptyOK=False, optional=False):
           emailAddress = u'{0}@{1}'.format(emailAddress, GC_Values[GC_DOMAIN])
         CL_argvI += 1
         return emailAddress
-      elif atLoc != 0:
+      if atLoc != 0:
         if (atLoc == len(emailAddress)-1) and GC_Values[GC_DOMAIN]:
           emailAddress = u'{0}{1}'.format(emailAddress, GC_Values[GC_DOMAIN])
         CL_argvI += 1
         return emailAddress
-      else:
-        invalidArgumentExit(u'name@domain')
+      invalidArgumentExit(u'name@domain')
     elif optional:
       CL_argvI += 1
       return None
@@ -2051,13 +2056,12 @@ def getPermissionId():
           emailAddress = u'{0}@{1}'.format(emailAddress, GC_Values[GC_DOMAIN])
         CL_argvI += 1
         return (True, emailAddress)
-      elif atLoc != 0:
+      if atLoc != 0:
         if (atLoc == len(emailAddress)-1) and GC_Values[GC_DOMAIN]:
           emailAddress = u'{0}{1}'.format(emailAddress, GC_Values[GC_DOMAIN])
         CL_argvI += 1
         return (True, emailAddress)
-      else:
-        invalidArgumentExit(u'name@domain')
+      invalidArgumentExit(u'name@domain')
   missingArgumentExit(OB_PERMISSION_ID)
 
 # Products/SKUs
@@ -2361,8 +2365,7 @@ def getOrgUnitPath(absolutePath=True):
       CL_argvI += 1
       if absolutePath:
         return makeOrgUnitPathAbsolute(path)
-      else:
-        return makeOrgUnitPathRelative(path)
+      return makeOrgUnitPathRelative(path)
   missingArgumentExit(OB_ORGUNIT_PATH)
 
 def getREPattern():
@@ -2808,32 +2811,32 @@ NUM_ITEMS_MARKER = u'%%num_items%%'
 TOTAL_ITEMS_MARKER = u'%%total_items%%'
 
 def getPageMessage(showTotal=True, showFirstLastItems=False, noNL=False):
-  if GC_Values[GC_SHOW_GETTINGS]:
-    pageMessage = u'{0} {1} {{0}}'.format(PHRASE_GOT, [NUM_ITEMS_MARKER, TOTAL_ITEMS_MARKER][showTotal])
-    if showFirstLastItems:
-      pageMessage += u': {0} - {1}'.format(FIRST_ITEM_MARKER, LAST_ITEM_MARKER)
-    else:
-      pageMessage += u'...'
-    if not noNL:
-      pageMessage += u'\n'
-    return pageMessage
-  else:
+  if not GC_Values[GC_SHOW_GETTINGS]:
     return None
+  GM_Globals[GM_GETTING_SHOW_TOTAL] = showTotal
+  pageMessage = u'{0} {1} {{0}}'.format(PHRASE_GOT, [NUM_ITEMS_MARKER, TOTAL_ITEMS_MARKER][showTotal])
+  if showFirstLastItems:
+    pageMessage += u': {0} - {1}'.format(FIRST_ITEM_MARKER, LAST_ITEM_MARKER)
+  else:
+    pageMessage += u'...'
+  if not noNL:
+    pageMessage += u'\n'
+  return pageMessage
 
 def getPageMessageForWhom(forWhom=None, showTotal=True, showFirstLastItems=False, noNL=False):
-  if GC_Values[GC_SHOW_GETTINGS]:
-    if forWhom:
-      GM_Globals[GM_GETTING_FOR_WHOM] = forWhom
-    pageMessage = u'{0} {1} {{0}} {2} {3}'.format(PHRASE_GOT, [NUM_ITEMS_MARKER, TOTAL_ITEMS_MARKER][showTotal], PHRASE_FOR, GM_Globals[GM_GETTING_FOR_WHOM])
-    if showFirstLastItems:
-      pageMessage += u': {0} - {1}'.format(FIRST_ITEM_MARKER, LAST_ITEM_MARKER)
-    else:
-      pageMessage += u'...'
-    if not noNL:
-      pageMessage += u'\n'
-    return pageMessage
-  else:
+  if not GC_Values[GC_SHOW_GETTINGS]:
     return None
+  GM_Globals[GM_GETTING_SHOW_TOTAL] = showTotal
+  if forWhom:
+    GM_Globals[GM_GETTING_FOR_WHOM] = forWhom
+  pageMessage = u'{0} {1} {{0}} {2} {3}'.format(PHRASE_GOT, [NUM_ITEMS_MARKER, TOTAL_ITEMS_MARKER][showTotal], PHRASE_FOR, GM_Globals[GM_GETTING_FOR_WHOM])
+  if showFirstLastItems:
+    pageMessage += u': {0} - {1}'.format(FIRST_ITEM_MARKER, LAST_ITEM_MARKER)
+  else:
+    pageMessage += u'...'
+  if not noNL:
+    pageMessage += u'\n'
+  return pageMessage
 
 def printLine(message):
   sys.stdout.write(convertUTF8(message+u'\n'))
@@ -2983,14 +2986,12 @@ def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, enc
       if not encoding:
         with open(filename, mode) as f:
           return f.read()
-      else:
-        with codecs.open(filename, mode, encoding) as f:
-          content = f.read()
-          if not content.startswith(codecs.BOM_UTF8):
-            return content
-          return content.replace(codecs.BOM_UTF8, u'', 1)
-    else:
-      return unicode(sys.stdin.read())
+      with codecs.open(filename, mode, encoding) as f:
+        content = f.read()
+        if not content.startswith(codecs.BOM_UTF8):
+          return content
+        return content.replace(codecs.BOM_UTF8, u'', 1)
+    return unicode(sys.stdin.read())
   except IOError as e:
     if continueOnError:
       if displayError:
@@ -3037,7 +3038,7 @@ class UnicodeDictReader(object):
     self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != u'utf-8' else f, dialect=dialect, **kwds)
     try:
       self.fieldnames = self.reader.next()
-    except:
+    except (csv.Error, StopIteration):
       self.fieldnames = []
     self.numfields = len(self.fieldnames)
 
@@ -3467,8 +3468,7 @@ def handleOAuthTokenError(e, soft_errors):
       return None
     if not GM_Globals[GM_CURRENT_API_USER]:
       APIAccessDeniedExit()
-    else:
-      systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
+    systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
 
 def getClientCredentials(oauth2Scope):
@@ -3695,12 +3695,12 @@ def callGDataPages(service, function,
       nextLink = None
       page_items = 0
     if page_message:
-      if NUM_ITEMS_MARKER in page_message:
-        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-        count = page_items if nextLink else total_items
-      else:
+      if GM_Globals[GM_GETTING_SHOW_TOTAL]:
         show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
         count = total_items
+      else:
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
+        count = page_items if nextLink else total_items
       sys.stderr.write(u'\r')
       sys.stderr.flush()
       gettingItemInfo = GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]]
@@ -3796,6 +3796,8 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
         reason = GAPI_INVALID_ORGUNIT
       elif u'Invalid Input: INVALID_OU_ID' in message:
         reason = GAPI_INVALID_ORGUNIT
+      elif u'Invalid Parent Orgunit Id' in message:
+        reason = GAPI_INVALID_PARENT_ORGUNIT
       elif u'Invalid scope value' in message:
         reason = GAPI_INVALID_SCOPE_VALUE
       elif u'A system error has occurred' in message:
@@ -3873,6 +3875,7 @@ class GAPI_invalidCustomerId(GAPI_exception): pass
 class GAPI_invalidInput(GAPI_exception): pass
 class GAPI_invalidMember(GAPI_exception): pass
 class GAPI_invalidOrgUnit(GAPI_exception): pass
+class GAPI_invalidParentOrgUnit(GAPI_exception): pass
 class GAPI_invalidQuery(GAPI_exception): pass
 class GAPI_invalidResource(GAPI_exception): pass
 class GAPI_invalidSchemaValue(GAPI_exception): pass
@@ -3925,6 +3928,7 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_INVALID_INPUT: GAPI_invalidInput,
   GAPI_INVALID_MEMBER: GAPI_invalidMember,
   GAPI_INVALID_ORGUNIT: GAPI_invalidOrgUnit,
+  GAPI_INVALID_PARENT_ORGUNIT: GAPI_invalidParentOrgUnit,
   GAPI_INVALID_QUERY: GAPI_invalidQuery,
   GAPI_INVALID_RESOURCE: GAPI_invalidResource,
   GAPI_INVALID_SCHEMA_VALUE: GAPI_invalidSchemaValue,
@@ -4018,12 +4022,12 @@ def callGAPIpages(service, function, items,
       this_page = {items: []}
       page_items = 0
     if page_message:
-      if NUM_ITEMS_MARKER in page_message:
-        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-        count = page_items if pageToken else total_items
-      else:
+      if GM_Globals[GM_GETTING_SHOW_TOTAL]:
         show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
         count = total_items
+      else:
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
+        count = page_items if pageToken else total_items
       if message_attribute:
         try:
           show_message = show_message.replace(FIRST_ITEM_MARKER, str(this_page[items][0][message_attribute]))
@@ -6313,7 +6317,7 @@ def getOrgUnitId(cd):
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
 
-ADMIN_SCOPE_TYPE_CHOICE_MAP = {u'customer': u'CUSTOMER', u'orgunit': u'ORG_UNIT',}
+ADMIN_SCOPE_TYPE_CHOICE_MAP = {u'customer': u'CUSTOMER', u'orgunit': u'ORG_UNIT', u'org': u'ORG_UNIT', u'ou': u'ORG_UNIT',}
 
 # gam create admin <UserItem> <RoleItem> customer|(org_unit <OrgUnitItem>)
 def doCreateAdmin():
@@ -6799,17 +6803,27 @@ def doCreateOrg():
       body[u'blockInheritance'] = False
     else:
       unknownArgumentExit()
-  orgUnitPath = u'/'.join([parent, name])
-  if orgUnitPath.count(u'/') > 1:
-    body[u'parentOrgUnitPath'], body[u'name'] = orgUnitPath.rsplit(u'/', 1)
+  if parent.startswith(u'id:'):
+    body[u'parentOrgUnitId'] = parent
+    body[u'name'] = name
+    orgUnitPath = parent+u'/'+name
   else:
-    body[u'parentOrgUnitPath'] = u'/'
-    body[u'name'] = orgUnitPath[1:]
+    if parent == u'/':
+      orgUnitPath = parent+name
+    else:
+      orgUnitPath = parent+u'/'+name
+    if orgUnitPath.count(u'/') > 1:
+      body[u'parentOrgUnitPath'], body[u'name'] = orgUnitPath.rsplit(u'/', 1)
+    else:
+      body[u'parentOrgUnitPath'] = u'/'
+      body[u'name'] = orgUnitPath[1:]
   try:
     callGAPI(cd.orgunits(), u'insert',
-             throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+             throw_reasons=[GAPI_INVALID_PARENT_ORGUNIT, GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
              customerId=GC_Values[GC_CUSTOMER_ID], body=body)
     entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
+  except GAPI_invalidParentOrgUnit:
+    entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_PARENT_ORGANIZATIONAL_UNIT, body.get(u'parentOrgUnitPath', body[u'parentOrgUnitId']), PHRASE_DOES_NOT_EXIST)
   except (GAPI_invalidOrgUnit, GAPI_backendError):
     entityDuplicateWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
@@ -6970,11 +6984,13 @@ def doDeleteOrg(getEntityListArg=False):
   for orgUnitPath in entityList:
     i += 1
     try:
-      orgUnitPath = makeOrgUnitPathRelative(orgUnitPath)
+      orgUnitPath = makeOrgUnitPathAbsolute(orgUnitPath)
       callGAPI(cd.orgunits(), u'delete',
-               throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath)
+               throw_reasons=[GAPI_CONDITION_NOT_MET, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath))
       entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
+    except GAPI_conditionNotMet:
+      entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_HAS_CHILD_ORGS.format(pluralEntityName(EN_ORGANIZATIONAL_UNIT)), i, count)
     except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
@@ -18520,8 +18536,8 @@ def showMessagesThreads(users, entityType, csvFormat):
       for header in result[u'payload'][u'headers']:
         if name == header[u'name'].lower():
           printKeyValueList([header[u'name'], header[u'value']])
-    if show_size:        
-      printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])      
+    if show_size:
+      printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])
     if show_labels:
       messageLabels = []
       for labelId in result[u'labelIds']:
@@ -18545,7 +18561,7 @@ def showMessagesThreads(users, entityType, csvFormat):
             row[header[u'name']] = header[u'value']
           else:
             row[u'{0} {1}'.format(header[u'name'], j)] = header[u'value']
-    if show_size:        
+    if show_size:
       row[u'SizeEstimate'] = result[u'sizeEstimate']
     if show_labels:
       messageLabels = []
