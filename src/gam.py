@@ -18675,7 +18675,7 @@ def showMessagesThreads(users, entityType, csvFormat):
   maxToProcess = 0
   show_labels = show_size = show_snippet = False
   messageIds = None
-  headersToShow = [u'date', u'subject', u'from', u'reply-to', u'to', u'delivered-to', u'content-type', u'message-id']
+  headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-ID']
   if csvFormat:
     todrive = False
     titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
@@ -18696,7 +18696,7 @@ def showMessagesThreads(users, entityType, csvFormat):
     elif myarg == u'maxtoshow':
       maxToProcess = getInteger(minVal=0)
     elif myarg == u'headers':
-      headersToShow = getString(OB_STRING, emptyOK=True).lower().replace(u',', u' ').split()
+      headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
     elif myarg == u'showlabels':
       show_labels = True
       if csvFormat:
@@ -18713,6 +18713,15 @@ def showMessagesThreads(users, entityType, csvFormat):
       includeSpamTrash = True
     else:
       unknownArgumentExit()
+  if csvFormat:
+    headerTitles = []
+    for j, name in enumerate(headersToShow):
+      headersToShow[j] = name.lower()
+      headerTitles.append(SMTP_HEADERS_MAP.get(headersToShow[j], name))
+    addTitlesToCSVfile(headerTitles, titles)
+  else:
+    for j, name in enumerate(headersToShow):
+      headersToShow[j] = name.lower()
   listType = [u'threads', u'messages'][entityType == EN_MESSAGE]
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
