@@ -18713,8 +18713,6 @@ def showMessagesThreads(users, entityType, csvFormat):
       includeSpamTrash = True
     else:
       unknownArgumentExit()
-  if csvFormat:
-    addTitlesToCSVfile(headersToShow, titles)
   listType = [u'threads', u'messages'][entityType == EN_MESSAGE]
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
