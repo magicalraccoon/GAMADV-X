@@ -478,6 +478,12 @@ gam <UserTypeEntity> empty drivetrash
 68) Added Message-Id to default list of message headers in print/show messages.
 Added showsize argument to gam print/show messages to have message size output/
 
+4.17.B
+
+69) Add alternative command to add delegates and command to print delegates.
+gam <UserTypeEntity> add delegate|delegates <UserEntity>
+gam <UserTypeEntity> print delegates [todrive] [idfirst]
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.

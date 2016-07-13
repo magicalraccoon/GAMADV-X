@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.17.A'
+__version__ = u'4.17.B'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -1053,6 +1053,7 @@ CL_OB_CUSTOMER = u'customer'
 CL_OB_DATA_TRANSFER = u'datatransfer'
 CL_OB_DATA_TRANSFERS = u'datatransfers'
 CL_OB_DELEGATE = u'delegate'
+CL_OB_DELEGATES = u'delegates'
 CL_OB_DOMAIN = u'domain'
 CL_OB_DOMAINS = u'domains'
 CL_OB_DOMAIN_ALIAS = u'domainalias'
@@ -18511,6 +18512,98 @@ def processMessages(users):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
+SMTP_HEADERS_MAP = {
+  u'accept-language': u'Accept-Language',
+  u'alternate-recipient': u'Alternate-Recipient',
+  u'autoforwarded': u'Autoforwarded',
+  u'autosubmitted': u'Autosubmitted',
+  u'bcc': u'Bcc',
+  u'cc': u'Cc',
+  u'comments': u'Comments',
+  u'content-alternative': u'Content-Alternative',
+  u'content-base': u'Content-Base',
+  u'content-description': u'Content-Description',
+  u'content-disposition': u'Content-Disposition',
+  u'content-duration': u'Content-Duration',
+  u'content-id': u'Content-ID',
+  u'content-identifier': u'Content-Identifier',
+  u'content-language': u'Content-Language',
+  u'content-location': u'Content-Location',
+  u'content-md5': u'Content-MD5',
+  u'content-return': u'Content-Return',
+  u'content-transfer-encoding': u'Content-Transfer-Encoding',
+  u'content-type': u'Content-Type',
+  u'content-features': u'Content-features',
+  u'conversion': u'Conversion',
+  u'conversion-with-loss': u'Conversion-With-Loss',
+  u'dl-expansion-history': u'DL-Expansion-History',
+  u'date': u'Date',
+  u'deferred-delivery': u'Deferred-Delivery',
+  u'delivered-to': u'Delivered-To',
+  u'delivery-date': u'Delivery-Date',
+  u'discarded-x400-ipms-extensions': u'Discarded-X400-IPMS-Extensions',
+  u'discarded-x400-mts-extensions': u'Discarded-X400-MTS-Extensions',
+  u'disclose-recipients': u'Disclose-Recipients',
+  u'disposition-notification-options': u'Disposition-Notification-Options',
+  u'disposition-notification-to': u'Disposition-Notification-To',
+  u'encoding': u'Encoding',
+  u'encrypted': u'Encrypted',
+  u'expires': u'Expires',
+  u'expiry-date': u'Expiry-Date',
+  u'from': u'From',
+  u'generate-delivery-report': u'Generate-Delivery-Report',
+  u'importance': u'Importance',
+  u'in-reply-to': u'In-Reply-To',
+  u'incomplete-copy': u'Incomplete-Copy',
+  u'keywords': u'Keywords',
+  u'language': u'Language',
+  u'latest-delivery-time': u'Latest-Delivery-Time',
+  u'list-archive': u'List-Archive',
+  u'list-help': u'List-Help',
+  u'list-id': u'List-ID',
+  u'list-owner': u'List-Owner',
+  u'list-post': u'List-Post',
+  u'list-subscribe': u'List-Subscribe',
+  u'list-unsubscribe': u'List-Unsubscribe',
+  u'mime-version': u'MIME-Version',
+  u'message-context': u'Message-Context',
+  u'message-id': u'Message-ID',
+  u'message-type': u'Message-Type',
+  u'obsoletes': u'Obsoletes',
+  u'original-encoded-information-types': u'Original-Encoded-Information-Types',
+  u'original-message-id': u'Original-Message-ID',
+  u'originator-return-address': u'Originator-Return-Address',
+  u'pics-label': u'PICS-Label',
+  u'prevent-nondelivery-report': u'Prevent-NonDelivery-Report',
+  u'priority': u'Priority',
+  u'received': u'Received',
+  u'references': u'References',
+  u'reply-by': u'Reply-By',
+  u'reply-to': u'Reply-To',
+  u'resent-bcc': u'Resent-Bcc',
+  u'resent-cc': u'Resent-Cc',
+  u'resent-date': u'Resent-Date',
+  u'resent-from': u'Resent-From',
+  u'resent-message-id': u'Resent-Message-ID',
+  u'resent-reply-to': u'Resent-Reply-To',
+  u'resent-sender': u'Resent-Sender',
+  u'resent-to': u'Resent-To',
+  u'return-path': u'Return-Path',
+  u'sender': u'Sender',
+  u'sensitivity': u'Sensitivity',
+  u'subject': u'Subject',
+  u'supersedes': u'Supersedes',
+  u'to': u'To',
+  u'x400-content-identifier': u'X400-Content-Identifier',
+  u'x400-content-return': u'X400-Content-Return',
+  u'x400-content-type': u'X400-Content-Type',
+  u'x400-mts-identifier': u'X400-MTS-Identifier',
+  u'x400-originator': u'X400-Originator',
+  u'x400-received': u'X400-Received',
+  u'x400-recipients': u'X400-Recipients',
+  u'x400-trace': u'X400-Trace',
+  }
+
 # gam <UserTypeEntity> show message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
 # gam <UserTypeEntity> show thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
 # gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
@@ -18537,7 +18630,7 @@ def showMessagesThreads(users, entityType, csvFormat):
     for name in headersToShow:
       for header in result[u'payload'][u'headers']:
         if name == header[u'name'].lower():
-          printKeyValueList([header[u'name'], header[u'value']])
+          printKeyValueList([SMTP_HEADERS_MAP.get(name, header[u'name']), header[u'value']])
     if show_size:
       printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])
     if show_labels:
@@ -18560,9 +18653,9 @@ def showMessagesThreads(users, entityType, csvFormat):
         if name == header[u'name'].lower():
           j += 1
           if j == 1:
-            row[header[u'name']] = header[u'value']
+            row[SMTP_HEADERS_MAP.get(name, header[u'name'])] = header[u'value']
           else:
-            row[u'{0} {1}'.format(header[u'name'], j)] = header[u'value']
+            row[u'{0} {1}'.format(SMTP_HEADERS_MAP.get(name, header[u'name']), j)] = header[u'value']
     if show_size:
       row[u'SizeEstimate'] = result[u'sizeEstimate']
     if show_labels:
@@ -18582,9 +18675,10 @@ def showMessagesThreads(users, entityType, csvFormat):
   maxToProcess = 0
   show_labels = show_size = show_snippet = False
   messageIds = None
-  headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-Id']
-  todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
+  headersToShow = [u'date', u'subject', u'from', u'reply-to', u'to', u'delivered-to', u'content-type', u'message-id']
+  if csvFormat:
+    todrive = False
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
@@ -18602,7 +18696,7 @@ def showMessagesThreads(users, entityType, csvFormat):
     elif myarg == u'maxtoshow':
       maxToProcess = getInteger(minVal=0)
     elif myarg == u'headers':
-      headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
+      headersToShow = getString(OB_STRING, emptyOK=True).lower().replace(u',', u' ').split()
     elif myarg == u'showlabels':
       show_labels = True
       if csvFormat:
@@ -18621,9 +18715,7 @@ def showMessagesThreads(users, entityType, csvFormat):
       unknownArgumentExit()
   if csvFormat:
     addTitlesToCSVfile(headersToShow, titles)
-  for j, header in enumerate(headersToShow):
-    headersToShow[j] = header.lower()
-  listType = u'messages'if entityType == EN_MESSAGE else u'threads'
+  listType = [u'threads', u'messages'][entityType == EN_MESSAGE]
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
   i = 0
   count = len(users)
@@ -18638,7 +18730,7 @@ def showMessagesThreads(users, entityType, csvFormat):
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
-    service = gmail.users().messages() if entityType == EN_MESSAGE else gmail.users().threads()
+    service = [gmail.users().threads(), gmail.users().messages()][entityType == EN_MESSAGE]
     try:
       if show_labels or labelNames:
         labels = callGAPI(gmail.users().labels(), u'list',
@@ -18934,14 +19026,29 @@ def deleteDelegate(users):
         entityItemValueActionFailedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, PHRASE_DOES_NOT_EXIST, j, jcount)
         decrementIndentLevel()
 
+# gam <UserTypeEntity> print delegates|delegate [idfirst] [todrive]
 # gam <UserTypeEntity> show delegates|delegate [csv]
+def printDelegates(users):
+  printShowDelegates(users, True)
+
 def showDelegates(users):
+  printShowDelegates(users, False)
+
+def printShowDelegates(users, csvFormat):
   emailSettingsObject = getEmailSettingsObject()
-  csvFormat = False
+  if csvFormat:
+    todrive = False
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'delegateName', u'delegateAddress', u'delegationStatus'], None)
+  else:
+    csvStyle = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'csv':
-      csvFormat = True
+    if not csvFormat and myarg == u'csv':
+      csvStyle = True
+    elif csvFormat and myarg == u'todrive':
+      todrive = True
+    elif csvFormat and myarg == u'idfirst':
+      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -18955,26 +19062,32 @@ def showDelegates(users):
     if result != None:
       jcount = len(result) if (result) else 0
       if not csvFormat:
-        entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
-        if jcount == 0:
-          continue
-        incrementIndentLevel()
-        j = 0
-        for delegate in result:
-          j += 1
-          printEntityItemValue(EN_DELEGATOR, delegatorEmail,
-                               EN_DELEGATE, delegate[u'delegate'],
-                               j, jcount)
+        if not csvStyle:
+          entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
+          if jcount == 0:
+            continue
           incrementIndentLevel()
-          printKeyValueList([u'Status', delegate[u'status']])
-          printKeyValueList([u'Delegate Email', delegate[u'address']])
-          printKeyValueList([u'Delegate ID', delegate[u'delegationId']])
+          j = 0
+          for delegate in result:
+            j += 1
+            printEntityItemValue(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegate[u'delegate'], j, jcount)
+            incrementIndentLevel()
+            printKeyValueList([u'Status', delegate[u'status']])
+            printKeyValueList([u'Delegate Email', delegate[u'address']])
+            printKeyValueList([u'Delegate ID', delegate[u'delegationId']])
+            decrementIndentLevel()
           decrementIndentLevel()
-        decrementIndentLevel()
+        else:
+          if jcount > 0:
+            for delegate in result:
+              printKeyValueList([u'{0},{1},{2}'.format(delegatorEmail, delegate[u'address'], delegate[u'status'])])
       else:
         if jcount > 0:
           for delegate in result:
-            printKeyValueList([u'{0},{1},{2}'.format(delegatorEmail, delegate[u'address'], delegate[u'status'])])
+            row = {u'User': delegatorEmail, u'delegateName': delegate[u'delegate'], u'delegateAddress': delegate[u'address'], u'delegationStatus': delegate[u'status']}
+            addRowTitlesToCSVfile(row, csvRows, titles)
+  if csvFormat:
+    writeCSVfile(csvRows, titles, u'Delegates', todrive)
 
 # Utilities for Filter command
 #
@@ -19592,6 +19705,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACTS:	CL_OB_CONTACT,
+        CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
         u'transfer':	CL_OB_DATA_TRANSFER,
         u'nickname':	CL_OB_ALIAS,
         u'nicknames':	CL_OB_ALIASES,
@@ -19633,6 +19747,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
         u'nickname':	CL_OB_ALIAS,
         u'nicknames':	CL_OB_ALIASES,
         u'ou':		CL_OB_ORG,
@@ -19680,6 +19795,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
+        CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
         u'nickname':	CL_OB_ALIAS,
         u'nicknames':	CL_OB_ALIASES,
         u'notifications':	CL_OB_NOTIFICATION,
@@ -19722,7 +19838,8 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_USERS:	doPrintUsers,
        },
      CMD_OBJ_ALIASES:
-       {u'classes':		CL_OB_COURSES,
+       {u'aliasdomain':		CL_OB_DOMAIN_ALIASES,
+        u'classes':		CL_OB_COURSES,
         CL_OB_CONTACT:		CL_OB_CONTACTS,
         u'transfers':		CL_OB_DATA_TRANSFERS,
         u'classparticipants':	CL_OB_COURSE_PARTICIPANTS,
@@ -20060,7 +20177,7 @@ CROS_COMMANDS = {
 # <UserTypeEntity> commands
 USER_COMMANDS = {
   u'arrows':	{CMD_ACTION: AC_SET, CMD_FUNCTION: setArrows},
-  u'delegate':	{CMD_ACTION: AC_ADD, CMD_FUNCTION: delegateTo},
+  CL_OB_DELEGATE:	{CMD_ACTION: AC_ADD, CMD_FUNCTION: delegateTo},
   u'deprovision':	{CMD_ACTION: AC_DEPROVISION, CMD_FUNCTION: deprovisionUser},
   u'filter':	{CMD_ACTION: AC_ADD, CMD_FUNCTION: setFilter},
   u'forward':	{CMD_ACTION: AC_SET, CMD_FUNCTION: setForward},
@@ -20097,7 +20214,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_SITEACLS:	processUserSiteACLs,
        },
      CMD_OBJ_ALIASES:
-       {u'delegates':	CL_OB_DELEGATE,
+       {CL_OB_DELEGATES:	CL_OB_DELEGATE,
         u'groups':	CL_OB_GROUP,
         CL_OB_LABELS:	CL_OB_LABEL,
         u'licence':	CL_OB_LICENSE,
@@ -20155,10 +20272,10 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'applicationspecificpasswords':	CL_OB_ASP,
         u'asps':	CL_OB_ASP,
         u'backupcode':	CL_OB_BACKUPCODES,
+        u'verificationcodes':	CL_OB_BACKUPCODES,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
-        u'delegates':	CL_OB_DELEGATE,
-        u'verificationcodes':	CL_OB_BACKUPCODES,
+        CL_OB_DELEGATES:	CL_OB_DELEGATE,
         u'groups':	CL_OB_GROUP,
         u'licence':	CL_OB_LICENSE,
         CL_OB_LABELS:	CL_OB_LABEL,
@@ -20221,6 +20338,7 @@ USER_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {CL_OB_CONTACTS:	printUserContacts,
         CL_OB_CONTACT_GROUPS:	printUserContactGroups,
+        CL_OB_DELEGATES:	printDelegates,
         CL_OB_MESSAGES:	printMessages,
         CL_OB_SITES:	printUserSites,
         CL_OB_SITEACTIVITY:	printUserSiteActivity,
@@ -20230,6 +20348,7 @@ USER_COMMANDS_WITH_OBJECTS = {
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
+        CL_OB_DELEGATE:	CL_OB_DELEGATES,
         CL_OB_MESSAGE:	CL_OB_MESSAGES,
         CL_OB_SITE:	CL_OB_SITES,
         CL_OB_THREAD:	CL_OB_THREADS,
@@ -20253,7 +20372,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_BACKUPCODES:	showBackupCodes,
         CL_OB_CALENDARS:showCalendars,
         CL_OB_CALSETTINGS:	showCalSettings,
-        CL_OB_DELEGATE:	showDelegates,
+        CL_OB_DELEGATES:	showDelegates,
         CL_OB_DRIVEACTIVITY:showDriveActivity,
         CL_OB_DRIVEFILEACL:	showDriveFileACL,
         CL_OB_DRIVESETTINGS:showDriveSettings,
@@ -20282,7 +20401,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'asp':		CL_OB_ASPS,
         u'backupcode':	CL_OB_BACKUPCODES,
         u'verificationcodes':	CL_OB_BACKUPCODES,
-        u'delegates':	CL_OB_DELEGATE,
+        CL_OB_DELEGATE:	CL_OB_DELEGATES,
         u'imap4':	CL_OB_IMAP,
         u'pop3':	CL_OB_POP,
         CL_OB_LABEL:	CL_OB_LABELS,
@@ -20377,7 +20496,7 @@ USER_COMMANDS_WITH_OBJECTS = {
 # User commands aliases
 USER_COMMANDS_ALIASES = {
   u'del':	u'delete',
-  u'delegates':	u'delegate',
+  CL_OB_DELEGATES:	CL_OB_DELEGATE,
   u'deprov':	u'deprovision',
   u'imap4':	u'imap',
   u'pop3':	u'pop',
