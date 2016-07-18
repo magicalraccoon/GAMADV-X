@@ -29,9 +29,7 @@ This link describes the process described above: https://github.com/jay0lee/GAM/
 To manage domain/user contacts and sites, modify the process as follows:
 Step 3.v, add Contacts API
 Step 6.ii.g, authorize all of the scopes: API scopes - OAuth2
-	plus https://www.google.com/m8/feeds/contacts, https://www.google.com/sites/feeds
 Step 6.iii.d, authorize all of the scopes: API scopes - Service Account
-	plus https://www.google.com/m8/feeds/contacts, https://www.google.com/sites/feeds
 Step 7.ii, run the commands:
     gam oauth delete
     gam oauth create

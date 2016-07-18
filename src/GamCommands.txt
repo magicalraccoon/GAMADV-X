@@ -80,10 +80,12 @@ If an item contains spaces, it should be surrounded by " or '.
 <FieldName> ::= <String>
 <FileName> ::= <String>
 <FileNamePattern> ::= <String>
+<FilterID> ::= <Sttring>
 <FolderName> ::= <String>
 <GroupItem> ::= <EmailAddress>|<UniqueID>|<String>
 <HostName> ::= <String>
 <Key> ::= <String>
+<LabelID> ::= <String>
 <LabelName> ::= <String>
 <LabelReplacement> ::= <String>
 <Marker> ::= <String>
@@ -116,6 +118,42 @@ If an item contains spaces, it should be surrounded by " or '.
 <URI> ::= <String>
 <URL> ::= <String>
 <UserItem> ::= <EmailAddress>|<UniqueID>|<String>
+
+<ContactFieldName> ::=
+	additionalname|middlename|
+	address|
+	billinginfo|
+	birthday|
+	calendar|
+	contactgroup|
+	directoryserver|
+	email|
+	event|
+	externalid|
+	familyname|lastname|
+	gender|
+	givenname|firstname|
+	hobby|
+	im|
+	initials|
+	jot|
+	language|
+	location|
+	maidenname|
+	mileage|
+	name|
+	nickname|
+	note|
+	occupation|
+	organization|
+	phone|
+	prefix|
+	relation|
+	shortname|
+	subject|
+	suffix|
+	userdefinedfield|
+	website
 
 <ContactOrderByFieldName> ::=
 	lastmodified
@@ -295,6 +333,7 @@ If an item contains spaces, it should be surrounded by " or '.
 # Named Lists, comma separated items, surrounded by ' or "
 <ACLList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
+<ContactFieldNameList> ::= '<ContactFieldName(,<ContactFieldName>)*'
 <ContactIDList> ::= '<ContactID>(,<ContactID>)*'
 <ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
 <CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
@@ -305,6 +344,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <EmailAddressList> ::= '<EmailAddress>(,<EmailAddress>)*'
 <EventIDList> ::= '<EventID>(,<EventID>)*'
 <FileFormatList> ::= '<FileFormat>(,<FileFormat)*'
+<FilterIDList> ::= '<FilterID>(,<FilterID>)*'
 <GroupFieldNameList> ::= '<GroupFieldName(,<GroupFieldName>)*'
 <GroupSettingsFieldNameList> ::= '<GroupSettingsFieldName(,<GroupSettingsFieldName>)*'
 <GroupList> ::= '<GroupItem>(,<GroupItem>)*'
@@ -385,6 +425,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)|(drivefilename <DriveFileName>)|drivefilename:<DriveFileName>|(query <Query>)|query:<Query>|root
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<FilterIDEntity> ::= <FilterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <GroupEntity> ::= <GroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <MessageEntity> ::= <MessageIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <MobileEntity> ::= <MobileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
@@ -407,22 +448,39 @@ If an item contains spaces, it should be surrounded by " or '.
 	(summary <String>)|(description <String>)|(location <String>)|(timezone <String>)
 
 <ContactAttributes> ::=
-	(name <String>)|(prefix <String>)|(givenname|firstname <String>)|(additionalname|middlename <String>)|(familyname|lastname <String>)|(suffix <String>)|
-	(nickname <String>)|(maidenname <String>)|(shortname <String>)|(initials <String>)|(birthday <YYYY-MM-DD>)|(gender female|male)|
-	(location <String>)|(note <String>|(file <FileName>))|(subject <String>)|(language <Language>)|
-	(occupation <String>)|(billinginfo <String>)|(mileage <String>)|(directoryserver <String>)|
-	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
+	(additionalname|middlename <String>)|
 	    (neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
+	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
+	(billinginfo <String>)|
+	(birthday <YYYY-MM-DD>)|
 	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))|
+	(contactgroup clear|<ContactGroupItem>)|
+	(directoryserver <String>)|
 	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
+	(event clear|anniversary|other|<String> <YYYY-MM-DD>))|
 	(externalid clear|(account|customer|network|organization|<String> <String>))|
-	(event clear(anniversary|other|<String> <YYYY-MM-DD>))|
+	(familyname|lastname <String>)|
+	(gender female|male)|
+	(givenname|firstname <String>)|
 	(hobby clear|(<String>))|
 	(im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))|
+	(initials <String>)|
 	(jot clear|(work|home|other|keywords|user> <String>))|
+	(language <Language>)|
+	(location <String>)|
+	(maidenname <String>)|
+	(mileage <String>)|
+	(name <String>)|
+	(nickname <String>)|
+	(note <String>|(file <FileName>))|
+	(occupation <String>)|
 	(organization clear|(work|other|<String> <String>|(location <String>)|(department <String>)|(title <String>)|(jobdescription <String>)|(symbol <String>) notprimary|primary))|
 	(phone clear|(work|home|other|fax|work_fax|home_fax|other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|<String> <String> notprimary|primary))|
+	(prefix <String>)|
 	(relation clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
+	(shortname <String>)|
+	(subject <String>)|
+	(suffix <String>)|
 	(userdefinedfield clear|(<String> <String>))|
 	(website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))
 
@@ -672,28 +730,30 @@ gam calendars <CalendarEntity> wipe events
 
 gam create contact <ContactAttributes>+
 gam update contacts <ContactEntity> <ContactAttributes>+
-gam delete contacts <ContactEntity>|
-	(query <Query>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam info contacts <ContactEntity>|
-	(query <Query>)[basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam print contacts [todrive] [idfirst] [query <Query>] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
-	[orderby <ContactOrderByFieldName> [ascending|descending]]
+gam delete contacts <ContactEntity>|([query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
+gam show contacts [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+gam print contacts [todrive] [idfirst] [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 gam <UserTypeEntity> create contact [contactgroup <ContactGroupItem>] <ContactAttributes>+
 gam <UserTypeEntity> update contacts <ContactEntity> [contactgroup <ContactGroupItem>] <ContactAttributes>+
-gam <UserTypeEntity> delete contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupItem>) [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> info contacts <ContactEntity>|
-	(query <Query>)|(contactgroup <ContactGroupItem>) [basic|full] [updated_min yyyy-mm-dd] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contacts [todrive] [idfirst] [(query <Query>)|(contactgroup <ContactGroupItem>)] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
-	[orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> delete contacts <ContactEntity>|([query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> show contacts [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
 gam <UserTypeEntity> update contactgroup <ContactGroupItem> <ContactGroupAttributes>+
 gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>
 gam <UserTypeEntity> info contactgroups <ContactGroupEntity>
-gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [basic|full] [showdeleted] [updated_min yyyy-mm-dd]
-	[orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
+	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
+gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [updated_min yyyy-mm-dd]
+	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 
 gam update cros <CrOSItem> <CrOSAttributes>+
 gam info cros <CrOSItem> [fields <CrOSFieldNameList>]
@@ -738,7 +798,8 @@ gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])
 	[maxresults <Number>] [delimiter <String>]
 	[members] [owners] [managers] <GroupFieldName>* [settings]  [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
 
-gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+	[membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
 
 gam print license|licenses|licence|licences [todrive] [idfirst] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 
@@ -756,13 +817,13 @@ gam update resources <ResourceEntity> [name <Name>] [description <String>] [type
 gam delete resources <ResourceEntity>
 gam info resources <ResourceEntity>
 
-gam create schema|schemas <SchemaName> <SchemaFieldDefinition>*
-gam update schema <SchemaName>  <SchemaFieldDefinition>*
+gam create schema|schemas <SchemaName> <SchemaFieldDefinition>+
+gam update schema <SchemaName> <SchemaFieldDefinition>+
 gam delete schema <SchemaName>
 gam info schema <SchemaName>
 gam print schema|schemas
 
-gam update schemas <SchemaEntity>  <SchemaFieldDefinition>*
+gam update schemas <SchemaEntity> <SchemaFieldDefinition>+
 gam delete schemas <SchemaEntity>
 gam info schemas <SchemaEntity>
 
@@ -877,8 +938,9 @@ gam <UserTypeEntity> show backupcodes|backupcode|verificationcodes
 gam <UserTypeEntity> add calendar <CalendarItem> <CalendarAttributes>*
 gam <UserTypeEntity> update calendar <CalendarItem>|primary <CalendarAttributes>+
 gam <UserTypeEntity> delete|del calendar <CalendarItem>
-gam <UserTypeEntity> show calendars [csv] [todrive] [idfirst]
+gam <UserTypeEntity> show calendars
 gam <UserTypeEntity> info calendar <CalendarItem>|primary
+gam <UserTypeEntity> print calendars [todrive] [idfirst]
 
 gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
 gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
@@ -977,32 +1039,44 @@ gam <UserTypeEntity> delete|del delegate|delegates <UserEntity>
 gam <UserTypeEntity> show delegates|delegate [csv]
 gam <UserTypeEntity> print delegates [todrive] [idfirst]
 
-gam <UserTypeEntity> add delegate|delegates <UserEntity>
+gam <UserTypeEntity> [add] filter [from <EmailAddress>] [to <EmailAddress>] [subject <String>] [haswords|query <List>] [nowords|negatedquery <List>] [musthaveattachment|hasattachment] [excludechats] [size larger|smaller <ByteCount>]
+	[label <LabelID>] [important|notimportant] [star] [trash] [markread] [archive] [neverspam] [forward <EmailAddress>]
+gam <UserTypeEntity> delete filters <FilterIDEntity>
+gam <UserTypeEntity> show filters
+gam <UserTypeEntity> info filters <FilterIDEntity>
+gam <UserTypeEntity> print filters [todrive] [idfirst]
 
-gam <UserTypeEntity> filter [from <EmailAddress>] [to <EmailAddress>] [subject <String>] [haswords <List>] [nowords <List>] [musthaveattachment]
-	[label <LabelName>] [markread] [archive] [star] [forward <EmailAddress>] [trash] [neverspam]
-# A condition and an action must both be specified
-
-gam <UserTypeEntity> forward <FalseValues> [keep|archive|delete] [<EmailAddress>]
-gam <UserTypeEntity> forward <TrueValues> keep|archive|delete <EmailAddress>
+gam <UserTypeEntity> forward <FalseValues>
+gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
 gam <UserTypeEntity> show forward
+gam <UserTypeEntity> print forward [todrive] [idfirst]
 
-gam <UserTypeEntity> imap|imap4 <Boolean>
+gam <UserTypeEntity> add forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> delete forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> show forwardingaddress|forwardingaddresses
+gam <UserTypeEntity> info forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive] [idfirst]
+
+gam <UserTypeEntity> imap|imap4 <Boolean> [noautoexpunge] [expungebehavior archive|deleteforever|trash] [maxfoldersize 0|1000|2000|5000|10000]
 gam <UserTypeEntity> show imap|imap4
 
-gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon] [action keep|archive|delete]
+gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon|fromnowown] [action keep|leaveininbox|archive|delete|trash|markread]
 gam <UserTypeEntity> show pop|pop3
 
 gam <UserTypeEntity> language <Language>
 
 gam <UserTypeEntity> pagesize 25|50|100
 
-gam <UserTypeEntity> sendas <EmailAddress> <Name> [default] [replyto <EmailAddress>]
-gam <UserTypeEntity> show sendas
+gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*]
+gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*]
+gam <UserTypeEntity> delete sendas <EmailAddressEntity>
+gam <UserTypeEntity> show sendas [format]
+gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
+gam <UserTypeEntity> print sendas [todrive] [idfirst]
 
 gam <UserTypeEntity> shortcuts <Boolean>
 
-gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
+gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] 
 gam <UserTypeEntity> show signature|sig [format]
 
 gam <UserTypeEntity> snippets <Boolean>
@@ -1010,8 +1084,8 @@ gam <UserTypeEntity> snippets <Boolean>
 gam <UserTypeEntity> utf|utf8|utf-8|unicode <Boolean>
 
 gam <UserTypeEntity> vacation <FalseValues>
-gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*
+gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html]
 	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
-gam <UserTypeEntity> show vacation
+gam <UserTypeEntity> show vacation [format]
 
 gam <UserTypeEntity> webclips <Boolean>

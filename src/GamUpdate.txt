@@ -484,6 +484,99 @@ Added showsize argument to gam print/show messages to have message size output/
 gam <UserTypeEntity> add delegate|delegates <UserEntity>
 gam <UserTypeEntity> print delegates [todrive] [idfirst]
 
+4.18.0
+
+70) Improve Gmail filter processing.
+gam <UserTypeEntity> [add] filter [from <EmailAddress>] [to <EmailAddress>] [subject <String>] [haswords|query <List>] [nowords|negatedquery <List>] [musthaveattachment|hasattachment] [excludechats] [size larger|smaller <ByteCount>]
+	[label <LabelID>] [important|notimportant] [star] [trash] [markread] [archive] [neverspam] [forward <EmailAddress>]
+gam <UserTypeEntity> delete filters <FilterIDEntity>
+gam <UserTypeEntity> show filters
+gam <UserTypeEntity> info filters <FilterIDEntity>
+gam <UserTypeEntity> print filters [todrive] [idfirst]
+
+71) Add commands to process Gmail forwarding addresses.
+gam <UserTypeEntity> add forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> delete forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> show forwardingaddress|forwardingaddresses
+gam <UserTypeEntity> info forwardingaddress|forwardingaddresses <EmailAddressEntity>
+gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive] [idfirst]
+
+72) Improve Gmail forward processing.
+gam <UserTypeEntity> forward <FalseValues>
+gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
+gam <UserTypeEntity> show forward
+gam <UserTypeEntity> print forward [todrive] [idfirst]
+
+73) Improve Gmail sendas processing.
+gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*]
+gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*]
+gam <UserTypeEntity> delete sendas <EmailAddressEntity>
+gam <UserTypeEntity> show sendas [format]
+gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
+gam <UserTypeEntity> print sendas [todrive] [idfirst]
+
+74) Improve Gmail signature processing.
+gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] 
+gam <UserTypeEntity> show signature|sig [format]
+
+75) Use Gmail API for POP/IMAP/Vacation processing.
+gam <UserTypeEntity> imap|imap4 <Boolean> [noautoexpunge] [expungebehavior archive|deleteforever|trash] [maxfoldersize 0|1000|2000|5000|10000]
+gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon|fromnowown] [action keep|leaveininbox|archive|delete|trash|markread]
+gam <UserTypeEntity> vacation <FalseValues>
+gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html]
+	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+gam <UserTypeEntity> show vacation [format]
+
+76) The output of the command gam [<UserTypeEntity>] print contacts has been modified.
+The first three column headings are User|Domain, ContactID, Name; the remaining column headings are sorted.
+The column names for address, email, externalid, event, im, jot, organization, phone, relation, userdefinedfield and website have changed.
+Using email as an example, if a user has two work email addresses and a home email address, the columns/values would have been:
+Home Email,Home Email Primary,Work Email,Work Email Primary,Work Email 2,Work Email 2 Primary
+home@domain.com,false,work1@domain.com,true,work2@domain.com,false
+The new column headings are:
+Emails.0.count,Emails.1.address,Emails.1.rank,Emails.1.type,Emails.2.address,Emails.2.rank,Emails.2.type,Emails.3.address,Emails.3.rank,Emails.3.type
+3,home@domain.com,notprimary,home,work1@domain.com,primary,work,work2@domain.com,notprimary,work
+
+The new headings should make processing the CSV file easier and allows gam csv to directly use the data from the CSV file.
+
+77) Added command gam show contacts, it performs optional queries or shows all contacts.
+gam show contacts [query <Query>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]])
+gam <UserTypeEntity> show contacts [query <Query>] [contactgroup <ContactGroupItem>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
+
+78) Modified command gam info contacts to operate only on contacts identified by their IDs.
+gam info contacts <ContactEntity> [basic|full] [showgroups]
+gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups]
+If you have scripts that use the query or contactgroups arguments with gam info contacts, change info to show.
+
+79) Added showgroups argument to gam info/print/show contacts to display output of contact group information.
+
+80) Added emailmatchpattern <REPattern> and [emailmatchtype work|home|other|<String>] arguments to gam delete/print/show contacts
+to allow matching on contact email addresses. emailmatchtype is only used when emailmatchpattern is specified.
+Added fields argument to gam info/print/show contacts to allow selection of fields to display.
+gam delete contacts <ContactEntity>|([query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
+gam show contacts [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+gam print contacts [todrive] [idfirst] [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+
+gam <UserTypeEntity> delete contacts <ContactEntity>|([query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> show contacts [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+
+81) Added command to show all of a user's contact groups.
+gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
+	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
+
+82) Added command to print calendars to CSV , dropped all arguments from gam show calendars.
+gam <UserTypeEntity> print calendars [todrive] [idfirst]
+gam <UserTypeEntity> show calendars
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
