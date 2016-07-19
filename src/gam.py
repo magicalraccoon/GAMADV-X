@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.00'
+__version__ = u'4.18.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -225,6 +225,8 @@ GC_DOMAIN = u'domain'
 GC_DRIVE_DIR = u'drive_dir'
 # When retrieving lists of Drive files/folders from API, how many should be retrieved in each chunk
 GC_DRIVE_MAX_RESULTS = u'drive_max_results'
+# When processing email messages in batches, how many should be processed in each batch
+GC_EMAIL_BATCH_SIZE = u'email_batch_size'
 # Path to extra_args.txt
 GC_EXTRA_ARGS = u'extra_args'
 # If no_browser is False, writeCSVfile won't open a browser when todrive is set
@@ -266,6 +268,7 @@ GC_Defaults = {
   GC_DOMAIN: u'',
   GC_DRIVE_DIR: u'',
   GC_DRIVE_MAX_RESULTS: 1000,
+  GC_EMAIL_BATCH_SIZE: 100,
   GC_EXTRA_ARGS: u'',
   GC_NO_BROWSER: FALSE,
   GC_NO_CACHE: FALSE,
@@ -311,6 +314,7 @@ GC_VAR_INFO = {
   GC_DOMAIN: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GA_DOMAIN'},
   GC_DRIVE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMDRIVEDIR'},
   GC_DRIVE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_DRIVE_MAX_RESULTS', GC_VAR_LIMITS: (1, 1000)},
+  GC_EMAIL_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_EMAIL_BATCH_SIZE', GC_VAR_LIMITS: (1, 100)},
   GC_EXTRA_ARGS: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: FN_EXTRA_ARGS_TXT, GC_VAR_SFFT: (u'', FN_EXTRA_ARGS_TXT)},
   GC_NO_BROWSER: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'nobrowser.txt', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_NO_CACHE: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'nocache.txt', GC_VAR_SFFT: (FALSE, TRUE)},
@@ -334,6 +338,7 @@ GC_SETTABLE_VARS = [
   GC_DEBUG_LEVEL,
   GC_DEVICE_MAX_RESULTS,
   GC_DRIVE_MAX_RESULTS,
+  GC_EMAIL_BATCH_SIZE,
   GC_NO_BROWSER,
   GC_NO_CACHE,
   GC_NO_UPDATE_CHECK,
@@ -704,6 +709,7 @@ EN_CALENDAR_SETTINGS = u'cset'
 EN_CONFIG_FILE = u'conf'
 EN_CONTACT = u'cont'
 EN_CONTACT_GROUP = u'cogr'
+EN_CONTACT_GROUP_NAME = u'cogn'
 EN_COURSE = u'cour'
 EN_COURSE_ALIAS = u'coal'
 EN_COURSE_ID = u'coid'
@@ -824,6 +830,7 @@ ENTITY_NAMES = {
   EN_CONFIG_FILE: [u'Config File', u'Config File'],
   EN_CONTACT: [u'Contacts', u'Contact'],
   EN_CONTACT_GROUP: [u'Contact Groups', u'Contact Group'],
+  EN_CONTACT_GROUP_NAME: [u'Contact Group Names', u'Contact Group Name'],
   EN_COURSE: [u'Courses', u'Course'],
   EN_COURSE_ALIAS: [u'Course Aliases', u'Course Alias'],
   EN_COURSE_ID: [u'Course IDs', u'Course ID'],
@@ -1822,6 +1829,11 @@ def usageErrorExit(message, extraneous=False):
   sys.stderr.write(u'Help: Documentation is at {0}\n'.format(GAM_WIKI))
   sys.exit(USAGE_ERROR_RC)
 
+def badEntitiesExit(entityType, count, phraseList, backupArg=False):
+  if backupArg:
+    putArgumentBack()
+  usageErrorExit(u'{0} {1} {2}'.format(count, chooseEntityName(entityType, count), phraseList[count == 1]))
+
 def csvFieldErrorExit(fieldName, fieldNames, backupArg=False):
   if backupArg:
     putArgumentBack()
@@ -2007,6 +2019,12 @@ def getCourseAlias():
   missingArgumentExit(OB_COURSE_ALIAS)
 
 UID_PATTERN = re.compile(r'u?id: ?(.*)')
+
+def validateEmailAddressOrUID(emailAddressOrUID):
+  cg = UID_PATTERN.match(emailAddressOrUID)
+  if cg:
+    return cg.group(1)
+  return emailAddressOrUID.find(u'@') != 0 and emailAddressOrUID.count(u'@') <= 1
 
 # Normalize user/group email address/uid
 # uid:12345abc -> 12345abc
@@ -2682,6 +2700,15 @@ def badRequestWarning(entityType, itemType, itemValue):
   printWarningMessage(BAD_REQUEST_RC, u'{0} 0 {1}: {2} {3} - {4}'.format(PHRASE_GOT, pluralEntityName(entityType),
                                                                          PHRASE_INVALID, singularEntityName(itemType),
                                                                          itemValue))
+
+def invalidQuery(query):
+  return u'{0}: ({1}) {2}'.format(singularEntityName(EN_QUERY), query, PHRASE_INVALID)
+
+def entityTypeName(entityType, entityName):
+  return u'{0}: {1}'.format(singularEntityName(entityType), entityName)
+
+def entityTypeNameMessage(entityType, entityName, message):
+  return u'{0}: {1} {2}'.format(singularEntityName(entityType), entityName, message)
 
 def entityServiceNotApplicableWarning(entityType, entityName, i=0, count=0):
   setSysExitRC(SERVICE_NOT_APPLICABLE_RC)
@@ -4040,36 +4067,41 @@ def callGAPI(service, function,
       systemErrorExit(GOOGLE_API_ERROR_RC, e)
 
 def callGAPIpages(service, function, items,
-                  page_message=None, message_attribute=None,
+                  page_message=None, message_attribute=None, maxItems=0,
                   throw_reasons=[], retry_reasons=[],
                   **kwargs):
   pageToken = None
-  all_results = []
-  total_items = 0
+  allResults = []
+  totalItems = 0
+  maxResults = kwargs.get(u'maxResults', 0)
+  tweakMaxResults = maxItems and maxResults
   while True:
+    if tweakMaxResults and maxItems-totalItems < maxResults:
+      kwargs[u'maxResults'] = maxItems-totalItems
     results = callGAPI(service, function,
                        throw_reasons=throw_reasons, retry_reasons=retry_reasons,
-                       pageToken=pageToken, **kwargs)
+                       pageToken=pageToken,
+                       **kwargs)
     if results:
       pageToken = results.get(u'nextPageToken')
       if items in results:
-        page_items = len(results[items])
-        total_items += page_items
-        all_results.extend(results[items])
+        pageItems = len(results[items])
+        totalItems += pageItems
+        allResults.extend(results[items])
       else:
         results = {items: []}
-        page_items = 0
+        pageItems = 0
     else:
       pageToken = None
       results = {items: []}
-      page_items = 0
+      pageItems = 0
     if page_message:
       if GM_Globals[GM_GETTING_SHOW_TOTAL]:
-        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
-        count = total_items
+        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(totalItems))
+        count = totalItems
       else:
-        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-        count = page_items if pageToken else total_items
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(pageItems))
+        count = pageItems if pageToken else totalItems
       if message_attribute:
         try:
           show_message = show_message.replace(FIRST_ITEM_MARKER, str(results[items][0][message_attribute]))
@@ -4081,11 +4113,11 @@ def callGAPIpages(service, function, items,
       sys.stderr.flush()
       gettingItemInfo = GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]]
       sys.stderr.write(show_message.format(gettingItemInfo))
-    if not pageToken:
+    if not pageToken or maxItems and totalItems >= maxItems:
       if page_message and (page_message[-1] != u'\n'):
         sys.stderr.write(u'\r\n')
         sys.stderr.flush()
-      return all_results
+      return allResults
 
 def callGAPIitems(service, function, items,
                   throw_reasons=[], retry_reasons=[],
@@ -4522,7 +4554,10 @@ def addMembersToUsers(usersList, usersSet, emailField, members, checkNotSuspende
 
 # Turn the entity into a list of Users/CrOS devices
 def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False):
-  errors = 0
+  def _showInvalidEntity(entityType, entityName):
+    printErrorMessage(USAGE_ERROR_RC, formatKeyValueList(u'', [singularEntityName(entityType), entityName, PHRASE_INVALID], u''))
+
+  doNotExist = invalid = 0
   usersList = list()
   usersSet = set()
   if entityType in [CL_ENTITY_USER, CL_ENTITY_USERS]:
@@ -4531,9 +4566,13 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     if entityType == CL_ENTITY_USER:
       checkForCommasInSingularItems(entityType, members, CL_ENTITY_USERS)
     for user in members:
-      if user not in usersSet:
-        usersSet.add(user)
-        usersList.append(user)
+      if validateEmailAddressOrUID(user):
+        if user not in usersSet:
+          usersSet.add(user)
+          usersList.append(user)
+      else:
+        _showInvalidEntity(EN_USER, user)
+        invalid += 1
   elif entityType == CL_ENTITY_ALL_USERS:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
     try:
@@ -4555,18 +4594,22 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     if entityType == CL_ENTITY_GROUP:
       checkForCommasInSingularItems(entityType, groups, CL_ENTITY_GROUPS)
     for group in groups:
-      try:
-        group = normalizeEmailAddressOrUID(group)
-        printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER, group, entityType=EN_GROUP)
-        page_message = getPageMessageForWhom(noNL=True)
-        members = callGAPIpages(cd.members(), u'list', u'members',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
-                                groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email)')
-        addMembersToUsers(usersList, usersSet, u'email', members)
-      except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
-        entityUnknownWarning(EN_GROUP, group)
-        errors += 1
+      if validateEmailAddressOrUID(group):
+        try:
+          group = normalizeEmailAddressOrUID(group)
+          printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER, group, entityType=EN_GROUP)
+          page_message = getPageMessageForWhom(noNL=True)
+          members = callGAPIpages(cd.members(), u'list', u'members',
+                                  page_message=page_message,
+                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
+                                  groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email)')
+          addMembersToUsers(usersList, usersSet, u'email', members)
+        except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
+          entityUnknownWarning(EN_GROUP, group)
+          doNotExist += 1
+      else:
+        _showInvalidEntity(EN_GROUP, group)
+        invalid += 1
   elif entityType in [CL_ENTITY_OU, CL_ENTITY_OUS]:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
     ous = convertEntityToList(entityType, CL_ENTITY_OU, entity, noSpaceSplit=True)
@@ -4595,7 +4638,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         prevLen = totalLen
       except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
-        errors += 1
+        doNotExist += 1
   elif entityType in [CL_ENTITY_OU_AND_CHILDREN, CL_ENTITY_OUS_AND_CHILDREN]:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
     ous = convertEntityToList(entityType, CL_ENTITY_OU_AND_CHILDREN, entity, noSpaceSplit=True)
@@ -4624,7 +4667,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         prevLen = totalLen
       except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
-        errors += 1
+        doNotExist += 1
   elif entityType == CL_ENTITY_QUERY:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
     try:
@@ -4678,7 +4721,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
               usersList.append(email)
       except GAPI_notFound:
         entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId))
-        errors += 1
+        doNotExist += 1
       except GAPI_forbidden:
         APIAccessDeniedExit()
   elif entityType == CL_ENTITY_CROS:
@@ -4735,7 +4778,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         ouDict[ou.lower()] = True
       except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
-        errors += 1
+        doNotExist += 1
     try:
       printGettingAccountEntitiesInfo(EN_CROS_DEVICE)
       page_message = getPageMessage(noNL=True)
@@ -4764,13 +4807,12 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       accessErrorExit(cd)
   else:
     systemErrorExit(UNKNOWN_ERROR_RC, u'getUsersToModify coding error')
-  if errors == 0:
+  if doNotExist == 0 and invalid == 0:
     return usersList
-  putArgumentBack()
-  if errors == 1:
-    usageErrorExit(u'{0} {1} {2}'.format(errors, singularEntityName(EN_ENTITY), PHRASE_DOES_NOT_EXIST))
-  else:
-    usageErrorExit(u'{0} {1} {2}'.format(errors, pluralEntityName(EN_ENTITY), PHRASE_DO_NOT_EXIST))
+  if doNotExist > 0:
+    badEntitiesExit(EN_ENTITY, doNotExist, [PHRASE_DO_NOT_EXIST, PHRASE_DOES_NOT_EXIST], backupArg=True)
+  if invalid > 0:
+    badEntitiesExit(EN_ENTITY, invalid, [PHRASE_INVALID, PHRASE_INVALID], backupArg=True)
 
 def getEntitiesFromArgs():
   marker = getString(OB_STRING)
@@ -8425,9 +8467,9 @@ def doCalendarMoveEvent(cal, calendarList):
                  calendarId=calendarId, eventId=eventId, destination=newCalendarId)
         entityItemValueModifierNewValueActionPerformed(EN_CALENDAR, calendarId, EN_EVENT, eventId, AC_MODIFIER_TO, u'{0}: {1}'.format(singularEntityName(EN_CALENDAR), newCalendarId), j, jcount)
       except GAPI_notFound:
-        entityItemValueItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, EN_CALENDAR, newCalendarId, u'{0} {1}'.format(singularEntityName(EN_EVENT), PHRASE_DOES_NOT_EXIST), j, jcount)
+        entityItemValueItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, EN_CALENDAR, newCalendarId, entityTypeNameMessage(EN_EVENT, eventId, PHRASE_DOES_NOT_EXIST), j, jcount)
       except GAPI_forbidden:
-        entityItemValueItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, EN_CALENDAR, newCalendarId, PHRASE_NOT_ALLOWED, j, jcount)
+        entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, entityTypeNameMessage(EN_CALENDAR, newCalendarId, PHRASE_NOT_ALLOWED), j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
         break
@@ -9411,6 +9453,8 @@ class ContactsManager(object):
         fields[fieldName] = getString(OB_STRING)
       else:
         fields[fieldName] = getString(OB_STRING, emptyOK=True)
+    if not fields.get(CONTACT_GROUP_NAME):
+      missingArgumentExit(u'name')
     return fields
 
   @staticmethod
@@ -9558,7 +9602,7 @@ def validateContactGroupsList(contactsManager, contactsObject, contactId, fields
       contactGroupsList.append(groupId)
     else:
       if contactGroupNames:
-        entityItemValueItemValueActionFailedWarning(entityType, entityName, EN_CONTACT, contactId, EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST)
+        entityItemValueActionNotPerformedWarning(entityType, entityName, EN_CONTACT, contactId, entityTypeNameMessage(EN_CONTACT_GROUP, contactGroup, PHRASE_DOES_NOT_EXIST))
       result = False
   return (result, contactGroupsList)
 
@@ -10087,7 +10131,7 @@ def doCreateContactGroup(users, entityType):
     if contactGroupNames == False:
       continue
     if fields[CONTACT_GROUP_NAME] in contactGroupNames:
-      entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, u'', u'{0} {1}'.format(PHRASE_DUPLICATE, fields[CONTACT_GROUP_NAME]), i, count)
+      entityActionFailedWarning(entityType, user, entityTypeNameMessage(EN_CONTACT_GROUP_NAME, fields[CONTACT_GROUP_NAME], PHRASE_DUPLICATE), i, count)
       continue
     try:
       group = callGData(contactsObject, u'CreateGroup',
@@ -10133,7 +10177,7 @@ def doUpdateContactGroup(users, entityType):
           continue
         break
       if update_fields[CONTACT_GROUP_NAME] in contactGroupNames and groupId not in contactGroupNames[update_fields[CONTACT_GROUP_NAME]]:
-        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, groupId, u'{0} {1}'.format(PHRASE_DUPLICATE, update_fields[CONTACT_GROUP_NAME]), i, count)
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT_GROUP, contactGroup, entityTypeNameMessage(EN_CONTACT_GROUP_NAME, update_fields[CONTACT_GROUP_NAME], PHRASE_DUPLICATE), i, count)
         continue
       contactGroup = contactGroupIDs.get(groupId, contactGroup)
       try:
@@ -10623,7 +10667,7 @@ def doPrintCrOSDevices():
                 new_row[attribMap[attrib]] = item[attrib]
             csvRows.append(new_row)
   except GAPI_invalidInput:
-    entityItemValueActionFailedWarning(EN_CROS_DEVICE, PHRASE_LIST, EN_QUERY, query, PHRASE_INVALID_QUERY)
+    entityActionFailedWarning(EN_CROS_DEVICE, PHRASE_LIST, invalidQuery(query))
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'CrOS', todrive)
@@ -10836,7 +10880,7 @@ def doPrintMobileDevices():
           pass
       csvRows.append(mobiledevice)
   except GAPI_invalidInput:
-    entityItemValueActionFailedWarning(EN_MOBILE_DEVICE, PHRASE_LIST, EN_QUERY, query, PHRASE_INVALID_QUERY)
+    entityActionFailedWarning(EN_MOBILE_DEVICE, PHRASE_LIST, invalidQuery(query))
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Mobile', todrive)
@@ -13890,7 +13934,7 @@ def doPrintUsers():
       entityItemValueActionFailedWarning(EN_USER, PHRASE_LIST, EN_DOMAIN, domain, PHRASE_NOT_FOUND)
       return
     except GAPI_invalidInput:
-      entityItemValueActionFailedWarning(EN_USER, PHRASE_LIST, EN_QUERY, query, PHRASE_INVALID_QUERY)
+      entityActionFailedWarning(EN_USER, PHRASE_LIST, invalidQuery(query))
       return
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
@@ -14301,7 +14345,7 @@ def doPrintCourses():
     for course in csvRows:
       i += 1
       courseId = course[u'id']
-      printGettingAllEntityItemsForWhom(EN_ALIAS, u'{0} {1}'.format(singularEntityName(EN_COURSE), cleanCourseId(courseId)), i, count)
+      printGettingAllEntityItemsForWhom(EN_ALIAS, entityTypeName(EN_COURSE, cleanCourseId(courseId)), i, count)
       course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
                                      courseId=courseId)
       my_aliases = []
@@ -16043,7 +16087,7 @@ def doDriveSearch(drive, user, i, count, query=None):
       fileIds.append(f_file[u'id'])
     return fileIds
   except GAPI_invalidQuery:
-    entityItemValueItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, PHRASE_LIST, EN_QUERY, query, PHRASE_INVALID_QUERY, i, count)
+    entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, PHRASE_LIST, invalidQuery(query), i, count)
   except GAPI_fileNotFound:
     printGettingEntityItemsForWhomDoneInfo(0)
   except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -16613,7 +16657,7 @@ def showDriveFileList(users):
                 addTitleToCSVfile(x_attrib, titles)
         csvRows.append(a_file)
     except GAPI_invalidQuery:
-      entityItemValueItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, PHRASE_LIST, EN_QUERY, query, PHRASE_INVALID_QUERY, i, count)
+      entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, PHRASE_LIST, invalidQuery(query), i, count)
       break
     except GAPI_fileNotFound:
       printGettingEntityItemsForWhomDoneInfo(0)
@@ -17130,7 +17174,7 @@ def transferDriveFiles(users):
       target_drive_free = target_drive_free - source_drive_size # prep target_drive_free for next user
       source_root = source_about[u'rootFolderId']
       source_permissionid = source_about[u'permissionId']
-      printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, u'{0} {1}'.format(singularEntityName(EN_SOURCE_USER), user), i, count)
+      printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, entityTypeName(EN_SOURCE_USER, user), i, count)
       page_message = getPageMessageForWhom()
       source_drive_files = callGAPIpages(source_drive.files(), u'list', DRIVE_FILES_LIST,
                                          page_message=page_message,
@@ -17138,7 +17182,7 @@ def transferDriveFiles(users):
       all_source_file_ids = []
       for source_drive_file in source_drive_files:
         all_source_file_ids.append(source_drive_file[u'id'])
-      printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, u'{0} {1}'.format(singularEntityName(EN_TARGET_USER), target_user))
+      printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, entityTypeName(EN_TARGET_USER, target_user))
       page_message = getPageMessageForWhom()
       target_folders = callGAPIpages(target_drive.files(), u'list', DRIVE_FILES_LIST,
                                      page_message=page_message,
@@ -17236,7 +17280,7 @@ def transferDriveFileOwnership(users):
                  fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
         entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
       except GAPI_invalidSharingRequest as e:
-        entityItemValueItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, e.value, j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.value), j, jcount)
       except GAPI_permissionNotFound:
         entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
       except GAPI_fileNotFound:
@@ -17477,7 +17521,7 @@ def addDriveFileACL(users):
         entityItemValueItemValueActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
         _showPermission(permission)
       except GAPI_invalidSharingRequest as e:
-        entityItemValueItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, e.value, j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.value), j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -18803,21 +18847,21 @@ SMTP_HEADERS_MAP = {
 # gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
 # gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
 def printMessages(users):
-  showMessagesThreads(users, EN_MESSAGE, True)
+  printShowMessagesThreads(users, EN_MESSAGE, True)
 
 def printThreads(users):
-  showMessagesThreads(users, EN_THREAD, True)
+  printShowMessagesThreads(users, EN_THREAD, True)
 
 def showMessages(users):
-  showMessagesThreads(users, EN_MESSAGE, False)
+  printShowMessagesThreads(users, EN_MESSAGE, False)
 
 def showThreads(users):
-  showMessagesThreads(users, EN_THREAD, False)
+  printShowMessagesThreads(users, EN_THREAD, False)
 
-def showMessagesThreads(users, entityType, csvFormat):
+def printShowMessagesThreads(users, entityType, csvFormat):
 
-  def _showMessage(result):
-    printKeyValueList([u'id', result[u'id']])
+  def _showMessage(result, j, jcount):
+    printKeyValueListWithCount([u'id', result[u'id']], j, jcount)
     incrementIndentLevel()
     if show_snippet:
       printKeyValueList([u'Snippet', dehtml(result[u'snippet']).replace(u'\n', u' ')])
@@ -18836,6 +18880,14 @@ def showMessagesThreads(users, entityType, csvFormat):
             break
       printKeyValueList([u'Labels', u','.join(messageLabels)])
     decrementIndentLevel()
+
+  def _callbackShowMessage(request_id, response, exception):
+    ri = request_id.split(None, 2)
+    if exception is not None:
+      http_status, reason, message = checkGAPIError(exception)
+      systemHTTPErrorWarning(http_status, message, reason)
+    else:
+      _showMessage(response, int(ri[1]), int(ri[2]))
 
   def _printMessage(user, result):
     row = {u'User': user, u'threadId': result[u'threadId'], u'id': result[u'id']}
@@ -18861,6 +18913,78 @@ def showMessagesThreads(users, entityType, csvFormat):
             break
       row[u'Labels'] = u','.join(messageLabels)
     addRowTitlesToCSVfile(row, csvRows, titles)
+
+  def _callbackPrintMessage(request_id, response, exception):
+    ri = request_id.split(None, 2)
+    if exception is not None:
+      http_status, reason, message = checkGAPIError(exception)
+      systemHTTPErrorWarning(http_status, message, reason)
+    else:
+      _printMessage(ri[0], response)
+
+  def _showThread(result, j, jcount):
+    printKeyValueListWithCount([u'id', result[u'id']], j, jcount)
+    incrementIndentLevel()
+    if show_snippet and u'snippet' in result:
+      printKeyValueList([u'Snippet', dehtml(result[u'snippet']).replace(u'\n', u' ')])
+    printKeyValueList([pluralEntityName(EN_MESSAGE)])
+    incrementIndentLevel()
+    try:
+      result = callGAPI(service, u'get',
+                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                        id=result[u'id'], userId=u'me', format=u'metadata')
+      kcount = len(result[u'messages'])
+      k = 0
+      for message in result[u'messages']:
+        k += 1
+        _showMessage(message, k, kcount)
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
+      pass
+    decrementIndentLevel()
+    decrementIndentLevel()
+
+  def _callbackShowThread(request_id, response, exception):
+    ri = request_id.split(None, 2)
+    if exception is not None:
+      http_status, reason, message = checkGAPIError(exception)
+      systemHTTPErrorWarning(http_status, message, reason)
+    else:
+      _showThread(response, int(ri[1]), int(ri[2]))
+
+  def _printThread(user, result):
+    try:
+      result = callGAPI(service, u'get',
+                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                        id=result[u'id'], userId=u'me', format=u'metadata')
+      for message in result[u'messages']:
+        _printMessage(user, message)
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
+      pass
+
+  def _callbackPrintThread(request_id, response, exception):
+    ri = request_id.split(None, 2)
+    if exception is not None:
+      http_status, reason, message = checkGAPIError(exception)
+      systemHTTPErrorWarning(http_status, message, reason)
+    else:
+      _printThread(ri[0], response)
+
+  def _batchPrintShowMessages(service, user, jcount, messageIds, callback):
+    dbatch = googleapiclient.http.BatchHttpRequest(callback=callback)
+    bcount = 0
+    j = 0
+    for message in messageIds:
+      j += 1
+      dbatch.add(service.get(userId=u'me', id=message[u'id'], format=u'metadata'), request_id=u'{0} {1} {2}'.format(user, j, jcount))
+      bcount += 1
+      if maxToProcess and j == maxToProcess:
+        break
+      if bcount == GC_Values[GC_EMAIL_BATCH_SIZE]:
+        dbatch.execute()
+        dbatch = googleapiclient.http.BatchHttpRequest(callback=callback)
+        bcount = 0
+    if bcount > 0:
+      dbatch.execute()
 
   labelIds = query = None
   labelNames = []
@@ -18933,10 +19057,9 @@ def showMessagesThreads(users, entityType, csvFormat):
       continue
     service = [gmail.users().threads(), gmail.users().messages()][entityType == EN_MESSAGE]
     try:
-      if show_labels or labelNames:
-        labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
-        if not labels:
-          continue
+      labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
+      if not labels:
+        continue
       if messageIds == None:
         if labelNames:
           badLabels = []
@@ -18954,9 +19077,9 @@ def showMessagesThreads(users, entityType, csvFormat):
         printGettingAllEntityItemsForWhom(entityType, user, i, count)
         page_message = getPageMessage()
         listResult = callGAPIpages(service, u'list', listType,
-                                   page_message=page_message,
+                                   page_message=page_message, maxItems=maxToProcess,
                                    throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                   userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash)
+                                   userId=u'me', labelIds=labelIds, q=query, includeSpamTrash=includeSpamTrash, maxResults=500)
       jcount = len(listResult)
       if jcount == 0:
         if not csvFormat:
@@ -18969,55 +19092,50 @@ def showMessagesThreads(users, entityType, csvFormat):
         entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
         incrementIndentLevel()
         if entityType == EN_MESSAGE:
-          for j in xrange(jcount):
-            try:
-              result = callGAPI(service, u'get',
-                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
-              _showMessage(result)
-            except (GAPI_serviceNotAvailable, GAPI_badRequest):
-              pass
+          if GC_Values[GC_EMAIL_BATCH_SIZE]:
+            _batchPrintShowMessages(service, user, jcount, listResult, _callbackShowMessage)
+          else:
+            for j in xrange(jcount):
+              try:
+                result = callGAPI(service, u'get',
+                                  throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                  id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+                _showMessage(result, j+1, jcount)
+              except (GAPI_serviceNotAvailable, GAPI_badRequest):
+                pass
         else:
-          for j in xrange(jcount):
-            pthread = listResult[j]
-            printKeyValueList([u'id', pthread[u'id']])
-            incrementIndentLevel()
-            if show_snippet:
-              printKeyValueList([u'Snippet', dehtml(pthread[u'snippet']).replace(u'\n', u' ')])
-            printKeyValueList([pluralEntityName(EN_MESSAGE)])
-            incrementIndentLevel()
-            try:
-              result = callGAPI(service, u'get',
-                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                id=pthread[u'id'], userId=u'me', format=u'metadata')
-              for pmessage in result[u'messages']:
-                _showMessage(pmessage)
-            except (GAPI_serviceNotAvailable, GAPI_badRequest):
-              pass
-            decrementIndentLevel()
-            decrementIndentLevel()
-          decrementIndentLevel()
+          if GC_Values[GC_EMAIL_BATCH_SIZE]:
+            _batchPrintShowMessages(service, user, jcount, listResult, _callbackShowThread)
+          else:
+            for j in xrange(jcount):
+              _showThread(listResult[j], j+1, jcount)
         decrementIndentLevel()
       else:
         if entityType == EN_MESSAGE:
-          for j in xrange(jcount):
-            try:
-              result = callGAPI(service, u'get',
-                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
-              _printMessage(user, result)
-            except (GAPI_serviceNotAvailable, GAPI_badRequest):
-              pass
+          if GC_Values[GC_EMAIL_BATCH_SIZE]:
+            _batchPrintShowMessages(service, user, jcount, listResult, _callbackPrintMessage)
+          else:
+            for j in xrange(jcount):
+              try:
+                result = callGAPI(service, u'get',
+                                  throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                  id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+                _printMessage(user, result)
+              except (GAPI_serviceNotAvailable, GAPI_badRequest):
+                pass
         else:
-          for j in xrange(jcount):
-            try:
-              result = callGAPI(service, u'get',
-                                throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                id=listResult[j][u'id'], userId=u'me', format=u'metadata')
-              for pmessage in result[u'messages']:
-                _printMessage(user, pmessage)
-            except (GAPI_serviceNotAvailable, GAPI_badRequest):
-              pass
+          if GC_Values[GC_EMAIL_BATCH_SIZE]:
+            _batchPrintShowMessages(service, user, jcount, listResult, _callbackPrintThread)
+          else:
+            for j in xrange(jcount):
+              try:
+                result = callGAPI(service, u'get',
+                                  throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                                  id=listResult[j][u'id'], userId=u'me', format=u'metadata')
+                for pmessage in result[u'messages']:
+                  _printMessage(user, pmessage)
+              except (GAPI_serviceNotAvailable, GAPI_badRequest):
+                pass
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
@@ -19137,7 +19255,7 @@ def delegateTo(users, checkForTo=True):
           break
         except GData_entityExists:
           incrementIndentLevel()
-          entityItemValueActionFailedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, PHRASE_DUPLICATE, j, jcount)
+          entityActionFailedWarning(EN_DELEGATOR, delegatorEmail, entityTypeNameMessage(EN_DELEGATE, delegateEmail, PHRASE_DUPLICATE), j, jcount)
           decrementIndentLevel()
           break
         except gdata.apps.service.AppsForYourDomainException as e:
@@ -19148,7 +19266,7 @@ def delegateTo(users, checkForTo=True):
           for get_delegate in get_delegates:
             if get_delegate[u'address'].lower() == delegateEmail: # Delegation is already in place
               incrementIndentLevel()
-              entityItemValueActionFailedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, PHRASE_DUPLICATE, j, jcount)
+              entityActionFailedWarning(EN_DELEGATOR, delegatorEmail, entityTypeNameMessage(EN_DELEGATE, delegateEmail, PHRASE_DUPLICATE), j, jcount)
               decrementIndentLevel()
               duplicateDelegation = True
               break
@@ -19158,23 +19276,23 @@ def delegateTo(users, checkForTo=True):
           delegator_user_details = callGAPI(cd.users(), u'get',
                                             userKey=delegatorEmail)
           if delegator_user_details[u'suspended']:
-            entityNumEntitiesActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, jcount, u'{0} {1}'.format(singularEntityName(EN_DELEGATOR), PHRASE_IS_SUSPENDED_NO_DELEGATION), i, count)
+            entityNumEntitiesActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, jcount, entityTypeNameMessage(EN_DELEGATOR, delegatorEmail, PHRASE_IS_SUSPENDED_NO_DELEGATION), i, count)
             setSysExitRC(USER_SUSPENDED_ERROR_RC)
             continueWithUser = False
             break
           if delegator_user_details[u'changePasswordAtNextLogin']:
-            entityNumEntitiesActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, jcount, u'{0} {1}'.format(singularEntityName(EN_DELEGATOR), PHRASE_IS_REQD_TO_CHG_PWD_NO_DELEGATION), i, count)
+            entityNumEntitiesActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, jcount, entityTypeNameMessage(EN_DELEGATOR, delegatorEmail, PHRASE_IS_REQD_TO_CHG_PWD_NO_DELEGATION), i, count)
             setSysExitRC(USER_SUSPENDED_ERROR_RC)
             continueWithUser = False
             break
           delegate_user_details = callGAPI(cd.users(), u'get',
                                            userKey=delegateEmail)
           if delegate_user_details[u'suspended']:
-            entityItemValueActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, u'{0} {1}'.format(singularEntityName(EN_DELEGATE), PHRASE_IS_SUSPENDED_NO_DELEGATION), j, jcount)
+            entityActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, entityTypeNameMessage(EN_DELEGATE, delegateEmail, PHRASE_IS_SUSPENDED_NO_DELEGATION), j, jcount)
             setSysExitRC(USER_SUSPENDED_ERROR_RC)
             break
           if delegate_user_details[u'changePasswordAtNextLogin']:
-            entityItemValueActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, u'{0} {1}'.format(singularEntityName(EN_DELEGATE), PHRASE_IS_REQD_TO_CHG_PWD_NO_DELEGATION), j, jcount)
+            entityActionNotPerformedWarning(EN_DELEGATOR, delegatorEmail, entityTypeNameMessage(EN_DELEGATE, delegateEmail, PHRASE_IS_REQD_TO_CHG_PWD_NO_DELEGATION), j, jcount)
             setSysExitRC(USER_SUSPENDED_ERROR_RC)
             break
           # Guess it was just a normal backoff error then?
@@ -19599,7 +19717,7 @@ EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP = {
   }
 
 # gam <UserTypeEntity> forward <FalseValues>
-# gam <UserTypeEntity> forward <TrueValues> [keep|leaveininbox|archive|delete|markread] [<EmailAddress>]
+# gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|markread <EmailAddress>
 def setForward(users):
   enable = getBoolean()
   body = {u'enabled': enable}
