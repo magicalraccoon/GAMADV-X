@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.01'
+__version__ = u'4.18.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -1604,6 +1604,7 @@ ENTITY_DOES_NOT_EXIST_RC = 56
 ENTITY_DUPLICATE_RC = 57
 ENTITY_IS_NOT_AN_ALIAS_RC = 58
 ENTITY_IS_UKNOWN_RC = 59
+NO_ENTITIES_FOUND = 60
 INVALID_DOMAIN_RC = 61
 INVALID_DOMAIN_VALUE_RC = 62
 INVALID_TOKEN_RC = 63
@@ -3742,27 +3743,28 @@ def callGDataPages(service, function,
                    uri=None,
                    **kwargs):
   nextLink = None
-  all_pages = list()
-  total_items = 0
+  allResults = []
+  totalItems = 0
   while True:
     this_page = callGData(service, function,
                           soft_errors=soft_errors, throw_errors=throw_errors, retry_errors=retry_errors,
-                          uri=uri, **kwargs)
+                          uri=uri,
+                          **kwargs)
     if this_page:
       nextLink = this_page.GetNextLink()
-      page_items = len(this_page.entry)
-      total_items += page_items
-      all_pages.extend(this_page.entry)
+      pageItems = len(this_page.entry)
+      totalItems += pageItems
+      allResults.extend(this_page.entry)
     else:
       nextLink = None
-      page_items = 0
+      pageItems = 0
     if page_message:
       if GM_Globals[GM_GETTING_SHOW_TOTAL]:
-        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(total_items))
-        count = total_items
+        show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(totalItems))
+        count = totalItems
       else:
-        show_message = page_message.replace(NUM_ITEMS_MARKER, str(page_items))
-        count = page_items if nextLink else total_items
+        show_message = page_message.replace(NUM_ITEMS_MARKER, str(pageItems))
+        count = pageItems if nextLink else totalItems
       sys.stderr.write(u'\r')
       sys.stderr.flush()
       gettingItemInfo = GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]]
@@ -3771,7 +3773,7 @@ def callGDataPages(service, function,
       if page_message and (page_message[-1] != u'\n'):
         sys.stderr.write(u'\r\n')
         sys.stderr.flush()
-      return all_pages
+      return allResults
     uri = nextLink.href
 
 def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=False, service=None):
@@ -7595,6 +7597,7 @@ def doStatusActivityRequests():
     jcount = len(results) if (results) else 0
     entityPerformActionNumItems(EN_DOMAIN, GC_Values[GC_DOMAIN], jcount, EN_AUDIT_ACTIVITY_REQUEST)
   if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
     return
   incrementIndentLevel()
   j = 0
@@ -7713,6 +7716,7 @@ def doStatusExportRequests():
     jcount = len(results) if (results) else 0
     entityPerformActionNumItems(EN_DOMAIN, GC_Values[GC_DOMAIN], jcount, EN_AUDIT_EXPORT_REQUEST)
   if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
     return
   incrementIndentLevel()
   j = 0
@@ -7836,6 +7840,7 @@ def doShowMonitors():
     jcount = len(results) if (results) else 0
     entityPerformActionNumItems(EN_USER, parameters[u'auditUser'], jcount, EN_AUDIT_MONITOR_REQUEST)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       return
     incrementIndentLevel()
     j = 0
@@ -7976,6 +7981,7 @@ def doCalendarAddACLs(cal, calendarList):
     jcount = len(ruleIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8033,6 +8039,7 @@ def doCalendarUpdateACLs(cal, calendarList):
     jcount = len(ruleIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8087,6 +8094,7 @@ def doCalendarDeleteACLs(cal, calendarList):
     jcount = len(ruleIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8112,6 +8120,7 @@ def doCalendarInfoACLs(cal, calendarList):
     jcount = len(ruleIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8147,6 +8156,7 @@ def doCalendarShowACLs(cal, calendarList):
       jcount = len(acls)
       entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       j = 0
@@ -8172,6 +8182,7 @@ def doCalendarWipeACLs(cal, calendarList):
       jcount = len(acls)
       entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_ACL, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       j = 0
@@ -8335,6 +8346,7 @@ def doCalendarUpdateEvent(cal, calendarList):
     jcount = len(eventIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8383,6 +8395,7 @@ def doCalendarDeleteEvent(cal, calendarList):
     jcount = len(eventIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8417,6 +8430,7 @@ def doCalendarInfoEvent(cal, calendarList):
     jcount = len(eventIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8456,6 +8470,7 @@ def doCalendarMoveEvent(cal, calendarList):
     jcount = len(eventIds)
     entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -8492,6 +8507,7 @@ def doCalendarShowEvents(cal, calendarList):
       jcount = len(events)
       entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       j = 0
@@ -9703,6 +9719,7 @@ def doUpdateContacts(users, entityType):
     jcount = len(entityList)
     entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     contactGroupsList = None
     incrementIndentLevel()
@@ -9791,6 +9808,7 @@ def doDeleteContacts(users, entityType):
     jcount = len(entityList)
     entityPerformActionModifierNumItems(entityType, user, PHRASE_MAXIMUM_OF, jcount, EN_CONTACT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     for contact in entityList:
@@ -9938,6 +9956,7 @@ def doInfoContacts(users, entityType):
     jcount = len(entityList)
     entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     for contact in entityList:
@@ -10027,6 +10046,8 @@ def printShowContacts(users, entityType, csvFormat):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     contacts = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
     jcount = len(contacts) if (contacts) else 0
+    if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
     if not csvFormat:
       entityPerformActionModifierNumItems(entityType, user, PHRASE_MAXIMUM_OF, jcount, EN_CONTACT, i, count)
       if jcount == 0:
@@ -10166,6 +10187,7 @@ def doUpdateContactGroup(users, entityType):
     jcount = len(entityList)
     entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     for contactGroup in entityList:
@@ -10231,6 +10253,7 @@ def doDeleteContactGroups(users, entityType):
     jcount = len(entityList)
     entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     for contactGroup in entityList:
@@ -10291,6 +10314,7 @@ def doInfoContactGroups(users, entityType):
     jcount = len(entityList)
     entityPerformActionNumItems(entityType, user, jcount, EN_CONTACT_GROUP, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     for contactGroup in entityList:
@@ -10368,7 +10392,9 @@ def printShowContactGroups(users, entityType, csvFormat):
                               throw_errors=[GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=uri, url_params=url_params)
-      jcount = len(groups) if (groups) else 0
+      jcount = len(groups)
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_CONTACT_GROUP, i, count)
         if jcount == 0:
@@ -12538,6 +12564,7 @@ def doUpdateSites(users, entityType):
     jcount = len(sites)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -12626,6 +12653,7 @@ def doInfoSites(users, entityType):
     jcount = len(sites)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_SITE, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -12787,6 +12815,7 @@ def doProcessSiteACLs(users, entityType):
     jcount = len(sites)
     entityPerformActionModifierNumItems(entityType, user, u'{0} {1}'.format(pluralEntityName(EN_ACL), PHRASE_FOR), jcount, EN_SITE, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -12912,6 +12941,7 @@ def doPrintSiteActivity(users, entityType):
       continue
     jcount = len(sites)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -13418,6 +13448,7 @@ def doUndeleteUser(getEntityListArg=False):
       jcount = len(matching_users)
       if jcount == 0:
         entityUnknownWarning(EN_DELETED_USER, user, i, count)
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       if jcount > 1:
         printEntityKVList(EN_DELETED_USER, user,
@@ -15096,6 +15127,8 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
         jcount = len(result[u'printers'][0][u'access'])
       except KeyError:
         jcount = 0
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_PRINTER, printerId, jcount, EN_ACL, i, count)
         if jcount == 0:
@@ -15408,6 +15441,7 @@ def _showASPs(user, asps, i=0, count=0):
   jcount = len(asps)
   entityPerformActionNumItems(EN_USER, user, jcount, EN_APPLICATION_SPECIFIC_PASSWORD, i, count)
   if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
     return
   incrementIndentLevel()
   for asp in asps:
@@ -15469,6 +15503,7 @@ def _showBackupCodes(user, codes, i=0, count=0):
   jcount = len(codes)
   entityPerformActionNumItems(EN_USER, user, jcount, EN_BACKUP_VERIFICATION_CODE, i, count)
   if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
     return
   incrementIndentLevel()
   j = 0
@@ -15658,6 +15693,7 @@ def addCalendar(users, getEntityListArg=False):
     jcount = len(calendarIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -15703,6 +15739,7 @@ def updateDeleteCalendars(users, calendarIds, calendarLists, function, **kwargs)
     jcount = len(calendarIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -15734,6 +15771,7 @@ def infoCalendar(users, getEntityListArg=False):
     jcount = len(calendarIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -15776,6 +15814,8 @@ def printShowCalendars(users, csvFormat):
       result = callGAPIpages(cal.calendarList(), u'list', u'items',
                              throw_reasons=GAPI_CALENDAR_THROW_REASONS)
       jcount = len(result)
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
         if jcount == 0:
@@ -15911,6 +15951,7 @@ def modifyRemoveCalendars(users, calendarIds, calendarLists, function, **kwargs)
     jcount = len(calendarIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -16043,6 +16084,7 @@ def transferSecCals(users):
       setActionName(AC_TRANSFER)
       entityPerformActionNumItems(EN_USER, user, jcount, EN_ACL, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       j = 0
@@ -16155,6 +16197,7 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
   if parameters[DFA_PARENTQUERY]:
     more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY])
     if more_parents == None:
+      setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
     body.setdefault(u'parents', [])
     for a_parent in more_parents:
@@ -16162,6 +16205,7 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
   if fileIdSelection[u'query']:
     fileIdSelection[u'fileIds'] = doDriveSearch(drive, user, i, count, query=fileIdSelection[u'query'])
     if fileIdSelection[u'fileIds'] == None:
+      setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
   else:
     for j in fileIdSelection[u'root']:
@@ -16172,7 +16216,10 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         return (user, None, 0)
-  return (user, drive, len(fileIdSelection[u'fileIds']))
+  l = len(fileIdSelection[u'fileIds'])
+  if l == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
+  return (user, drive, l)
 
 DRIVEFILE_LABEL_CHOICES_MAP = {
   u'restricted': u'restricted',
@@ -17502,6 +17549,7 @@ def addDriveFileACL(users):
       continue
     entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FILE_OR_FOLDER_ACL, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -17706,6 +17754,7 @@ def deleteUsersAliases(users):
       jcount = len(user_aliases[u'aliases']) if (u'aliases' in user_aliases) else 0
       entityPerformActionNumItems(EN_USER, user_primary, jcount, EN_ALIAS, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       j = 0
@@ -18544,6 +18593,7 @@ def showLabels(users):
             jcount -= 1
       entityPerformActionNumItems(EN_USER, user, jcount, EN_LABEL, i, count)
       if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       incrementIndentLevel()
       for label in labels[u'labels']:
@@ -18701,6 +18751,7 @@ def processMessages(users):
       jcount = len(listResult)
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, EN_MESSAGE, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       if messageIds == None:
         if not doIt:
@@ -19057,9 +19108,10 @@ def printShowMessagesThreads(users, entityType, csvFormat):
       continue
     service = [gmail.users().threads(), gmail.users().messages()][entityType == EN_MESSAGE]
     try:
-      labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
-      if not labels:
-        continue
+      if show_labels or labelNames or messageIds:
+        labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
+        if not labels:
+          continue
       if messageIds == None:
         if labelNames:
           badLabels = []
@@ -19084,6 +19136,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
       if jcount == 0:
         if not csvFormat:
           entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_MESSAGES_MATCHED, i, count)
+        setSysExitRC(NO_ENTITIES_FOUND)
         continue
       if messageIds == None:
         if maxToProcess and (jcount > maxToProcess):
@@ -19384,6 +19437,8 @@ def printShowDelegates(users, csvFormat):
                                    delegator=delegatorName)
     if result != None:
       jcount = len(result) if (result) else 0
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         if not csvStyle:
           entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
@@ -19585,6 +19640,7 @@ def deleteFilters(users):
     jcount = len(filterIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_FILTER, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -19637,6 +19693,8 @@ def printShowFilters(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'filter', [])) if (result) else 0
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_FILTER, i, count)
         if jcount == 0:
@@ -19674,6 +19732,7 @@ def infoFilters(users):
     jcount = len(filterIds)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_FILTER, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
     if not labels:
@@ -19838,6 +19897,7 @@ def addForwardingAddresses(users):
     jcount = len(emailAddresses)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_FORWARDING_ADDRESS, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -19872,6 +19932,7 @@ def deleteInfoForwardingAddreses(users, function):
     jcount = len(emailAddresses)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_FORWARDING_ADDRESS, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -19914,6 +19975,8 @@ def printShowForwardingAddresses(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'forwardingAddresses', [])) if (result) else 0
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_FORWARDING_ADDRESS, i, count)
         if jcount == 0:
@@ -20261,6 +20324,7 @@ def deleteInfoSendAs(users, function):
     jcount = len(emailAddresses)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_SENDAS_ADDRESS, i, count)
     if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     incrementIndentLevel()
     j = 0
@@ -20306,6 +20370,8 @@ def printShowSendAs(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'sendAs', [])) if (result) else 0
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_SENDAS_ADDRESS, i, count)
         if jcount == 0:
