@@ -582,6 +582,13 @@ gam <UserTypeEntity> show calendars
 83) Added variable email_batch_size to gam.cfg, the default is 100 and the range is 0 to 100.
 gam print/show messages/threads use this variable to batch retrieval of items from Gmail; it speeds up processing by a factor of ten.
 
+4.18.02
+
+84) Set exit/return code when no items are found to process in a command.
+For example, if you want to test for the existance of a Google drive folder:
+gam <UserTypeEntity> show fileinfo query:"title = 'Top Folder' and mimeType ='application/vnd.google-apps.folder'" id
+The exit/return code is 0 if the folder exists, 60 if it doesn't.
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
