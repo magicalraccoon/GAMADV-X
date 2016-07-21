@@ -18780,7 +18780,7 @@ def processMessages(users):
         decrementIndentLevel()
         continue
       if GM_Globals[GM_ACTION_COMMAND] == AC_SPAM:
-        body = {u'addLabelIds': [u'SPAM'], u'removeLabelIds': [u'INBOX']}
+        kwargs = {u'body': {u'addLabelIds': [u'SPAM'], u'removeLabelIds': [u'INBOX']}}
       elif not body:
         kwargs = {}
       else:
