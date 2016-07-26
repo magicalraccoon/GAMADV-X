@@ -1,5 +1,5 @@
 GAM versions 3.70 and above use a configuration file, gam.cfg, to store the values of the various environment variables
-and signal files used by earlier versions of GAM. Configuration files client_secrets.json, oauth2.txt>, oauth2service.json and extra_args.txt
+and signal files used by earlier versions of GAM. Configuration files client_secrets.json, oauth2.txt, oauth2service.json and extra_args.txt
 are moved to a version independent location. This should simplify upgrading GAM versions in the future.
 Additionally, if you support multiple clients/domains or have multiple users running GAM,
 gam.cfg lets you easily manage your configuration.
@@ -112,6 +112,10 @@ drive_max_results
 	When retrieving lists of Drive files/folders from API, how many should be retrieved in each chunk
 	Default: 1000
 	Environment variable: GAM_DRIVE_MAX_RESULTS
+email_batch_size
+	When processing Gmail items in batches, how many should be processed in each batch
+	Default: 100
+	Environment variable: GAM_EMAIL_BATCH_SIZE
 extra_args
 	Path to extra_args.txt
 	Default: Blank
@@ -174,6 +178,7 @@ Section: DEFAULT
   domain = 
   drive_dir = /Users/admin/Downloads
   drive_max_results = 1000
+  email_batch_size = 100
   extra_args = 
   no_browser = false
   no_cache = false
@@ -274,6 +279,7 @@ device_max_results = 500
 domain = main.com
 drive_dir = /Users/admin/Downloads
 drive_max_results = 1000
+email_batch_size = 100
 extra_args = 
 no_browser = false
 no_cache = false
