@@ -573,13 +573,13 @@ gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <Query>] [contact
 gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
 	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 
-82) Added command to print calendars to CSV , dropped all arguments from gam show calendars.
+82) Added command to print calendars to CSV file, dropped all arguments from gam show calendars.
 gam <UserTypeEntity> print calendars [todrive] [idfirst]
 gam <UserTypeEntity> show calendars
 
 4.18.01
 
-83) Added variable email_batch_size to gam.cfg, the default is 100 and the range is 0 to 100.
+83) Added variable email_batch_size to gam.cfg, the default is 100 and the range is 1 to 100.
 gam print/show messages/threads use this variable to batch retrieval of items from Gmail; it speeds up processing by a factor of ten.
 
 4.18.02
@@ -588,6 +588,71 @@ gam print/show messages/threads use this variable to batch retrieval of items fr
 For example, if you want to test for the existance of a Google drive folder:
 gam <UserTypeEntity> show fileinfo query:"title = 'Top Folder' and mimeType ='application/vnd.google-apps.folder'" id
 The exit/return code is 0 if the folder exists, 60 if it doesn't.
+
+4.18.03
+
+85) Added command to print Gmail Profiles to CSV file, dropped all arguments from gam show gmailprofile.
+gam <UserTypeEntity> print gmailprofile [todrive] [idfirst]
+gam <UserTypeEntity> show gmailprofile
+
+86) Added command to print Gplus Profiles to CSV file, dropped all arguments from gam show gplusprofile.
+show gplusprofile displays the formatted profile.
+gam <UserTypeEntity> print gplusprofile [todrive] [idfirst]
+gam <UserTypeEntity> show gplusprofile
+
+87) Added command to print user schemas to CSV file, renamed command to display formatted user schemas to gam show schemas.
+gam print schemas [todrive] [idfirst]
+gam show schemas
+
+88) Added command to print user tokens to CSV file.
+gam <UserTypeEntity> print tokens|token|3lo|oauth [todrive] [idfirst]
+
+89) Added command to move a Google drive file to the trash.
+gam <UserTypeEntity> trash drivefile <DriveFileEntity>
+This is equivalent to: gam <UserTypeEntity> delete drivefile <DriveFileEntity> trash
+
+90) Added command to remove a Google drive file from the trash.
+gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
+This is equivalent to: gam <UserTypeEntity> delete drivefile <DriveFileEntity> untrash
+
+91) Added commands to process threads in the same manner as messages.
+Added and, or arguments to message processing commands. These arguments allow you to combine queries and matchlabels; the default conjunction is and.
+Added quick and notquick arguments to message processing commands.
+By default, gam delete/modify/spam/trash/untrash messages fetches all matching messages from Google and then processes only max_to_process of them.
+To speed up fetching, specify quick and only max_to_process of the matching messages will be fetched. You must still specify doit to perform the operation.
+By default, gam print/show messages fetch only max_to_process matching messages from Google and then processes them.
+To see how many messages actually match, specify notquick and all matching messages will be fetched; only max_to_process of them will be processed.
+
+gam <UserTypeEntity> delete messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_delete|max_to_process <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> modify messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_modify|max_to_process <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
+gam <UserTypeEntity> spam messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_spam|max_to_process <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> trash messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_trash|max_to_process <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> untrash messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_untrash|max_to_process <Number>])|(ids <MessageIDEntity>)
+gam <UserTypeEntity> show messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+gam <UserTypeEntity> print messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
+
+92) All commands that process messages and threads now use the value of email_batch_size from gam.cfg to create batches to speed up processing.
+
+93) Add select argument to gam print cros to allow selection of source of ChromeOS devices.
+Add optional <UserTypeEntity> to gam print users and <CroSTypeEntity> to gam print cros.
+gam [<CrOSTypeEntity>] print cros [todrive] [idfirst] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
+	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>]
+	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
+gam [<UserTypeEntity>] print users [todrive] [idfirst] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
+	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
+	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
+
+94) Add arguments to gam info cros to allow specification of desired output fields.
+gam info cros <CrosDeviceEntity> [nolists] [listlimit <Number>]
+	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
+gam info croses <CrOSEntity> [nolists] [listlimit <Number>]
+	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
+
+95) Add drivedir and targetfolder <FilePath> arguments to gam print printjobs and gam get photo to
+allow specification of the destination folder for the file retrieved from Google. The default
+location for these commands is the current working directory, drivedir specifies the value of drive_dir from gam.cfg and
+targetfolder <FilePath> specifies a user-choosen path.
 
 *** Calendar Enhancements ***
 
