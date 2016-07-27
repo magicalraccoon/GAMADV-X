@@ -893,7 +893,7 @@ gam print users
 Prints a header row and primaryEmail for all users.
 gam <UserTypeEntity> print users
 Prints no header row and primaryEmail for specified users.
-gam <UserTypeEntity> print cros deviceid
+gam <UserTypeEntity> print users primaryEmail
 Prints a header row and primaryEmail for specified users.
 gam <UserTypeEntity> print users ... basic|full|allfields
 Prints a header row and selected fields for specified users.
