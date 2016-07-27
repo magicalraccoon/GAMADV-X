@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.03'
+__version__ = u'4.18.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -1189,6 +1189,7 @@ NORMALIZE_ARGUMENT = [u'normalize',]
 NOTSUSPENDED_ARGUMENT = [u'notsuspended',]
 ORG_OU_ARGUMENT = [u'org', u'ou',]
 PRIMARY_ARGUMENT = [u'primary',]
+PRIMARY_NOTPRIMARY_CHOICE_MAP = {u'primary': True, u'notprimary': False}
 QUERY_ARGUMENT = [u'query',]
 SHOWTITLES_ARGUMENT = [u'showtitles',]
 TODRIVE_ARGUMENT = [u'todrive',]
@@ -1970,19 +1971,19 @@ def getChoice(choices, **opts):
   if CL_argvI < CL_argvLen:
     choice = CL_argv[CL_argvI].strip().lower()
     if choice:
-      if CHOICE_ALIASES in opts and choice in opts[CHOICE_ALIASES]:
+      if choice in opts.get(CHOICE_ALIASES, []):
         choice = opts[CHOICE_ALIASES][choice]
       if choice not in choices:
         choice = choice.replace(u'_', u'')
-        if CHOICE_ALIASES in opts and choice in opts[CHOICE_ALIASES]:
+        if choice in opts.get(CHOICE_ALIASES, []):
           choice = opts[CHOICE_ALIASES][choice]
       if choice in choices:
         CL_argvI += 1
-        return choice if (MAP_CHOICE not in opts or not opts[MAP_CHOICE]) else choices[choice]
-    if (DEFAULT_CHOICE in opts) and (opts[DEFAULT_CHOICE] != NO_DEFAULT):
+        return choice if not opts.get(MAP_CHOICE, False) else choices[choice]
+    if opts.get(DEFAULT_CHOICE, NO_DEFAULT) != NO_DEFAULT:
       return opts[DEFAULT_CHOICE]
     invalidChoiceExit(choices)
-  elif (DEFAULT_CHOICE in opts) and (opts[DEFAULT_CHOICE] != NO_DEFAULT):
+  elif opts.get(DEFAULT_CHOICE, NO_DEFAULT) != NO_DEFAULT:
     return opts[DEFAULT_CHOICE]
   missingChoiceExit(choices)
 
@@ -8267,15 +8268,6 @@ CALENDAR_EVENT_MAX_COLOR_INDEX = 11
 
 CALENDAR_EVENT_VISIBILITY_CHOICES = [u'default', u'public', u'private',]
 
-# <EventAttributes> ::=
-#        [anyonecanaddself] [guestscantinviteothers] [guestscantseeothers] [notifyattendees] [available] [visibility default|public|prvate] [tentative]
-#        [attendee <EmailAddress>] [optionalattendee <EmailAddress>]
-#        [description <String>] [summary <String>] [location <String>] [id <String>]
-#        [source <String> <URL>] [privateproperty <PropertyKey> <PropertyValue>] [sharedproperty <PropertyKey> <PropertyValue>]
-#        [recurrence <RRULE, EXRULE, RDATE and EXDATE line>]
-#        [start allday <Date>] [start <Time>] [end allday <Date>] [end <Time>] [timezone <Timezone>]
-#        [noreminders|(reminder <Number> email|popup|sms)]
-#        [colorindex|colorid <EventColorIndex>]
 def getCalendarEventAttributes():
   body = {}
   parameters = {u'sendNotifications': None, u'timeZone': None}
@@ -9665,43 +9657,6 @@ def validateContactGroupsList(contactsManager, contactsObject, contactId, fields
       result = False
   return (result, contactGroupsList)
 
-# <ContactAttributes> ::=
-#	(additionalname|middlename <String>)|
-#	    (neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
-#	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
-#	(billinginfo <String>)|
-#	(birthday <YYYY-MM-DD>)|
-#	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))|
-#	(contactgroup <ContactGroupItem>)|
-#	(directoryserver <String>)|
-#	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
-#	(event clear|anniversary|other|<String> <YYYY-MM-DD>))|
-#	(externalid clear|(account|customer|network|organization|<String> <String>))|
-#	(familyname|lastname <String>)|
-#	(gender female|male)|
-#	(givenname|firstname <String>)|
-#	(hobby clear|(<String>))|
-#	(im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))|
-#	(initials <String>)|
-#	(jot clear|(work|home|other|keywords|user> <String>))|
-#	(language <Language>)|
-#	(location <String>)|
-#	(maidenname <String>)|
-#	(mileage <String>)|
-#	(name <String>)|
-#	(nickname <String>)|
-#	(note <String>|(file <FileName>))|
-#	(occupation <String>)|
-#	(organization clear|(work|other|<String> <String>|(location <String>)|(department <String>)|(title <String>)|(jobdescription <String>)|(symbol <String>) notprimary|primary))|
-#	(phone clear|(work|home|other|fax|work_fax|home_fax|other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|<String> <String> notprimary|primary))|
-#	(prefix <String>)|
-#	(relation clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
-#	(shortname <String>)|
-#	(subject <String>)|
-#	(suffix <String>)|
-#	(userdefinedfield clear|(<String> <String>))|
-#	(website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))
-
 # gam <UserTypeEntity> create contact <ContactAttributes>+
 def createUserContact(users):
   doCreateContact(users, EN_USER)
@@ -10515,10 +10470,6 @@ CROS_STATUS_CHOICES_MAP = {
   u'unknown': u'UNKNOWN',
   }
 
-# <CrOSAttributes> ::=
-#	[status active|deprovisioned|inactive|returnapproved|returnrequested|shipped|unknown]
-#	[asset|assetid|tag <String>] [user <Name>] [location <String>] [notes <String>] [org|ou <OrgUnitPath>]
-
 # gam update cros|croses <CrOSEntity> <CrOSAttributes>
 def doUpdateCrOSDevices():
   updateCrOSDevices(*getCrOSDeviceEntity())
@@ -10938,10 +10889,6 @@ def getMobileDeviceEntity():
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
 
-# <MobileAttributes> ::=
-#	[model <String>] [os <String>] [useragent <String>]
-#	[action admin_remote_wipe|wipe|admin_account_wipe|accountwipe|wipeaccount|approve|block|cancel_remote_wipe_then_activate|cancel_remote_wipe_then_block]
-
 # gam update mobile|mobiles <MobileDeviceEntity> <MobileAttributes>
 def doUpdateMobileDevices():
   entityList, cd = getMobileDeviceEntity()
@@ -11087,35 +11034,6 @@ def doPrintMobileDevices():
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Mobile', todrive)
 
-# <GroupAttributes> ::=
-#	[allowExternalMembers <Boolean>]
-#	[allowGoogleCommunication <Boolean>]
-#	[allowWebPosting <Boolean>]
-#	[archiveOnly <Boolean>]
-#	[customReplyTo <EmailAddress>]
-#	[defaultMessageDenyNotificationText <String>]
-#	[description <String>]
-#	[gal|includeInGlobalAddressList <Boolean>]
-#	[isArchived <Boolean>]
-#	[maxMessageBytes <ByteCount>]
-#	[membersCanPostAsTheGroup <Boolean>]
-#	[messageDisplayFont DEFAULT_FONT|FIXED_WIDTH_FONT]
-#	[messageModerationLevel MODERATE_ALL_MESSAGES|MODERATE_NON_MEMBERS|MODERATE_NEW_MEMBERS|MODERATE_NONE]
-#	[name <String>]
-#	[primaryLanguage <Language>]
-#	[replyTo REPLY_TO_CUSTOM|REPLY_TO_SENDER|REPLY_TO_LIST|REPLY_TO_OWNER|REPLY_TO_IGNORE|REPLY_TO_MANAGERS]
-#	[sendMessageDenyNotification <Boolean>]
-#	[showInGroupDirectory <Boolean>]
-#	[spamModerationLevel ALLOW|MODERATE|SILENTLY_MODERATE|REJECT]
-#	[whoCanAdd ALL_MEMBERS_CAN_ADD|ALL_MANAGERS_CAN_ADD|NONE_CAN_ADD]
-#	[whoCanContactOwner ANYONE_CAN_CONTACT|ALL_IN_DOMAIN_CAN_CONTACT|ALL_MEMBERS_CAN_CONTACT|ALL_MANAGERS_CAN_CONTACT]
-#	[whoCanInvite ALL_MEMBERS_CAN_INVITE|ALL_MANAGERS_CAN_INVITE|NONE_CAN_INVITE]
-#	[whoCanJoin ANYONE_CAN_JOIN|ALL_IN_DOMAIN_CAN_JOIN|INVITED_CAN_JOIN|CAN_REQUEST_TO_JOIN]
-#	[whoCanLeaveGroup ALL_MANAGERS_CAN_LEAVE|ALL_MEMBERS_CAN_LEAVE|NONE_CAN_LEAVE]
-#	[whoCanPostMessage NONE_CAN_POST|ALL_MANAGERS_CAN_POST|ALL_MEMBERS_CAN_POST|ALL_IN_DOMAIN_CAN_POST|ANYONE_CAN_POST]
-#	[whoCanViewGroup ANYONE_CAN_VIEW|ALL_IN_DOMAIN_CAN_VIEW|ALL_MEMBERS_CAN_VIEW|ALL_MANAGERS_CAN_VIEW]
-#	[whoCanViewMembership ALL_IN_DOMAIN_CAN_VIEW|ALL_MEMBERS_CAN_VIEW|ALL_MANAGERS_CAN_VIEW]
-#
 GROUP_ATTRIBUTES = {
   u'allowexternalmembers': [u'allowExternalMembers', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'allowgooglecommunication': [u'allowGoogleCommunication', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
@@ -13254,23 +13172,6 @@ def gen_sha512_hash(password):
   from passlib.handlers.sha2_crypt import sha512_crypt
   return sha512_crypt.encrypt(password, rounds=5000)
 
-#<UserAttributes> ::=
-#        (firstname <String>)|(lastname <String>)|(username|email <EmailAddress>)|(customerid <String>)|(password random|<String>)|(org|ou <OrgUnitPath>)
-#        (admin <Boolean>)|(suspended <Boolean>)|(gal <Boolean>)|(ipwhitelisted <Boolean>)|(changepassword <Boolean>)|(agreedtoterms <Boolean>)|
-#        (sha|sha1|sha-1|md5|crypt|nohash)|
-#        (note clear|([text_plain|text_html] <String>|(file <FileName>)))
-#        (address clear|(type work|home|other|(custom <String>) [unstructured|formatted <String>] [pobox <String>] [extendedaddress <String>]
-#	  [streetaddress <String>] [locality <String>] [region <String>] [postalcode <String>] [country <String>] [countrycode <String>] notprimary|primary))
-#        (otheremail clear|(work|home|other|<String>) <String>))
-#        (externalid clear|(account|customer|network|organization|<String> <String>))
-#        (im clear|(type work|home|other|(custom <String>) protocol aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo|(custom_protocol <String>) [primary] <String>))
-#        (organization clear|([type domain_only|school|unknown|work] [customtype <String>] [name <String>] [title <String>] [department <String>] [symbol <String>]
-#	  [costcenter <String>]  [location <String>] [description <String>] [domain <String>] notprimary|primary))
-#        (phone clear|([type work|home|other|work_fax|home_fax|other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|grand_central|(custom <String>)
-#	  [value <String>] notprimary|primary))
-#        (relation clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))
-#        (website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL>))
-#        (<SchemaName>.<FieldName> [multivalued|multivalue|value] <String>)
 def getUserAttributes(updateCmd=False, noUid=False):
   if not updateCmd:
     body = {u'name': {u'givenName': u'Unknown', u'familyName': u'Unknown'}}
@@ -13303,7 +13204,7 @@ def getUserAttributes(updateCmd=False, noUid=False):
       elif up == u'password':
         need_password = False
         body[up] = getString(OB_STRING)
-        if body[u'password'].lower() == u'random':
+        if body[up].lower() == u'random':
           need_password = True
       elif propertyClass == PC_BOOLEAN:
         body[up] = getBoolean()
@@ -13347,15 +13248,17 @@ def getUserAttributes(updateCmd=False, noUid=False):
         getKeywordAttribute(typeKeywords, im)
         getChoice([IM_PROTOCOLS[PTKW_CL_TYPE_KEYWORD],])
         getKeywordAttribute(IM_PROTOCOLS, im)
-        im[u'primary'] = checkArgumentPresent(PRIMARY_ARGUMENT)
+        # Backwards compatability: notprimary|primary on either side of IM address
+        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
         im[u'im'] = getString(OB_STRING)
+        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=im[u'primary'], mapChoice=True)
         appendItemToBodyList(body, up, im)
       elif up == u'notes':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
         note = {}
-        getKeywordAttribute(typeKeywords, note)
+        getKeywordAttribute(typeKeywords, note, defaultChoice=u'text_plain')
         if checkArgumentPresent(FILE_ARGUMENT):
           note[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
         else:
@@ -13430,10 +13333,11 @@ def getUserAttributes(updateCmd=False, noUid=False):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        websites = {}
-        getKeywordAttribute(typeKeywords, websites)
-        websites[u'value'] = getString(OB_URL)
-        appendItemToBodyList(body, up, websites)
+        website = {}
+        getKeywordAttribute(typeKeywords, website)
+        website[u'value'] = getString(OB_URL)
+        website[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        appendItemToBodyList(body, up, website)
     elif myarg.find(u'.') > 0:
       try:
         (schemaName, fieldName) = CL_argv[CL_argvI-1].split(u'.')
@@ -13761,8 +13665,9 @@ def doInfoUsers():
 def doInfoUser():
   if CL_argvI < CL_argvLen:
     infoUsers(getStringReturnInList(OB_USER_ITEM))
-  credentials = getClientCredentials(OAUTH2_GAPI_SCOPES)
-  infoUsers([credentials.id_token[u'email']])
+  else:
+    credentials = getClientCredentials(OAUTH2_GAPI_SCOPES)
+    infoUsers([credentials.id_token[u'email']])
 
 def infoUsers(entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -14337,9 +14242,6 @@ COURSE_STATE_OPTIONS_MAP = {
   u'declined': u'DECLINED',
   }
 
-# <CourseAttributes> ::=
-#	[name <String>] [section <string>] [heading <String>] [room <String>]
-#	[state|status active|archived|provisioned|declined]
 def getCourseAttribute(myarg, body):
   if myarg == u'name':
     body[u'name'] = getString(OB_STRING)
@@ -15777,9 +15679,6 @@ CALENDAR_NOTIFICATION_TYPES_MAP = {
   u'agenda': u'agenda',
   }
 
-# <CalendarAttributes> ::==
-#	[selected] [hidden] [summary <String>] [colorindex|colorid <CalendarColorIndex>] [backgroundcolor <ColorHex>] [foregroundcolor <ColorHex>]
-#	[reminder clear|(email|sms|pop <Number>)] [notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda)]
 def getCalendarAttributes(body):
   colorRgbFormat = False
   while CL_argvI < CL_argvLen:
@@ -16442,11 +16341,6 @@ DFA_OCR = u'ocr'
 DFA_OCRLANGUAGE = u'ocrLanguage'
 DFA_PARENTQUERY = u'parentQuery'
 
-# <DriveFileAttributes> ::=
-#	[localfile <FileName>]
-#	[convert] [ocr] [ocrlanguage <Language>] [restricted|restrict [<Boolean>]] [starred|star [<Boolean>]] [trashed|trash [<Boolean>]] [viewed|view [<Boolean>]]
-#	[lastviewedbyme <Time>] [modifieddate|modifiedtime <Time>] [description <String>] [mimetype gdoc|gdocument|gdrawing|gfolder|gdirectory|gform|gfusion|gpresentation|gscript|gsite|gsheet|gspreadsheet]
-#	[parentid <DriveFolderID>] [parentname <FolderName>] [writerscantshare]
 def initializeDriveFileAttributes():
   return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None, DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None, DFA_PARENTQUERY: None})
 

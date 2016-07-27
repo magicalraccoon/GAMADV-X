@@ -587,7 +587,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	(externalid|externalids clear|(account|customer|network|organization|<String> <String>))|
 	(firstname|givenname <String>)|
 	(gal|includeinglobaladdresslist <Boolean>)|
-	(im|ims clear|(type work|home|other|(custom <String>) protocol aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo|(custom_protocol <String>) [primary] <String>))|
+	(im|ims clear|(type work|home|other|(custom <String>) protocol aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo|(custom_protocol <String>) <String> [notprimary|primary]))|
 	(ipwhitelisted <Boolean>)|
 	(lastname|familyname <String>)|
 	(note|notes clear|([text_plain|text_html] <String>|(file <FileName>)))|
@@ -599,7 +599,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		[value <String>] notprimary|primary))|
 	(relation|relations clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
 	(suspended <Boolean>)|
-	(website clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> notprimary|primary))|
+	(website|websites clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> [notprimary|primary]))|
 	(<SchemaName>.<FieldName> [multivalued|multivalue|value] <String>)
 
 
@@ -893,7 +893,7 @@ gam print users
 Prints a header row and primaryEmail for all users.
 gam <UserTypeEntity> print users
 Prints no header row and primaryEmail for specified users.
-gam <UserTypeEntity> print users primaryEmail
+gam <UserTypeEntity> print users primaryemail
 Prints a header row and primaryEmail for specified users.
 gam <UserTypeEntity> print users ... basic|full|allfields
 Prints a header row and selected fields for specified users.
