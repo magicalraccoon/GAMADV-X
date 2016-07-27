@@ -3045,14 +3045,14 @@ def cleanFilename(filename, cleanDiacriticals=False):
     nkfd_form = unicodedata.normalize(u'NFKD', filename)
     filename = u''.join([c for c in nkfd_form if not unicodedata.combining(c)])
   for ch in UNSAFE_FILENAME_CHARS:
-    filename = filename.replace(ch, u'-')
+    filename = filename.replace(ch, u'_')
   return filename
 
 # Open a file
 def openFile(filename, mode=u'rb'):
   try:
     if filename != u'-':
-      return open(filename, mode)
+      return open(os.path.expanduser(filename), mode)
     if mode.startswith(u'r'):
       return StringIO.StringIO(unicode(sys.stdin.read()))
     return sys.stdout
@@ -3074,9 +3074,9 @@ def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, enc
   try:
     if filename != u'-':
       if not encoding:
-        with open(filename, mode) as f:
+        with open(os.path.expanduser(filename), mode) as f:
           return f.read()
-      with codecs.open(filename, mode, encoding) as f:
+      with codecs.open(os.path.expanduser(filename), mode, encoding) as f:
         content = f.read()
         if not content.startswith(codecs.BOM_UTF8):
           return content
@@ -3093,7 +3093,7 @@ def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, enc
 # Write a file
 def writeFile(filename, data, mode=u'wb', continueOnError=False, displayError=True):
   try:
-    with open(filename, mode) as f:
+    with open(os.path.expanduser(filename), mode) as f:
       f.write(data)
     return True
   except IOError as e:
@@ -18201,7 +18201,7 @@ def updatePhoto(users):
         continue
     else:
       try:
-        with open(filename, u'rb') as f:
+        with open(os.path.expanduser(filename), u'rb') as f:
           image_data = f.read()
       except IOError as e:
         entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, filename, e, i, count)
