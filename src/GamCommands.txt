@@ -827,7 +827,8 @@ gam info groups <GroupEntity> [nousers] [noaliases] [groups] [fields <GroupField
 
 gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>]
-	[members] [owners] [managers] <GroupFieldName>* [settings]  [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
+	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
+
 
 gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 	[membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
