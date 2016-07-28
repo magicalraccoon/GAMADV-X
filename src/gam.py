@@ -20142,7 +20142,7 @@ def printShowForward(users, csvFormat):
         row[u'disposition'] = result[u'disposition']
     else:
       row = {u'User': user, u'forwardEnabled': result[u'enable']}
-      if result[u'enable']:
+      if result[u'enable'] == u'true':
         row[u'forwardTo'] = result[u'forwardTo']
         row[u'disposition'] = EMAILSETTINGS_OLD_NEW_OLD_FORWARD_ACTION_MAP[result[u'action']]
     csvRows.append(row)
