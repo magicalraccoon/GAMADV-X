@@ -18272,6 +18272,8 @@ def printShowTokens(entityType, users, csvFormat):
     i += 1
     user = normalizeEmailAddressOrUID(user)
     try:
+      if csvFormat:
+        printGettingEntityItemForWhom(EN_ACCESS_TOKEN, user, i, count)
       if clientId:
         results = [callGAPI(cd.tokens(), u'get',
                             throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_RESOURCE_NOT_FOUND],
