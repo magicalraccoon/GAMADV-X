@@ -20097,7 +20097,7 @@ def printShowForward(users, csvFormat):
 
 # Process ForwardingAddresses functions
 def _showForwardingAddress(user, i, count, result):
-  printEntityKVList(EN_USER, user, [singularEntityName(EN_FORWARDING_ADDRESS), result[u'forwardingEmail'], u'Verification Status', result[u'verificationStatus']], i, count)
+  printEntityKVList(EN_FORWARDING_ADDRESS, result[u'forwardingEmail'], [u'Verification Status', result[u'verificationStatus']], i, count)
 
 def _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, function, **kwargs):
   userDefined = True
