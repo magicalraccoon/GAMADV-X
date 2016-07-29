@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.04'
+__version__ = u'4.18.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -4707,7 +4707,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       accessErrorExit(cd)
   elif entityType == CL_ENTITY_LICENSES:
     licenses = doPrintLicenses(return_list=True, skus=entity.replace(u',', u' ').split())
-    addMembersToUsers(usersList, usersSet, u'userId', licenses[1:])
+    addMembersToUsers(usersList, usersSet, u'userId', licenses)
   elif entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS, CL_ENTITY_STUDENTS]:
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
     courses = convertEntityToList(entityType, None, entity)
@@ -5080,11 +5080,6 @@ def addTitlesToCSVfile(addTitles, titles):
     if title not in titles[u'set']:
       addTitleToCSVfile(title, titles)
 
-def addDefaultTitlesToCSVfile(titles):
-  for title in titles[u'default']:
-    if title not in titles[u'set']:
-      addTitleToCSVfile(title, titles)
-
 def addRowTitlesToCSVfile(row, csvRows, titles):
   csvRows.append(row)
   for title in row:
@@ -5122,26 +5117,24 @@ def addFieldTitleToCSVfile(fieldName, fieldNameTitleMap, fieldsList, fieldsTitle
       fieldsTitles[ftList[i]] = ftList[i+1]
       addTitlesToCSVfile([ftList[i+1]], titles)
 
-def initializeTitlesCSVfile(baseTitles, defaultTitles):
-  titles = {u'set': set(), u'list': [], u'default': []}
+def initializeTitlesCSVfile(baseTitles):
+  titles = {u'set': set(), u'list': []}
   csvRows = []
   if baseTitles is not None:
     addTitlesToCSVfile(baseTitles, titles)
-  if defaultTitles is not None:
-    titles[u'default'] = defaultTitles
   return (titles, csvRows)
 
 def sortCSVTitles(firstTitle, titles):
+  restoreTitles = []
   for title in firstTitle:
     if title in titles[u'set']:
       titles[u'list'].remove(title)
+      restoreTitles.append(title)
   titles[u'list'].sort()
-  for title in firstTitle[::-1]:
+  for title in restoreTitles[::-1]:
     titles[u'list'].insert(0, title)
 
 def writeCSVfile(csvRows, titles, list_type, todrive):
-  if not titles[u'set']:
-    addDefaultTitlesToCSVfile(titles)
   csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   if todrive:
     csvFile = StringIO.StringIO()
@@ -5467,15 +5460,15 @@ def doCSV():
   closeFile(f)
   run_batch(items, len(items))
 
-# gam list [todrive] [idfirst] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
+# gam list [todrive] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
 def doListType():
   doList(None, None)
 
-# gam <CrOSTypeEntity> list [todrive] [idfirst] [data <EntityList> [delimiter <String>]]
+# gam <CrOSTypeEntity> list [todrive] [data <EntityList> [delimiter <String>]]
 def doListCrOS(entityList):
   doList(entityList, CL_ENTITY_CROS)
 
-# gam <UserTypeEntity> list [todrive] [idfirst] [data <EntityList> [delimiter <String>]]
+# gam <UserTypeEntity> list [todrive] [data <EntityList> [delimiter <String>]]
 def doListUser(entityList):
   doList(entityList, CL_ENTITY_USERS)
 
@@ -5491,7 +5484,7 @@ def doList(entityList, entityType):
   else:
     keyField = u'Entity'
     dataField = u'Data'
-  titles, csvRows = initializeTitlesCSVfile([keyField], None)
+  titles, csvRows = initializeTitlesCSVfile([keyField])
   showData = checkArgumentPresent(DATA_ARGUMENT)
   if showData:
     if not entityType:
@@ -5886,11 +5879,11 @@ REPORT_CHOICES_MAP = {
   u'users': u'user',
   }
 
-# gam report <users|user> [todrive] [idfirst] [nodatechange] [maxresults <Number>]
+# gam report <users|user> [todrive] [nodatechange] [maxresults <Number>]
 #	[date <Date>] [user all|<UserItem>] [select <UserTypeEntity>] [filter|filters <String>] [fields|parameters <String>]
-# gam report <customers|customer|domain> [todrive] [idfirst] [nodatechange]
+# gam report <customers|customer|domain> [todrive] [nodatechange]
 #	[date <Date>] [fields|parameters <String>]
-# gam report <admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token> [todrive] [idfirst] [maxresults <Number>]
+# gam report <admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token> [todrive] [maxresults <Number>]
 #	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>]
 def doReport():
 
@@ -5918,8 +5911,6 @@ def doReport():
     myarg = getArgument()
     if myarg == u'todrive':
       to_drive = True
-    elif myarg == u'idfirst':
-      pass
     elif usageReports and myarg == u'date':
       try_date = getYYYYMMDD()
     elif usageReports and myarg == u'nodatechange':
@@ -5969,7 +5960,7 @@ def doReport():
       setGettingEntityItem(EN_USER)
       page_message = getPageMessage(showTotal=False)
       users = [normalizeEmailAddressOrUID(userKey)]
-    titles, csvRows = initializeTitlesCSVfile([u'email', u'date'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'email', u'date'])
     i = 0
     count = len(users)
     for user in users:
@@ -6014,7 +6005,7 @@ def doReport():
         break
     writeCSVfile(csvRows, titles, u'User Reports - {0}'.format(try_date), to_drive)
   elif report == u'customer':
-    titles, csvRows = initializeTitlesCSVfile([u'name', u'value', u'client_id'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'name', u'value', u'client_id'])
     auth_apps = list()
     while True:
       try:
@@ -6062,7 +6053,7 @@ def doReport():
       setGettingEntityItem(EN_ACTIVITY)
       page_message = getPageMessage(showTotal=False)
       users = [normalizeEmailAddressOrUID(userKey)]
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
     i = 0
     count = len(users)
     for user in users:
@@ -6163,17 +6154,15 @@ def doInfoDomainAlias():
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
-# gam print domainaliases [todrive] [idfirst]
+# gam print domainaliases [todrive]
 def doPrintDomainAliases():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'domainAliasName',], None)
+  titles, csvRows = initializeTitlesCSVfile([u'domainAliasName',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   try:
@@ -6284,17 +6273,15 @@ def doInfoDomain():
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
 
-# gam print domains [todrive] [idfirst]
+# gam print domains [todrive]
 def doPrintDomains():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'domainName',])
+  titles, csvRows = initializeTitlesCSVfile([u'domainName',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     else:
       unknownArgumentExit()
   try:
@@ -6332,32 +6319,25 @@ def doPrintDomains():
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Domains', todrive)
 
-# gam print adminroles|roles [todrive] [idfirst]
+# gam print adminroles|roles [todrive]
 def doPrintAdminRoles():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'roleId',])
+  titles, csvRows = initializeTitlesCSVfile([u'roleId', u'roleName', u'roleDescription', u'isSuperAdminRole', u'isSystemRole'])
+  fields = u'nextPageToken,items({0})'.format(u','.join(titles[u'list']))
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     else:
       unknownArgumentExit()
   try:
     roles = callGAPIpages(cd.roles(), u'list', u'items',
                           throw_reasons=[GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
-                          customer=GC_Values[GC_CUSTOMER_ID])
+                          customer=GC_Values[GC_CUSTOMER_ID], fields=fields)
     for role in roles:
       role_attrib = {}
       for attr, value in role.items():
-        if attr in [u'kind', u'etag']:
-          continue
-        if not isinstance(value, (str, unicode, bool)):
-          continue
-        if attr not in titles[u'set']:
-          addTitleToCSVfile(attr, titles)
         role_attrib[attr] = value
       csvRows.append(role_attrib)
   except (GAPI_badRequest, GAPI_customerNotFound, GAPI_forbidden):
@@ -6501,19 +6481,18 @@ def doDeleteAdmin():
   except (GAPI_badRequest, GAPI_customerNotFound, GAPI_forbidden):
     accessErrorExit(cd)
 
-# gam print admins [todrive] [idfirst] [user <UserItem>] [role <RoleItem>]
+# gam print admins [todrive] [user <UserItem>] [role <RoleItem>]
 def doPrintAdmins():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   roleId = None
   userKey = None
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'roleAssignmentId',], None)
+  titles, csvRows = initializeTitlesCSVfile([u'roleAssignmentId', u'roleId', u'role', u'assignedTo', u'assignedToUser', u'scopeType', u'orgUnitId', u'orgUnit'])
+  fields = u'nextPageToken,items({0})'.format(u','.join([u'roleAssignmentId', u'roleId', u'assignedTo', u'scopeType', u'orgUnitId']))
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'user':
       userKey = getEmailAddress()
     elif myarg == u'role':
@@ -6523,30 +6502,17 @@ def doPrintAdmins():
   try:
     result = callGAPIpages(cd.roleAssignments(), u'list', u'items',
                            throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
-                           customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, maxResults=200)
+                           customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
     for admin in result:
       admin_attrib = {}
       for attr, value in admin.items():
-        if attr in [u'kind', u'etag']:
-          continue
-        if attr not in titles[u'set']:
-          addTitleToCSVfile(attr, titles)
         if attr == u'assignedTo':
-          title = u'assignedToUser'
-          if title not in titles[u'set']:
-            addTitleToCSVfile(title, titles)
-          admin_attrib[title] = user_from_userid(value)
+          admin_attrib[u'assignedToUser'] = user_from_userid(value)
         elif attr == u'roleId':
-          title = u'role'
-          if title not in titles[u'set']:
-            addTitleToCSVfile(title, titles)
-          admin_attrib[title] = role_from_roleid(value)
+          admin_attrib[u'role'] = role_from_roleid(value)
         elif attr == u'orgUnitId':
           value = u'id:{0}'.format(value)
-          title = u'orgUnit'
-          if title not in titles[u'set']:
-            addTitleToCSVfile(title, titles)
-          admin_attrib[title] = orgunit_from_orgunitid(value)
+          admin_attrib[u'orgUnit'] = orgunit_from_orgunitid(value)
         admin_attrib[attr] = value
       csvRows.append(admin_attrib)
     writeCSVfile(csvRows, titles, u'Admins', todrive)
@@ -6754,20 +6720,18 @@ DATA_TRANSFER_STATUS_MAP = {
   u'inprogress': u'inProgress',
   }
 
-# gam print datatransfers|transfers [todrive] [idfirst] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
+# gam print datatransfers|transfers [todrive] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
 def doPrintDataTransfers():
   dt = buildGAPIObject(GAPI_DATATRANSFER_API)
   newOwnerUserId = None
   oldOwnerUserId = None
   status = None
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'id',])
+  titles, csvRows = initializeTitlesCSVfile([u'id',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg in [u'olduser', u'oldowner']:
       oldOwnerUserId = convertEmailToUserID(getEmailAddress())
     elif myarg in [u'newuser', u'newowner']:
@@ -7209,57 +7173,48 @@ ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
   u'description': [u'description', u'Description'],
   u'id': [u'orgUnitId', u'ID'],
   u'inherit': [u'blockInheritance', u'InheritanceBlocked'],
+  u'orgunitpath': [u'orgUnitPath', u'Path'],
+  u'path': [u'orgUnitPath', u'Path'],
   u'name': [u'name', u'Name'],
   u'parent': [u'parentOrgUnitPath', u'Parent'],
   u'parentid': [u'parentOrgUnitId', u'ParentID'],
   }
-ORGUNITPATH_TO_PROPERTY_TITLE_MAP = {u'orgunitpath': [u'orgUnitPath', u'Path'],}
+ORG_FIELD_PRINT_ORDER = [u'orgunitpath', u'id', u'name', u'description', u'parent', u'parentid', u'inherit']
 
-# gam print orgs|ous [todrive] [idfirst] [from_parent <OrgUnitPath>]
-#	[toplevelonly]
-#	[allfields|([name] [description] [parent] [id] [parentid] [inherit])]
+# gam print orgs|ous [todrive] [from_parent <OrgUnitPath>] [toplevelonly] [allfields|<OrgUnitFieldName>*]
 def doPrintOrgs():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   listType = u'all'
   orgUnitPath = u'/'
-  idfirst = todrive = False
+  todrive = False
   fieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
-  addFieldTitleToCSVfile(u'orgunitpath', ORGUNITPATH_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
+  titles, csvRows = initializeTitlesCSVfile(None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      idfirst = True
-    elif myarg == u'allfields':
-      titles, csvRows = initializeTitlesCSVfile(None, None)
-      fieldsList = []
-      fieldsTitles = {}
     elif myarg == u'toplevelonly':
       listType = u'children'
     elif myarg == u'fromparent':
       orgUnitPath = getOrgUnitPath()
+    elif myarg == u'allfields':
+      fieldsList = []
+      fieldsTitles = {}
+      titles, csvRows = initializeTitlesCSVfile(None)
+      for field in ORG_FIELD_PRINT_ORDER:
+        addFieldTitleToCSVfile(field, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP:
       addFieldTitleToCSVfile(myarg, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
     else:
       unknownArgumentExit()
-  if fieldsList:
-    if not idfirst:
-      ftList = ORGUNITPATH_TO_PROPERTY_TITLE_MAP[u'orgunitpath']
-      titles[u'list'].remove(ftList[1])
-      titles[u'list'].append(ftList[1])
-    fields = u'organizationUnits({0})'.format(u','.join(set(fieldsList)))
-  else:
-    fields = None
-    if idfirst:
-      addTitleToCSVfile(u'orgUnitPath', titles)
+  if not fieldsList:
+    addFieldTitleToCSVfile(u'orgunitpath', ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
   printGettingAccountEntitiesInfo(EN_ORGANIZATIONAL_UNIT)
   try:
     orgs = callGAPI(cd.orgunits(), u'list',
                     throw_reasons=[GAPI_ORGUNIT_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-                    customerId=GC_Values[GC_CUSTOMER_ID], fields=fields, type=listType, orgUnitPath=orgUnitPath)
+                    customerId=GC_Values[GC_CUSTOMER_ID], type=listType, orgUnitPath=orgUnitPath, fields=u'organizationUnits({0})'.format(u','.join(set(fieldsList))))
   except GAPI_orgunitNotFound:
     entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST)
     orgs = []
@@ -7269,15 +7224,11 @@ def doPrintOrgs():
     printGettingAccountEntitiesDoneInfo(0)
     return
   printGettingAccountEntitiesDoneInfo(len(orgs[u'organizationUnits']))
-  if not fields:
-    for orgEntity in orgs[u'organizationUnits']:
-      addRowTitlesToCSVfile(_flattenJSON(orgEntity), csvRows, titles)
-  else:
-    for orgEntity in orgs[u'organizationUnits']:
-      orgUnit = {}
-      for field in fieldsList:
-        orgUnit[fieldsTitles[field]] = orgEntity.get(field, u'')
-      csvRows.append(orgUnit)
+  for orgEntity in orgs[u'organizationUnits']:
+    orgUnit = {}
+    for field in fieldsList:
+      orgUnit[fieldsTitles[field]] = orgEntity.get(field, u'')
+    csvRows.append(orgUnit)
   writeCSVfile(csvRows, titles, u'Orgs', todrive)
 
 ALIAS_TARGET_TYPES = [u'user', u'group', u'target',]
@@ -7474,17 +7425,15 @@ def infoAliases(entityList):
       pass
     entityUnknownWarning(EN_ALIAS_EMAIL, aliasEmail, i, count)
 
-# gam print aliases|nicknames [todrive] [idfirst]
+# gam print aliases|nicknames [todrive]
 def doPrintAliases():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'Alias', u'Target', u'TargetType'], None)
+  titles, csvRows = initializeTitlesCSVfile([u'Alias', u'Target', u'TargetType'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   printGettingAccountEntitiesInfo(EN_USER_ALIAS)
@@ -9979,7 +9928,7 @@ def doInfoContacts(users, entityType):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <QueryContact>] [contactgroup <ContactGroupItem>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
+# gam <UserTypeEntity> print contacts [todrive] [query <QueryContact>] [contactgroup <ContactGroupItem>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
 #	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def printUserContacts(users):
   printShowContacts(users, EN_USER, True)
@@ -9989,7 +9938,7 @@ def printUserContacts(users):
 def showUserContacts(users):
   printShowContacts(users, EN_USER, False)
 
-# gam print contacts [todrive] [idfirst] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
+# gam print contacts [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
 #	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def doPrintDomainContacts():
   printShowContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN, True)
@@ -10003,7 +9952,7 @@ def printShowContacts(users, entityType, csvFormat):
   contactsManager = ContactsManager()
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_ID, CONTACT_NAME], None)
+    titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_ID, CONTACT_NAME])
   contactQuery = _initContactQueryAttributes()
   showContactGroups = False
   displayFieldsList = []
@@ -10011,8 +9960,6 @@ def printShowContacts(users, entityType, csvFormat):
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif myarg == u'showgroups':
       showContactGroups = True
     elif myarg == u'fields':
@@ -10340,7 +10287,7 @@ def doInfoContactGroups(users, entityType):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print contactgroups [todrive] [idfirst] [updated_min yyyy-mm-dd]
+# gam <UserTypeEntity> print contactgroups [todrive] [updated_min yyyy-mm-dd]
 #	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 def printUserContactGroups(users):
   printShowContactGroups(users, EN_USER, True)
@@ -10353,15 +10300,13 @@ def showUserContactGroups(users):
 def printShowContactGroups(users, entityType, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_GROUP_ID, CONTACT_GROUP_NAME], None)
+    titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), CONTACT_GROUP_ID, CONTACT_GROUP_NAME])
   projection = u'full'
   url_params = {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif myarg == u'orderby':
       url_params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICES_MAP, mapChoice=True)
       url_params[u'sortorder'] = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending')
@@ -10674,7 +10619,7 @@ def doPrintCrOSEntity(entityList):
     return
   doPrintCrOSDevices(entityList)
 
-# gam [<CrOSTypeEntity>] print cros [todrive] [idfirst] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
+# gam [<CrOSTypeEntity>] print cros [todrive] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
 #	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|recentusers|timeranges] [listlimit <Number>]
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 def doPrintCrOSDevices(entityList=None):
@@ -10738,7 +10683,7 @@ def doPrintCrOSDevices(entityList=None):
   todrive = False
   fieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
+  titles, csvRows = initializeTitlesCSVfile(None)
   addFieldToCSVfile(u'deviceid', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
   sortHeaders = False
   query = projection = orderBy = sortOrder = None
@@ -10750,8 +10695,6 @@ def doPrintCrOSDevices(entityList=None):
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'query':
       query = getString(OB_QUERY)
     elif myarg == u'select':
@@ -10892,7 +10835,8 @@ def getMobileDeviceEntity():
 # gam update mobile|mobiles <MobileDeviceEntity> <MobileAttributes>
 def doUpdateMobileDevices():
   entityList, cd = getMobileDeviceEntity()
-  action_body = patch_body = {}
+  action_body = {}
+  patch_body = {}
   doPatch = doAction = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -10983,19 +10927,17 @@ MOBILE_ORDERBY_CHOICES_MAP = {
   u'type': u'type',
   }
 
-# gam print mobile [todrive] [idfirst] [query <QueryMobile>] [basic|full]
+# gam print mobile [todrive] [query <QueryMobile>] [basic|full]
 #	[orderby <MobileOrderByFieldName> [ascending|descending]]
 def doPrintMobileDevices():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'resourceId',])
+  titles, csvRows = initializeTitlesCSVfile([u'resourceId',])
   query = projection = orderBy = sortOrder = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg == u'query':
       query = getString(OB_QUERY)
     elif myarg == u'orderby':
@@ -11016,17 +10958,15 @@ def doPrintMobileDevices():
     for mobile in devices:
       mobiledevice = {}
       for attrib in mobile:
-        try:
-          if attrib in [u'kind', u'etag', u'applications']:
-            continue
-          if attrib not in titles[u'set']:
-            addTitleToCSVfile(attrib, titles)
-          if attrib in [u'name', u'email']:
+        if attrib in [u'kind', u'etag', u'applications']:
+          continue
+        if attrib not in titles[u'set']:
+          addTitleToCSVfile(attrib, titles)
+        if attrib in [u'name', u'email']:
+          if mobile[attrib]:
             mobiledevice[attrib] = mobile[attrib][0]
-          else:
-            mobiledevice[attrib] = mobile[attrib]
-        except KeyError:
-          pass
+        else:
+          mobiledevice[attrib] = mobile[attrib]
       csvRows.append(mobiledevice)
   except GAPI_invalidInput:
     entityActionFailedWarning(EN_MOBILE_DEVICE, PHRASE_LIST, invalidQuery(query))
@@ -11579,7 +11519,7 @@ def groupQuery(domain, usemember):
     return u'{0}={1}'.format(singularEntityName(EN_MEMBER), usemember)
   return u''
 
-# gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+# gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 #	[maxresults <Number>] [delimiter <String>]
 #	[members] [owners] [managers] <GroupFieldName>* [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>] [settings]
 def doPrintGroups():
@@ -11594,7 +11534,7 @@ def doPrintGroups():
   cdfieldsList = []
   gsfieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
+  titles, csvRows = initializeTitlesCSVfile(None)
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
   roles = []
   getSettings = False
@@ -11603,8 +11543,6 @@ def doPrintGroups():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'domain':
       domain = getString(OB_DOMAIN_NAME).lower()
       customer = None
@@ -11789,7 +11727,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
 
 MEMBERS_FIELD_NAMES = [u'group', u'id', u'email', u'role', u'type', u'name',]
 
-# gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+# gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 #	[membernames] [fields <MembersFieldNameList>] [noduplicates] [recursive]
 def doPrintGroupMembers():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -11799,14 +11737,12 @@ def doPrintGroupMembers():
   subTitle = u'{0} {1}'.format(PHRASE_ALL, pluralEntityName(EN_GROUP))
   fieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
+  titles, csvRows = initializeTitlesCSVfile(None)
   entityList = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'domain':
       domain = getString(OB_DOMAIN_NAME).lower()
       customer = None
@@ -11913,20 +11849,18 @@ def doPrintGroupMembers():
       csvRows.append(member_attr)
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
-# gam print licenses [todrive] [idfirst] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
+# gam print licenses [todrive] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [GOOGLE_APPS_PRODUCT, GOOGLE_VAULT_PRODUCT]
   licenses = []
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'userId', u'productId', u'skuId'])
+  titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId'])
   if not return_list:
     while CL_argvI < CL_argvLen:
       myarg = getArgument()
       if myarg == u'todrive':
         todrive = True
-      elif myarg == u'idfirst':
-        addDefaultTitlesToCSVfile(titles)
       elif myarg in [u'products', u'product']:
         products = getGoogleProductListMap()
       elif myarg in [u'sku', u'skus']:
@@ -12214,25 +12148,23 @@ RESCAL_ARGUMENT_TO_PROPERTY_MAP = {
   u'type': [u'resourceType'],
   }
 
-# gam print resources [todrive] [idfirst] [allfields] [id] [name] [description] [email] [type]
+# gam print resources [todrive] [allfields] [id] [name] [description] [email] [type]
 def doPrintResourceCalendars():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = False
   fieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
+  titles, csvRows = initializeTitlesCSVfile(None)
   for field in RESCAL_DFLTFIELDS:
     addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'allfields':
-      titles, csvRows = initializeTitlesCSVfile(None, None)
       fieldsList = []
       fieldsTitles = {}
+      titles, csvRows = initializeTitlesCSVfile(None)
       for field in RESCAL_ALLFIELDS:
         addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in RESCAL_ARGUMENT_TO_PROPERTY_MAP:
@@ -12245,7 +12177,7 @@ def doPrintResourceCalendars():
     resources = callGAPIpages(cd.resources().calendars(), u'list', u'items',
                               page_message=page_message, message_attribute=u'resourceName',
                               throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customer=GC_Values[GC_CUSTOMER_ID])
+                              customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,items({0})'.format(u','.join(set(fieldsList))))
     for resource in resources:
       resUnit = {}
       for field in fieldsList:
@@ -12390,7 +12322,7 @@ def infoUserSchemas(entityList):
     except (GAPI_invalid, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       checkEntityAFDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, i, count)
 
-# gam print schema|schemas [todrive] [idfirst]
+# gam print schema|schemas [todrive]
 def doPrintUserSchemas():
   printShowUserSchemas(True)
 
@@ -12402,14 +12334,12 @@ def doShowUserSchemas():
 def printShowUserSchemas(csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   try:
@@ -12806,7 +12736,7 @@ def doInfoSites(users, entityType):
         entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
     decrementIndentLevel()
 
-# gam [<UserTypeEntity>] print sites [todrive] [idfirst] [domain <DomainName>] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
+# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
 def printUserSites(users):
   doPrintSites(users, EN_USER)
 
@@ -12818,13 +12748,11 @@ def doPrintSites(users, entityType):
   url_params = {u'include-all-sites': [u'false', u'true'][entityType == EN_DOMAIN]}
   roles = None
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), SITE_SITE, SITE_NAME], None)
+  titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), SITE_SITE, SITE_NAME])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'domain':
       domain = getString(OB_DOMAIN_NAME)
       if entityType == EN_DOMAIN:
@@ -13010,7 +12938,7 @@ def doProcessSiteACLs(users, entityType):
           entityUnknownWarning(EN_SITE, domainSite, j, jcount)
     decrementIndentLevel()
 
-# gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [idfirst] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
+# gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 def printUserSiteActivity(users):
   doPrintSiteActivity(users, EN_USER)
 
@@ -13021,15 +12949,13 @@ def doPrintSiteActivity(users, entityType):
   sitesManager = SitesManager()
   todrive = False
   url_params = {}
-  titles, csvRows = initializeTitlesCSVfile([SITE_SITE], None)
+  titles, csvRows = initializeTitlesCSVfile([SITE_SITE])
   sites = getEntityList(OB_SITE_NAME)
   siteLists = sites if isinstance(sites, dict) else None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'maxresults':
       url_params[u'max-results'] = getInteger(minVal=1)
     elif myarg == u'updatedmin':
@@ -13921,7 +13847,7 @@ def doPrintUserEntity(entityList):
     return
   doPrintUsers(entityList)
 
-# gam [<UserTypeEntity>] print users [todrive] [idfirst] ([domain <DomainName>] [query <QueryUsers>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+# gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUsers>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 #	[delimiter <String>]
 #	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
 #	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
@@ -13970,7 +13896,7 @@ def doPrintUsers(entityList=None):
   todrive = False
   fieldsList = []
   fieldsTitles = {}
-  titles, csvRows = initializeTitlesCSVfile(None, None)
+  titles, csvRows = initializeTitlesCSVfile(None)
   addFieldToCSVfile(u'primaryemail', USER_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
   sortHeaders = getGroupFeed = getLicenseFeed = email_parts = False
   customer = GC_Values[GC_CUSTOMER_ID]
@@ -13985,8 +13911,6 @@ def doPrintUsers(entityList=None):
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     elif myarg == u'domain':
       domain = getString(OB_DOMAIN_NAME).lower()
       customer = None
@@ -14405,11 +14329,11 @@ def infoCourses(entityList):
     except GAPI_forbidden:
       APIAccessDeniedExit()
 
-# gam print courses [todrive] [idfirst] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>]
+# gam print courses [todrive] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>]
 def doPrintCourses():
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'id',])
+  titles, csvRows = initializeTitlesCSVfile([u'id',])
   teacherId = None
   studentId = None
   get_aliases = False
@@ -14418,8 +14342,6 @@ def doPrintCourses():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg == u'teacher':
       teacherId = getEmailAddress()
     elif myarg == u'student':
@@ -14689,7 +14611,7 @@ def doCourseSyncParticipants(courseIdList, getEntityListArg):
       batchAddParticipantsToCourse(croom, courseId, i, count, list(syncParticipantsSet-currentParticipantsSet), role)
       batchRemoveParticipantsFromCourse(croom, courseId, i, count, list(currentParticipantsSet-syncParticipantsSet), role)
 
-# gam print course-participants [todrive] [idfirst] [course|class <CourseID>] [teacher <UserItem>] [student <UserItem>] [show all|students|teachers]
+# gam print course-participants [todrive] [course|class <CourseID>] [teacher <UserItem>] [student <UserItem>] [show all|students|teachers]
 def doPrintCourseParticipants():
 
   def _saveParticipants(participants, role):
@@ -14702,7 +14624,7 @@ def doPrintCourseParticipants():
 
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'courseId',])
+  titles, csvRows = initializeTitlesCSVfile([u'courseId',])
   courses = []
   teacherId = None
   studentId = None
@@ -14711,8 +14633,6 @@ def doPrintCourseParticipants():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg in [u'course', u'class']:
       courses.append(getCourseId())
     elif myarg == u'teacher':
@@ -14972,11 +14892,11 @@ def infoPrinters(entityList):
     except GCP_unknownPrinter:
       entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
 
-# gam print printers [todrive] [idfirst] [query <QueryPrintJob>] [type <String>] [status <String>] [extrafields <String>]
+# gam print printers [todrive] [query <QueryPrintJob>] [type <String>] [status <String>] [extrafields <String>]
 def doPrintPrinters():
   cp = buildGAPIObject(GAPI_CLOUDPRINT_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'id',])
+  titles, csvRows = initializeTitlesCSVfile([u'id',])
   query = None
   printer_type = None
   connection_status = None
@@ -14985,8 +14905,6 @@ def doPrintPrinters():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg == u'query':
       query = getString(OB_QUERY)
     elif myarg == u'type':
@@ -15180,18 +15098,16 @@ def doPrinterWipeACL(printerIdList, getEntityListArg):
     if currentScopeList != None:
       batchDeleteACLsFromPrinter(cp, printerId, i, count, currentScopeList, role)
 
-# gam printers <PrinterIDEntity> showacl [csv] [todrive] [idfirst]
-# gam printer <PrinterID> showacl [csv] [todrive] [idfirst]
+# gam printers <PrinterIDEntity> showacl [csv] [todrive]
+# gam printer <PrinterID> showacl [csv] [todrive]
 def doPrinterShowACL(printerIdList, getEntityListArg):
   cp = buildGAPIObject(GAPI_CLOUDPRINT_API)
   csvFormat = todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'id',])
+  titles, csvRows = initializeTitlesCSVfile([u'id',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg == u'csv':
       csvFormat = True
     else:
@@ -15421,7 +15337,7 @@ def doPrintJobFetch(printerIdList):
   if jobCount == 0:
     entityItemValueActionFailedWarning(EN_PRINTER, printerId, EN_PRINTJOB, u'', PHRASE_NO_PRINT_JOBS)
 
-# gam print printjobs [todrive] [idfirst] [printer|printerid <PrinterID>]
+# gam print printjobs [todrive] [printer|printerid <PrinterID>]
 #	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
 #	[status <PrintJobStatus>]
 #	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
@@ -15430,15 +15346,13 @@ def doPrintJobFetch(printerIdList):
 def doPrintPrintJobs():
   cp = buildGAPIObject(GAPI_CLOUDPRINT_API)
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'printerid', u'id'])
+  titles, csvRows = initializeTitlesCSVfile([u'printerid', u'id'])
   printerId = None
   parameters = initPrintjobListParameters()
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg in [u'printer', u'printerid']:
       printerId = getString(OB_PRINTER_ID)
     else:
@@ -15869,7 +15783,7 @@ def infoCalendar(users, getEntityListArg=False):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print calendars [todrive] [idfirst]
+# gam <UserTypeEntity> print calendars [todrive]
 def printCalendars(users):
   printShowCalendars(users, True)
 
@@ -15880,13 +15794,11 @@ def showCalendars(users):
 def printShowCalendars(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -16383,18 +16295,16 @@ def getDriveFileAttribute(body, parameters, myarg, update=False):
   else:
     unknownArgumentExit()
 
-# gam <UserTypeEntity> show driveactivity [todrive] [idfirst] [fileid <DriveFileID>] [folderid <DriveFolderID>]
-def showDriveActivity(users):
+# gam <UserTypeEntity> print|show driveactivity [todrive] [fileid <DriveFileID>] [folderid <DriveFolderID>]
+def printDriveActivity(users):
   drive_ancestorId = u'root'
   drive_fileId = None
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile(None, [u'user.name', u'target.id', u'target.name'])
+  titles, csvRows = initializeTitlesCSVfile([u'user.name', u'user.permissionId', u'target.id', u'target.name', u'target.mimeType'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addDefaultTitlesToCSVfile(titles)
     elif myarg == u'fileid':
       drive_fileId = getString(OB_DRIVE_FILE_ID)
       drive_ancestorId = None
@@ -16424,16 +16334,14 @@ def showDriveActivity(users):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
 
-# gam <UserTypeEntity> show drivesettings [todrive] [idfirst]
-def showDriveSettings(users):
+# gam <UserTypeEntity> print|show drivesettings [todrive]
+def printDriveSettings(users):
   todrive = False
-  titles, csvRows = initializeTitlesCSVfile([u'email',], None)
+  titles, csvRows = initializeTitlesCSVfile([u'email',])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   dont_show = [u'kind', u'etag', u'selfLink', u'additionalRoleInfo', u'exportFormats', u'features',
@@ -16489,8 +16397,8 @@ def getFilePath(drive, initialResult):
       return (entityType, PHRASE_PATH_NOT_AVAILABLE)
 
 DRIVEFILE_FIELDS_CHOICES_MAP = {
-  u'appdatacontents': u'appDataContents',
   u'alternatelink': DRIVE_FILE_VIEW_LINK,
+  u'appdatacontents': u'appDataContents',
   u'cancomment': u'canComment',
   u'canreadrevisions': u'canReadRevisions',
   u'copyable': u'copyable',
@@ -16673,21 +16581,19 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
-# gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
-def showDriveFileList(users):
-  filepath = todrive = False
-  fieldsList = [DRIVE_FILE_NAME, DRIVE_FILE_VIEW_LINK]
+# gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+def printDriveFileList(users):
+  allfields = filepath = todrive = False
+  fieldsList = []
+  fieldsTitles = {}
   labelsList = []
   orderByList = []
-  titles, csvRows = initializeTitlesCSVfile([u'Owner',], None)
+  titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = u"'me' in owners"
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
-    elif myarg == u'idfirst':
-      addTitlesToCSVfile([u'id',], titles)
-      fieldsList.append(u'id')
     elif myarg == u'filepath':
       filepath = True
       if fieldsList:
@@ -16705,10 +16611,11 @@ def showDriveFileList(users):
       query = getString(OB_QUERY)
     elif myarg == u'allfields':
       fieldsList = []
+      allfields = True
     elif myarg in DRIVEFILE_FIELDS_CHOICES_MAP:
-      fieldsList.append(DRIVEFILE_FIELDS_CHOICES_MAP[myarg])
+      addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_FIELDS_CHOICES_MAP[myarg]]}, fieldsList, fieldsTitles, titles)
     elif myarg in DRIVEFILE_LABEL_CHOICES_MAP:
-      labelsList.append(DRIVEFILE_LABEL_CHOICES_MAP[myarg])
+      addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_LABEL_CHOICES_MAP[myarg]]}, labelsList, fieldsTitles, titles)
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
@@ -16720,6 +16627,10 @@ def showDriveFileList(users):
     if labelsList:
       fields += u'labels({0})'.format(u','.join(set(labelsList)))
     fields += u')'
+  elif not allfields:
+    for field in [u'name', u'alternatelink']:
+      addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field]]}, fieldsList, fieldsTitles, titles)
+    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, u','.join(set(fieldsList)))
   else:
     fields = u'*'
   if orderByList:
@@ -16791,6 +16702,8 @@ def showDriveFileList(users):
       printGettingEntityItemsForWhomDoneInfo(0)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
+  if allfields:
+    sortCSVTitles([u'Owner', u'id', DRIVE_FILE_NAME], titles)
   writeCSVfile(csvRows, titles,
                u'{0} {1} Drive Files'.format(CL_argv[GM_Globals[GM_ENTITY_CL_INDEX]],
                                              CL_argv[GM_Globals[GM_ENTITY_CL_INDEX]+1]),
@@ -18226,24 +18139,24 @@ def deleteTokens(users):
 def showTokens(users):
   printShowTokens(CL_ENTITY_USERS, users, False)
 
-# gam <UserTypeEntity> print tokens|token [todrive] [idfirst] [clientid <ClientID>]
+# gam <UserTypeEntity> print tokens|token [todrive] [clientid <ClientID>]
 def printTokens(users):
   printShowTokens(CL_ENTITY_USERS, users, True)
 
-# gam print tokens|token [todrive] [idfirst] [clientid <ClientID>] [<UserTypeEntity>]
+# gam print tokens|token [todrive] [clientid <ClientID>] [<UserTypeEntity>]
 def doPrintTokens():
   printShowTokens(None, None, True)
 
 def printShowTokens(entityType, users, csvFormat):
-  def _showToken(result, j, jcount):
-    printKeyValueListWithCount([u'Client ID', result[u'clientId']], j, jcount)
+  def _showToken(token, j, jcount):
+    printKeyValueListWithCount([u'Client ID', token[u'clientId']], j, jcount)
     incrementIndentLevel()
     for item in [u'displayText', u'anonymous', u'nativeApp', u'userKey']:
-      printKeyValueList([item, result[item]])
+      printKeyValueList([item, token.get(item, u'')])
     item = u'scopes'
     printKeyValueList([item, u''])
     incrementIndentLevel()
-    for it in result[item]:
+    for it in token.get(item, []):
       printKeyValueList([it])
     decrementIndentLevel()
     decrementIndentLevel()
@@ -18251,14 +18164,12 @@ def printShowTokens(entityType, users, csvFormat):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'user', u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'user', u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes'])
   clientId = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif myarg == u'clientid':
       clientId = commonClientIds(getString(OB_CLIENT_ID))
     elif not entityType:
@@ -18266,6 +18177,7 @@ def printShowTokens(entityType, users, csvFormat):
       entityType, users = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
   if not entityType:
     users = getUsersToModify(CL_ENTITY_ALL_USERS, None)
+  fields = u','.join([u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes'])
   i = 0
   count = len(users)
   for user in users:
@@ -18277,11 +18189,11 @@ def printShowTokens(entityType, users, csvFormat):
       if clientId:
         results = [callGAPI(cd.tokens(), u'get',
                             throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_RESOURCE_NOT_FOUND],
-                            userKey=user, clientId=clientId)]
+                            userKey=user, clientId=clientId, fields=fields)]
       else:
         results = callGAPIitems(cd.tokens(), u'list', u'items',
                                 throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                                userKey=user)
+                                userKey=user, fields=u'items({0})'.format(fields))
       jcount = len(results) if (results) else 0
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
@@ -18299,11 +18211,9 @@ def printShowTokens(entityType, users, csvFormat):
         if jcount == 0:
           continue
         for token in results:
-          row = {u'user': user, u'scopes': u' '.join(token[u'scopes'])}
-          for token_item in token:
-            if token_item in [u'kind', u'etag', u'scopes']:
-              continue
-            row[token_item] = token[token_item]
+          row = {u'user': user, u'scopes': u' '.join(token.get(u'scopes', []))}
+          for item in [u'displayText', u'anonymous', u'nativeApp', u'userKey']:
+            row[item] = token.get(item, u'')
           csvRows.append(row)
     except (GAPI_notFound, GAPI_resourceNotFound):
       entityItemValueActionFailedWarning(EN_USER, user, EN_ACCESS_TOKEN, clientId, PHRASE_DOES_NOT_EXIST, i, count)
@@ -18376,7 +18286,7 @@ def deprovisionUser(users):
     except GAPI_userNotFound:
       entityUnknownWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> print gmailprofile [todrive] [idfirst]
+# gam <UserTypeEntity> print gmailprofile [todrive]
 def printGmailProfile(users):
   printShowGmailProfile(users, True)
 
@@ -18387,13 +18297,11 @@ def showGmailProfile(users):
 def printShowGmailProfile(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -18507,7 +18415,7 @@ def _showGplusProfile(user, i, count, result):
       _showProfileObject(item, value)
   decrementIndentLevel()
 
-# gam <UserTypeEntity> print gplusprofile [todrive] [idfirst]
+# gam <UserTypeEntity> print gplusprofile [todrive]
 def printGplusProfile(users):
   printShowGplusProfile(users, True)
 
@@ -18518,13 +18426,11 @@ def showGplusProfile(users):
 def printShowGplusProfile(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -19184,11 +19090,11 @@ SMTP_HEADERS_MAP = {
   u'x400-trace': u'X400-Trace',
   }
 
-# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
+# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive]
 def printMessages(users):
   printShowMessagesThreads(users, EN_MESSAGE, True)
 
-# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]GAMADVNOTOLD>
+# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive]GAMADVNOTOLD>
 def printThreads(users):
   printShowMessagesThreads(users, EN_THREAD, True)
 
@@ -19346,13 +19252,11 @@ def printShowMessagesThreads(users, entityType, csvFormat):
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-ID']
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'threadId', u'id'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif myarg == u'query':
       query += u' ({0})'.format(getString(OB_QUERY))
     elif myarg == u'matchlabel':
@@ -19675,7 +19579,7 @@ def deleteDelegate(users):
         entityItemValueActionFailedWarning(EN_DELEGATOR, delegatorEmail, EN_DELEGATE, delegateEmail, PHRASE_DOES_NOT_EXIST, j, jcount)
         decrementIndentLevel()
 
-# gam <UserTypeEntity> print delegates|delegate [idfirst] [todrive]
+# gam <UserTypeEntity> print delegates|delegate [todrive]
 def printDelegates(users):
   printShowDelegates(users, True)
 
@@ -19687,7 +19591,7 @@ def printShowDelegates(users, csvFormat):
   emailSettingsObject = getEmailSettingsObject()
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'delegateName', u'delegateAddress', u'delegationStatus'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'delegateName', u'delegateAddress', u'delegationStatus'])
   else:
     csvStyle = False
   while CL_argvI < CL_argvLen:
@@ -19696,8 +19600,6 @@ def printShowDelegates(users, csvFormat):
       csvStyle = True
     elif csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -19931,7 +19833,7 @@ def deleteFilters(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print filters [todrive] [idfirst]
+# gam <UserTypeEntity> print filters [todrive]
 def printFilters(users):
   printShowFilters(users, True)
 
@@ -19942,13 +19844,11 @@ def showFilters(users):
 def printShowFilters(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None, None)
+    titles, csvRows = initializeTitlesCSVfile(None)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -20127,7 +20027,7 @@ def setForward(users):
       if result:
         _showForward(user, i, count, result)
 
-# gam <UserTypeEntity> print forward [todrive] [idfirst] [newapi]
+# gam <UserTypeEntity> print forward [todrive] [newapi]
 def printForward(users):
   printShowForward(users, True)
 
@@ -20151,14 +20051,12 @@ def printShowForward(users, csvFormat):
 
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardEnabled', u'forwardTo', u'disposition'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardEnabled', u'forwardTo', u'disposition'])
   newAPI = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif myarg == u'newapi':
       newAPI = True
     else:
@@ -20280,7 +20178,7 @@ def deleteInfoForwardingAddreses(users, function):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print forwardingaddresses [todrive] [idfirst]
+# gam <UserTypeEntity> print forwardingaddresses [todrive]
 def printForwardingAddresses(users):
   printShowForwardingAddresses(users, True)
 
@@ -20291,13 +20189,11 @@ def showForwardingAddresses(users):
 def printShowForwardingAddresses(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardingEmail', u'verificationStatus'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardingEmail', u'verificationStatus'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     else:
       unknownArgumentExit()
   i = 0
@@ -20672,7 +20568,7 @@ def deleteInfoSendAs(users, function):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> print sendas [todrive] [idfirst]
+# gam <UserTypeEntity> print sendas [todrive]
 def printSendAs(users):
   printShowSendAs(users, True)
 
@@ -20683,14 +20579,12 @@ def showSendAs(users):
 def printShowSendAs(users, csvFormat):
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'displayName', u'sendAsEmail', u'replyToAddress', u'isPrimary', u'isDefault', u'treatAsAlias', u'verificationStatus'], None)
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'displayName', u'sendAsEmail', u'replyToAddress', u'isPrimary', u'isDefault', u'treatAsAlias', u'verificationStatus'])
   formatSig = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif csvFormat and myarg == u'idfirst':
-      pass
     elif not csvFormat and myarg == u'format':
       formatSig = True
     else:
@@ -21021,6 +20915,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
+        u'aliasdomains':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACTS:	CL_OB_CONTACT,
         CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
@@ -21062,6 +20957,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
+        u'aliasdomains':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
@@ -21109,6 +21005,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
+        u'aliasdomains':	CL_OB_DOMAIN_ALIAS,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CROS:	CL_OB_CROSES,
@@ -21157,6 +21054,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {u'aliasdomain':		CL_OB_DOMAIN_ALIASES,
+        u'aliasdomains':	CL_OB_DOMAIN_ALIASES,
         u'classes':		CL_OB_COURSES,
         CL_OB_CONTACT:		CL_OB_CONTACTS,
         u'transfers':		CL_OB_DATA_TRANSFERS,
@@ -21691,6 +21589,9 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CONTACTS:	printUserContacts,
         CL_OB_CONTACT_GROUPS:	printUserContactGroups,
         CL_OB_DELEGATES:	printDelegates,
+        CL_OB_DRIVEACTIVITY:	printDriveActivity,
+        CL_OB_DRIVESETTINGS:	printDriveSettings,
+        CL_OB_FILELIST:	printDriveFileList,
         CL_OB_FILTERS:	printFilters,
         CL_OB_FORWARD:	printForward,
         CL_OB_FORWARDINGADDRESSES:	printForwardingAddresses,
@@ -21740,11 +21641,11 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CONTACTS:	showUserContacts,
         CL_OB_CONTACT_GROUPS:	showUserContactGroups,
         CL_OB_DELEGATES:	showDelegates,
-        CL_OB_DRIVEACTIVITY:showDriveActivity,
+        CL_OB_DRIVEACTIVITY:	printDriveActivity,
         CL_OB_DRIVEFILEACL:	showDriveFileACL,
-        CL_OB_DRIVESETTINGS:showDriveSettings,
+        CL_OB_DRIVESETTINGS:	printDriveSettings,
         CL_OB_FILEINFO:	showDriveFileInfo,
-        CL_OB_FILELIST:	showDriveFileList,
+        CL_OB_FILELIST:	printDriveFileList,
         CL_OB_FILEPATH:	showDriveFilePath,
         CL_OB_FILEREVISIONS:	showDriveFileRevisions,
         CL_OB_FILETREE:	showDriveFileTree,
