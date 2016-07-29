@@ -657,7 +657,8 @@ gam print domains [todrive]
 gam create domainalias|aliasdomain <DomainAlias> <DomainName>
 gam delete domainalias|aliasdomain <DomainAlias>
 gam info domainalias|aliasdomain <DomainAlias>
-gam print domainaliases [todrive]
+gam print domainaliases|aliasdomains [todrive]
+
 
 gam info customer
 gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <EmailAddress>] [language <LanguageCode] [phone|phonenumber <String>]

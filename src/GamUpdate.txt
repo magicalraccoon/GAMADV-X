@@ -42,7 +42,7 @@ Proposed:
 04) Corrected gam create resource so that type argument is properly recognized.
 
 05) Add type specification argument for gam print resources.
-    gam print resources [todrive] [idfirst] [allfields] [id] [description] [email] [type]
+    gam print resources [todrive] [allfields] [id] [description] [email] [type]
 
 06) Make the gam whatis command work better. Add an argument to suppress all output beyond the statement
 indicating the type of the email address.
@@ -247,7 +247,7 @@ Two new columns indicate the sub-group that a user comes from and the depth of t
 The noduplicates argument ensures that a user only appears once in the list.
 
 18) Modify gam <UserTypeEntity> show calendars command to allow output to CSV file.
-    gam <UserTypeEntity> show calendars [csv] [todrive] [idfirst]
+    gam <UserTypeEntity> show calendars [csv] [todrive]
 
 19) Implement Pull request #10 to allow copying of Drive folders
     gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <FolderName>]
@@ -298,7 +298,7 @@ Getting the file path for many files is expensive, use sparingly.
     gam info user [<User>] [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNamesList>]
 
 32) Add fields argument to gam print users to allow expanded selection of fields.
-    gam print users [todrive] [idfirst] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+    gam print users [todrive] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses] [emailpart|emailparts|username]
 	[orderby familyname|lastname|givenname|firstname|email] [ascending|descending] [userview]
 	[allfields | <UserFieldNames>* | fields <UserFieldNamesList>]
@@ -307,7 +307,7 @@ Getting the file path for many files is expensive, use sparingly.
     gam info group <Group> [nousers] [noaliases] [groups] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
 
 34) Add fields argument to gam print groups to allow expanded selection of fields.
-    gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+    gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>]
 	[members] [owners] [managers] <GroupFieldNames>* [settings] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
 
@@ -315,7 +315,7 @@ Getting the file path for many files is expensive, use sparingly.
     gam info cros <CrOSDeviceID> [fields <CrOSFieldNamesList>]
 
 36) Add fields argument to gam print cros to allow selection of fields.
-    gam print cros [todrive] [idfirst] [query <Query>] [basic|full] [nolists|recentusers|timeranges] [listlimit <Number>]
+    gam print cros [todrive] [query <Query>] [basic|full] [nolists|recentusers|timeranges] [listlimit <Number>]
 	[orderby lastsync|location|notes|serialnumber|status|supportenddate|user] [ascending|descending] [fields <CrOSFieldNamesList>]
 
 37) Jay added command to modify message labels.
@@ -338,23 +338,23 @@ A message must have all of the specified matchlabels to be selected.
     notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda)
 
 41) Add select argument to gam print users to allow selection of source of users.
-    gam print users [todrive] [idfirst] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+    gam print users [todrive] ([domain <DomainName>] [query <Query>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses] [emailpart|emailparts|username]
 	[orderby familyname|lastname|givenname|firstname|email] [ascending|descending] [userview]
 	[allfields | <UserFieldNames>* | fields <UserFieldNamesList>]
 
 42) Add select argument to gam print groups/group-members to allow selection of groups.
-    gam print groups [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+    gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>]
 	[members] [owners] [managers] <GroupFieldNames>* [settings] [fields <GroupFieldNamesList>|<GroupSettingsFieldNamesList>]
-    gam print group-members|groups-members [todrive] [idfirst] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
+    gam print group-members|groups-members [todrive] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
 
 43) Add select argument to gam report to allow selection of users. Add maxresults and nodatechange arguments.
-    gam report users|user [todrive] [idfirst] [nodatechange] [maxresults <Number>]
+    gam report users|user [todrive] [nodatechange] [maxresults <Number>]
 	[date <Date>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [filter|filters <String>] [fields|parameters <String>]
-    gam report customers|customer|domain [todrive] [idfirst] [nodatechange]
+    gam report customers|customer|domain [todrive] [nodatechange]
 	[date <Date>] [fields|parameters <String>]
-    gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive] [idfirst] [maxresults <Number>]
+    gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive] [maxresults <Number>]
 	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>]
 If nodatechange is specified, <Date> will not be moved back to the last acceptable date.
 The maxResults argument, range 1-1000,  controls how many results are obtained in each packet from Google; it does not limit the total number of results.
@@ -367,7 +367,7 @@ language, name and admin_secondary_email are present in gam update customer
 	[locality <String>] [region <String>] [postalcode <String>] [country|countrycode <String>]
 
 45) Add membernames argument to gam print group-members to include member name (in addition to member email) in output. Add fields argument to allow full specification of fields.
-    gam print group-members|groups-members [todrive] [idfirst] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
+    gam print group-members|groups-members [todrive] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]] [group <GroupItem>]|[select <GroupEntity>]
 
 46) Update gam <UserTypeEntity> delete groups to allow specification of a list of groups from which the users are to be deleted.
     gam <UserTypeEntity> delete|del group|groups [<GroupEntity>]
@@ -387,7 +387,7 @@ Submitted by Seth Stein
 Submitted by Seth Stein
 
 51) Added command to show Google+ profile.
-    gam <UserTypeEntity> show gplusprofile [todrive] [idfirst]
+    gam <UserTypeEntity> show gplusprofile [todrive]
 
 52) Warning messages are now written to stderr.
 To capture all stdout and stderr ouput from a command in a single file, do: gam command > file 2>&1
@@ -395,7 +395,7 @@ To capture all stdout and stderr ouput from a command in a single file, do: gam 
 4.15.0
 
 53) Added domain <DomainName> and member <UserItem> arguments to gam print group-members to allow selecting subsets of groups.
-    gam print group-members|groups-members [todrive] [idfirst] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+    gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>] [membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
 These new arguments are the same as for gam print groups.
 
 54) Add arguments to gam show fileinfo to allow field selection.
@@ -416,7 +416,7 @@ this could be time consumimg with very largs lists of CrOS devices.
 If <DriveFileEntity> is omitted, the filetree output starts with the root folder.
 
 58) Add arguments to gam show filelist to allow specification of output ordering.
-    gam <UserTypeEntity> show filelist [todrive] [idfirst] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+    gam <UserTypeEntity> show filelist [todrive] [query <Query>] [fullquery <Query>] [filepath] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
 
 59) Processing of the arguments orderby <OrderByFieldName> and ascending|descending has been slightly restricted. Previously, these areguments
 could appear in any order and they could be separated by other arguments; now, they must appear as: orderby <OrderByFieldName> [ascending|descending]
@@ -463,8 +463,8 @@ gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 
 4.17.0
 
 65) Added commands to print messages/threads.
-gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
-gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive] [idfirst]
+gam <UserTypeEntity> print message|messages (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive]
+gam <UserTypeEntity> print thread|threads (query <Query> (matchlabel <LabelName>)* [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [todrive]
 
 66) Added command to empty drive drive trash.
 gam <UserTypeEntity> empty drivetrash
@@ -482,7 +482,7 @@ Added showsize argument to gam print/show messages to have message size output/
 
 69) Add alternative command to add delegates and command to print delegates.
 gam <UserTypeEntity> add delegate|delegates <UserEntity>
-gam <UserTypeEntity> print delegates [todrive] [idfirst]
+gam <UserTypeEntity> print delegates [todrive]
 
 4.18.0
 
@@ -492,20 +492,20 @@ gam <UserTypeEntity> [add] filter [from <EmailAddress>] [to <EmailAddress>] [sub
 gam <UserTypeEntity> delete filters <FilterIDEntity>
 gam <UserTypeEntity> show filters
 gam <UserTypeEntity> info filters <FilterIDEntity>
-gam <UserTypeEntity> print filters [todrive] [idfirst]
+gam <UserTypeEntity> print filters [todrive]
 
 71) Add commands to process Gmail forwarding addresses.
 gam <UserTypeEntity> add forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> delete forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> show forwardingaddress|forwardingaddresses
 gam <UserTypeEntity> info forwardingaddress|forwardingaddresses <EmailAddressEntity>
-gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive] [idfirst]
+gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive]
 
 72) Improve Gmail forward processing.
 gam <UserTypeEntity> forward <FalseValues>
 gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
 gam <UserTypeEntity> show forward
-gam <UserTypeEntity> print forward [todrive] [idfirst]
+gam <UserTypeEntity> print forward [todrive]
 
 73) Improve Gmail sendas processing.
 gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <REPattern> <String>)*]
@@ -513,7 +513,7 @@ gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [replyto <EmailA
 gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
-gam <UserTypeEntity> print sendas [todrive] [idfirst]
+gam <UserTypeEntity> print sendas [todrive]
 
 74) Improve Gmail signature processing.
 gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] 
@@ -559,14 +559,14 @@ gam delete contacts <ContactEntity>|([query <Query>] [emailmatchpattern <REPatte
 gam info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
 gam show contacts [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
-gam print contacts [todrive] [idfirst] [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam print contacts [todrive] [query <Query>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 gam <UserTypeEntity> delete contacts <ContactEntity>|([query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
 gam <UserTypeEntity> show contacts [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
-gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> print contacts [todrive] [query <Query>] [contactgroup <ContactGroupItem>] [emailmatchpattern <REPattern>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 81) Added command to show all of a user's contact groups.
@@ -574,7 +574,7 @@ gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
 	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 
 82) Added command to print calendars to CSV file, dropped all arguments from gam show calendars.
-gam <UserTypeEntity> print calendars [todrive] [idfirst]
+gam <UserTypeEntity> print calendars [todrive]
 gam <UserTypeEntity> show calendars
 
 4.18.01
@@ -592,20 +592,19 @@ The exit/return code is 0 if the folder exists, 60 if it doesn't.
 4.18.03
 
 85) Added command to print Gmail Profiles to CSV file, dropped all arguments from gam show gmailprofile.
-gam <UserTypeEntity> print gmailprofile [todrive] [idfirst]
+gam <UserTypeEntity> print gmailprofile [todrive]
 gam <UserTypeEntity> show gmailprofile
 
 86) Added command to print Gplus Profiles to CSV file, dropped all arguments from gam show gplusprofile.
-show gplusprofile displays the formatted profile.
-gam <UserTypeEntity> print gplusprofile [todrive] [idfirst]
+gam <UserTypeEntity> print gplusprofile [todrive]
 gam <UserTypeEntity> show gplusprofile
 
 87) Added command to print user schemas to CSV file, renamed command to display formatted user schemas to gam show schemas.
-gam print schemas [todrive] [idfirst]
+gam print schemas [todrive]
 gam show schemas
 
-88) Added command to print user tokens to CSV file.
-gam <UserTypeEntity> print tokens|token|3lo|oauth [todrive] [idfirst]
+88) Added command to print user access tokens to CSV file.
+gam <UserTypeEntity> print tokens|token|3lo|oauth [todrive]
 
 89) Added command to move a Google drive file to the trash.
 gam <UserTypeEntity> trash drivefile <DriveFileEntity>
@@ -629,16 +628,16 @@ gam <UserTypeEntity> spam messages|threads (((query <Query>) (matchlabel <LabelN
 gam <UserTypeEntity> trash messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_trash|max_to_process <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> untrash messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_untrash|max_to_process <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> show messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
-gam <UserTypeEntity> print messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive] [idfirst]
+gam <UserTypeEntity> print messages|threads (((query <Query>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive]
 
 92) All commands that process messages and threads now use the value of email_batch_size from gam.cfg to create batches to speed up processing.
 
 93) Add select argument to gam print cros to allow selection of source of ChromeOS devices.
 Add optional <UserTypeEntity> to gam print users and <CroSTypeEntity> to gam print cros.
-gam [<CrOSTypeEntity>] print cros [todrive] [idfirst] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
+gam [<CrOSTypeEntity>] print cros [todrive] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
 	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
-gam [<UserTypeEntity>] print users [todrive] [idfirst] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
 	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
@@ -649,10 +648,17 @@ gam info cros <CrosDeviceEntity> [nolists] [listlimit <Number>]
 gam info croses <CrOSEntity> [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
-95) Add drivedir and targetfolder <FilePath> arguments to gam print printjobs and gam get photo to
+95) Add drivedir and targetfolder <FilePath> arguments to gam printjob fetch and gam get photo to
 allow specification of the destination folder for the file retrieved from Google. The default
 location for these commands is the current working directory, drivedir specifies the value of drive_dir from gam.cfg and
 targetfolder <FilePath> specifies a user-choosen path.
+gam printjob|printjobs <PrinterID>|any fetch
+	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
+	[status <PrintJobStatus>]
+	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
+	[owner|user <EmailAddress>]
+	[limit <Number>] [drivedir|(targetfolder <FilePath>)]
+gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)]
 
 4.18.05
 

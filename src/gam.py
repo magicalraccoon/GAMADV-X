@@ -10531,14 +10531,9 @@ def infoCrOSDevices(entityList, cd=None):
       noLists = True
     elif myarg == u'listlimit':
       listLimit = getInteger(minVal=0)
-    elif myarg == u'recentusers':
+    elif myarg == u'allfields':
       projection = u'FULL'
-      noLists = False
-      fieldsList.extend(CROS_ARGUMENT_TO_PROPERTY_MAP[myarg])
-    elif myarg in [u'timeranges', u'activetimeranges']:
-      projection = u'FULL'
-      noLists = False
-      fieldsList.extend(CROS_ARGUMENT_TO_PROPERTY_MAP[myarg])
+      fieldsList = []
     elif myarg in PROJECTION_CHOICES_MAP:
       projection = PROJECTION_CHOICES_MAP[myarg]
       if projection == u'FULL':
