@@ -906,6 +906,7 @@ primaryEmail is the first column, all other column headers are sorted.
 gam <UserTypeEntity> print users ... <UserFieldName>* | fields <UserFieldNameList>]
 Prints a header row and selected fields for specified users.
 primaryEmail is the first column, all other column headers appear in the order specified.
+
 gam create verify|verification <DomainName>
 gam update verify|verification <DomainName> cname|txt|text|site|file
 gam info verify|verification
@@ -1044,7 +1045,7 @@ gam <UserTypeEntity> delete|del license <SKUID>
 
 gam <UserTypeEntity> update photo <FileNamePattern>
 gam <UserTypeEntity> delete|del photo
-gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)]
+gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)] [noshow]
 
 gam <UserTypeEntity> profile share|shared|unshare|unshared
 gam <UserTypeEntity> show profile

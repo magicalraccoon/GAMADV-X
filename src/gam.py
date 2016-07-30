@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.05'
+__version__ = u'4.18.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
@@ -2806,6 +2806,14 @@ def entityItemValueItemValueActionFailedWarning(entityType, entityName, item1Typ
                                        GM_Globals[GM_ACTION_FAILED], errMessage],
                                       currentCountNL(i, count)))
 
+def entityItemValueModifierNewValueActionFailedWarning(entityType, entityName, itemType, itemValue, modifier, newValue, errMessage, i=0, count=0):
+  sys.stdout.write(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
+                                      [singularEntityName(entityType), entityName,
+                                       singularEntityName(itemType), itemValue,
+                                       u'{0} {1}'.format(GM_Globals[GM_ACTION_TO_PERFORM], modifier), newValue,
+                                       GM_Globals[GM_ACTION_FAILED], errMessage],
+                                      currentCountNL(i, count)))
+
 def entityActionNotPerformedWarning(entityType, entityName, errMessage, i=0, count=0):
   setSysExitRC(AC_NOT_PERFORMED_RC)
   sys.stderr.write(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
@@ -3104,6 +3112,15 @@ def writeFile(filename, data, mode=u'wb', continueOnError=False, displayError=Tr
       setSysExitRC(FILE_ERROR_RC)
       return False
     systemErrorExit(FILE_ERROR_RC, e)
+
+# Write a file, return error
+def writeFileReturnError(filename, data, mode=u'wb'):
+  try:
+    with open(os.path.expanduser(filename), mode) as f:
+      f.write(data)
+    return (True, None)
+  except IOError as e:
+    return (False, e)
 #
 class UTF8Recoder(object):
   """
@@ -3697,25 +3714,18 @@ def waitOnFailure(n, retries, error_code, error_message):
   if n > 3:
     sys.stderr.write(u'attempt {0}/{1}\n'.format(n+1, retries))
 
-class GData_exception(Exception):
-  def __init__(self, value):
-    super(GData_exception, self).__init__(value)
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
-class GData_badRequest(GData_exception): pass
-class GData_doesNotExist(GData_exception): pass
-class GData_entityExists(GData_exception): pass
-class GData_forbidden(GData_exception): pass
-class GData_insufficientPermissions(GData_exception): pass
-class GData_internalServerError(GData_exception): pass
-class GData_invalidDomain(GData_exception): pass
-class GData_invalidValue(GData_exception): pass
-class GData_nameNotValid(GData_exception): pass
-class GData_notFound(GData_exception): pass
-class GData_preconditionFailed(GData_exception): pass
-class GData_serviceNotApplicable(GData_exception): pass
+class GData_badRequest(Exception): pass
+class GData_doesNotExist(Exception): pass
+class GData_entityExists(Exception): pass
+class GData_forbidden(Exception): pass
+class GData_insufficientPermissions(Exception): pass
+class GData_internalServerError(Exception): pass
+class GData_invalidDomain(Exception): pass
+class GData_invalidValue(Exception): pass
+class GData_nameNotValid(Exception): pass
+class GData_notFound(Exception): pass
+class GData_preconditionFailed(Exception): pass
+class GData_serviceNotApplicable(Exception): pass
 
 GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_BAD_REQUEST: GData_badRequest,
@@ -3938,66 +3948,59 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
     reason = http_status
   return (http_status, reason, message)
 
-class GAPI_exception(Exception):
-  def __init__(self, value):
-    super(GAPI_exception, self).__init__(value)
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
-class GAPI_aborted(GAPI_exception): pass
-class GAPI_alreadyExists(GAPI_exception): pass
-class GAPI_authError(GAPI_exception): pass
-class GAPI_backendError(GAPI_exception): pass
-class GAPI_badRequest(GAPI_exception): pass
-class GAPI_cannotChangeOwnAcl(GAPI_exception): pass
-class GAPI_cannotChangeOwnerAcl(GAPI_exception): pass
-class GAPI_cannotDeletePrimaryCalendar(GAPI_exception): pass
-class GAPI_cannotDeletePrimarySendAs(GAPI_exception): pass
-class GAPI_conditionNotMet(GAPI_exception): pass
-class GAPI_customerNotFound(GAPI_exception): pass
-class GAPI_cyclicMembershipsNotAllowed(GAPI_exception): pass
-class GAPI_deleted(GAPI_exception): pass
-class GAPI_deletedUserNotFound(GAPI_exception): pass
-class GAPI_domainNotFound(GAPI_exception): pass
-class GAPI_domainNotVerifiedSecondary(GAPI_exception): pass
-class GAPI_domainAliasNotFound(GAPI_exception): pass
-class GAPI_duplicate(GAPI_exception): pass
-class GAPI_failedPrecondition(GAPI_exception): pass
-class GAPI_fileNotFound(GAPI_exception): pass
-class GAPI_forbidden(GAPI_exception): pass
-class GAPI_groupNotFound(GAPI_exception): pass
-class GAPI_insufficientPermissions(GAPI_exception): pass
-class GAPI_internalError(GAPI_exception): pass
-class GAPI_invalid(GAPI_exception): pass
-class GAPI_invalidArgument(GAPI_exception): pass
-class GAPI_invalidCustomerId(GAPI_exception): pass
-class GAPI_invalidInput(GAPI_exception): pass
-class GAPI_invalidMember(GAPI_exception): pass
-class GAPI_invalidOrgUnit(GAPI_exception): pass
-class GAPI_invalidParentOrgUnit(GAPI_exception): pass
-class GAPI_invalidQuery(GAPI_exception): pass
-class GAPI_invalidResource(GAPI_exception): pass
-class GAPI_invalidSchemaValue(GAPI_exception): pass
-class GAPI_invalidScopeValue(GAPI_exception): pass
-class GAPI_invalidSharingRequest(GAPI_exception): pass
-class GAPI_loginRequired(GAPI_exception): pass
-class GAPI_memberNotFound(GAPI_exception): pass
-class GAPI_notFound(GAPI_exception): pass
-class GAPI_notImplemented(GAPI_exception): pass
-class GAPI_orgunitNotFound(GAPI_exception): pass
-class GAPI_permissionDenied(GAPI_exception): pass
-class GAPI_permissionNotFound(GAPI_exception): pass
-class GAPI_photoNotFound(GAPI_exception): pass
-class GAPI_required(GAPI_exception): pass
-class GAPI_resourceNotFound(GAPI_exception): pass
-class GAPI_resourceIdNotFound(GAPI_exception): pass
-class GAPI_serviceLimit(GAPI_exception): pass
-class GAPI_serviceNotAvailable(GAPI_exception): pass
-class GAPI_systemError(GAPI_exception): pass
-class GAPI_timeRangeEmpty(GAPI_exception): pass
-class GAPI_unknownError(GAPI_exception): pass
-class GAPI_userNotFound(GAPI_exception): pass
+class GAPI_aborted(Exception): pass
+class GAPI_alreadyExists(Exception): pass
+class GAPI_authError(Exception): pass
+class GAPI_backendError(Exception): pass
+class GAPI_badRequest(Exception): pass
+class GAPI_cannotChangeOwnAcl(Exception): pass
+class GAPI_cannotChangeOwnerAcl(Exception): pass
+class GAPI_cannotDeletePrimaryCalendar(Exception): pass
+class GAPI_cannotDeletePrimarySendAs(Exception): pass
+class GAPI_conditionNotMet(Exception): pass
+class GAPI_customerNotFound(Exception): pass
+class GAPI_cyclicMembershipsNotAllowed(Exception): pass
+class GAPI_deleted(Exception): pass
+class GAPI_deletedUserNotFound(Exception): pass
+class GAPI_domainNotFound(Exception): pass
+class GAPI_domainNotVerifiedSecondary(Exception): pass
+class GAPI_domainAliasNotFound(Exception): pass
+class GAPI_duplicate(Exception): pass
+class GAPI_failedPrecondition(Exception): pass
+class GAPI_fileNotFound(Exception): pass
+class GAPI_forbidden(Exception): pass
+class GAPI_groupNotFound(Exception): pass
+class GAPI_insufficientPermissions(Exception): pass
+class GAPI_internalError(Exception): pass
+class GAPI_invalid(Exception): pass
+class GAPI_invalidArgument(Exception): pass
+class GAPI_invalidCustomerId(Exception): pass
+class GAPI_invalidInput(Exception): pass
+class GAPI_invalidMember(Exception): pass
+class GAPI_invalidOrgUnit(Exception): pass
+class GAPI_invalidParentOrgUnit(Exception): pass
+class GAPI_invalidQuery(Exception): pass
+class GAPI_invalidResource(Exception): pass
+class GAPI_invalidSchemaValue(Exception): pass
+class GAPI_invalidScopeValue(Exception): pass
+class GAPI_invalidSharingRequest(Exception): pass
+class GAPI_loginRequired(Exception): pass
+class GAPI_memberNotFound(Exception): pass
+class GAPI_notFound(Exception): pass
+class GAPI_notImplemented(Exception): pass
+class GAPI_orgunitNotFound(Exception): pass
+class GAPI_permissionDenied(Exception): pass
+class GAPI_permissionNotFound(Exception): pass
+class GAPI_photoNotFound(Exception): pass
+class GAPI_required(Exception): pass
+class GAPI_resourceNotFound(Exception): pass
+class GAPI_resourceIdNotFound(Exception): pass
+class GAPI_serviceLimit(Exception): pass
+class GAPI_serviceNotAvailable(Exception): pass
+class GAPI_systemError(Exception): pass
+class GAPI_timeRangeEmpty(Exception): pass
+class GAPI_unknownError(Exception): pass
+class GAPI_userNotFound(Exception): pass
 
 GAPI_REASON_EXCEPTION_MAP = {
   GAPI_ABORTED: GAPI_aborted,
@@ -4162,19 +4165,12 @@ def callGAPIitems(service, function, items,
     return results.get(items, [])
   return []
 
-class GCP_exception(Exception):
-  def __init__(self, value):
-    super(GCP_exception, self).__init__(value)
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
-class GCP_cantModifyFinishedJob(GCP_exception): pass
-class GCP_failedToShareThePrinter(GCP_exception): pass
-class GCP_noPrintJobs(GCP_exception): pass
-class GCP_unknownJobId(GCP_exception): pass
-class GCP_unknownPrinter(GCP_exception): pass
-class GCP_userIsNotAuthorized(GCP_exception): pass
+class GCP_cantModifyFinishedJob(Exception): pass
+class GCP_failedToShareThePrinter(Exception): pass
+class GCP_noPrintJobs(Exception): pass
+class GCP_unknownJobId(Exception): pass
+class GCP_unknownPrinter(Exception): pass
+class GCP_userIsNotAuthorized(Exception): pass
 
 GCP_MESSAGE_EXCEPTION_MAP = {
   GCP_CANT_MODIFY_FINISHED_JOB: GCP_cantModifyFinishedJob,
@@ -5989,7 +5985,7 @@ def doReport():
             csvRows.append(row)
           break
         except GAPI_invalid as e:
-          try_date = _adjustDate(e.value)
+          try_date = _adjustDate(e.message)
           if not try_date:
             return
         except GAPI_badRequest:
@@ -6035,7 +6031,7 @@ def doReport():
           csvRows.append(app)
         break
       except GAPI_invalid as e:
-        try_date = _adjustDate(e.value)
+        try_date = _adjustDate(e.message)
         if not try_date:
           return
       except GAPI_forbidden:
@@ -6605,9 +6601,9 @@ def doUpdateCustomer():
                          defaultLanguage=language)
       entityItemValueActionPerformed(EN_CUSTOMER_ID, GC_Values[GC_CUSTOMER_ID], EN_DEFAULT_LANGUAGE, result[u'defaultLanguage'])
     except GData_invalidDomain as e:
-      printErrorMessage(INVALID_DOMAIN_RC, e.value)
+      printErrorMessage(INVALID_DOMAIN_RC, e.message)
     except GData_invalidValue as e:
-      printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.value)
+      printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.message)
 
 SERVICE_NAME_TO_ID_MAP = {u'Drive': u'55656082996', u'Google+': u'553547912911',}
 
@@ -6826,9 +6822,9 @@ def doUpdateInstance():
                 signingKey=keyData)
       entityItemValueActionPerformed(EN_INSTANCE, u'', EN_SSO_KEY, keyFile)
   except GData_invalidDomain as e:
-    printErrorMessage(INVALID_DOMAIN_RC, e.value)
+    printErrorMessage(INVALID_DOMAIN_RC, e.message)
   except GData_invalidValue as e:
-    printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.value)
+    printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.message)
 #
 MAXIMUM_USERS_MAP = [u'maximumNumberOfUsers', u'Maximum Users']
 CURRENT_USERS_MAP = [u'currentNumberOfUsers', u'Current Users']
@@ -8308,7 +8304,7 @@ def doCalendarAddEvent(cal, calendarList):
       _showCalendarEvent(event, i, count)
       decrementIndentLevel()
     except (GAPI_invalid, GAPI_required, GAPI_timeRangeEmpty) as e:
-      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, u'', e.value, i, count)
+      entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, u'', e.message, i, count)
       break
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
@@ -8356,7 +8352,7 @@ def doCalendarUpdateEvent(cal, calendarList):
       except GAPI_notFound:
         entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_invalid, GAPI_required, GAPI_timeRangeEmpty) as e:
-        entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, e.value, j, jcount)
+        entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, e.message, j, jcount)
         return
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
@@ -9703,7 +9699,7 @@ def doUpdateContacts(users, entityType):
       except GData_badRequest:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_BAD_REQUEST, j, jcount)
       except GData_preconditionFailed as e:
-        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, e.value, j, jcount)
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, e.message, j, jcount)
       except GData_forbidden:
         entityServiceNotApplicableWarning(entityType, user, i, count)
         break
@@ -10448,7 +10444,7 @@ def updateCrOSDevices(entityList, cd=None):
                customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=body)
       entityActionPerformed(EN_CROS_DEVICE, deviceId, i, count)
     except GAPI_invalid as e:
-      entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.value, i, count)
+      entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.message, i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
 
@@ -12918,7 +12914,7 @@ def doProcessSiteACLs(users, entityType):
           except GData_entityExists:
             entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), PHRASE_DUPLICATE, k, kcount)
           except GData_badRequest as e:
-            entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), e.value, k, kcount)
+            entityItemValueActionFailedWarning(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, role), e.message, k, kcount)
         decrementIndentLevel()
       else:
         try:
@@ -13360,7 +13356,7 @@ def updateUsers(entityList):
     except GAPI_invalidSchemaValue:
       entityActionFailedWarning(EN_USER, user, PHRASE_INVALID_SCHEMA_VALUE, i, count)
     except GAPI_invalid as e:
-      entityActionFailedWarning(EN_USER, user, e.value, i, count)
+      entityActionFailedWarning(EN_USER, user, e.message, i, count)
 
 # gam delete users <UserEntity>
 # gam delete user <UserItem>
@@ -14111,7 +14107,7 @@ def doUpdateSiteVerification():
                              throw_reasons=[GAPI_BAD_REQUEST],
                              verificationMethod=verificationMethod, body=body)
   except GAPI_badRequest as e:
-    printKeyValueList([ERROR, e.value])
+    printKeyValueList([ERROR, e.message])
     verify_data = callGAPI(verif.webResource(), u'getToken',
                            body=body)
     printKeyValueList([u'Method', verify_data[u'method']])
@@ -17167,9 +17163,11 @@ def getDriveFile(users):
         if revisionId:
           download_url = u'{0}&revision={1}'.format(download_url, revisionId)
         _, content = drive._http.request(download_url)
-        writeFile(filename, content, continueOnError=True)
-### Check if write actuallly worked
-        entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE, result[DRIVE_FILE_NAME], AC_MODIFIER_TO, filename, my_line[0], my_line[1], j, jcount)
+        status, e = writeFileReturnError(filename, content)
+        if status:
+          entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE, result[DRIVE_FILE_NAME], AC_MODIFIER_TO, filename, my_line[0], my_line[1], j, jcount)
+        else:
+          entityItemValueModifierNewValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, result[DRIVE_FILE_NAME], AC_MODIFIER_TO, filename, e.strerror, j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -17331,7 +17329,7 @@ def transferDriveFileOwnership(users):
                  fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
         entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
       except GAPI_invalidSharingRequest as e:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.value), j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
       except GAPI_permissionNotFound:
         entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
       except GAPI_fileNotFound:
@@ -17573,7 +17571,7 @@ def addDriveFileACL(users):
         entityItemValueItemValueActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
         _showPermission(permission)
       except GAPI_invalidSharingRequest as e:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.value), j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -17943,7 +17941,7 @@ def addLicense(users):
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], body={u'userId': user})
       entityItemValueActionPerformed(EN_USER, user, EN_LICENSE, parameters[LICENSE_SKUID], i, count)
     except GAPI_conditionNotMet as e:
-      entityItemValueActionFailedWarning(EN_USER, user, EN_LICENSE, parameters[LICENSE_SKUID], e.value, i, count)
+      entityItemValueActionFailedWarning(EN_USER, user, EN_LICENSE, parameters[LICENSE_SKUID], e.message, i, count)
     except GAPI_duplicate:
       entityItemValueActionFailedWarning(EN_USER, user, EN_LICENSE, parameters[LICENSE_SKUID], PHRASE_DUPLICATE, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
@@ -18013,7 +18011,7 @@ def updatePhoto(users):
         with open(os.path.expanduser(filename), u'rb') as f:
           image_data = f.read()
       except IOError as e:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, filename, e, i, count)
+        entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, filename, e.strerror, i, count)
         continue
     body = {u'photoData': base64.urlsafe_b64encode(image_data)}
     try:
@@ -18043,10 +18041,11 @@ def deletePhoto(users):
     except (GAPI_userNotFound, GAPI_forbidden):
       entityUnknownWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)]
+# gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)] [noshow]
 def getPhoto(users):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   targetFolder = os.getcwd()
+  showPhotoData = True
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'drivedir':
@@ -18056,7 +18055,7 @@ def getPhoto(users):
       if not os.path.isdir(targetFolder):
         os.makedirs(targetFolder)
     elif myarg == u'noshow':
-      pass
+      showPhotoData = False
     else:
       unknownArgumentExit()
   i = 0
@@ -18065,15 +18064,21 @@ def getPhoto(users):
     i += 1
     user = normalizeEmailAddressOrUID(user)
     try:
+      entityPerformActionNumItems(EN_USER, user, 1, EN_PHOTO, i, count)
       photo = callGAPI(cd.users().photos(), u'get',
                        throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_PHOTO_NOT_FOUND],
                        userKey=user)
       filename = os.path.join(targetFolder, u'{0}.jpg'.format(user))
-      photo_data = base64.urlsafe_b64decode(str(photo[u'photoData']))
-      entityItemValueActionPerformed(EN_USER, user, EN_PHOTO, filename, i, count)
-      writeFile(filename, photo_data, continueOnError=True)
+      photo_data = str(photo[u'photoData'])
+      if showPhotoData:
+        sys.stdout.write(photo_data+'\n')
+      status, e = writeFileReturnError(filename, base64.urlsafe_b64decode(photo_data))
+      if status:
+        entityItemValueActionPerformed(EN_USER, user, EN_PHOTO, filename, i, count)
+      else:
+        entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, filename, e.strerror, i, count)
     except GAPI_photoNotFound:
-      entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, u'', PHRASE_DOES_NOT_EXIST, i, count)
+      entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, u'None', PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_userNotFound, GAPI_forbidden):
       entityUnknownWarning(EN_USER, user, i, count)
 
@@ -19386,7 +19391,7 @@ def _processEmailSettings(user, i, count, service, function, **kwargs):
     if u'forward_to' in kwargs:
       entityItemValueActionFailedWarning(EN_USER, user, EN_FORWARDING_ADDRESS, kwargs[u'forward_to'], PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED, i, count)
     else:
-      entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.value, i, count)
+      entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.message, i, count)
   return None
 
 # gam <UserTypeEntity> arrows <Boolean>
@@ -20824,7 +20829,7 @@ def setVacation(users):
                         userId=u'me', body=body)
       printEntityItemValue(EN_USER, user, EN_VACATION_ENABLED, result[u'enableAutoReply'], i, count)
     except GAPI_invalidArgument as e:
-      entityItemValueActionFailedWarning(EN_USER, user, EN_VACATION_ENABLED, enable, e.value, i, count)
+      entityItemValueActionFailedWarning(EN_USER, user, EN_VACATION_ENABLED, enable, e.message, i, count)
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
