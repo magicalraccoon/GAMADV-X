@@ -23,10 +23,10 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.06'
+__version__ = u'4.18.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
-import sys, os, time, datetime, random, socket, csv, platform, re, calendar, base64, string, codecs, StringIO, subprocess, unicodedata, ConfigParser, collections, logging
+import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
 
 import json
 import httplib2
@@ -38,8 +38,6 @@ import oauth2client.client
 import oauth2client.service_account
 import oauth2client.contrib.multistore_file
 import oauth2client.tools
-import mimetypes
-import ntpath
 
 GAM = u'GAMADV-X'
 GAM_URL = u'https://github.com/taers232c/{0}'.format(GAM)
@@ -941,6 +939,8 @@ ENTITY_NAMES = {
 CL_ENTITY_COURSEPARTICIPANTS = u'courseparticipants'
 CL_ENTITY_CROS = u'cros'
 CL_ENTITY_CROS_QUERY = u'crosquery'
+CL_ENTITY_CROS_OU = u'cros_ou'
+CL_ENTITY_CROS_OU_AND_CHILDREN = u'cros_ou_and_children'
 CL_ENTITY_CROS_OUS = u'cros_ous'
 CL_ENTITY_CROS_OUS_AND_CHILDREN = u'cros_ous_and_children'
 CL_ENTITY_GROUP = u'group'
@@ -959,6 +959,8 @@ CL_ENTITY_USERS = u'users'
 CL_CROS_ENTITIES = [
   CL_ENTITY_CROS,
   CL_ENTITY_CROS_QUERY,
+  CL_ENTITY_CROS_OU,
+  CL_ENTITY_CROS_OU_AND_CHILDREN,
   CL_ENTITY_CROS_OUS,
   CL_ENTITY_CROS_OUS_AND_CHILDREN,
   ]
@@ -979,15 +981,23 @@ CL_USER_ENTITIES = [
   ]
 # Aliases for CL entity types
 CL_ENTITY_ALIAS_MAP = {
-  u'cros_org': CL_ENTITY_CROS_OUS,
-  u'cros_org_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
-  u'cros_org_and_children': CL_ENTITY_CROS_OUS_AND_CHILDREN,
+  u'crosorg': CL_ENTITY_CROS_OU,
+  u'crosorg_and_child': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'crosorg_and_children': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'crosorgs': CL_ENTITY_CROS_OUS,
+  u'crosorgs_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
+  u'crosorgs_and_children': CL_ENTITY_CROS_OUS_AND_CHILDREN,
+  u'crosou_and_child': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'crosou_and_childen': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'crosous_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
+  u'cros_org': CL_ENTITY_CROS_OU,
+  u'cros_org_and_child': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'cros_org_and_children': CL_ENTITY_CROS_OU_AND_CHILDREN,
   u'cros_orgs': CL_ENTITY_CROS_OUS,
   u'cros_orgs_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
   u'cros_orgs_and_children': CL_ENTITY_CROS_OUS_AND_CHILDREN,
-  u'cros_ou': CL_ENTITY_CROS_OUS,
-  u'cros_ou_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
-  u'cros_ou_and_childen': CL_ENTITY_CROS_OUS_AND_CHILDREN,
+  u'cros_ou_and_child': CL_ENTITY_CROS_OU_AND_CHILDREN,
+  u'cros_ou_and_childen': CL_ENTITY_CROS_OU_AND_CHILDREN,
   u'cros_ous_and_child': CL_ENTITY_CROS_OUS_AND_CHILDREN,
   u'license': CL_ENTITY_LICENSES,
   u'licence': CL_ENTITY_LICENSES,
@@ -1466,7 +1476,7 @@ PHRASE_COUNT_N_EXCEEDS_MAX_TO_PROCESS_M = u'Count {0} exceeds maximum to {1} {2}
 PHRASE_DATA_UPLOADED_TO_DRIVE_FILE = u'Data uploaded to Drive File'
 PHRASE_DELEGATE_ACCESS_TO = u'Delegate Access to'
 PHRASE_DENIED = u'DENIED'
-PHRASE_DIRECTLY_IN_THE_OU = u'directly in the OU'
+PHRASE_DIRECTLY_IN_THE = u' directly in the {0}'
 PHRASE_DOES_NOT_EXIST = u'Does not exist'
 PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'Does not exist or has invalid format'
 PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED = u'Does not exist or not allowed'
@@ -3051,6 +3061,7 @@ UNSAFE_FILENAME_CHARS = u'\\/:'
 
 def cleanFilename(filename, cleanDiacriticals=False):
   if cleanDiacriticals:
+    import unicodedata
     nkfd_form = unicodedata.normalize(u'NFKD', filename)
     filename = u''.join([c for c in nkfd_form if not unicodedata.combining(c)])
   for ch in UNSAFE_FILENAME_CHARS:
@@ -3167,8 +3178,8 @@ class UnicodeWriter(object):
   """
 
   def __init__(self, f, dialect=csv.excel, **kwds):
-    import cStringIO
     # Redirect output to a queue
+    import cStringIO
     self.queue = cStringIO.StringIO()
     self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
     self.stream = f
@@ -3536,7 +3547,7 @@ def SetGlobalVariables():
   return False
 
 def doGAMCheckForUpdates(forceCheck=False):
-  import urllib2
+  import urllib2, calendar
   current_version = __version__
   now_time = calendar.timegm(time.gmtime())
   if not forceCheck:
@@ -4544,10 +4555,7 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
     return u'{0}{1}'.format(emailAddressOrUID, addDomain)
   return emailAddressOrUID
 
-# If entity is already iterable, nothing to do
-# If entityType is singular, return a one-element list
-# Otherwise split entity on , or space and return that list
-def convertEntityToList(entityType, nonListEntityType, entity, noSpaceSplit=False):
+def convertEntityToList(entity, shlexSplit=False, nonListEntityType=False):
   if not entity:
     return []
   if isinstance(entity, list):
@@ -4556,11 +4564,15 @@ def convertEntityToList(entityType, nonListEntityType, entity, noSpaceSplit=Fals
     return list(entity)
   if isinstance(entity, dict):
     return entity.keys()
-  if entityType == nonListEntityType:
+  if nonListEntityType:
     return [entity,]
-  if noSpaceSplit:
-    return entity.split(u',')
-  return entity.replace(u',', u' ').split()
+  if not shlexSplit:
+    return entity.replace(u',', u' ').split()
+  import shlex
+  lexer = shlex.shlex(entity, posix=True)
+  lexer.whitespace = ' ,'
+  lexer.whitespace_split = True
+  return list(lexer)
 
 # Add entries in members to usersList if conditions are met
 def addMembersToUsers(usersList, usersSet, emailField, members, checkNotSuspended=False, checkOrgUnit=None):
@@ -4585,7 +4597,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
   usersSet = set()
   if entityType in [CL_ENTITY_USER, CL_ENTITY_USERS]:
     buildGAPIObject(GAPI_DIRECTORY_API)
-    members = convertEntityToList(entityType, None, entity)
+    members = convertEntityToList(entity, nonListEntityType=entityType == CL_ENTITY_USER)
     for user in members:
       if validateEmailAddressOrUID(user):
         if user not in usersSet:
@@ -4611,7 +4623,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       accessErrorExit(cd)
   elif entityType in [CL_ENTITY_GROUP, CL_ENTITY_GROUPS]:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
-    groups = convertEntityToList(entityType, None, entity)
+    groups = convertEntityToList(entity, nonListEntityType=entityType == CL_ENTITY_GROUP)
     for group in groups:
       if validateEmailAddressOrUID(group):
         try:
@@ -4629,9 +4641,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       else:
         _showInvalidEntity(EN_GROUP, group)
         invalid += 1
-  elif entityType in [CL_ENTITY_OU, CL_ENTITY_OUS]:
+  elif entityType in [CL_ENTITY_OU, CL_ENTITY_OUS, CL_ENTITY_OU_AND_CHILDREN, CL_ENTITY_OUS_AND_CHILDREN]:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
-    ous = convertEntityToList(entityType, CL_ENTITY_OU, entity, noSpaceSplit=True)
+    ous = convertEntityToList(entity, shlexSplit=True, nonListEntityType=entityType in [CL_ENTITY_OU, CL_ENTITY_OU_AND_CHILDREN])
+    directlyInOU = entityType in [CL_ENTITY_OU, CL_ENTITY_OUS]
+    qualifier = [u'', PHRASE_DIRECTLY_IN_THE.format(singularEntityName(EN_ORGANIZATIONAL_UNIT))][directlyInOU]
     prevLen = 0
     for ou in ous:
       try:
@@ -4641,6 +4655,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                             customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=ou)
           ou = result[u'orgUnitPath']
+        checkOrgUnit = [u'', ou.lower()][directlyInOU]
         printGettingAllEntityItemsForWhom(EN_USER, ou, entityType=EN_ORGANIZATIONAL_UNIT)
         page_message = getPageMessageForWhom(noNL=True)
         members = callGAPIpages(cd.users(), u'list', u'users',
@@ -4649,36 +4664,9 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                                 customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(ou),
                                 fields=u'nextPageToken,users(primaryEmail,suspended,orgUnitPath)',
                                 maxResults=GC_Values[GC_USER_MAX_RESULTS])
-        addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkOrgUnit=ou.lower(), checkNotSuspended=checkNotSuspended)
+        addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkOrgUnit=checkOrgUnit, checkNotSuspended=checkNotSuspended)
         totalLen = len(usersSet)
-        printGettingEntityItemsDoneInfo(totalLen-prevLen, qualifier=u' {0}'.format(PHRASE_DIRECTLY_IN_THE_OU))
-        prevLen = totalLen
-      except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
-        checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
-        doNotExist += 1
-  elif entityType in [CL_ENTITY_OU_AND_CHILDREN, CL_ENTITY_OUS_AND_CHILDREN]:
-    cd = buildGAPIObject(GAPI_DIRECTORY_API)
-    ous = convertEntityToList(entityType, CL_ENTITY_OU_AND_CHILDREN, entity, noSpaceSplit=True)
-    prevLen = 0
-    for ou in ous:
-      try:
-        ou = makeOrgUnitPathAbsolute(ou)
-        if ou.startswith(u'id:'):
-          result = callGAPI(cd.orgunits(), u'get',
-                            throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-                            customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=ou)
-          ou = result[u'orgUnitPath']
-        printGettingAllEntityItemsForWhom(EN_USER, ou, entityType=EN_ORGANIZATIONAL_UNIT)
-        page_message = getPageMessageForWhom(noNL=True)
-        members = callGAPIpages(cd.users(), u'list', u'users',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                                customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(ou),
-                                fields=u'nextPageToken,users(primaryEmail,suspended)',
-                                maxResults=GC_Values[GC_USER_MAX_RESULTS])
-        addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkNotSuspended=checkNotSuspended)
-        totalLen = len(usersSet)
-        printGettingEntityItemsDoneInfo(totalLen-prevLen)
+        printGettingEntityItemsDoneInfo(totalLen-prevLen, qualifier=qualifier)
         prevLen = totalLen
       except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
@@ -4706,7 +4694,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     addMembersToUsers(usersList, usersSet, u'userId', licenses)
   elif entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS, CL_ENTITY_STUDENTS]:
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
-    courses = convertEntityToList(entityType, None, entity)
+    courses = convertEntityToList(entity)
     for course in courses:
       courseId = normalizeCourseId(course)
       try:
@@ -4741,7 +4729,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         APIAccessDeniedExit()
   elif entityType == CL_ENTITY_CROS:
     buildGAPIObject(GAPI_DIRECTORY_API)
-    members = convertEntityToList(entityType, None, entity)
+    members = convertEntityToList(entity)
     for user in members:
       if user not in usersSet:
         usersSet.add(user)
@@ -4778,9 +4766,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       usageErrorExit(PHRASE_INVALID_QUERY)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
-  elif entityType in [CL_ENTITY_CROS_OUS, CL_ENTITY_CROS_OUS_AND_CHILDREN]:
+  elif entityType in [CL_ENTITY_CROS_OU, CL_ENTITY_CROS_OU_AND_CHILDREN, CL_ENTITY_CROS_OUS, CL_ENTITY_CROS_OUS_AND_CHILDREN]:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
-    ous = convertEntityToList(entityType, None, entity, noSpaceSplit=True)
+    ous = convertEntityToList(entity, shlexSplit=True, nonListEntityType=entityType in [CL_ENTITY_CROS_OU, CL_ENTITY_CROS_OU_AND_CHILDREN])
+    directlyInOU = entityType in [CL_ENTITY_CROS_OU, CL_ENTITY_CROS_OUS]
+    qualifier = [u'', PHRASE_DIRECTLY_IN_THE.format(chooseEntityName(EN_ORGANIZATIONAL_UNIT, len(ous)))][directlyInOU]
     ouDict = {}
     for ou in ous:
       try:
@@ -4803,12 +4793,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                               customerId=GC_Values[GC_CUSTOMER_ID],
                               fields=u'nextPageToken,chromeosdevices(deviceId,orgUnitPath)',
                               maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-      if entityType == CL_ENTITY_CROS_OUS:
+      if directlyInOU:
         for cros in members:
           if cros[u'orgUnitPath'].lower() in ouDict:
             usersSet.add(cros[u'deviceId'])
             usersList.append(cros[u'deviceId'])
-        printGettingEntityItemsDoneInfo(len(usersSet), qualifier=u' {0}'.format(PHRASE_DIRECTLY_IN_THE_OU))
       else:
         for cros in members:
           crosOu = cros[u'orgUnitPath'].lower()
@@ -4817,7 +4806,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
               usersSet.add(cros[u'deviceId'])
               usersList.append(cros[u'deviceId'])
               break
-        printGettingEntityItemsDoneInfo(len(usersSet))
+      printGettingEntityItemsDoneInfo(len(usersSet), qualifier=qualifier)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   else:
@@ -5033,38 +5022,28 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
     return (None, None)
   invalidChoiceExit(selectorChoices+entityChoices)
 
-def getEntityList(item, listOptional=False, noSpaceSplit=False):
+def getEntityList(item, listOptional=False, shlexSplit=False):
   selectorChoices = CL_ENTITY_SELECTORS+CL_CROS_ENTITY_SELECTORS
   selectorChoices.remove(CL_ENTITY_SELECTOR_ALL)
   selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
   selectorChoices += CL_CSVCROS_ENTITY_SELECTORS
   entitySelector = getChoice(selectorChoices, defaultChoice=None)
   if entitySelector:
-    if entitySelector == CL_ENTITY_SELECTOR_ARGS:
-      entityList = getEntitiesFromArgs()
-    elif entitySelector in [CL_ENTITY_SELECTOR_FILE, CL_ENTITY_SELECTOR_CROSFILE]:
-      entityList = getEntitiesFromFile()
-    elif entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE, CL_ENTITY_SELECTOR_CROSCSV, CL_ENTITY_SELECTOR_CROSCSVFILE]:
-      entityList = getEntitiesFromCSVFile()
-    elif entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
-      entityList = getEntitiesFromCSVbyField()
-    elif entitySelector in [CL_ENTITY_SELECTOR_CSVDATA, CL_ENTITY_SELECTOR_CSVCROS]:
+    if entitySelector in [CL_ENTITY_SELECTOR_FILE, CL_ENTITY_SELECTOR_CROSFILE]:
+      return getEntitiesFromFile()
+    if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE, CL_ENTITY_SELECTOR_CROSCSV, CL_ENTITY_SELECTOR_CROSCSVFILE]:
+      return getEntitiesFromCSVFile()
+    if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
+      return getEntitiesFromCSVbyField()
+    if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA, CL_ENTITY_SELECTOR_CSVCROS]:
       if not GM_Globals[GM_CSV_DATA_DICT]:
         csvNoDataErrorExit()
       chkDataField = getString(OB_FIELD_NAME)
       if chkDataField != GM_Globals[GM_CSV_DATA_FIELD]:
         csvFieldErrorExit(chkDataField, [GM_Globals[GM_CSV_DATA_FIELD]], backupArg=True)
       return GM_Globals[GM_CSV_DATA_DICT]
-  else:
-    entityList = getString(item, optional=listOptional, emptyOK=True)
-    if entityList:
-      if noSpaceSplit:
-        entityList = entityList.split(u',')
-      else:
-        entityList = entityList.replace(u',', u' ').split()
-    else:
-      entityList = []
-  return entityList
+    return getEntitiesFromArgs()
+  return convertEntityToList(getString(item, optional=listOptional, emptyOK=True), shlexSplit=shlexSplit)
 
 # Write a CSV file
 def addTitleToCSVfile(title, titles):
@@ -7008,7 +6987,7 @@ def batchMoveUsersToOrgUnit(cd, orgUnitPath, i, count, UserList):
 # gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
 # gam update orgs|ous <OrgUnitEntity> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrgs():
-  updateOrgs(getEntityList(OB_ORGUNIT_ENTITY, noSpaceSplit=True))
+  updateOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
 # gam update org|ou <OrgUnitPath> [<Name>] [description <String>]  [parent <OrgUnitPath>] [inherit|noinherit]
 # gam update org|ou <OrgUnitPath> add|move <CrosTypeEntity>|<UserTypeEntity>
@@ -7070,7 +7049,7 @@ def updateOrgs(entityList):
 
 # gam delete orgs|ous <OrgUnitEntity>
 def doDeleteOrgs():
-  deleteOrgs(getEntityList(OB_ORGUNIT_ENTITY, noSpaceSplit=True))
+  deleteOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
 # gam delete org|ou <OrgUnitPath>
 def doDeleteOrg():
@@ -7098,7 +7077,7 @@ def deleteOrgs(entityList):
 
 # gam info orgs|ous <OrgUnitEntity> [nousers] [children|child]
 def doInfoOrgs():
-  infoOrgs(getEntityList(OB_ORGUNIT_ENTITY, noSpaceSplit=True))
+  infoOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
 # gam info org|ou <OrgUnitPath> [nousers] [children|child]
 def doInfoOrg():
@@ -10178,7 +10157,7 @@ def deleteUserContactGroups(users):
 
 def doDeleteContactGroups(users, entityType):
   contactsManager = ContactsManager()
-  entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, noSpaceSplit=True)
+  entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, shlexSplit=True)
   contactGroupIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
@@ -10239,7 +10218,7 @@ def infoUserContactGroups(users):
 
 def doInfoContactGroups(users, entityType):
   contactsManager = ContactsManager()
-  entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, noSpaceSplit=True)
+  entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, shlexSplit=True)
   contactGroupIdLists = entityList if isinstance(entityList, dict) else None
   i = 0
   count = len(users)
@@ -13393,7 +13372,7 @@ def doUndeleteUser():
 def undeleteUsers(entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   if checkArgumentPresent(ORG_OU_ARGUMENT):
-    orgUnitPaths = getEntityList(OB_ORGUNIT_ENTITY, noSpaceSplit=True)
+    orgUnitPaths = getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True)
     userOrgUnitLists = orgUnitPaths if isinstance(orgUnitPaths, dict) else None
   else:
     orgUnitPaths = [u'/']
@@ -15417,7 +15396,7 @@ def doPrintJobSubmit(printerIdList):
     form_fields[u'contentType'] = u'url'
   else:
     filepath = content
-    content = ntpath.basename(content)
+    content = os.path.basename(content)
     mimetype = mimetypes.guess_type(filepath)[0]
     if mimetype == None:
       mimetype = u'application/octet-stream'
@@ -16254,10 +16233,10 @@ DFA_PARENTQUERY = u'parentQuery'
 def initializeDriveFileAttributes():
   return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None, DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None, DFA_PARENTQUERY: None})
 
-def getDriveFileAttribute(body, parameters, myarg, update=False):
+def getDriveFileAttribute(body, parameters, myarg, update):
   if myarg == u'localfile':
     parameters[DFA_LOCALFILEPATH] = getString(OB_FILE_NAME)
-    parameters[DFA_LOCALFILENAME] = ntpath.basename(parameters[DFA_LOCALFILEPATH])
+    parameters[DFA_LOCALFILENAME] = os.path.basename(parameters[DFA_LOCALFILEPATH])
     body.setdefault(DRIVE_FILE_NAME, parameters[DFA_LOCALFILENAME])
     body[u'mimeType'] = mimetypes.guess_type(parameters[DFA_LOCALFILEPATH])[0]
     if body[u'mimeType'] == None:
@@ -16818,7 +16797,7 @@ def addDriveFile(users):
     if myarg == u'drivefilename':
       body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FILE_NAME)
     else:
-      getDriveFileAttribute(body, parameters, myarg)
+      getDriveFileAttribute(body, parameters, myarg, False)
   setActionName(AC_CREATE)
   i = 0
   count = len(users)
@@ -16856,7 +16835,7 @@ def updateDriveFile(users):
     elif myarg == u'newfilename':
       body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FILE_NAME)
     else:
-      getDriveFileAttribute(body, parameters, myarg, update=True)
+      getDriveFileAttribute(body, parameters, myarg, True)
   i = 0
   count = len(users)
   for user in users:

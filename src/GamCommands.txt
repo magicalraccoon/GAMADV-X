@@ -341,7 +341,13 @@ If an item contains spaces, it should be surrounded by " or '.
 <UserOrderByFieldName> ::=
 	familyname|lastname|givenname|firstname|email
 
-# Named Lists, comma separated items, surrounded by ' or "
+# Named Lists
+# Lists can be in the following formats
+# Items, separated by commas, without spaces or commas in the items themselves: item(,item)*
+# Items, separated by spaces, without spaces or commas in the items themselves: "item( item)*"
+# Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
+# Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
+
 <ACLList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
 <ContactFieldNameList> ::= '<ContactFieldName(,<ContactFieldName>)*'
@@ -383,6 +389,8 @@ If an item contains spaces, it should be surrounded by " or '.
 		(crosfile <FileName> [charset <Charset>])|
 		(croscsvfile <FileName>:<FieldName> [charset <Charset>])|
 		(crosquery <QueryCrOS>)|
+		(cros_ou|cros_org <OrgUnitPath)|
+		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
 		(cros_ous|cros_orgs <OrgUnitList)|
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList)|
 		(args cros <Marker> <CrOSID>* <Marker>)|
