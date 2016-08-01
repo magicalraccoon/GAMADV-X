@@ -815,8 +815,7 @@ If timeranges is specified as a field, each  pair of values for activeTimeRanges
 gam update mobile <MobileEntity> <MobileAttributes>+
 gam delete mobile <MobileEntity>
 gam info mobile <MobileEntity>
-gam print mobile [todrive] [query <QueryMobile>] [basic|full]
-	[orderby <MobileOrderByFieldName> [ascending|descending]]
+gam print mobile [todrive] [query <QueryMobile>] [basic|full] [orderby <MobileOrderByFieldName> [ascending|descending]]
 
 gam create group <EmailAddress> <GroupAttributes>*
 gam update group <GroupItem> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*

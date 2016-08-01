@@ -11295,7 +11295,21 @@ def updateGroups(entityList):
         currentMembersSet = set(getUsersToModify(CL_ENTITY_GROUP, group, memberRole=role))
         batchAddMembersToGroup(cd, group, i, count, list(syncMembersSet-currentMembersSet), role)
         batchRemoveMembersFromGroup(cd, group, i, count, list(currentMembersSet-syncMembersSet), role)
-  elif CL_subCommand == u'clear':
+  elif CL_subCommand == u'update':
+    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
+    groupMemberLists = updateMembers if isinstance(updateMembers, dict) else None
+    checkForExtraneousArguments()
+    i = 0
+    count = len(entityList)
+    for group in entityList:
+      i += 1
+      if groupMemberLists:
+        updateMembers = groupMemberLists[group]
+      group = checkGroupExists(cd, group, i, count)
+      if group:
+        batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
+  else: #clear
     roles = []
     while CL_argvI < CL_argvLen:
       roles.append(getChoice(UPDATE_GROUP_ROLES_MAP, mapChoice=True))
@@ -11312,20 +11326,6 @@ def updateGroups(entityList):
       if group:
         removeMembers = getUsersToModify(CL_ENTITY_GROUP, group, memberRole=roles)
         batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, ROLE_MEMBER)
-  elif CL_subCommand == u'update':
-    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
-    _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
-    groupMemberLists = updateMembers if isinstance(updateMembers, dict) else None
-    checkForExtraneousArguments()
-    i = 0
-    count = len(entityList)
-    for group in entityList:
-      i += 1
-      if groupMemberLists:
-        updateMembers = groupMemberLists[group]
-      group = checkGroupExists(cd, group, i, count)
-      if group:
-        batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
 
 # gam delete groups <GroupEntity>
 def doDeleteGroups():
@@ -12132,8 +12132,6 @@ def doPrintResourceCalendars():
   fieldsList = []
   fieldsTitles = {}
   titles, csvRows = initializeTitlesCSVfile(None)
-  for field in RESCAL_DFLTFIELDS:
-    addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -12148,6 +12146,9 @@ def doPrintResourceCalendars():
       addFieldToCSVfile(myarg, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
     else:
       unknownArgumentExit()
+  if not fieldsList:
+    for field in RESCAL_DFLTFIELDS:
+      addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
   printGettingAccountEntitiesInfo(EN_RESOURCE_CALENDAR)
   try:
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
