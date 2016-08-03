@@ -13271,9 +13271,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
     callGAPI(cd.users(), u'makeAdmin',
              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
              userKey=user, body=admin_body)
-    printEntityKVList(EN_USER, user,
-                      [PHRASE_ADMIN_STATUS_CHANGED_TO, admin_body[u'status']],
-                      i, count)
+    printEntityKVList(EN_USER, user, [PHRASE_ADMIN_STATUS_CHANGED_TO, admin_body[u'status']], i, count)
   except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden):
     entityUnknownWarning(EN_USER, user, i, count)
 
@@ -15828,9 +15826,7 @@ def showCalSettings(users):
       feed = callGAPIpages(cal.settings(), u'list', u'items',
                            throw_reasons=GAPI_CALENDAR_THROW_REASONS)
       jcount = len(feed)
-      printEntityKVList(EN_USER, user,
-                        [pluralEntityName(EN_CALENDAR_SETTINGS), u''],
-                        i, count)
+      printEntityKVList(EN_USER, user, [pluralEntityName(EN_CALENDAR_SETTINGS), u''], i, count)
       if jcount > 0:
         incrementIndentLevel()
         settings = {}
@@ -16183,15 +16179,16 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
     if fileIdSelection[u'fileIds'] == None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
-  else:
+  elif fileIdSelection[u'root']:
+    try:
+      rootFolderId = callGAPI(drive.about(), u'get',
+                              throw_reasons=GAPI_DRIVE_THROW_REASONS,
+                              fields=u'rootFolderId')[u'rootFolderId']
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
+      return (user, None, 0)
     for j in fileIdSelection[u'root']:
-      try:
-        fileIdSelection[u'fileIds'][j] = callGAPI(drive.about(), u'get',
-                                                  throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                                                  fields=u'rootFolderId')[u'rootFolderId']
-      except (GAPI_serviceNotAvailable, GAPI_authError):
-        entityServiceNotApplicableWarning(EN_USER, user, i, count)
-        return (user, None, 0)
+      fileIdSelection[u'fileIds'][j] = rootFolderId
   l = len(fileIdSelection[u'fileIds'])
   if l == 0:
     setSysExitRC(NO_ENTITIES_FOUND)
@@ -16481,7 +16478,7 @@ def showDriveFileInfo(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=fields)
-        printEntityItemValue(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
+        printEntityName(EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
         incrementIndentLevel()
         if filepath:
           _, path = getFilePath(drive, result)
@@ -16518,7 +16515,7 @@ def showDriveFileRevisions(users):
         result = callGAPI(drive.revisions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=DRIVE_REVISIONS_LIST)
-        printEntityItemValue(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileId, j, jcount)
+        printEntityName(EN_DRIVE_FILE_OR_FOLDER, fileId, j, jcount)
         incrementIndentLevel()
         for revision in result[DRIVE_REVISIONS_LIST]:
           printEntityName(EN_REVISION_ID, revision[u'id'])
@@ -16775,10 +16772,9 @@ def showDriveFileTree(users):
           result = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                             fileId=fileId, fields=DRIVE_FILE_NAME)
-          printEntityItemValue(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
+          printEntityName(EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
           incrementIndentLevel()
           _printDriveFolderContents(feed, fileId)
-          printBlankLine()
           decrementIndentLevel()
         except GAPI_fileNotFound:
           entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -17704,14 +17700,11 @@ def showDriveFileACL(users):
         result = callGAPI(drive.permissions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=DRIVE_PERMISSIONS_LIST)
-        printEntityKVList(EN_USER, user,
-                          [singularEntityName(EN_DRIVE_FILE_OR_FOLDER), fileName, pluralEntityName(EN_PERMISSIONS)],
-                          j, jcount)
+        printEntityKVList(EN_DRIVE_FILE_OR_FOLDER, fileName,[ pluralEntityName(EN_PERMISSIONS)], j, jcount)
         if result:
           incrementIndentLevel()
           for permission in result[DRIVE_PERMISSIONS_LIST]:
             _showPermission(permission)
-            printBlankLine()
           decrementIndentLevel()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)

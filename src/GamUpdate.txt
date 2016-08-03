@@ -17,28 +17,14 @@ For example, doCreateuser and doUpdateUser call getuserAttributes rather than re
 
 01) Make reminder argument consistent in add/update calendar and calendar addevent.
 Currently:
-    gam <Users> add/update calendar take reminder <Method> <Minutes>
+    gam <UserTypeEntity> add/update calendar take reminder <Method> <Minutes>
     gam calendar <EmailAddress> addevent takes reminder <Minutes> <Method>
 Proposed:
 Allow either order for all commands.
 
-02) Make the file selection arguments for gam get drivefile and gam update drivefile consistent.
-Currently:
-    gam <Users> get drivefile (id <DriveFileID)|(query <Query>)
-    gam <Users> update drivefile (id <DriveFileID>)|(drivefilename <DriveFileName>)
-Proposed:
-    gam <Users> get drivefile (id <DriveFileID>)|(query <Query>)|(drivefilename <DriveFileName>)
-    gam <Users> update drivefile (id <DriveFileID>)|(query <Query>)|(drivefilename <DriveFileName>)
-
-03) Make the file selection arguments for gam delete drivefile and gam show fileinfo consistent.
-Allow show fileinfo to show info for multiple files.
-Currently:
-    gam <Users> delete drivefile <DriveFileID>|query:<Query>
-    gam <Users> show fileinfo <DriveFileID>
-Proposed:
-    gam <Users> delete drivefile <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
-    gam <Users> show fileinfo <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
-
+02) Make the file selection arguments for all drivefile and drivefileacl commands consistent.
+    <DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)|(drivefilename[:| ]<DriveFileName>)|(query[:| ]<QueryDriveFile>)|root
+    
 04) Corrected gam create resource so that type argument is properly recognized.
 
 05) Add type specification argument for gam print resources.
@@ -57,14 +43,14 @@ If foo@bar.com is an alias, all arguments are ignored.
 
 07) All "Getting ...", "Retrieving ...", "Got ..." messages are now written to stderr.
 Most already were but the following commands wrote to stdout:
-    gam <Users> show gmailprofile
-    gam <Users> deprov
-    gam <Users> delete label
-    gam <Users> transfer drive
-    gam <Users> add drivefile
-    gam <Users> update drivefile
-    gam <Users> delete drivefile
-    gam <Users> get drivefile
+    gam <UserTypeEntity> show gmailprofile
+    gam <UserTypeEntity> deprov
+    gam <UserTypeEntity> delete label
+    gam <UserTypeEntity> transfer drive
+    gam <UserTypeEntity> add drivefile
+    gam <UserTypeEntity> update drivefile
+    gam <UserTypeEntity> delete drivefile
+    gam <UserTypeEntity> get drivefile
 
 *** Minor Enhancements ***
 These changes add basic new new functionality.
@@ -88,15 +74,15 @@ It is used when the aliases argument is specified, <String> rather than a single
     gam version check
 
 06) Get information about a specific calendar.
-    gam <Users> info calendar <EmailAddress>
+    gam <UserTypeEntity> info calendar <EmailAddress>
 
 07) Support event notification property in calendars.
-In gam <Users> add calendar and gam <Users> update calendar, add notification argument; it may be repeated.
+In gam <UserTypeEntity> add calendar and gam <UserTypeEntity> update calendar, add notification argument; it may be repeated.
    notification email|sms event_creation|event_change|event_cancellation|event_response|agenda
    gam user foo@bar.com update calendar bar.com_dsoevca1qm34unsejmac3tsbv4@group.calendar.google.com notification email event_creation notification sms event_change
 
-08) Add an argument to gam <Users> show signature to format the signature.
-   gam <Users> show signature [format]
+08) Add an argument to gam <UserTypeEntity> show signature to format the signature.
+   gam <UserTypeEntity> show signature [format]
 
 09) Add argument to gam print printjobs and gam printjob fetch to control number of retrieved print jobs.
    gam print printjobs ... limit <Number>
@@ -126,12 +112,12 @@ If <String> is specified instead of one of the pre-defined values, it will be ma
 The possible formats are: csv|html|txt|tsv|jpeg|jpg|png|svg|pdf|rtf|pptx|xlsx|docx|odt|ods|openoffice|ms|microsoft|micro$oft
 ms, microsoft and micro$oft are  shorthand for docx,pptx,xlsx
 openoffice is shorthand for odt,ods
-    gam get drivefile drivefilename XXX format docx,rtf,txt,odt,pdf
+    gam get drivefile drivefilename <DriveFileEntity> format docx,rtf,txt,odt,pdf
 This will get file XXX as long as it is in some text document format. If a file is available in multiple formats, the first
 available format in the list is chosen.
 
 04) Add a command to remove drive files from the trash.
-    gam <Users> undelete drivefile <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+    gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 
 05) Extend gam update group to explicitly allow clearing members from a group.
     gam update group <GroupItem> clear [owner] [manager] [member]
@@ -270,10 +256,10 @@ This option is effective for the following values of <UserTypeEntity>:
     all users | ou|org <OrgUnitPath | ou_and_children|ou_and_child <OrgUnitPath> | query <Query>
 
 23) Add a command to show the file path of a Google Drive file.
-    gam <UserTypeEntity> show filepath <DriveFileID>|query:<Query>|drivefilename:<DriveFileName>
+    gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 24) Add filepath argument to gam show fileinfo to show the file path of a Google Drive file.
-    gam <UserTypeEntity> show fileinfo <DriveFileID>|query:<Query>|drivefilename:<DriveFileName> [filepath]
+    gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 
 25) Add filepath argument to gam show filelist to show the file path of Google Drive files.
     gam <UserTypeEntity> show filelist ... [filepath] ...
@@ -424,7 +410,7 @@ gam show filelist/filetree allow specification of multiple orderby fields; all o
 
 60) The commands gam get drivefile, gam copy drivefile and gam update drivefile have been slightly restricted. Previously, these commands
 allowed the <DriveFileEntity> to be specified anywhere in the list of arguments; now, <DriveFileEntity> must appear as the first argument after
-the argument drivefile. This makes these commands consistent with get delete drivefile and gam undelete drivefile.
+the argument drivefile. This makes these commands consistent with gam delete drivefile and gam undelete drivefile.
 
 4.16.0
 
@@ -586,7 +572,7 @@ gam print/show messages/threads use this variable to batch retrieval of items fr
 
 84) Set exit/return code when no items are found to process in a command.
 For example, if you want to test for the existance of a Google drive folder:
-gam <UserTypeEntity> show fileinfo query:"title = 'Top Folder' and mimeType ='application/vnd.google-apps.folder'" id
+gam <UserTypeEntity> show fileinfo drivefilename 'Top Folder' and mimeType ='application/vnd.google-apps.folder'" id
 The exit/return code is 0 if the folder exists, 60 if it doesn't.
 
 4.18.03
