@@ -4837,7 +4837,7 @@ def getEntitiesFromFile():
   encoding = getCharSet()
   entitySet = set()
   entityList = list()
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   uf = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   for row in uf:
     item = row.strip()
@@ -4858,7 +4858,7 @@ def getEntitiesFromCSVFile():
   encoding = getCharSet()
   entitySet = set()
   entityList = list()
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   csvFile = UnicodeDictReader(f, encoding=encoding)
   if fieldName not in csvFile.fieldnames:
     csvFieldErrorExit(fieldName, csvFile.fieldnames)
@@ -4874,7 +4874,7 @@ def getEntitiesFromCSVFile():
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   csvFile = UnicodeDictReader(f, encoding=encoding)
   checkArgumentPresent(KEYFIELD_ARGUMENT, required=True)
   keyField = GM_Globals[GM_CSV_KEY_FIELD] = getString(OB_FIELD_NAME)
@@ -5323,7 +5323,7 @@ def doBatch():
   checkForExtraneousArguments()
   items = []
   cmdCount = 0
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   batchFile = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   try:
     for line in batchFile:
@@ -5421,7 +5421,7 @@ def doCSV():
     putArgumentBack()
     usageErrorExit(MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE.format(u'csv'))
   encoding = getCharSet()
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   csvFile = UnicodeDictReader(f, encoding=encoding)
   matchField, matchPattern = getMatchField(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
@@ -15958,7 +15958,7 @@ def updateCalendarAttendees(users):
   if not csv_file:
     missingArgumentExit(u'csv <FileName>')
   attendee_map = {}
-  f = openFile(csv_file)
+  f = openFile(csv_file, mode=u'rU')
   csvFile = csv.reader(f)
   for row in csvFile:
     if len(row) >= 2:
@@ -21848,7 +21848,7 @@ def doLoop(processGamCfg=True):
     putArgumentBack()
     usageErrorExit(MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE.format(u'loop'))
   encoding = getCharSet()
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rU')
   csvFile = UnicodeDictReader(f, encoding=encoding)
   matchField, matchPattern = getMatchField(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
