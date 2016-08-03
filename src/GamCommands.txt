@@ -1037,7 +1037,7 @@ gam <UserTypeEntity> empty drivetrash
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink] [sendmail] [emailmessage <String>] [showtitles]
 gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
-	(role <DriveFileACLRole>) [withlink] [transferownership <Boolean>] [showtitles]
+	(role <DriveFileACLRole>) [withlink] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 

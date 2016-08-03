@@ -674,6 +674,16 @@ The headings are: Path, ID, Name, Description, Parent, ParentID, InheritanceBloc
 99) Added noshow argument to gam get photo to suppress displaying of photo data
 gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)] [noshow]
 
+4.18.08
+
+100) Added removeexpiration <Boolean> argument to gam update drivefileacl to allow removal of ACL expiration date.
+gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
+	(role <DriveFileACLRole>) [withlink] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
+
+101) Changed the CSV file headers for gam print delegates.
+Old: User, delegateName, delegateAddress, delegationStatus
+New: Delegator, Delegate, Delegate Email, Delegate ID, Status
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.

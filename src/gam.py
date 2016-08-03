@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.18.07'
+__version__ = u'4.18.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -17560,12 +17560,12 @@ def addDriveFileACL(users):
     decrementIndentLevel()
 
 # gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
-#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [transferownership] [showtitles]
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 def updateDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   isEmail, permissionId = getPermissionId()
-  transferOwnership = showTitles = None
+  removeExpiration = transferOwnership = showTitles = None
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'withlink':
@@ -17579,11 +17579,13 @@ def updateDriveFileACL(users):
         body[u'additionalRoles'] = [u'commenter',]
     elif myarg == u'showtitles':
       showTitles = True
+    elif myarg == u'removeexpiration':
+      removeExpiration = getBoolean()
     elif myarg == u'transferownership':
       transferOwnership = getBoolean()
     else:
       unknownArgumentExit()
-  if u'role' not in body:
+  if removeExpiration == None and u'role' not in body:
     missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
   if isEmail:
     permissionId = validateUserGetPermissionId(permissionId)
@@ -17613,7 +17615,7 @@ def updateDriveFileACL(users):
             fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         permission = callGAPI(drive.permissions(), DRIVE_PATCH_PERMISSIONS,
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
-                              fileId=fileId, permissionId=permissionId, transferOwnership=transferOwnership, body=body)
+                              fileId=fileId, permissionId=permissionId, removeExpiration=removeExpiration, transferOwnership=transferOwnership, body=body)
         entityItemValueItemValueActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
         _showPermission(permission)
       except GAPI_permissionNotFound:
@@ -19578,7 +19580,7 @@ def printShowDelegates(users, csvFormat):
   emailSettingsObject = getEmailSettingsObject()
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'delegateName', u'delegateAddress', u'delegationStatus'])
+    titles, csvRows = initializeTitlesCSVfile([u'Delegator', u'Delegate', u'Delegate Email', u'Delegate ID', u'Status'])
   else:
     csvStyle = False
   while CL_argvI < CL_argvLen:
@@ -19619,7 +19621,7 @@ def printShowDelegates(users, csvFormat):
       else:
         if jcount > 0:
           for delegate in result:
-            row = {u'User': delegatorEmail, u'delegateName': delegate[u'delegate'], u'delegateAddress': delegate[u'address'], u'delegationStatus': delegate[u'status']}
+            row = {u'Delegator': delegatorEmail, u'Delegate': delegate[u'delegate'], u'Delegate Email': delegate[u'address'], u'Delegate ID': delegate[u'delegationId'], u'Status': delegate[u'status']}
             csvRows.append(row)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Delegates', todrive)
