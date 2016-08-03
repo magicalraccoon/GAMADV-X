@@ -17700,7 +17700,7 @@ def showDriveFileACL(users):
         result = callGAPI(drive.permissions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=DRIVE_PERMISSIONS_LIST)
-        printEntityKVList(EN_DRIVE_FILE_OR_FOLDER, fileName,[ pluralEntityName(EN_PERMISSIONS)], j, jcount)
+        printEntityKVList(EN_DRIVE_FILE_OR_FOLDER, fileName, [pluralEntityName(EN_PERMISSIONS)], j, jcount)
         if result:
           incrementIndentLevel()
           for permission in result[DRIVE_PERMISSIONS_LIST]:
