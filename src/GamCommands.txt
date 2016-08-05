@@ -545,10 +545,12 @@ If an item contains spaces, it should be surrounded by " or '.
 	(allowgooglecommunication <Boolean>)|
 	(allowwebposting <Boolean>)|
 	(archiveonly <Boolean>)|
+	(customfootertext <String>)|
 	(customreplyto <EmailAddress>)|
 	(defaultmessagedenynotificationtext <String>)|
 	(description <String>)|
 	(gal|includeInGlobalAddressList <Boolean>)|
+	(includecustomfooter <Boolean>)|
 	(isarchived <Boolean>)|
 	(maxmessagebytes <ByteCount>)|
 	(memberscanpostasthegroup <Boolean>)|

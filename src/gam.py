@@ -3645,7 +3645,9 @@ def checkGDataError(e, service):
     service.domain = keep_domain
     return (GDATA_TOKEN_EXPIRED, e[0][u'reason'])
   if e.error_code == 600:
-    if e[0][u'body'] == u'Quota exceeded for the current request':
+    if e[0][u'body'].startswith(u'Quota exceeded for the current request'):
+      return (GDATA_QUOTA_EXCEEDED, e[0][u'body'])
+    if e[0][u'body'].startswith(u'Request rate higher than configured'):
       return (GDATA_QUOTA_EXCEEDED, e[0][u'body'])
     if e[0][u'reason'] == u'Bad Gateway':
       return (GDATA_BAD_GATEWAY, e[0][u'reason'])
@@ -3832,7 +3834,9 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
   try:
     error = json.loads(e.content)
   except ValueError:
-    if (e.resp[u'status'] == u'503') and (e.content == u'Quota exceeded for the current request'):
+    if (e.resp[u'status'] == u'503') and (e.content.startswith(u'Quota exceeded for the current request')):
+      return (e.resp[u'status'], GAPI_QUOTA_EXCEEDED, e.content)
+    if (e.resp[u'status'] == u'403') and (e.content.startswith(u'Request rate higher than configured')):
       return (e.resp[u'status'], GAPI_QUOTA_EXCEEDED, e.content)
     if (e.resp[u'status'] == u'403') and (u'Invalid domain.' in e.content):
       error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI_NOT_FOUND, u'message': u'Domain not found'}]}}
@@ -10956,10 +10960,12 @@ GROUP_ATTRIBUTES = {
   u'allowgooglecommunication': [u'allowGoogleCommunication', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'allowwebposting': [u'allowWebPosting', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'archiveonly': [u'archiveOnly', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'customfootertext': [u'customFooterText', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'customreplyto': [u'customReplyTo', {GC_VAR_TYPE: GC_TYPE_EMAIL}],
   u'defaultmessagedenynotificationtext': [u'defaultMessageDenyNotificationText', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'description': [u'description', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'gal': [u'includeInGlobalAddressList', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'includecustomfooter': [u'includeCustomFooter', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'includeinglobaladdresslist': [u'includeInGlobalAddressList', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'isarchived': [u'isArchived', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'maxmessagebytes': [u'maxMessageBytes', {GC_VAR_TYPE: GC_TYPE_INTEGER}],
