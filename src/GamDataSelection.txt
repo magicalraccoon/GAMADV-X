@@ -423,7 +423,7 @@ Example 3, add new users to all of the Org Units.
 Second Form Groups
 *****
 
-gam update groups <GroupEntity> add|remove|sync <UserTypeEntity>
+gam update groups <GroupEntity> add|remove|sync member <UserTypeEntity>
 
 You want to update the membership of your groups.
 
@@ -444,10 +444,10 @@ Data selection method
 There is only 1 gam process run.
 
 Verify data selection
-	gam list csvkmd GroupUserList.csv keyField Group datafield UserList delimiter ' ' data csvdata UserList delimiter ','
+	gam list csvkmd GroupUserList.csv keyField Group datafield UserList delimiter ' ' data csvdata UserList delimiter ' '
 Group,UserList
-firstgrade@example.com,"billyfirst@example.com,emilyfirst@example.com"
-secondgrade@example.com,"sallysecond@example.com,tommysecond@example.com"
+firstgrade@example.com,"billyfirst@example.com emilyfirst@example.com"
+secondgrade@example.com,"sallysecond@example.com tommysecond@example.com"
 artclub@example.com,billyfirst@example.com
 
 

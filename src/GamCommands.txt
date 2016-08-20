@@ -891,9 +891,9 @@ gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
 gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
 
-gam delete users <UserEntity>
+gam delete users <UserTypeEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
-gam update users <UserEntity> <UserAttributes>+
+gam update users <UserTypeEntity> <UserAttributes>+
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>]
 
 gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
