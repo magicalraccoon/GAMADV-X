@@ -1,4 +1,4 @@
-This document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
+his document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
 Items on the command line are space separated, when an actual space character is required, it will be indicated by <Space>.
 If an item contains spaces, it should be surrounded by " or '.
 
@@ -27,7 +27,7 @@ If an item contains spaces, it should be surrounded by " or '.
 
 # Basic items built from primatives
 <Boolean> ::= <TrueValues>|<FalseValues>
-<ByteCount> ::= <Number>[M|K|B]
+<ByteCount> ::= <Number>[m|k|b]
 <CIDRnetmask> ::= <Number>.<Number>.<Number>.<Number>/<Number>
 <ColorHex> ::= #<Hex><Hex><Hex><Hex><Hex><Hex>
 <DomainName> ::= <String>(.<String>)+
@@ -82,6 +82,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <FilterID> ::= <Sttring>
 <FolderName> ::= <String>
 <GroupItem> ::= <EmailAddress>|<UniqueID>|<String>
+<GuardianID> ::= <String>
 <HostName> ::= <String>
 <Key> ::= <String>
 <LabelID> ::= <String>
@@ -97,7 +98,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <OrgUnitPath> ::= /|(/<String)+
 <PermissionID> ::= id:<String>|<EmailAddress>|anyone|anyonewithlink
 <PrinterID> ::= <String>
-<PrintJobAge> ::= <Number>(m|h|d)
+<PrintJobAge> ::= <Number>[m|h|d]
 <PrintJobID> ::= <String>
 <PrintJobStatus> ::= done|error|held|in_progress|queued|submitted
 <PropertyKey> ::= <String>
@@ -261,24 +262,22 @@ If an item contains spaces, it should be surrounded by " or '.
 <GroupFieldName> ::=
 	admincreated|
 	aliases|
-	description|
-	email|
-	id|
-	name
-
-<GroupSettingsFieldName> ::=
 	allowexternalmembers|
 	allowgooglecommunication|
 	allowwebposting|
 	archiveonly|
 	customreplyto|
 	defaultmessagedenynotificationtext|
+	description|
+	email|
+	id|
 	includeinglobaladdresslist|gal|
 	isarchived|
 	maxmessagebytes|
 	memberscanpostasthegroup|
 	messagedisplayfont|
 	messagemoderationlevel|
+	name
 	primarylanguage|
 	replyto|
 	sendmessagedenynotification|
@@ -293,9 +292,13 @@ If an item contains spaces, it should be surrounded by " or '.
 	whocanviewgroup|
 	whocanviewmembership
 
+<GuardianState> ::=
+	complete|
+	pending
+
 <MembersFieldName> ::=
-	email|
-	group|
+	email|useremail|
+	groupemail|
 	id|
 	name|
 	role|
@@ -363,8 +366,8 @@ If an item contains spaces, it should be surrounded by " or '.
 <FileFormatList> ::= '<FileFormat>(,<FileFormat)*'
 <FilterIDList> ::= '<FilterID>(,<FilterID>)*'
 <GroupFieldNameList> ::= '<GroupFieldName(,<GroupFieldName>)*'
-<GroupSettingsFieldNameList> ::= '<GroupSettingsFieldName(,<GroupSettingsFieldName>)*'
 <GroupList> ::= '<GroupItem>(,<GroupItem>)*'
+<GuardianStateList> ::= '<GuardianState>(,<GuardianState>)*'
 <LabelNameList> ::= '<LabelName>(,<LabelName)*'
 <MembersFieldNameList> ::= '<MembersFieldName(,<MembersFieldName>)*'
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
@@ -826,7 +829,7 @@ gam update group <GroupItem> delete|remove [owner|manager|member] <UserTypeEntit
 gam update group <GroupItem> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
 gam update group <GroupItem> update [owner|manager|member] <UserTypeEntity>
 gam delete group <GroupItem>
-gam info group <GroupItem> [nousers] [noaliases] [groups] [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
+gam info group <GroupItem> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>]
 gam update group <GroupItem> clear [owner] [manager] [member]
 
 gam update groups <GroupEntity> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*
@@ -836,15 +839,15 @@ gam update groups <GroupEntity> sync [owner|manager|member] [notsuspended] <User
 gam update groups <GroupEntity> update [owner|manager|member] <UserTypeEntity>
 gam update groups <GroupEntity> clear [owner] [manager] [member]
 gam delete groups <GroupEntity>
-gam info groups <GroupEntity> [nousers] [noaliases] [groups] [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
+gam info groups <GroupEntity> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>]
 
 gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>]
-	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>|<GroupSettingsFieldNameList>]
+	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
 
 
 gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
-	[membernames] [fields <MembersFieldNameList>] [recursive [noduplicates]]
+	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [recursive [noduplicates]]
 
 gam print license|licenses|licence|licences [todrive] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 
@@ -863,8 +866,8 @@ gam delete resources <ResourceEntity>
 gam info resources <ResourceEntity>
 
 gam create schema|schemas <SchemaName> <SchemaFieldDefinition>+
-gam update schema <SchemaName> <SchemaFieldDefinition>+
-gam update schemas <SchemaEntity> <SchemaFieldDefinition>+
+gam update schema <SchemaName> <SchemaFieldDefinition>* (deletefield <FieldName>)*
+gam update schemas <SchemaEntity> <SchemaFieldDefinition>* (deletefield <FieldName>)*
 gam delete schema <SchemaName>
 gam delete schemas <SchemaEntity>
 gam info schema <SchemaName>
@@ -889,12 +892,12 @@ gam create user <EmailAddress> <UserAttrubutes>*
 gam update user <UserItem> <UserAttributes>+
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
-gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
+gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
 
 gam delete users <UserTypeEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam update users <UserTypeEntity> <UserAttributes>+
-gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>]
+gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>]
 
 gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
@@ -942,6 +945,10 @@ gam courses <CourseEntity> delete alias <CourseAliasEntity>
 gam courses <CourseEntity> add teachers|students <UserTypeEntity>
 gam courses <CourseEntity> delete|remove teachers|students <UserTypeEntity>
 gam courses <CourseEntity> sync teachers|students <UserTypeEntity>
+
+gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
+gam delete guardian|guardians <GuardianID <UserItem>
+gam print guardian|guardians [nocsv] [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 
 gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
@@ -1038,15 +1045,16 @@ gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-	(role <DriveFileACLRole>) [withlink] [sendmail] [emailmessage <String>] [showtitles]
+	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [sendmail] [emailmessage <String>] [showtitles]
 gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
-	(role <DriveFileACLRole>) [withlink] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
+	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 
+
 gam <UserTypeEntity> delete|del alias|aliases
 
-gam <UserTypeEntity> add group|groups [owner|manager|member] <GroupEntity>
+gam <UserTypeEntity> add group|groups [owner|manager|member] [<GroupEntity>]
 gam <UserTypeEntity> delete|del group|groups [<GroupEntity>]
 
 gam <UserTypeEntity> add license <SKUID>
@@ -1128,8 +1136,8 @@ gam <UserTypeEntity> language <Language>
 
 gam <UserTypeEntity> pagesize 25|50|100
 
-gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*]
-gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*]
+gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
@@ -1137,7 +1145,7 @@ gam <UserTypeEntity> print sendas [todrive]
 
 gam <UserTypeEntity> shortcuts <Boolean>
 
-gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] 
+gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>]  [treatasalias <Boolean>]
 gam <UserTypeEntity> show signature|sig [format]
 
 gam <UserTypeEntity> snippets <Boolean>
