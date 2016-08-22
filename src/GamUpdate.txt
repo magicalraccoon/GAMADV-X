@@ -670,6 +670,23 @@ gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
 Old: User, delegateName, delegateAddress, delegationStatus
 New: Delegator, Delegate, Delegate Email, Delegate ID, Status
 
+4.19.00
+
+102) At Jay Lee's suggestion, gam update schema was updated to function in a manner expected by users.
+The existing schema is read, any <SchemaFieldDefinitions> that have the same field name as an existing field will update that field.
+Any <SchemaFieldDefinitions> that don't exist in the current schema will be added.
+You can delete fields; it is an error to delete a field that doesn't exist.
+It is an error to delete all of the fields in a schema; delete the schema if it is no longer required.
+The previous model that required that the entire field list be supplied on an update still works.
+gam update schema <SchemaName> <SchemaFieldDefinition>* (deletefield <FieldName>)*
+gam update schemas <SchemaEntity> <SchemaFieldDefinition>* (deletefield <FieldName>)*
+
+103) Thanks to Jay Lee, classroom student guardians are now supported.
+gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
+gam delete guardian|guardians <GuardianID <UserItem>
+gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.

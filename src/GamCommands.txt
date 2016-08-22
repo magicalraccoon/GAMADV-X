@@ -947,7 +947,8 @@ gam courses <CourseEntity> sync teachers|students <UserTypeEntity>
 
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
 gam delete guardian|guardians <GuardianID <UserItem>
-gam print guardian|guardians [nocsv] [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 
 gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
