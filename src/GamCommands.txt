@@ -63,11 +63,9 @@ If an item contains spaces, it should be surrounded by " or '.
 <CourseParticipantType> ::= teacher|teachers|student|students
 <CrOSID> ::= <String>
 <CrOSItem> ::= <CrOSID>|(query:<QueryCrOS>)|(query <QueryCrOS>)
+<DestEmailAddress> ::= <EmailAddress>
 <DomainAlias> ::= <String>
 <DriveFileACLRole> :: =commenter|editor|owner|reader|writer
-<EventColorIndex> ::== <Number in range 1-11>
-<FieldName> ::= <String>
-<DestEmailAddress> ::= <EmailAddress>
 <DriveFileID> ::= <String>
 <DriveFileURL> :: = https://docs.google.com/a/<DomainName>/document/d/<DriveFileID>/<String>
 <DriveFileItem> ::= <DriveFileID>|<DriveFileURL>
@@ -75,6 +73,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <DriveFolderID> ::= <String>
 <DriveFolderName> ::= <String>
 <EmailItem> ::= <EmailAddress>|<UniqueID>|<String>
+<EventColorIndex> ::== <Number in range 1-11>
 <EventID> ::= <String>
 <FieldName> ::= <String>
 <FileName> ::= <String>

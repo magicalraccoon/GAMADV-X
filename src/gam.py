@@ -763,6 +763,7 @@ EN_EMAIL_ALIAS = u'emal'
 EN_EMAIL_SETTINGS = u'emse'
 EN_ENTITY = u'enti'
 EN_EVENT = u'evnt'
+EN_FIELD = u'fiel'
 EN_FILTER = u'filt'
 EN_FORWARD_ENABLED = u'fwde'
 EN_FORWARDING_ADDRESS = u'fwda'
@@ -886,6 +887,7 @@ ENTITY_NAMES = {
   EN_EMAIL_SETTINGS: [u'Email Settings', u'Email Settings'],
   EN_ENTITY: [u'Entities', u'Entity'],
   EN_EVENT: [u'Events', u'Event'],
+  EN_FIELD: [u'Fields', u'Field'],
   EN_FILTER: [u'Filters', u'Filter'],
   EN_FORWARD_ENABLED: [u'Forward Enabled', u'Forward Enabled'],
   EN_FORWARDING_ADDRESS: [u'Forwarding Addresses', u'Forwarding Address'],
@@ -1571,6 +1573,7 @@ PHRASE_ONLY_ONE_OWNER_ALLOWED = u'Only one owner allowed'
 PHRASE_OR = u'or'
 PHRASE_PATH_NOT_AVAILABLE = u'Path not available'
 PHRASE_PLEASE_SELECT_USER_TO_UNDELETE = u'Please select the correct one to undelete and specify with "gam undelete user uid:<uid>"'
+PHRASE_SCHEMA_WOULD_HAVE_NO_FIELDS = u'{0} would have no {1}'
 PHRASE_SELECTED = u'Selected'
 PHRASE_SERVICE_NOT_APPLICABLE = u'Service not applicable/Does not exist'
 PHRASE_STARTING_N_WORKER_THREADS = u'Starting {0} worker threads...\n'
@@ -12371,26 +12374,11 @@ def doUpdateUserSchema():
 
 def createUpdateUserSchemas(updateCmd, entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  if updateCmd:
-    try:
-      schemaKey = entityList[0]
-      body = callGAPI(cd.schemas(), u'get',
-                      throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                      customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
-    except (GAPI_invalid, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityAFDNEorAccessErrorExit(cd, EN_USER_SCHEMA, schemaKey, 0, 0) ###
-      return
-  else:
-    body = {u'schemaName': u'', u'fields': []}
+  addBody = {u'schemaName': u'', u'fields': []}
+  deleteFields = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'field':
-      fieldName = getString(OB_FIELD_NAME)
-      if updateCmd: # clear field if it exists on update
-        for n, field in enumerate(body[u'fields']):
-          if field[u'fieldName'].lower() == fieldName.lower():
-            del body[u'fields'][n]
-            break
       a_field = {u'fieldName': getString(OB_FIELD_NAME), u'fieldType': u'STRING'}
       while CL_argvI < CL_argvLen:
         argument = getArgument()
@@ -12411,34 +12399,57 @@ def createUpdateUserSchemas(updateCmd, entityList):
           break
         else:
           unknownArgumentExit()
-      body[u'fields'].append(a_field)
+      addBody[u'fields'].append(a_field)
     elif updateCmd and myarg == u'deletefield':
-      fieldName = getString(OB_FIELD_NAME)
-      for n, field in enumerate(body[u'fields']):
-        if field[u'fieldName'].lower() == fieldName.lower():
-          del body[u'fields'][n]
-          break
-      else:
-        usageErrorExit(PHRASE_FIELD_NOT_FOUND_IN_SCHEMA.format(fieldName, schemaKey))
+      deleteFields.append(getString(OB_FIELD_NAME))
     else:
       unknownArgumentExit()
-  if not body[u'fields']:
+  if not updateCmd and not addBody[u'fields']:
     missingArgumentExit(u'SchemaFieldDefinition')
   i = 0
   count = len(entityList)
   for schemaName in entityList:
     i += 1
-    body[u'schemaName'] = schemaName
     try:
       if updateCmd:
+        oldBody = callGAPI(cd.schemas(), u'get',
+                           throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                           customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaName, fields=u'schemaName,fields')
+        for field in oldBody[u'fields']:
+          field.pop(u'etag', None)
+          field.pop(u'kind', None)
+          field.pop(u'fieldId', None)
+        badDelete = False
+        for delField in deleteFields:
+          fieldNameLower = delField.lower()
+          for n, field in enumerate(oldBody[u'fields']):
+            if field[u'fieldName'].lower() == fieldNameLower:
+              del oldBody[u'fields'][n]
+              break
+          else:
+            entityItemValueActionNotPerformedWarning(EN_USER_SCHEMA, schemaName, EN_FIELD, delField, PHRASE_DOES_NOT_EXIST)
+            badDelete = True
+        if badDelete:
+          continue
+        for addField in addBody[u'fields']:
+          fieldNameLower = addField[u'fieldName'].lower()
+          for n, field in enumerate(oldBody[u'fields']):
+            if field[u'fieldName'].lower() == fieldNameLower:
+              del oldBody[u'fields'][n]
+              break
+        oldBody[u'fields'].extend(addBody[u'fields'])
+        if not oldBody[u'fields']:
+          entityActionNotPerformedWarning(EN_USER_SCHEMA, schemaName, PHRASE_SCHEMA_WOULD_HAVE_NO_FIELDS.format(singularEntityName(EN_USER_SCHEMA), pluralEntityName(EN_FIELD)))
+          continue
         result = callGAPI(cd.schemas(), u'update',
                           throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                          customerId=GC_Values[GC_CUSTOMER_ID], body=body, schemaKey=schemaName)
+                          customerId=GC_Values[GC_CUSTOMER_ID], body=oldBody, schemaKey=schemaName)
         entityActionPerformed(EN_USER_SCHEMA, result[u'schemaName'], i, count)
       else:
+        addBody[u'schemaName'] = schemaName
         result = callGAPI(cd.schemas(), u'insert',
                           throw_reasons=[GAPI_DUPLICATE, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                          customerId=GC_Values[GC_CUSTOMER_ID], body=body)
+                          customerId=GC_Values[GC_CUSTOMER_ID], body=addBody)
         entityActionPerformed(EN_USER_SCHEMA, result[u'schemaName'], i, count)
     except GAPI_duplicate:
       entityDuplicateWarning(EN_USER_SCHEMA, schemaName, i, count)
