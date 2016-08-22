@@ -775,6 +775,7 @@ EN_GROUP_EMAIL = u'gale'
 EN_GROUP_MEMBERSHIP = u'gmem'
 EN_GROUP_SETTINGS = u'gset'
 EN_GUARDIAN = u'guar'
+EN_GUARDIAN_INVITATION = u'gari'
 EN_IMAP_ENABLED = u'imap'
 EN_INSTANCE = u'inst'
 EN_ITEM = u'item'
@@ -899,6 +900,7 @@ ENTITY_NAMES = {
   EN_GROUP_MEMBERSHIP: [u'Group Memberships', u'Group Membership'],
   EN_GROUP_SETTINGS: [u'Group Settings', u'Group Settings'],
   EN_GUARDIAN: [u'Guardians', u'Guardian'],
+  EN_GUARDIAN_INVITATION: [u'Guardian Invitations', u'Guardian Invitation'],
   EN_IMAP_ENABLED: [u'IMAP Enabled', u'IMAP Enabled'],
   EN_INSTANCE: [u'Instances', u'Instance'],
   EN_ITEM: [u'Items', u'Item'],
@@ -5241,8 +5243,8 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None):
   return flattened
 
 # Show a json object
-def showJSON(object_name, object_value, skip_objects=[u'kind', u'etag', u'etags'], level=0):
-  if object_name in skip_objects:
+def showJSON(object_name, object_value, skip_objects=[], level=0):
+  if object_name in [u'kind', u'etag', u'etags'] or object_name in skip_objects:
     return
   if object_name != None:
     printJSONKey(object_name)
@@ -6187,7 +6189,7 @@ def doInfoDomainAlias():
     result = callGAPI(cd.domainAliases(), u'get',
                       throw_reasons=[GAPI_DOMAIN_ALIAS_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                       customer=GC_Values[GC_CUSTOMER_ID], domainAliasName=domainAliasName)
-    alias_skip_objects = [u'kind', u'etag', u'domainAliasName']
+    alias_skip_objects = [u'domainAliasName',]
     _showDomainAlias(result, alias_skip_objects)
   except GAPI_domainAliasNotFound:
     entityActionFailedWarning(EN_DOMAIN_ALIAS, domainAliasName, PHRASE_DOES_NOT_EXIST)
@@ -6289,7 +6291,7 @@ def doInfoDomain():
     result = callGAPI(cd.domains(), u'get',
                       throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                       customer=GC_Values[GC_CUSTOMER_ID], domainName=domainName)
-    skip_objects = [u'kind', u'etag', u'domainName', u'domainAliases']
+    skip_objects = [u'domainName', u'domainAliases']
     printEntityName(EN_DOMAIN, result[u'domainName'])
     incrementIndentLevel()
     if u'creationTime' in result:
@@ -6302,7 +6304,7 @@ def doInfoDomain():
     aliases = result.get(field)
     if aliases:
       skip_objects.append(field)
-      alias_skip_objects = [u'kind', u'etag', u'domainAliasName']
+      alias_skip_objects = [u'domainAliasName',]
       for alias in aliases:
         _showDomainAlias(alias, alias_skip_objects)
         showJSON(None, alias, skip_objects=alias_skip_objects)
@@ -8266,7 +8268,7 @@ EVENT_PRINT_ORDER = [u'id', u'summary', u'description', u'location',
 
 def _showCalendarEvent(event, j, jcount):
   printEntityName(EN_EVENT, event[u'id'], j, jcount)
-  skip_objects = [u'kind', u'etag', u'id']
+  skip_objects = [u'id',]
   incrementIndentLevel()
   for field in EVENT_PRINT_ORDER:
     if field in event:
@@ -14393,7 +14395,7 @@ def _showGuardian(result, j, jcount):
 def doShowGuardians():
   printShowGuardians(False)
 
-#gam print guardian|guardians [nocsv] [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+#gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 def doPrintGuardians():
   printShowGuardians(True)
 
@@ -14404,27 +14406,29 @@ def printShowGuardians(csvFormat):
   states = None
   service = croom.userProfiles().guardians()
   items = u'guardians'
+  entityType = EN_GUARDIAN
   if csvFormat:
     todrive = False
-    titles, csvRows = initializeTitlesCSVfile(None)
+    titles, csvRows = initializeTitlesCSVfile([u'studentEmail', u'studentId', u'invitedEmailAddress', u'guardianId'])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'invitedguardian':
-      invitedEmailAddress = getEmailAddress()
-    elif myarg == u'nocsv':
-      csvFormat = False
-    elif csvFormat and myarg == u'todrive':
+    if csvFormat and myarg == u'todrive':
       todrive = True
+    elif myarg == u'invitedguardian':
+      invitedEmailAddress = getEmailAddress()
     elif myarg == u'student':
       studentIds = [getEmailAddress()]
     elif myarg == u'invitations':
       service = croom.userProfiles().guardianInvitations()
       items = u'guardianInvitations'
+      entityType = EN_GUARDIAN_INVITATION
+      titles, csvRows = initializeTitlesCSVfile([u'studentEmail', u'studentId', u'invitedEmailAddress', u'invitationId'])
       if states == None:
         states = GUARDIAN_STATES
     elif myarg == u'states':
       states = getString(OB_GUARDIAN_STATE_LIST).upper().split(u',')
     else:
+      putArgumentBack()
       _, studentIds = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
   i = 0
   count = len(studentIds)
@@ -14435,17 +14439,22 @@ def printShowGuardians(csvFormat):
       kwargs[u'states'] = states
     if studentId != u'-':
       if csvFormat:
-        printGettingAllEntityItemsForWhom(EN_GUARDIAN, studentId, i, count)
+        printGettingAllEntityItemsForWhom(entityType, studentId, i, count)
     try:
       result = callGAPIpages(service, u'list', items=items,
                              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_PERMISSION_DENIED, GAPI_FORBIDDEN],
                              **kwargs)
       jcount = len(result)
       if not csvFormat:
-        entityPerformActionNumItems(EN_STUDENT, studentId, jcount, EN_GUARDIAN, i, count)
+        entityPerformActionNumItems(EN_STUDENT, studentId, jcount, entityType, i, count)
         incrementIndentLevel()
+        j = 0
         for guardian in result:
-          showJSON(None, guardian)
+          j += 1
+          printKeyValueListWithCount([u'invitedEmailAddress', guardian[u'invitedEmailAddress']], j, jcount)
+          incrementIndentLevel()
+          showJSON(None, guardian, skip_objects=[u'invitedEmailAddress',])
+          decrementIndentLevel()
         decrementIndentLevel()
       else:
         for guardian in result:
@@ -14456,7 +14465,6 @@ def printShowGuardians(csvFormat):
     except (GAPI_permissionDenied, GAPI_forbidden) as e:
       entityActionFailedWarning(EN_STUDENT, studentId, e.message, i, count)
   if csvFormat:
-    sortCSVTitles([u'studentEmail', u'studentId'], titles)
     writeCSVfile(csvRows, titles, u'Guardians', todrive)
 
 COURSE_STATE_OPTIONS_MAP = {
@@ -16867,7 +16875,7 @@ def showDriveFileRevisions(users):
         for revision in result[DRIVE_REVISIONS_LIST]:
           printEntityName(EN_REVISION_ID, revision[u'id'])
           incrementIndentLevel()
-          showJSON(None, revision, skip_objects=[u'kind', u'etag', u'etags', u'id'])
+          showJSON(None, revision, skip_objects=[u'id',])
           decrementIndentLevel()
         decrementIndentLevel()
       except GAPI_fileNotFound:
