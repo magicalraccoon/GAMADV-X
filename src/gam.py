@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.19.00'
+__version__ = u'4.19.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -1570,6 +1570,8 @@ PHRASE_NO_ENTITIES_MATCHED = u'No {0} matched'
 PHRASE_NO_LABELS_MATCH = u'No Labels match'
 PHRASE_NO_MESSAGES_WITH_LABEL = u'No Messages with Label'
 PHRASE_NO_PRINT_JOBS = u'No Print Jobs'
+PHRASE_NOT_A_GUARDIAN_OR_INVITATION = 'Not a Guardian or Guardian Invitation'
+PHRASE_NOT_A_GUARDIAN_INVITATION_NOT_PENDING = 'Not a Guardian and Guardian Invitation status is not PENDING, '
 PHRASE_NOT_REQUESTED = u'Not requested'
 PHRASE_ONLY_ONE_OWNER_ALLOWED = u'Only one owner allowed'
 PHRASE_OR = u'or'
@@ -4054,8 +4056,8 @@ class GAPI_invalidArgument(Exception): pass
 class GAPI_invalidCustomerId(Exception): pass
 class GAPI_invalidInput(Exception): pass
 class GAPI_invalidMember(Exception): pass
-class GAPI_invalidOrgUnit(Exception): pass
-class GAPI_invalidParentOrgUnit(Exception): pass
+class GAPI_invalidOrgunit(Exception): pass
+class GAPI_invalidParentOrgunit(Exception): pass
 class GAPI_invalidQuery(Exception): pass
 class GAPI_invalidResource(Exception): pass
 class GAPI_invalidSchemaValue(Exception): pass
@@ -4109,8 +4111,8 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_INVALID_CUSTOMER_ID: GAPI_invalidCustomerId,
   GAPI_INVALID_INPUT: GAPI_invalidInput,
   GAPI_INVALID_MEMBER: GAPI_invalidMember,
-  GAPI_INVALID_ORGUNIT: GAPI_invalidOrgUnit,
-  GAPI_INVALID_PARENT_ORGUNIT: GAPI_invalidParentOrgUnit,
+  GAPI_INVALID_ORGUNIT: GAPI_invalidOrgunit,
+  GAPI_INVALID_PARENT_ORGUNIT: GAPI_invalidParentOrgunit,
   GAPI_INVALID_QUERY: GAPI_invalidQuery,
   GAPI_INVALID_RESOURCE: GAPI_invalidResource,
   GAPI_INVALID_SCHEMA_VALUE: GAPI_invalidSchemaValue,
@@ -4734,7 +4736,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         totalLen = len(usersSet)
         printGettingEntityItemsDoneInfo(totalLen-prevLen, qualifier=qualifier)
         prevLen = totalLen
-      except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
+      except (GAPI_badRequest, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
         doNotExist += 1
   elif entityType == CL_ENTITY_QUERY:
@@ -4847,7 +4849,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                             customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=ou)
           ou = result[u'orgUnitPath']
         ouDict[ou.lower()] = True
-      except (GAPI_badRequest, GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
+      except (GAPI_badRequest, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, EN_ORGANIZATIONAL_UNIT, ou, 0, 0)
         doNotExist += 1
     try:
@@ -6470,7 +6472,7 @@ def getOrgUnitId(cd):
                       customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnit),
                       fields=u'orgUnitId')
     return (orgUnit, result[u'orgUnitId'][3:])
-  except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
+  except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
     putArgumentBack()
     usageErrorExit(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
                                       [singularEntityName(EN_ORGANIZATIONAL_UNIT), orgUnit,
@@ -6964,9 +6966,9 @@ def doCreateOrg():
              throw_reasons=[GAPI_INVALID_PARENT_ORGUNIT, GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
              customerId=GC_Values[GC_CUSTOMER_ID], body=body)
     entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
-  except GAPI_invalidParentOrgUnit:
+  except GAPI_invalidParentOrgunit:
     entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_PARENT_ORGANIZATIONAL_UNIT, parent, PHRASE_ENTITY_DOES_NOT_EXIST.format(singularEntityName(EN_PARENT_ORGANIZATIONAL_UNIT)))
-  except (GAPI_invalidOrgUnit, GAPI_backendError):
+  except (GAPI_invalidOrgunit, GAPI_backendError):
     entityDuplicateWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath)
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
@@ -6980,7 +6982,7 @@ def checkOrgUnitPathExists(cd, orgUnitPath, i=0, count=0):
                       throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                       customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath, fields=u'orgUnitPath')
     return result[u'orgUnitPath']
-  except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
+  except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
     entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     return None
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
@@ -7135,7 +7137,7 @@ def updateOrgs(entityList):
                  throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                  customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), body=body)
         entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
-      except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
+      except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
         entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
       except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
         accessErrorExit(cd)
@@ -7163,7 +7165,7 @@ def deleteOrgs(entityList):
       entityActionPerformed(EN_ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
     except GAPI_conditionNotMet:
       entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_HAS_CHILD_ORGS.format(pluralEntityName(EN_ORGANIZATIONAL_UNIT)), i, count)
-    except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
+    except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
       accessErrorExit(cd)
@@ -7230,7 +7232,7 @@ def infoOrgs(entityList):
             printKeyValueList([u'{0} (child)'.format(user[u'primaryEmail'])])
         decrementIndentLevel()
       decrementIndentLevel()
-    except (GAPI_invalidOrgUnit, GAPI_orgunitNotFound, GAPI_backendError):
+    except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
@@ -11203,7 +11205,8 @@ def doUpdateGroup():
 def updateGroups(entityList):
   def _callbackAddMembersToGroup(request_id, response, exception):
     REASON_TO_MESSAGE_MAP = {GAPI_DUPLICATE: PHRASE_DUPLICATE, GAPI_MEMBER_NOT_FOUND: PHRASE_DOES_NOT_EXIST,
-                             GAPI_INVALID_MEMBER: PHRASE_INVALID_ROLE, GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED: PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE}
+                             GAPI_RESOURCE_NOT_FOUND: PHRASE_DOES_NOT_EXIST, GAPI_INVALID_MEMBER: PHRASE_INVALID_ROLE,
+                             GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED: PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE}
     ri = request_id.splitlines()
     if exception is None:
       member = response.get(u'email', None)
@@ -14361,35 +14364,45 @@ def doInviteGuardian():
   body = {u'invitedEmailAddress': getEmailAddress()}
   studentId = getEmailAddress()
   checkForExtraneousArguments()
-  result = callGAPI(croom.userProfiles().guardianInvitations(), u'create', studentId=studentId, body=body)
-  print u'Invited email %s as guardian of %s. Invite ID %s' % (result[u'invitedEmailAddress'], studentId, result[u'invitationId'])
+  try:
+    result = callGAPI(croom.userProfiles().guardianInvitations(), u'create',
+                      throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_FORBIDDEN, GAPI_PERMISSION_DENIED, GAPI_ALREADY_EXISTS],
+                      studentId=studentId, body=body)
+    entityItemValueItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, result[u'invitedEmailAddress'], EN_GUARDIAN_INVITATION, result[u'invitationId'])
+  except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
+    entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
+  except GAPI_alreadyExists:
+    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN, body[u'invitedEmailAddress'], PHRASE_DUPLICATE)
 
-# gam delete guardian|guardians <GuardianID <UserItem>
+# gam delete guardian|guardians <GuardianID>|<EmailAddress> <UserItem>
 def doDeleteGuardian():
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
   guardianId = getString(OB_GUARDIAN_ID)
   studentId = getEmailAddress()
   checkForExtraneousArguments()
   try:
-    callGAPI(croom.userProfiles().guardians(), u'delete', throw_reasons=[u'notFound'], studentId=studentId, guardianId=guardianId)
-    print u'Deleted %s as a guardian of %s' % (guardianId, studentId)
-  except googleapiclient.errors.HttpError:
-    # See if there's a pending invitation
-    results = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations', studentId=studentId, invitedEmailAddress=guardianId, states=GUARDIAN_STATES)
-    if len(results) < 1:
-      print u'%s is not a guardian of %s and no invitation exists.' % (guardianId, studentId)
-      sys.exit(0)
-    for result in results:
-      if result[u'state'] != u'PENDING':
-        print u'%s is not a guardian of %s and invitation %s status is %s, not PENDING. Doing nothing.' % (guardianId, studentId, result[u'invitationId'], result[u'state'])
-        continue
-      invitationId = result[u'invitationId']
-      body = {u'state': u'COMPLETE'}
-      callGAPI(croom.userProfiles().guardianInvitations(), u'patch', studentId=studentId, invitationId=invitationId, updateMask=u'state', body=body)
-      print u'Cancelling %s invitation for %s as guardian of %s' % (result[u'state'], result[u'invitedEmailAddress'], studentId)
-
-def _showGuardian(result, j, jcount):
-  pass
+    callGAPI(croom.userProfiles().guardians(), u'delete',
+             throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+             studentId=studentId, guardianId=guardianId)
+    entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, guardianId)
+  except (GAPI_notFound, GAPI_forbidden):
+    matchField = [u'invitedEmailAddress', u'invitationId'][guardianId.isdigit()]
+    try:
+      results = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations',
+                              throw_reasons=[GAPI_FORBIDDEN],
+                              studentId=studentId, states=GUARDIAN_STATES)
+      for result in results:
+        if result[matchField] == guardianId:
+          if result[u'state'] != u'PENDING':
+            entityItemValueActionNotPerformedWarning(EN_STUDENT, studentId, EN_GUARDIAN, guardianId, PHRASE_NOT_A_GUARDIAN_INVITATION_NOT_PENDING)
+          else:
+            callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
+                     studentId=studentId, invitationId=result[u'invitationId'], updateMask=u'state', body={u'state': u'COMPLETE'})
+            entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, result[u'invitedEmailAddress'])
+          return
+      entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN, guardianId, PHRASE_NOT_A_GUARDIAN_OR_INVITATION)
+    except GAPI_forbidden:
+      entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
 
 #gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 def doShowGuardians():
@@ -14442,7 +14455,7 @@ def printShowGuardians(csvFormat):
         printGettingAllEntityItemsForWhom(entityType, studentId, i, count)
     try:
       result = callGAPIpages(service, u'list', items=items,
-                             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_PERMISSION_DENIED, GAPI_FORBIDDEN],
+                             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_FORBIDDEN, GAPI_PERMISSION_DENIED],
                              **kwargs)
       jcount = len(result)
       if not csvFormat:
@@ -14460,9 +14473,9 @@ def printShowGuardians(csvFormat):
         for guardian in result:
           guardian[u'studentEmail'] = studentId
           addRowTitlesToCSVfile(flattenJSON(guardian), csvRows, titles)
-    except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest):
+    except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
       entityUnknownWarning(EN_STUDENT, studentId, i, count)
-    except (GAPI_permissionDenied, GAPI_forbidden) as e:
+    except GAPI_permissionDenied as e:
       entityActionFailedWarning(EN_STUDENT, studentId, e.message, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Guardians', todrive)
