@@ -175,6 +175,8 @@ GM_MAP_ROLE_ID_TO_NAME = u'ri2n'
 GM_MAP_ROLE_NAME_TO_ID = u'rn2i'
 # Dictionary mapping User ID to Name
 GM_MAP_USER_ID_TO_NAME = u'ui2n'
+# oauth2.txt lockfile
+GM_OAUTH2_TXT_LOCK = 'oalk'
 #
 GM_Globals = {
   GM_SYSEXITRC: 0,
@@ -214,6 +216,7 @@ GM_Globals = {
   GM_MAP_ROLE_ID_TO_NAME: None,
   GM_MAP_ROLE_NAME_TO_ID: None,
   GM_MAP_USER_ID_TO_NAME: None,
+  GM_OAUTH2_TXT_LOCK: None,
   }
 
 # Global variables defined in gam.cfg
@@ -3268,6 +3271,15 @@ class UnicodeDictWriter(csv.DictWriter, object):
     super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=u'nixstdout', *args, **kwds)
     self.writer = UnicodeWriter(f, dialect, **kwds)
 
+# Create/set mode for oauth2.txt.lock
+def initOAuth2TxtLockFile():
+  if not GM_Globals[GM_OAUTH2_TXT_LOCK]:
+    fileName = u'{0}.lock'.format(GC_Values[GC_OAUTH2_TXT])
+    lockfile = openFile(fileName, mode='a')
+    os.chmod(fileName, 0666)
+    closeFile(lockfile)
+    GM_Globals[GM_OAUTH2_TXT_LOCK] = fileName
+
 # Set global variables from config file
 # Check for GAM updates based on status of no_update_check in config file
 # Return True if there are additional commands on the command line
@@ -3568,6 +3580,7 @@ def SetGlobalVariables():
       GC_Values[itemName] = _getCfgFile(sectionName, itemName)
   if status[u'errors']:
     sys.exit(CONFIG_ERROR_RC)
+  initOAuth2TxtLockFile()
 # Reset global variables if required
   httplib2.debuglevel = GC_Values[GC_DEBUG_LEVEL]
   if prevExtraArgsTxt != GC_Values[GC_EXTRA_ARGS]:
