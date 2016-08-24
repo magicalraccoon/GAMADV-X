@@ -6725,7 +6725,8 @@ def doCreateDataTransfer():
     usageErrorExit(PHRASE_NEW_OWNER_MUST_DIFFER_FROM_OLD_OWNER)
   parameters = {}
   while CL_argvI < CL_argvLen:
-    parameters[getString(OB_PARAMETER_KEY).upper()] = getString(OB_PARAMETER_VALUE).upper().split(u',')
+    key = getString(OB_PARAMETER_KEY).upper()
+    parameters[key] = getString(OB_PARAMETER_VALUE).upper().split(u',')
   body[u'applicationDataTransfers'] = [{u'applicationId': serviceID}]
   for key in parameters:
     body[u'applicationDataTransfers'][0].setdefault(u'applicationTransferParams', [])
@@ -8354,10 +8355,12 @@ def getCalendarEventAttributes():
       parameters[u'timeZone'] = getString(OB_STRING)
     elif myarg == u'privateproperty':
       body.setdefault(u'extendedProperties', {u'private': {}, u'shared': {}})
-      body[u'extendedProperties'][u'private'][getString(OB_PROPERTY_KEY)] = getString(OB_PROPERTY_VALUE)
+      key = getString(OB_PROPERTY_KEY)
+      body[u'extendedProperties'][u'private'][key] = getString(OB_PROPERTY_VALUE)
     elif myarg == u'sharedproperty':
       body.setdefault(u'extendedProperties', {u'private': {}, u'shared': {}})
-      body[u'extendedProperties'][u'shared'][getString(OB_PROPERTY_KEY)] = getString(OB_PROPERTY_VALUE)
+      key = getString(OB_PROPERTY_KEY)
+      body[u'extendedProperties'][u'shared'][key] = getString(OB_PROPERTY_VALUE)
     elif myarg in [u'colorindex', u'colorid']:
       body[u'colorId'] = str(getInteger(CALENDAR_EVENT_MIN_COLOR_INDEX, CALENDAR_EVENT_MAX_COLOR_INDEX))
     else:
