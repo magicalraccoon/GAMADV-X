@@ -681,6 +681,8 @@ OB_NAME = u'Name'
 OB_NOTIFICATION_ID = u'NotificationID'
 OB_ORGUNIT_ENTITY = u'OrgUnitEntity'
 OB_ORGUNIT_PATH = u'OrgUnitPath'
+OB_PARAMETER_KEY = u'ParameterKey'
+OB_PARAMETER_VALUE = u'ParameterValue'
 OB_PERMISSION_ID = u'PermissionID'
 OB_PHOTO_FILENAME_PATTERN = u'FilenameNamePattern'
 OB_PRINTER_ID = u'PrinterID'
@@ -3539,7 +3541,7 @@ def SetGlobalVariables():
         _verifyValues(sectionName)
       else:
         break
-# config [<VariableName> <Value>]* [save] [verify]
+# config (<VariableName> <Value>)* [save] [verify]
   if checkArgumentPresent([CONFIG_CMD,]):
     while CL_argvI < CL_argvLen:
       if checkArgumentPresent([u'save',]):
@@ -6710,7 +6712,7 @@ def getService(dt):
   except (GAPI_unknownError, GAPI_forbidden):
     accessErrorExit(None)
 
-# gam create datatransfer|transfer <OldOwnerID> <Service> <NewOwnerID>
+# gam create datatransfer|transfer <OldOwnerID> <Service> <NewOwnerID> (<ParameterKey> <ValueValue>)*
 def doCreateDataTransfer():
   dt = buildGAPIObject(GAPI_DATATRANSFER_API)
   old_owner = getEmailAddress()
@@ -6723,7 +6725,7 @@ def doCreateDataTransfer():
     usageErrorExit(PHRASE_NEW_OWNER_MUST_DIFFER_FROM_OLD_OWNER)
   parameters = {}
   while CL_argvI < CL_argvLen:
-    parameters[getString(OB_PROPERTY_KEY).upper()] = getString(OB_PROPERTY_KEY).upper().split(u',')
+    parameters[getString(OB_PARAMETER_KEY).upper()] = getString(OB_PARAMETER_VALUE).upper().split(u',')
   body[u'applicationDataTransfers'] = [{u'applicationId': serviceID}]
   for key in parameters:
     body[u'applicationDataTransfers'][0].setdefault(u'applicationTransferParams', [])
@@ -16937,7 +16939,7 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
-# gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [allfields|<DriveFieldName>*] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+# gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
   allfields = filepath = todrive = False
   fieldsList = []
@@ -17097,7 +17099,7 @@ def showDriveFilePath(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> show filetree [<DriveFileEntity>] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+# gam <UserTypeEntity> show filetree [<DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def showDriveFileTree(users):
   def _printDriveFolderContents(feed, folderId):
     for f_file in feed:
@@ -17663,7 +17665,7 @@ def validateUserGetPermissionId(user):
       entityServiceNotApplicableWarning(EN_USER, user)
   return None
 
-# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def transferDriveFileOwnership(users):
   def _transferOwnership(drive, user, i, count, fileId, fileName, j, jcount, newOwner, permissionId):
     body = {u'role': u'owner'}
