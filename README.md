@@ -25,7 +25,7 @@ The official GAM source repository is on [GitHub] in the master branch.
 
 Author
 ------
-GAM4 is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</a>.
+GAMADV-X is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</a>.
 
 [GitHub Releases]: https://github.com/taers232c/GAMADV-X/releases
 [GitHub]: https://github.com/taers232c/GAMADV-X/tree/master

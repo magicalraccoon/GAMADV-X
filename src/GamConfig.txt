@@ -1,4 +1,4 @@
-GAM versions 3.70 and above use a configuration file, gam.cfg, to store the values of the various environment variables
+GAM versions 4.00 and above use a configuration file, gam.cfg, to store the values of the various environment variables
 and signal files used by earlier versions of GAM. Configuration files client_secrets.json, oauth2.txt, oauth2service.json and extra_args.txt
 are moved to a version independent location. This should simplify upgrading GAM versions in the future.
 Additionally, if you support multiple clients/domains or have multiple users running GAM,
@@ -11,9 +11,9 @@ In the following discussion, these names will be used to refer to directories:
     GamConfigDir: Location of client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
     GamCacheDir: Google API cache files
     GamDriveDir: Files downloaded with gam user <User> get drivefile <DriveFileID> when targetfolder <FilePath> is not specified
-    GamSiteDir: Location of admin-settings-v1.json, cloudprint-v2.json, contacts-v3.json, email-audit-v1.json, email-settings-v1.json
+    GamSiteDir: Location of admin-settings-v2.json, cloudprint-v2.json, contacts-v3.json, email-audit-v1.json, email-settings-v2.json
 
-In versions of GAM before 3.70, the following locations are used:
+In versions of GAM before 4.00, the following locations are used:
     GamCfgDir:
 	Not used
     GamSiteDir:

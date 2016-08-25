@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.19.01'
+__version__ = u'4.19.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -1608,6 +1608,7 @@ MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and 
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
+MESSAGE_NO_ACCESS_TO_OAUTH2_TXT_LOCK = u'No Read/Write access to lock file {0}'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
@@ -3277,10 +3278,13 @@ class UnicodeDictWriter(csv.DictWriter, object):
 def initOAuth2TxtLockFile():
   if not GM_Globals[GM_OAUTH2_TXT_LOCK]:
     fileName = u'{0}.lock'.format(GC_Values[GC_OAUTH2_TXT])
-    lockfile = openFile(fileName, mode='a')
-    os.chmod(fileName, 0666)
-    closeFile(lockfile)
+    if not os.path.isfile(fileName):
+      lockfile = openFile(fileName, mode='a')
+      os.chmod(fileName, 0666)
+      closeFile(lockfile)
     GM_Globals[GM_OAUTH2_TXT_LOCK] = fileName
+  if not os.access(GM_Globals[GM_OAUTH2_TXT_LOCK], os.R_OK | os.W_OK):
+    systemErrorExit(FILE_ERROR_RC, MESSAGE_NO_ACCESS_TO_OAUTH2_TXT_LOCK.format(GM_Globals[GM_OAUTH2_TXT_LOCK]))
 
 # Set global variables from config file
 # Check for GAM updates based on status of no_update_check in config file
@@ -6690,6 +6694,7 @@ SERVICE_NAME_CHOICES_MAP = {
   u'google+': u'Google+',
   u'gplus': u'Google+',
   u'g+': u'Google+',
+  u'drive': u'Drive',
   u'googledrive': u'Drive',
   u'gdrive': u'Drive',
   }
