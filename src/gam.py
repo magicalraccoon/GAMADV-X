@@ -6425,7 +6425,7 @@ def buildOrgUnitIdToNameMap():
 def orgunit_from_orgunitid(orgunitid):
   if not GM_Globals[GM_MAP_ORGUNIT_ID_TO_NAME]:
     buildOrgUnitIdToNameMap()
-  return GM_Globals[GM_MAP_ORGUNIT_ID_TO_NAME][orgunitid]
+  return GM_Globals[GM_MAP_ORGUNIT_ID_TO_NAME].get(orgunitid, orgunitid)
 
 def buildRoleIdToNameToIdMap():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -6446,7 +6446,7 @@ def buildRoleIdToNameToIdMap():
 def role_from_roleid(roleid):
   if not GM_Globals[GM_MAP_ROLE_ID_TO_NAME]:
     buildRoleIdToNameToIdMap()
-  return GM_Globals[GM_MAP_ROLE_ID_TO_NAME][roleid]
+  return GM_Globals[GM_MAP_ROLE_ID_TO_NAME].get(roleid, roleid)
 
 def roleid_from_role(role):
   if not GM_Globals[GM_MAP_ROLE_NAME_TO_ID]:
@@ -6719,7 +6719,7 @@ def getService(dt):
   except (GAPI_unknownError, GAPI_forbidden):
     accessErrorExit(None)
 
-# gam create datatransfer|transfer <OldOwnerID> <Service> <NewOwnerID> (<ParameterKey> <ValueValue>)*
+# gam create datatransfer|transfer <OldOwnerID> <Service> <NewOwnerID> (<ParameterKey> <ParameterValue>)*
 def doCreateDataTransfer():
   dt = buildGAPIObject(GAPI_DATATRANSFER_API)
   old_owner = getEmailAddress()
