@@ -175,7 +175,7 @@ GM_MAP_ROLE_ID_TO_NAME = u'ri2n'
 GM_MAP_ROLE_NAME_TO_ID = u'rn2i'
 # Dictionary mapping User ID to Name
 GM_MAP_USER_ID_TO_NAME = u'ui2n'
-# oauth2.txt lockfile
+# oauth2.txt.lock lockfile
 GM_OAUTH2_TXT_LOCK = 'oalk'
 #
 GM_Globals = {
@@ -1608,7 +1608,6 @@ MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and 
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
-MESSAGE_NO_ACCESS_TO_OAUTH2_TXT_LOCK = u'No Read/Write access to lock file {0}'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
@@ -3274,18 +3273,6 @@ class UnicodeDictWriter(csv.DictWriter, object):
     super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=u'nixstdout', *args, **kwds)
     self.writer = UnicodeWriter(f, dialect, **kwds)
 
-# Create/set mode for oauth2.txt.lock
-def initOAuth2TxtLockFile():
-  if not GM_Globals[GM_OAUTH2_TXT_LOCK]:
-    fileName = u'{0}.lock'.format(GC_Values[GC_OAUTH2_TXT])
-    if not os.path.isfile(fileName):
-      lockfile = openFile(fileName, mode='a')
-      os.chmod(fileName, 0666)
-      closeFile(lockfile)
-    GM_Globals[GM_OAUTH2_TXT_LOCK] = fileName
-  if not os.access(GM_Globals[GM_OAUTH2_TXT_LOCK], os.R_OK | os.W_OK):
-    systemErrorExit(FILE_ERROR_RC, MESSAGE_NO_ACCESS_TO_OAUTH2_TXT_LOCK.format(GM_Globals[GM_OAUTH2_TXT_LOCK]))
-
 # Set global variables from config file
 # Check for GAM updates based on status of no_update_check in config file
 # Return True if there are additional commands on the command line
@@ -3586,7 +3573,13 @@ def SetGlobalVariables():
       GC_Values[itemName] = _getCfgFile(sectionName, itemName)
   if status[u'errors']:
     sys.exit(CONFIG_ERROR_RC)
-  initOAuth2TxtLockFile()
+# Create/set mode for oauth2.txt.lock
+  if not GM_Globals[GM_OAUTH2_TXT_LOCK]:
+    fileName = u'{0}.lock'.format(GC_Values[GC_OAUTH2_TXT])
+    if not os.path.isfile(fileName):
+      closeFile(openFile(fileName, mode=u'a'))
+      os.chmod(fileName, 0666)
+    GM_Globals[GM_OAUTH2_TXT_LOCK] = fileName
 # Reset global variables if required
   httplib2.debuglevel = GC_Values[GC_DEBUG_LEVEL]
   if prevExtraArgsTxt != GC_Values[GC_EXTRA_ARGS]:
@@ -3672,8 +3665,17 @@ def handleOAuthTokenError(e, soft_errors):
     systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
   systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
 
+def getCredentialsForScope(oauth2Scope, storageOnly=False):
+  try:
+    storage = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+    if storageOnly:
+      return storage
+    return storage.get()
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, e)
+
 def getClientCredentials(oauth2Scope):
-  credentials = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
+  credentials = getCredentialsForScope(oauth2Scope)
   if not credentials or credentials.invalid:
     systemErrorExit(OAUTH2_TXT_REQUIRED_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT))
   credentials.user_agent = GAM_INFO
@@ -5676,7 +5678,7 @@ OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 def revokeCredentials():
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
   for oauth2Scope in OAUTH2_SCOPES_LIST:
-    credentials = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
+    credentials = getCredentialsForScope(oauth2Scope)
     if credentials and not credentials.invalid:
       credentials.revoke_uri = oauth2client.GOOGLE_REVOKE_URI
       try:
@@ -5703,7 +5705,7 @@ See this site for instructions:
   menu = OAUTH2_MENU % tuple(range(num_scopes))
   selected_scopes = [u' '] * num_scopes
   for oauth2Scope in OAUTH2_SCOPES_LIST:
-    credentials = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], oauth2Scope).get()
+    credentials = getCredentialsForScope(oauth2Scope)
     if credentials and not credentials.invalid:
       currentScopes = sorted(credentials.scopes)
       for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
@@ -5782,7 +5784,7 @@ See this site for instructions:
         scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i]))
       elif selected_scopes[i] == u'A':
         scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
-    storage = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], oauth2Scope)
+    storage = getCredentialsForScope(oauth2Scope, storageOnly=True)
     try:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
     except oauth2client.client.clientsecrets.InvalidClientSecretsError:
@@ -5850,8 +5852,8 @@ def doOAuthInfo():
   else:
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
       printKeyValueList([singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
-      gapiCredentials = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], OAUTH2_GAPI_SCOPES).get()
-      gdataCredentials = MultiprocessFileStorage(GC_Values[GC_OAUTH2_TXT], OAUTH2_GDATA_SCOPES).get()
+      gapiCredentials = getCredentialsForScope(OAUTH2_GAPI_SCOPES)
+      gdataCredentials = getCredentialsForScope(OAUTH2_GDATA_SCOPES)
       if (gapiCredentials and not gapiCredentials.invalid and
           gdataCredentials and not gdataCredentials.invalid and
           gapiCredentials.client_id == gdataCredentials.client_id and
@@ -20504,8 +20506,8 @@ def printShowForward(users, csvFormat):
     writeCSVfile(csvRows, titles, u'Forward', todrive)
 
 # Process ForwardingAddresses functions
-def _showForwardingAddress(user, i, count, result):
-  printEntityKVList(EN_FORWARDING_ADDRESS, result[u'forwardingEmail'], [u'Verification Status', result[u'verificationStatus']], i, count)
+def _showForwardingAddress(j, jcount, result):
+  printEntityKVList(EN_FORWARDING_ADDRESS, result[u'forwardingEmail'], [u'Verification Status', result[u'verificationStatus']], j, jcount)
 
 def _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, function, **kwargs):
   userDefined = True
@@ -20514,7 +20516,7 @@ def _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, fu
                       throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DUPLICATE],
                       userId=u'me', **kwargs)
     if function == u'get':
-      _showForwardingAddress(user, j, count, result)
+      _showForwardingAddress(j, count, result)
     else:
       entityItemValueActionPerformed(EN_USER, user, EN_FORWARDING_ADDRESS, emailAddress, j, jcount)
   except GAPI_notFound:
@@ -20628,7 +20630,7 @@ def printShowForwardingAddresses(users, csvFormat):
         j = 0
         for forward in result[u'forwardingAddresses']:
           j += 1
-          _showForwardingAddress(user, j, jcount, forward)
+          _showForwardingAddress(j, jcount, forward)
         decrementIndentLevel()
       else:
         if jcount == 0:
