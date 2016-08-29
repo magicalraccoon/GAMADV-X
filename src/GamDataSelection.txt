@@ -31,11 +31,13 @@ A third form for selecting collections of objects is used in three print command
 
 In the syntax descriptions below, [charset <Charset>] allows you to specify the character set of
 the data to be read from a file. <Charset> defaults to ascii; other typical values are: utf-8, utf-16, latin-1.
+In various contexts, an item or a list of items is allowed, [delimiter <String>] indicates that a list of items,
+separated by <String> (typically a comma or space), is to be processed.
 
 These BNF definitions will be used in this document.
 
 <ArgsEntity> ::= args <Marker> <String>* <Marker>
-<FileEntity> ::= file <FileName> [charset <String>]
+<FileEntity> ::= file <FileName> [charset <String>] [delimiter <String>]
 <CSVkmdEntity> ::= csvkmd <FileName> [charset <String>]
 			keyfield <FieldName> [delimiter <String>]
 			[matchfield <FieldName> <RegularExpressionPattern>]
@@ -73,12 +75,18 @@ First Form ChromeOS Devices
 <CrOSTypeEntity> ::=
 		(all cros)|
 		(cros <CrOSList>)|
-		(crosquery <Query>)|
-		(args cros <Marker> <DeviceID>* <Marker>)|
-		(datafile cros <FileName> [charset <Charset>])|
+		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
+		(croscsvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
+		(crosquery <QueryCrOS>)|
+		(cros_ou|cros_org <OrgUnitPath)|
+		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
+		(cros_ous|cros_orgs <OrgUnitList)|
+		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList)|
+		(args cros <Marker> <CrOSID>* <Marker>)|
+		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
-			[matchfield <FieldName> <PythonRegularExpression>]
+			[matchfield <FieldName> <RegularExpression>]
 			[datafield <FieldName> [delimiter <String>]])|
 		(csvcros <FieldName>)
 
@@ -90,20 +98,62 @@ Note: <CrOSList> is a comma separated list of DeviceIDs surrounded by ' (a singl
 Yields: A list of ChromeOS devices.
 Example: cros '0c4ec369-b128-4b4d-aec2-ec283f849999,0cbe9368-402d-41c3-b75b-175481589999'
 
+Selection: crosfile <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
+If delimiter <String> is specified, each row can contain a list of items separated by <String>, typically comma or space.
+Yields: A list of ChromeOS devices.
+Example: crosfile CrOSFile.lst
+CrOSFile.lst contains:
+0c4ec369-b128-4b4d-aec2-ec283f849999
+0cbe9368-402d-41c3-b75b-175481589999
+...
+
+Selection: croscsvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a CSV file with a header row; <FieldName> specifies the column containing the desired data.
+If delimiter <String> is specified, each the specified column in each row can contain a list of items spearated by <String>, typically comma or space.
+Yields: A list of ChromeOS devices.
+Example: croscsvfile CrOSFile.csv:deviceId
+CrOSFile.csv contains:
+deviceId
+0c4ec369-b128-4b4d-aec2-ec283f849999
+0cbe9368-402d-41c3-b75b-175481589999
+...
+
 Selection: crosquery <Query>
 Note: <Query> should be surrounded by ", ' should be used to enclose items within <Query>.
 Yields: All ChromeOS devices that satisfy the query.
 Example: query "id:HY3"
 See: https://support.google.com/chrome/a/answer/1698333?hl=en
 
+Selection: cros_ou|cros_org <OrgUnitPath>
+Note: <OrgUnitPath> should be enclosed in ' if it contains spaces.
+Yields: All ChromeOS devices directly in the Organizational Unit. 
+Example: cros_org '/Staff/New York'
+
+Selection: cros_ou_and_children|cros_org_and_children <OrgUnitPath>
+Note: <OrgUnitPath> should be enclosed in ' if it contains spaces.
+Yields: All ChromeOS devices in the Organizational Unit and any sub units.
+Example: cros_org_and_children /Staff
+
+Selection: cros_ous|cros_orgs <OrgUnitList>
+Note: <OrgUnitList> is a comma separated list of <OrgUnitPath> surrounded by " (a single command line argument).
+An individual <OrgUnitPath> should be surrounded by ' if it contains spaces.
+Yields: All ChromeOS devices  directly in the Organizational Units. 
+Example: cros_orgs "'/Staff/New York','/Staff/New Jersey'"
+
+Selection: cros_ous_and_children|cros_orgs_and_children <OrgUnitList>
+Note: <OrgUnitList> is a comma separated list of <OrgUnitPath> surrounded by " (a single command line argument).
+An individual <OrgUnitPath> should be surrounded by ' if it contains spaces.
+Yields: All ChromeOS deices in the Organizational Units and their sub units. 
+Example: cros_orgs_and_children "'/Staff/New York','/Staff/New Jersey'"
+
 Selection: args cros <Marker> <DeviceID>* <Marker>
 Note: <Marker> is a short string that brackets a space separated list of DevicesIDs
 Yields: A list of ChromeOS devices.
 Example: args cros === 0c4ec369-b128-4b4d-aec2-ec283f849999 0cbe9368-402d-41c3-b75b-175481589999 ===
 
-Selection: datafile cros <FileName> [charset <Charset>]
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns,
-the data is read from the last column.
+Selection: datafile cros <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
 Yields: A list of ChromeOS devices.
 Example: datafile cros CrOSFile.lst
 CrOSFile.lst contains:
@@ -113,7 +163,7 @@ CrOSFile.lst contains:
 
 Selection: csvkmd cros <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]]
 Note: <FileName> specifies a CSV file, <FieldName> is a column header in the first row.
 Yields: A list of ChromeOS devices.
@@ -122,7 +172,7 @@ delimiter <String> specifies the character that separates the values within a co
 The keyfield <FieldName> column contains ChromeOS DeviceIDs.
 The matchfield <FieldName> column contains data that may be used to select a subset of the rows in the CSV file.
 The datafield <FieldName> column selects data that will be used elsewhere in the command.
-<PythonRegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
+<RegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
 
 Example: csvkmd cros CrOSFile.csv keyfield DeviceID matchfield Model Samsung
 CrOSFile.csv contains:
@@ -154,10 +204,10 @@ First Form Users
 		(courseparticipants <CourseID>)|
 		(students <CourseID>)|
 		(teachers <CourseID>)|
-		(file <FileName> [charset <Charset>])|
-		(csvfile <FileName>:<FieldName> [charset <Charset>])|
-		(license|licenses <SKUIDList>)|
-		(query <Query>)|
+		(file <FileName> [charset <Charset>] [delimiter <String>])|
+		(csvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
+		(license|licenses|licence|licences <SKUIDList>)|
+		(query <QueryUser>)|
 		(groups <GroupList)|
 		(ous|orgs <OrgUnitList)|
 		(ous_and_children|ous_and_child <OrgUnitList)|
@@ -165,10 +215,10 @@ First Form Users
 		(students <CourseIDList>)|
 		(teachers <CourseIDList>)|
 		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
-		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>])|
+		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
-			[matchfield <FieldName> <PythonRegularExpression>]
+			[matchfield <FieldName> <RegularExpression>]
 			[datafield <FieldName> [delimiter <String>]])|
 		(csvdata <FieldName>)
 
@@ -177,11 +227,22 @@ For Users, the lists can be users or objects that specify users, e.g., Groups or
 Selection: all users
 Note: All Users in the account
 
-Selection: file <FileName>	
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns, the data is read from the last column.
+Selection: file <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
+If delimiter <String> is specified, each row can contain a list of items separated by <String>, typically comma or space.
 Yields: A list of Users.
 Example: file UserFile.lst
 UserFile.lst contains:
+user1@example.com
+user2@example.com
+
+Selection: csvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a CSV file with a header row; <FieldName> specifies the column containing the desired data.
+If delimiter <String> is specified, each the specified column in each row can contain a list of items spearated by <String>, typically comma or space.
+Yields: A list of Users.
+Example: csvfile UserFile.csv:primaryEmail
+UserFile.csv contains:
+primaryEmail
 user1@example.com
 user2@example.com
 
@@ -258,16 +319,16 @@ An individual <OrgUnitPath> should be surrounded by ' if it contains spaces.
 Yields: All Users in the Organizational Units and their sub units. 
 Example: args orgs === '/Staff/New York' '/Staff/New Jersey' ===
 
-Selection: datafile users <FileName> [charset <Charset>]
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns, the data is read from the last column.
+Selection: datafile users <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
 Yields: A list of Users.
 Example: datafile users UserFile.lst
 UserFile.lst contains:
 user1@example.com
 user2@example.com
 
-Selection: datafile groups <FileName> [charset <Charset>]
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns, the data is read from the last column.
+Selection: datafile groups <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
 Yields: All Users from all of the groups.
 Example: datafile groups GroupFile.lst
 GroupFile.lst contains:
@@ -275,8 +336,8 @@ group1@example.com
 group2@example.com
 ...
 
-Selection: datafile orgs|ous <FileName> [charset <Charset>]
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns, the data is read from the last column.
+Selection: datafile orgs|ous <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
 Yields: All Users directly in the Organizational Units. 
 Example: datafile orgs OrgsFile.lst
 OrgsFile.lst contains:
@@ -284,8 +345,8 @@ OrgsFile.lst contains:
 /Staff/New Jersey
 ...
 
-Selection: datafile ous_and_children|ous_and_child <FileName> [charset <Charset>]
-Note: <FileName> specifies a flat file with no header row, it may have multiple columns, the data is read from the last column.
+Selection: datafile ous_and_children|ous_and_child <FileName> [charset <Charset>] [delimiter <String>]
+Note: <FileName> specifies a flat file with no header row.
 Yields: All Users in the Organizational Units and their sub units. 
 Example: datafile ous_and_children OrgsFile.lst
 OrgsFile.lst contains:
@@ -295,7 +356,7 @@ OrgsFile.lst contains:
 
 Selection: csvkmd users <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]]
 Note: <FileName> specifies a CSV file, <FieldName>, <FieldName> and <FieldName> are values in the first row that select specific columns.
 Yields: A list of Users.
@@ -303,7 +364,7 @@ The columns are separated by commas. If a keyfield or datafield contains multipl
 The keyfield <FieldName> column contains <UserItems>.
 The matchfield <FieldName> column contains data that may be used to select a subset of the rows in the CSV file.
 The datafield <FieldName> column selects data that will be used elsewhere in the command.
-<PythonRegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
+<RegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
 
 Example: csvkmd users UserFile.csv keyfield Email matchfield Office 'New York'
 userFile.csv contains:
@@ -323,7 +384,7 @@ Sales-NJ,user7@example.com user8@example.com
 
 Selection: csvkmd groups <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]]
 Note: <FileName> specifies a CSV file, <FieldName>, <FieldName> and <FieldName> are values in the first row that select specific columns.
 Yields: All Users from the groups.
@@ -331,11 +392,11 @@ The columns are separated by commas. If a keyfield or datafield contains multipl
 The keyfield <FieldName> column contains <GroupItems>.
 The matchfield <FieldName> column contains data that may be used to select a subset of the rows in the CSV file.
 The datafield <FieldName> column selects data that will be used elsewhere in the command.
-<PythonRegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
+<RegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
 
 Selection: csvkmd orgs|ous <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]]
 Note: <FileName> specifies a CSV file, <FieldName>, <FieldName> and <FieldName> are values in the first row that select specific columns.
 Yields: All Users directly in the Organizational Units. 
@@ -343,11 +404,11 @@ The columns are separated by commas. If a keyfield or datafield contains multipl
 The keyfield <FieldName> column contains <OrgUnitPaths>.
 The matchfield <FieldName> column contains data that may be used to select a subset of the rows in the CSV file.
 The datafield <FieldName> column selects data that will be used elsewhere in the command.
-<PythonRegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
+<RegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
 
 Selection: csvkmd ous_and_children|ous_and_child <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]]
 Note: <FileName> specifies a CSV file, <FieldName>, <FieldName> and <FieldName> are values in the first row that select specific columns.
 Yields: All Users in the Organizational Units and their sub units. 
@@ -355,7 +416,7 @@ The columns are separated by commas. If a keyfield or datafield contains multipl
 The keyfield <FieldName> column contains <OrgUnitPaths>.
 The matchfield <FieldName> column contains data that may be used to select a subset of the rows in the CSV file.
 The datafield <FieldName> column selects data that will be used elsewhere in the command.
-<PythonRegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
+<RegularExpression> is a Python regular expression, see: https://docs.python.org/2/library/re.html
 
 *****
 Second Form Organizational Units, ChromeOS Devices
@@ -373,7 +434,7 @@ You want to add them to the /Test Org Unit.
 	gam update orgs /Test add datafile cros CrOSList.txt
 
 Situation 2:
-You have a CSV file OUCrOSList.csv with these lines:
+You have a CSV file OrgCrOSList.csv with these lines:
 OU,CrOS
 /Test,xxxxxxxx-d6cc-40c7-b8b5-0ee760c9762d
 /Test,yyyyyyyy-8b4b-4baf-aea4-898bf8b4fe2e
@@ -381,12 +442,14 @@ OU,CrOS
 /Prod,yyyyyyyy-59cb-4b8f-82bc-986f9c808db2
 ...
 
-Example 1, add new devices to the /Test Org Unit:
-	gam update orgs /Test add csvkmd cros OUCrOSList.csv keyfield CrOS matchfield OU '/Test'
-Example 2, add new devices to the /Test Org Unit:
-	gam update orgs csvkmd OUCrOSList.csv keyfield OU matchfield OU '/Test' datafield CrOS add csvcros CrOS
-Example 3, add new devices to all of the Org Units.
-	gam update orgs csvkmd OUCrOSList.csv keyfield OU datafield CrOS cros add csvcros CrOS
+Example 1, add new devices to the /Test Org Unit.
+Method 1a: Specify the Org Unit directly, select the desired ChromeOS devices from the CSV file by specifying the keyfield and matchfield,
+	gam update orgs /Test add csvkmd cros OrgCrOSList.csv keyfield CrOS matchfield OU '/Test'
+Method 1b: Specify the Org Unit with the keyfield and matchfield, select the desired ChromeOS devices with the datafield.
+	gam update orgs csvkmd OrgCrOSList.csv keyfield OU matchfield OU '/Test' datafield CrOS add csvcros CrOS
+
+Example 2, add new devices to all of the Org Units.
+	gam update orgs csvkmd OrgCrOSList.csv keyfield OU datafield CrOS cros add csvcros CrOS
 
 *****
 Second Form Organizational Units, Users
@@ -404,7 +467,7 @@ You want to add them to the /Staff Org Unit.
 	gam update orgs /Staff add datafile user UserList.txt
 
 Situation 2:
-You have a CSV file OUUserList.csv with these lines:
+You have a CSV file OrgUserList.csv with these lines:
 OU,User
 /Staff,bob@example.com
 /Staff,carol@example.com
@@ -412,12 +475,14 @@ OU,User
 /Prod,alice@example.com
 ...
 
-Example 1, add new users to the /Test Org Unit:
-	gam update orgs /Test add csvkmd user OUUserList.csv keyfield User matchfield OU '/Test'
-Example 2, add new users to the /Test Org Unit:
-	gam update orgs csvkmd OUUserList.csv keyfield OU matchfield OU '/Test' datafield User add csvdata User
-Example 3, add new users to all of the Org Units.
-	gam update orgs csvkmd OUUserList.csv keyfield OU datafield User cros add csvdata User
+Example 1, add new users to the /Staff Org Unit. 
+Method 1a: Specify the Org Unit directly, select the desired Users from the CSV file by specifying the keyfield and matchfield,
+	gam update orgs /Staff add csvkmd user OrgUserList.csv keyfield User matchfield OU '/Staff
+Method 1b: Specify the Org Unit with the keyfield and matchfield, select the desired Users with the datafield.
+	gam update orgs csvkmd OrgUserList.csv keyfield OU matchfield OU '/Staff datafield User add csvdata User
+
+Example 2, add new users to all of the Org Units.
+	gam update orgs csvkmd OrgUserList.csv keyfield OU datafield User cros add csvdata User
 
 *****
 Second Form Groups
@@ -498,7 +563,7 @@ The gam print groups command can print all groups or those groups matching a que
 	gam print groups ... select <GroupEntity>
 
 For example, to print all groups listed in Group column of the CSV file Groups.csv, you would say:
-	gam print users select csvkmd Groups.csv keyfield Group
+	gam print users select csvfile Groups.csv:Group
 
 *****
 Third Form Group Members

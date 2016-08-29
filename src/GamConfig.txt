@@ -172,14 +172,14 @@ Section: DEFAULT
   charset = utf-8
   client_secrets_json = client_secrets.json ; /Users/admin/.gam/client_secrets.json
   config_dir = /Users/admin/.gam
-  customer_id = 
+  customer_id =
   debug_level = 0
   device_max_results = 500
-  domain = 
+  domain =
   drive_dir = /Users/admin/Downloads
   drive_max_results = 1000
   email_batch_size = 100
-  extra_args = 
+  extra_args =
   no_browser = false
   no_cache = false
   no_update_check = false
@@ -187,7 +187,7 @@ Section: DEFAULT
   num_threads = 5
   oauth2_txt = oauth2.txt ; /Users/admin/.gam/oauth2.txt
   oauth2service_json = oauth2service.json ; /Users/admin/.gam/oauth2service.json
-  section = 
+  section =
   show_counts_min = 1
   show_gettings = true
   user_max_results = 500
@@ -280,7 +280,7 @@ domain = main.com
 drive_dir = /Users/admin/Downloads
 drive_max_results = 1000
 email_batch_size = 100
-extra_args = 
+extra_args =
 no_browser = false
 no_cache = false
 no_update_check = false
@@ -288,7 +288,7 @@ no_verify_ssl = false
 num_threads = 5
 oauth2_txt = oauth2.txt
 oauth2service_json = oauth2service.json
-section = 
+section =
 show_counts_min = 1
 show_gettings = true
 user_max_results = 500
@@ -375,7 +375,7 @@ User: admin@main.com
 
 The gam csv command and the select argument can be combined to perform powerful operations in a single command line.
 
-Suppose you have the following CSV file, InfoAdmins.csv, 
+Suppose you have the following CSV file, InfoAdmins.csv:
 Section,AdminUser
 default,admin
 foo,fooadmin
@@ -412,7 +412,7 @@ The gam loop command and the select and redirect arguments can be combined to pe
 
 gam loop (-|<FileName>) [charset <CharSet>] [matchfield <FieldName> <PythonRegularExpression>] gam <GAM argument list>
 
-Suppose you have the following CSV file, InfoDomains.csv, 
+Suppose you have the following CSV file, InfoDomains.csv:
 Section,Domain,AdminUser
 foo,foo.com,googleadmin
 goo,goo.com,admin

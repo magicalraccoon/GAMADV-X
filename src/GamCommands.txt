@@ -1,4 +1,4 @@
-his document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
+This document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
 Items on the command line are space separated, when an actual space character is required, it will be indicated by <Space>.
 If an item contains spaces, it should be surrounded by " or '.
 
@@ -16,7 +16,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <String> ::= a string of characters, surrounded by " or ' if it contains spaces
 <TrueValues> ::= true|on|yes|enabled|1
 <FalseValues>= false|off|no|disabled|0
-<DataTransferService> ::= googleplus|google+|gplus|g+|googledrive|gdrive
+<DataTransferService> ::= googleplus|google+|gplus|g+|googledrive|gdrive|drive
 <ProductID> ::= Google-Apps|Google-Coordinate|Google-Drive-storage|Google-Vault
 <SKUID> ::= apps|gafb|gafw|gams|gau|unlimited|d4w|dfw|coordinate|vault|vfe|
 	    drive-20gb|drive20gb|20gb|drive-50gb|drive50gb|50gb|drive-200gb|drive200gb|200gb|drive-400gb|drive400gb|400gb|
@@ -390,15 +390,15 @@ If an item contains spaces, it should be surrounded by " or '.
 <CrOSTypeEntity> ::=
 		(all cros)|
 		(cros <CrOSList>)|
-		(crosfile <FileName> [charset <Charset>])|
-		(croscsvfile <FileName>:<FieldName> [charset <Charset>])|
+		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
+		(croscsvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
 		(cros_ou|cros_org <OrgUnitPath)|
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
 		(cros_ous|cros_orgs <OrgUnitList)|
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList)|
 		(args cros <Marker> <CrOSID>* <Marker>)|
-		(datafile cros <FileName> [charset <Charset>])|
+		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
 			[matchfield <FieldName> <RegularExpression>]
@@ -416,8 +416,8 @@ If an item contains spaces, it should be surrounded by " or '.
 		(courseparticipants <CourseID>)|
 		(students <CourseID>)|
 		(teachers <CourseID>)|
-		(file <FileName> [charset <Charset>])|
-		(csvfile <FileName>:<FieldName> [charset <Charset>])|
+		(file <FileName> [charset <Charset>] [delimiter <String>])|
+		(csvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)|
 		(groups <GroupList)|
@@ -427,7 +427,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(students <CourseIDList>)|
 		(teachers <CourseIDList>)|
 		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
-		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>])|
+		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
 			[matchfield <FieldName> <RegularExpression>]
