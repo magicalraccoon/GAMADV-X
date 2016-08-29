@@ -1103,6 +1103,8 @@ CL_ENTITY_SELECTOR_ALL_SUBTYPES_MAP = {
 # Allowed values for CL source selector args, datafile, csvkmd
 CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES = [
   CL_ENTITY_CROS,
+  CL_ENTITY_CROS_OUS,
+  CL_ENTITY_CROS_OUS_AND_CHILDREN,
   ]
 CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES = [
   CL_ENTITY_USERS,
@@ -1226,7 +1228,6 @@ CLEAR_NONE_ARGUMENT = [u'clear', u'none',]
 CLIENTID_ARGUMENT = [u'clientid',]
 DATAFIELD_ARGUMENT = [u'datafield',]
 DATA_ARGUMENT = [u'data',]
-DELIMITER_ARGUMENT = [u'delimiter',]
 FILE_ARGUMENT = [u'file',]
 FROM_ARGUMENT = [u'from',]
 IDFIRST_ARGUMENT = [u'idfirst',]
@@ -2664,9 +2665,14 @@ def getCalendarReminder(allowClearNone=False):
   missingChoiceExit(methods)
 
 def getCharSet():
-  if not checkArgumentPresent([u'charset',]):
-    return GC_Values.get(GC_CHARSET, GM_Globals[GM_SYS_ENCODING])
-  return getString(OB_CHAR_SET)
+  if checkArgumentPresent([u'charset',]):
+    return getString(OB_CHAR_SET)
+  return GC_Values.get(GC_CHARSET, GM_Globals[GM_SYS_ENCODING])
+
+def getDelimiter():
+  if checkArgumentPresent([u'delimiter',]):
+    return getString(OB_STRING)
+  return None
 
 def getMatchField(fieldNames):
   if not checkArgumentPresent([u'matchfield',]):
@@ -4920,24 +4926,39 @@ def getEntitiesFromArgs():
       entityList.append(item)
   return entityList
 
-# <FileName> [charset <String>]
-def getEntitiesFromFile():
+def splitEntityList(entity, dataDelimiter, shlexSplit):
+  if not entity:
+    return []
+  if not dataDelimiter:
+    return [entity,]
+  if not shlexSplit:
+    return entity.split(dataDelimiter)
+  import shlex
+  lexer = shlex.shlex(entity, posix=True)
+  lexer.whitespace = dataDelimiter
+  lexer.whitespace_split = True
+  return list(lexer)
+
+# <FileName> [charset <String>] [delimiter <String>]
+def getEntitiesFromFile(shlexSplit):
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
+  dataDelimiter = getDelimiter()
   entitySet = set()
   entityList = list()
   f = openFile(filename)
   uf = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   for row in uf:
-    item = row.strip()
-    if item and (item not in entitySet):
-      entitySet.add(item)
-      entityList.append(item)
+    for item in splitEntityList(row.strip(), dataDelimiter, shlexSplit):
+      item = item.strip()
+      if item and (item not in entitySet):
+        entitySet.add(item)
+        entityList.append(item)
   closeFile(f)
   return entityList
 
-# <FileName>:<FieldName> [charset <String>]
-def getEntitiesFromCSVFile():
+# <FileName>:<FieldName> [charset <String>] [delimiter <String>]
+def getEntitiesFromCSVFile(shlexSplit):
   try:
     (filename, fieldName) = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
   except ValueError:
@@ -4945,6 +4966,7 @@ def getEntitiesFromCSVFile():
   if (not filename) or (not fieldName):
     invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
   encoding = getCharSet()
+  dataDelimiter = getDelimiter()
   entitySet = set()
   entityList = list()
   f = openFile(filename)
@@ -4952,10 +4974,11 @@ def getEntitiesFromCSVFile():
   if fieldName not in csvFile.fieldnames:
     csvFieldErrorExit(fieldName, csvFile.fieldnames)
   for row in csvFile:
-    item = row[fieldName].strip()
-    if item and (item not in entitySet):
-      entitySet.add(item)
-      entityList.append(item)
+    for item in splitEntityList(row[fieldName].strip(), dataDelimiter, shlexSplit):
+      item = item.strip()
+      if item and (item not in entitySet):
+        entitySet.add(item)
+        entityList.append(item)
   closeFile(f)
   return entityList
 
@@ -4969,10 +4992,7 @@ def getEntitiesFromCSVbyField():
   keyField = GM_Globals[GM_CSV_KEY_FIELD] = getString(OB_FIELD_NAME)
   if keyField not in csvFile.fieldnames:
     csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
-  if checkArgumentPresent(DELIMITER_ARGUMENT):
-    keyDelimiter = getString(OB_STRING)
-  else:
-    keyDelimiter = None
+  keyDelimiter = getDelimiter()
   matchField, matchPattern = getMatchField(csvFile.fieldnames)
   if checkArgumentPresent(DATAFIELD_ARGUMENT):
     if GM_Globals[GM_CSV_DATA_DICT]:
@@ -4980,10 +5000,7 @@ def getEntitiesFromCSVbyField():
     GM_Globals[GM_CSV_DATA_FIELD] = getString(OB_FIELD_NAME)
     if GM_Globals[GM_CSV_DATA_FIELD] and (GM_Globals[GM_CSV_DATA_FIELD] not in csvFile.fieldnames):
       csvFieldErrorExit(GM_Globals[GM_CSV_DATA_FIELD], csvFile.fieldnames, backupArg=True)
-    if checkArgumentPresent(DELIMITER_ARGUMENT):
-      dataDelimiter = getString(OB_STRING)
-    else:
-      dataDelimiter = None
+    dataDelimiter = getDelimiter()
   else:
     GM_Globals[GM_CSV_DATA_FIELD] = None
     dataDelimiter = None
@@ -4997,10 +5014,7 @@ def getEntitiesFromCSVbyField():
       continue
     if matchField and ((matchField not in row) or (not matchPattern.search(row[matchField]))):
       continue
-    if keyDelimiter:
-      keyList = item.split(keyDelimiter)
-    else:
-      keyList = item.replace(u',', u' ').split()
+    keyList = splitEntityList(item, keyDelimiter, False)
     for keyValue in keyList:
       keyValue = keyValue.strip()
       if keyValue and (keyValue not in entitySet):
@@ -5009,11 +5023,8 @@ def getEntitiesFromCSVbyField():
         if GM_Globals[GM_CSV_DATA_FIELD]:
           csvDataKeys[keyValue] = set()
           GM_Globals[GM_CSV_DATA_DICT][keyValue] = list()
-    if GM_Globals[GM_CSV_DATA_FIELD] and (GM_Globals[GM_CSV_DATA_FIELD] in row) and row[GM_Globals[GM_CSV_DATA_FIELD]]:
-      if dataDelimiter:
-        dataList = row[GM_Globals[GM_CSV_DATA_FIELD]].split(dataDelimiter)
-      else:
-        dataList = row[GM_Globals[GM_CSV_DATA_FIELD]].replace(u',', u' ').split()
+    if GM_Globals[GM_CSV_DATA_FIELD] and GM_Globals[GM_CSV_DATA_FIELD] in row:
+      dataList = splitEntityList(row[GM_Globals[GM_CSV_DATA_FIELD]].strip(), dataDelimiter, False)
       for dataValue in dataList:
         dataValue = dataValue.strip()
         if not dataValue:
@@ -5059,25 +5070,25 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
     if userAllowed:
       if entitySelector == CL_ENTITY_SELECTOR_FILE:
         return (CL_ENTITY_USERS,
-                getUsersToModify(CL_ENTITY_USERS, getEntitiesFromFile()))
+                getUsersToModify(CL_ENTITY_USERS, getEntitiesFromFile(False)))
       if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE]:
         return (CL_ENTITY_USERS,
-                getUsersToModify(CL_ENTITY_USERS, getEntitiesFromCSVFile()))
+                getUsersToModify(CL_ENTITY_USERS, getEntitiesFromCSVFile(False)))
     if crosAllowed:
       if entitySelector == CL_ENTITY_SELECTOR_CROSFILE:
         return (CL_ENTITY_CROS,
-                getUsersToModify(CL_ENTITY_CROS, getEntitiesFromFile()))
+                getUsersToModify(CL_ENTITY_CROS, getEntitiesFromFile(False)))
       if entitySelector in [CL_ENTITY_SELECTOR_CROSCSV, CL_ENTITY_SELECTOR_CROSCSVFILE]:
         return (CL_ENTITY_CROS,
-                getUsersToModify(CL_ENTITY_CROS, getEntitiesFromCSVFile()))
+                getUsersToModify(CL_ENTITY_CROS, getEntitiesFromCSVFile(False)))
     if entitySelector == CL_ENTITY_SELECTOR_DATAFILE:
       if userAllowed:
         choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES[:]
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       entityType = mapEntityType(getChoice(choices), typeMap)
-      return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType != CL_ENTITY_CROS],
-              getUsersToModify(entityType, getEntitiesFromFile()))
+      return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType not in [CL_ENTITY_CROS, CL_ENTITY_CROS_OUS, CL_ENTITY_CROS_OUS_AND_CHILDREN]],
+              getUsersToModify(entityType, getEntitiesFromFile(shlexSplit=entityType in [CL_ENTITY_OUS, CL_ENTITY_OUS_AND_CHILDREN, CL_ENTITY_CROS_OUS, CL_ENTITY_CROS_OUS_AND_CHILDREN])))
     if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
       if userAllowed:
         choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES[:]
@@ -5119,9 +5130,9 @@ def getEntityList(item, listOptional=False, shlexSplit=False):
   entitySelector = getChoice(selectorChoices, defaultChoice=None)
   if entitySelector:
     if entitySelector in [CL_ENTITY_SELECTOR_FILE, CL_ENTITY_SELECTOR_CROSFILE]:
-      return getEntitiesFromFile()
+      return getEntitiesFromFile(shlexSplit)
     if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE, CL_ENTITY_SELECTOR_CROSCSV, CL_ENTITY_SELECTOR_CROSCSVFILE]:
-      return getEntitiesFromCSVFile()
+      return getEntitiesFromCSVFile(shlexSplit)
     if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
       return getEntitiesFromCSVbyField()
     if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA, CL_ENTITY_SELECTOR_CSVCROS]:
@@ -5558,10 +5569,7 @@ def doList(entityList, entityType):
     addTitleToCSVfile(dataField, titles)
   else:
     entityItemLists = None
-  if checkArgumentPresent(DELIMITER_ARGUMENT):
-    dataDelimiter = getString(OB_STRING)
-  else:
-    dataDelimiter = None
+  dataDelimiter = getDelimiter()
   checkForExtraneousArguments()
   for entity in entityList:
     entityEmail = normalizeEmailAddressOrUID(entity)
