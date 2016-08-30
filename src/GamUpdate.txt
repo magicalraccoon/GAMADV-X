@@ -687,6 +687,28 @@ gam delete guardian|guardians <GuardianID <UserItem>
 gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 
+4.19.04
+
+104) When specifying a flat file or CSV file as the source of a list of items, you can specify a delimiter so that multiple values can be
+obtained from a single row of a flat file or a single column of a CSV file.
+file <FileName> [charset <CharSet>] [delimiter <String>]
+csvfile <FileName>:<FieldName> [charset <CharSet>] [delimiter <String>]
+Suppose you have a program that queries a database to get the email addresses for all families at your school; there is one file per grade,
+one row per family and multiple email addresses per row separated by spaces. For example, here is SecondGrade.txt
+momfamily1@domain.com dadfamily1@domain.com
+momfamily2@domain.com dadfamily2@domain.com
+momfamily3@domain.com
+...
+The specification: file SecondGrade.txt delimiter ' '
+would produce the list:
+momfamily1@domain.com
+dadfamily1@domain.com
+momfamily2@domain.com
+dadfamily2@domain.com
+momfamily3@domain.com
+...
+
+	 
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.
