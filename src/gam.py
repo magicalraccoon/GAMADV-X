@@ -14994,7 +14994,7 @@ def doCourseSyncParticipants(courseIdList, getEntityListArg):
       batchAddParticipantsToCourse(croom, courseId, i, count, list(syncParticipantsSet-currentParticipantsSet), role)
       batchRemoveParticipantsFromCourse(croom, courseId, i, count, list(currentParticipantsSet-syncParticipantsSet), role)
 
-# gam print course-participants [todrive] [course|class <CourseID>] [teacher <UserItem>] [student <UserItem>] [show all|students|teachers]
+# gam print course-participants [todrive] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
 def doPrintCourseParticipants():
 
   def _saveParticipants(participants, role):
