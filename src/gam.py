@@ -20890,6 +20890,8 @@ def getSendAsAttributes(myarg, body, tagReplacements):
     body[u'displayName'] = getString(OB_NAME)
   elif myarg == u'replyto':
     body[u'replyToAddress'] = getEmailAddress(noUid=True)
+  elif myarg == u'default':
+    body[u'isDefault'] = True
   elif myarg == u'treatasalias':
     body[u'treatAsAlias'] = getBoolean()
   else:
@@ -20920,8 +20922,6 @@ def addUpdateSendAs(users, addCmd):
         signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
       else:
         signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
-    elif myarg == u'default':
-      body[u'isDefault'] = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature != None:
@@ -21057,7 +21057,7 @@ def setShortCuts(users):
     if result:
       printEntityItemValue(EN_USER, user, EN_KEYBOARD_SHORTCUTS_ENABLED, result[u'shortcuts'], i, count)
 
-# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [name <String>] [replyto <EmailAddress>] [treatasalias <Boolean>]
+# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [name <String>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 def setSignature(users):
   tagReplacements = {}
   if checkArgumentPresent(FILE_ARGUMENT):
