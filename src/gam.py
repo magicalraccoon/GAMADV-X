@@ -5222,7 +5222,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
                                dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL)
   try:
     if GM_Globals[GM_CSVFILE_WRITE_HEADER]:
-      writer.writeheader()
+      writer.writerow(dict((item, item) for item in writer.fieldnames))
       if GM_Globals[GM_CSVFILE_MODE] == u'ab':
         GM_Globals[GM_CSVFILE_WRITE_HEADER] = False
     writer.writerows(csvRows)
