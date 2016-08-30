@@ -1067,6 +1067,7 @@ CL_ENTITY_SELECTOR_CSVDATA = u'csvdata'
 CL_ENTITY_SELECTOR_CSVCROS = u'csvcros'
 #
 CL_CROS_ENTITY_SELECTORS = [
+  CL_ENTITY_SELECTOR_CROSCSV,
   CL_ENTITY_SELECTOR_CROSCSVFILE,
   CL_ENTITY_SELECTOR_CROSFILE,
   ]
@@ -5123,19 +5124,19 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
   invalidChoiceExit(selectorChoices+entityChoices)
 
 def getEntityList(item, listOptional=False, shlexSplit=False):
-  selectorChoices = CL_ENTITY_SELECTORS+CL_CROS_ENTITY_SELECTORS
+  selectorChoices = CL_ENTITY_SELECTORS
   selectorChoices.remove(CL_ENTITY_SELECTOR_ALL)
+  selectorChoices.remove(CL_ENTITY_SELECTOR_DATAFILE)
   selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
-  selectorChoices += CL_CSVCROS_ENTITY_SELECTORS
   entitySelector = getChoice(selectorChoices, defaultChoice=None)
   if entitySelector:
-    if entitySelector in [CL_ENTITY_SELECTOR_FILE, CL_ENTITY_SELECTOR_CROSFILE]:
+    if entitySelector in [CL_ENTITY_SELECTOR_FILE]:
       return getEntitiesFromFile(shlexSplit)
-    if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE, CL_ENTITY_SELECTOR_CROSCSV, CL_ENTITY_SELECTOR_CROSCSVFILE]:
+    if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE]:
       return getEntitiesFromCSVFile(shlexSplit)
     if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
       return getEntitiesFromCSVbyField()
-    if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA, CL_ENTITY_SELECTOR_CSVCROS]:
+    if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
       if not GM_Globals[GM_CSV_DATA_DICT]:
         csvNoDataErrorExit()
       chkDataField = getString(OB_FIELD_NAME)
