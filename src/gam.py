@@ -14036,7 +14036,6 @@ def infoUsers(entityList):
       if getLicenses:
         lic = buildGAPIObject(GAPI_LICENSING_API)
         licenses = []
-        badUser = False
         for skuId in skus:
           try:
             result = callGAPI(lic.licenseAssignments(), u'get',
@@ -14048,10 +14047,8 @@ def infoUsers(entityList):
             continue
           except (GAPI_userNotFound, GAPI_forbidden):
             entityUnknownWarning(EN_USER, userEmail, i, count)
-            badUser = True
             break
-        if badUser:
-          break
+        badUser = False
         for productId in products:
           for skuId in GOOGLE_SKUS:
             if GOOGLE_SKUS[skuId] == productId:
