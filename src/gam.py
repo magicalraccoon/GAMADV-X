@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.19.04'
+__version__ = u'4.19.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -2066,12 +2066,12 @@ def getColorHexAttribute():
     invalidArgumentExit(COLORHEX_FORMAT_REQUIRED)
   missingArgumentExit(COLORHEX_FORMAT_REQUIRED)
 
-def cleanCourseId(courseId):
+def removeCourseIdScope(courseId):
   if courseId.startswith(u'd:'):
     return courseId[2:]
   return courseId
 
-def normalizeCourseId(courseId):
+def addCourseIdScope(courseId):
   if not courseId.isdigit() and courseId[:2] != u'd:':
     return u'd:{0}'.format(courseId)
   return courseId
@@ -2082,7 +2082,7 @@ def getCourseId():
     courseId = CL_argv[CL_argvI]
     if courseId:
       CL_argvI += 1
-      return normalizeCourseId(courseId)
+      return addCourseIdScope(courseId)
   missingArgumentExit(OB_COURSE_ID)
 
 def getCourseAlias():
@@ -4792,10 +4792,10 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
     courses = convertEntityToList(entity)
     for course in courses:
-      courseId = normalizeCourseId(course)
+      courseId = addCourseIdScope(course)
       try:
         if entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS]:
-          printGettingAllEntityItemsForWhom(EN_TEACHER, cleanCourseId(courseId), entityType=EN_COURSE)
+          printGettingAllEntityItemsForWhom(EN_TEACHER, removeCourseIdScope(courseId), entityType=EN_COURSE)
           page_message = getPageMessageForWhom(noNL=True)
           teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
                                    page_message=page_message,
@@ -4807,7 +4807,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
               usersSet.add(email)
               usersList.append(email)
         if entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_STUDENTS]:
-          printGettingAllEntityItemsForWhom(EN_STUDENT, cleanCourseId(courseId), entityType=EN_COURSE)
+          printGettingAllEntityItemsForWhom(EN_STUDENT, removeCourseIdScope(courseId), entityType=EN_COURSE)
           page_message = getPageMessageForWhom(noNL=True)
           students = callGAPIpages(croom.courses().students(), u'list', u'students',
                                    page_message=page_message,
@@ -4819,7 +4819,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
               usersSet.add(email)
               usersList.append(email)
       except GAPI_notFound:
-        entityDoesNotExistWarning(EN_COURSE, cleanCourseId(courseId))
+        entityDoesNotExistWarning(EN_COURSE, removeCourseIdScope(courseId))
         doNotExist += 1
       except (GAPI_forbidden, GAPI_badRequest):
         APIAccessDeniedExit()
@@ -12035,10 +12035,11 @@ def doPrintGroupMembers():
       csvRows.append(member_attr)
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
-# gam print licenses [todrive] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
+# gam print licenses [todrive] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [GOOGLE_APPS_PRODUCT, GOOGLE_VAULT_PRODUCT]
+  skus = []
   licenses = []
   todrive = False
   titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId'])
@@ -12049,32 +12050,32 @@ def doPrintLicenses(return_list=False, skus=None):
         todrive = True
       elif myarg in [u'products', u'product']:
         products = getGoogleProductListMap()
+        skus = []
       elif myarg in [u'sku', u'skus']:
         skus = getGoogleSKUListMap()
+        products = []
       else:
         unknownArgumentExit()
-  if skus:
-    for sku in skus:
-      setGettingEntityItem(EN_LICENSE)
-      page_message = getPageMessageForWhom(forWhom=sku)
-      try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
-                                  page_message=page_message,
-                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[sku], skuId=sku, fields=u'nextPageToken,items(productId,skuId,userId)')
-      except (GAPI_invalid, GAPI_forbidden):
-        pass
-  else:
-    for productId in products:
-      setGettingEntityItem(EN_LICENSE)
-      page_message = getPageMessageForWhom(forWhom=productId)
-      try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
-                                  page_message=page_message,
-                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
-      except (GAPI_invalid, GAPI_forbidden):
-        pass
+  for sku in skus:
+    setGettingEntityItem(EN_LICENSE)
+    page_message = getPageMessageForWhom(forWhom=sku)
+    try:
+      licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
+                                page_message=page_message,
+                                throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                                customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[sku], skuId=sku, fields=u'nextPageToken,items(productId,skuId,userId)')
+    except (GAPI_invalid, GAPI_forbidden):
+      pass
+  for productId in products:
+    setGettingEntityItem(EN_LICENSE)
+    page_message = getPageMessageForWhom(forWhom=productId)
+    try:
+      licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
+                                page_message=page_message,
+                                throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                                customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
+    except (GAPI_invalid, GAPI_forbidden):
+      pass
   for u_license in licenses:
     a_license = {}
     for title in u_license:
@@ -13799,11 +13800,11 @@ USER_ARGUMENT_TO_PROPERTY_MAP = {
 
 INFO_USER_OPTIONS = [u'noaliases', u'nogroups', u'nolicenses', u'nolicences', u'noschemas', u'schemas', u'userview',]
 
-# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
+# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 def doInfoUsers():
   infoUsers(getEntityToModify(defaultEntityType=CL_ENTITY_USERS)[1])
 
-# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [skus|sku <SKUIDList>]
+# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
 # gam info user
 def doInfoUser():
   if CL_argvI < CL_argvLen:
@@ -13818,6 +13819,7 @@ def infoUsers(entityList):
   projection = u'full'
   customFieldMask = viewType = None
   fieldsList = []
+  products = []
   skus = sorted(GOOGLE_USER_SKUS)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -13827,8 +13829,12 @@ def infoUsers(entityList):
       getGroups = False
     elif myarg in [u'nolicenses', u'nolicences']:
       getLicenses = False
+    elif myarg in [u'products', u'product']:
+      products = getGoogleProductListMap()
+      skus = []
     elif myarg in [u'sku', u'skus']:
       skus = getGoogleSKUListMap()
+      products = []
     elif myarg == u'noschemas':
       getSchemas = False
       projection = u'basic'
@@ -14030,6 +14036,7 @@ def infoUsers(entityList):
       if getLicenses:
         lic = buildGAPIObject(GAPI_LICENSING_API)
         licenses = []
+        badUser = False
         for skuId in skus:
           try:
             result = callGAPI(lic.licenseAssignments(), u'get',
@@ -14041,6 +14048,26 @@ def infoUsers(entityList):
             continue
           except (GAPI_userNotFound, GAPI_forbidden):
             entityUnknownWarning(EN_USER, userEmail, i, count)
+            badUser = True
+            break
+        if badUser:
+          break
+        for productId in products:
+          for skuId in GOOGLE_SKUS:
+            if GOOGLE_SKUS[skuId] == productId:
+              try:
+                result = callGAPI(lic.licenseAssignments(), u'get',
+                                  throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
+                                  userId=user[u'primaryEmail'], productId=productId, skuId=skuId)
+                if result:
+                  licenses.append(result[u'skuId'])
+              except GAPI_notFound:
+                continue
+              except (GAPI_userNotFound, GAPI_forbidden):
+                entityUnknownWarning(EN_USER, userEmail, i, count)
+                badUser = True
+                break
+          if badUser:
             break
         if len(licenses) > 0:
           printKeyValueList([u'Licenses', u''])
@@ -14555,7 +14582,7 @@ def doCreateCourse():
                       body=body)
     entityItemValueActionPerformed(EN_COURSE, result[u'name'], EN_COURSE_ID, result[u'id'])
   except GAPI_alreadyExists:
-    entityItemValueActionFailedWarning(EN_COURSE, body[u'name'], EN_COURSE_ALIAS, cleanCourseId(body[u'id']), PHRASE_DUPLICATE)
+    entityItemValueActionFailedWarning(EN_COURSE, body[u'name'], EN_COURSE_ALIAS, removeCourseIdScope(body[u'id']), PHRASE_DUPLICATE)
   except GAPI_notFound:
     entityItemValueActionFailedWarning(EN_COURSE, body[u'name'], EN_TEACHER, body[u'ownerId'], PHRASE_DOES_NOT_EXIST)
   except (GAPI_permissionDenied, GAPI_forbidden):
@@ -14580,16 +14607,16 @@ def updateCourses(entityList):
   count = len(entityList)
   for course in entityList:
     i += 1
-    body[u'id'] = normalizeCourseId(course)
+    body[u'id'] = addCourseIdScope(course)
     try:
       result = callGAPI(croom.courses(), u'patch',
                         throw_reasons=[GAPI_NOT_FOUND, GAPI_PERMISSION_DENIED],
                         id=body[u'id'], body=body, updateMask=updateMask)
       entityActionPerformed(EN_COURSE, result[u'id'], i, count)
     except GAPI_notFound:
-      entityActionFailedWarning(EN_COURSE, cleanCourseId(body[u'id']), PHRASE_DOES_NOT_EXIST, i, count)
+      entityActionFailedWarning(EN_COURSE, removeCourseIdScope(body[u'id']), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_permissionDenied:
-      entityActionFailedWarning(EN_COURSE, cleanCourseId(body[u'id']), PHRASE_NOT_ALLOWED, i, count)
+      entityActionFailedWarning(EN_COURSE, removeCourseIdScope(body[u'id']), PHRASE_NOT_ALLOWED, i, count)
 
 # gam delete courses <CourseEntity>
 def doDeleteCourses():
@@ -14606,16 +14633,16 @@ def deleteCourses(entityList):
   count = len(entityList)
   for course in entityList:
     i += 1
-    courseId = normalizeCourseId(course)
+    courseId = addCourseIdScope(course)
     try:
       callGAPI(croom.courses(), u'delete',
                throw_reasons=[GAPI_NOT_FOUND, GAPI_PERMISSION_DENIED],
                id=courseId)
-      entityActionPerformed(EN_COURSE, cleanCourseId(courseId), i, count)
+      entityActionPerformed(EN_COURSE, removeCourseIdScope(courseId), i, count)
     except GAPI_notFound:
-      entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
+      entityActionFailedWarning(EN_COURSE, removeCourseIdScope(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_permissionDenied:
-      entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_NOT_ALLOWED, i, count)
+      entityActionFailedWarning(EN_COURSE, removeCourseIdScope(courseId), PHRASE_NOT_ALLOWED, i, count)
 
 # gam info courses <CourseEntity>
 def doInfoCourses():
@@ -14632,7 +14659,7 @@ def infoCourses(entityList):
   count = len(entityList)
   for course in entityList:
     i += 1
-    courseId = normalizeCourseId(course)
+    courseId = addCourseIdScope(course)
     try:
       result = callGAPI(croom.courses(), u'get',
                         throw_reasons=[GAPI_NOT_FOUND],
@@ -14647,7 +14674,7 @@ def infoCourses(entityList):
         printKeyValueList([u'Aliases', u''])
         incrementIndentLevel()
         for alias in aliases:
-          printKeyValueList([cleanCourseId(alias[u'alias'])])
+          printKeyValueList([removeCourseIdScope(alias[u'alias'])])
         decrementIndentLevel()
       except GAPI_notImplemented:
         pass
@@ -14680,7 +14707,7 @@ def infoCourses(entityList):
       decrementIndentLevel()
       decrementIndentLevel()
     except GAPI_notFound:
-      entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
+      entityActionFailedWarning(EN_COURSE, removeCourseIdScope(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     except GAPI_forbidden:
       APIAccessDeniedExit()
 
@@ -14734,21 +14761,21 @@ def doPrintCourses():
     for course in csvRows:
       i += 1
       courseId = course[u'id']
-      printGettingAllEntityItemsForWhom(EN_ALIAS, entityTypeName(EN_COURSE, cleanCourseId(courseId)), i, count)
+      printGettingAllEntityItemsForWhom(EN_ALIAS, entityTypeName(EN_COURSE, removeCourseIdScope(courseId)), i, count)
       course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
                                      courseId=courseId)
-      course[u'Aliases'] = aliasesDelimiter.join([cleanCourseId(alias[u'alias']) for alias in course_aliases])
+      course[u'Aliases'] = aliasesDelimiter.join([removeCourseIdScope(alias[u'alias']) for alias in course_aliases])
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):
-  courseId = normalizeCourseId(courseId)
+  courseId = addCourseIdScope(courseId)
   try:
     result = callGAPI(croom.courses(), u'get',
                       throw_reasons=[GAPI_NOT_FOUND],
                       id=courseId)
     return result[u'id']
   except GAPI_notFound:
-    entityActionFailedWarning(EN_COURSE, cleanCourseId(courseId), PHRASE_DOES_NOT_EXIST, i, count)
+    entityActionFailedWarning(EN_COURSE, removeCourseIdScope(courseId), PHRASE_DOES_NOT_EXIST, i, count)
     return None
 
 def callbackAddParticipantsToCourse(request_id, response, exception):
@@ -14776,8 +14803,8 @@ def batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, rol
     attribute = u'alias'
   setActionName(AC_ADD)
   jcount = len(addParticipants)
-  courseIdClean = cleanCourseId(courseId)
-  entityPerformActionNumItems(EN_COURSE, courseIdClean, jcount, role, i, count)
+  noScopeCourseId = removeCourseIdScope(courseId)
+  entityPerformActionNumItems(EN_COURSE, noScopeCourseId, jcount, role, i, count)
   incrementIndentLevel()
   bcount = 0
   bsize = GC_Values[GC_BATCH_SIZE]
@@ -14790,11 +14817,11 @@ def batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, rol
     if role != EN_COURSE_ALIAS:
       cleanItem = body[attribute] = normalizeEmailAddressOrUID(participant)
     else:
-      body[attribute] = normalizeCourseId(participant)
-      cleanItem = cleanCourseId(body[attribute])
+      body[attribute] = addCourseIdScope(participant)
+      cleanItem = removeCourseIdScope(body[attribute])
     if bsize > 1:
       parameters = dict([(u'courseId', courseId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(service.create(**parameters), request_id=batchRequestID(courseIdClean, i, count, j, jcount, cleanItem, role))
+      dbatch.add(service.create(**parameters), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
       bcount += 1
       if bcount == bsize:
         dbatch.execute()
@@ -14805,13 +14832,13 @@ def batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, rol
         callGAPI(service, u'create',
                  throw_reasons=[GAPI_ALREADY_EXISTS, GAPI_FAILED_PRECONDITION, GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BACKEND_ERROR],
                  courseId=courseId, body=body)
-        entityItemValueActionPerformed(EN_COURSE, courseIdClean, role, cleanItem, j, jcount)
+        entityItemValueActionPerformed(EN_COURSE, noScopeCourseId, role, cleanItem, j, jcount)
       except GAPI_alreadyExists:
-        entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, PHRASE_DUPLICATE, j, jcount)
+        entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, PHRASE_DUPLICATE, j, jcount)
       except GAPI_failedPrecondition:
-        entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, PHRASE_NOT_ALLOWED, j, jcount)
+        entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, PHRASE_NOT_ALLOWED, j, jcount)
       except (GAPI_notFound, GAPI_forbidden, GAPI_backendError):
-        entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, getPhraseDNEorSNA(cleanItem), j, jcount)
+        entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, getPhraseDNEorSNA(cleanItem), j, jcount)
   if bcount > 0:
     dbatch.execute()
   decrementIndentLevel()
@@ -14843,8 +14870,8 @@ def batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticipa
     attribute = u'alias'
   setActionName(AC_REMOVE)
   jcount = len(removeParticipants)
-  courseIdClean = cleanCourseId(courseId)
-  entityPerformActionNumItems(EN_COURSE, courseIdClean, jcount, role, i, count)
+  noScopeCourseId = removeCourseIdScope(courseId)
+  entityPerformActionNumItems(EN_COURSE, noScopeCourseId, jcount, role, i, count)
   incrementIndentLevel()
   bcount = 0
   bsize = GC_Values[GC_BATCH_SIZE]
@@ -14857,11 +14884,11 @@ def batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticipa
     if role != EN_COURSE_ALIAS:
       cleanItem = kwargs[attribute] = normalizeEmailAddressOrUID(participant)
     else:
-      kwargs[attribute] = normalizeCourseId(participant)
-      cleanItem = cleanCourseId(kwargs[attribute])
+      kwargs[attribute] = addCourseIdScope(participant)
+      cleanItem = removeCourseIdScope(kwargs[attribute])
     if bsize > 1:
       parameters = dict([(u'courseId', courseId)]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(service.delete(**parameters), request_id=batchRequestID(courseIdClean, i, count, j, jcount, cleanItem, role))
+      dbatch.add(service.delete(**parameters), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
       bcount += 1
       if bcount == GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
@@ -14872,14 +14899,14 @@ def batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticipa
         callGAPI(service, u'delete',
                  throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BACKEND_ERROR],
                  courseId=courseId, **kwargs)
-        entityItemValueActionPerformed(EN_COURSE, courseIdClean, role, cleanItem, j, jcount)
+        entityItemValueActionPerformed(EN_COURSE, noScopeCourseId, role, cleanItem, j, jcount)
       except GAPI_notFound:
         if role != EN_COURSE_ALIAS:
-          entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, u'{0} {1}'.format(PHRASE_NOT_A, singularEntityName(EN_PARTICIPANT)), j, jcount)
+          entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, u'{0} {1}'.format(PHRASE_NOT_A, singularEntityName(EN_PARTICIPANT)), j, jcount)
         else:
-          entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, PHRASE_DOES_NOT_EXIST, j, jcount)
+          entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_forbidden, GAPI_backendError):
-        entityItemValueActionFailedWarning(EN_COURSE, courseIdClean, role, cleanItem, getPhraseDNEorSNA(cleanItem), j, jcount)
+        entityItemValueActionFailedWarning(EN_COURSE, noScopeCourseId, role, cleanItem, getPhraseDNEorSNA(cleanItem), j, jcount)
   if bcount > 0:
     dbatch.execute()
   decrementIndentLevel()
@@ -15045,7 +15072,7 @@ def doPrintCourseParticipants():
   else:
     all_courses = []
     for course in courses:
-      courseId = normalizeCourseId(course)
+      courseId = addCourseIdScope(course)
       try:
         info = callGAPI(croom.courses(), u'get',
                         throw_reasons=[GAPI_NOT_FOUND],

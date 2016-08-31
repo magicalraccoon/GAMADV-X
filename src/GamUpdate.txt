@@ -708,6 +708,11 @@ dadfamily2@domain.com
 momfamily3@domain.com
 ...
 
+4.19.05
+
+105) Added products <ProductIDList> argument to gam info user <User> so that licenses for desired products can be shown.
+You can specify products or skus but not both.
+gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 	 
 *** Calendar Enhancements ***
 
