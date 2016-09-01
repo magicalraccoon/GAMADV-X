@@ -11925,6 +11925,7 @@ MEMBERS_FIELD_NAMES_MAP = {
   u'id': u'id',
   u'name': u'name',
   u'role': u'role',
+  u'status': u'status',
   u'type': u'type',
   u'useremail': u'email',
   }
@@ -12001,7 +12002,7 @@ def doPrintGroupMembers():
       else:
         accessErrorExit(cd)
   if not fieldsList:
-    for field in [u'id', u'role', u'group', u'email', u'type']:
+    for field in [u'id', u'role', u'group', u'email', u'type', u'status']:
       addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
     if membernames:
       addTitlesToCSVfile([u'name'], titles)
