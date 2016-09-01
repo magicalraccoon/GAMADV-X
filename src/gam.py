@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.19.06'
+__version__ = u'4.19.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -7138,8 +7138,8 @@ def updateOrgs(entityList):
           entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_USER, user, PHRASE_SERVICE_NOT_APPLICABLE, j, jcount)
         except GAPI_invalid as e:
           entityItemValueActionFailedWarning(EN_ORGANIZATIONAL_UNIT, orgUnitPath, EN_USER, user, e.message, j, jcount)
-      if bcount > 0:
-        dbatch.execute()
+    if bcount > 0:
+      dbatch.execute()
     decrementIndentLevel()
 
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
