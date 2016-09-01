@@ -12059,7 +12059,6 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [GOOGLE_APPS_PRODUCT, GOOGLE_VAULT_PRODUCT]
-  skus = []
   licenses = []
   todrive = False
   titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId'])
@@ -12076,26 +12075,28 @@ def doPrintLicenses(return_list=False, skus=None):
         products = []
       else:
         unknownArgumentExit()
-  for sku in skus:
-    setGettingEntityItem(EN_LICENSE)
-    page_message = getPageMessageForWhom(forWhom=sku)
-    try:
-      licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[sku], skuId=sku, fields=u'nextPageToken,items(productId,skuId,userId)')
-    except (GAPI_invalid, GAPI_forbidden):
-      pass
-  for productId in products:
-    setGettingEntityItem(EN_LICENSE)
-    page_message = getPageMessageForWhom(forWhom=productId)
-    try:
-      licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
-    except (GAPI_invalid, GAPI_forbidden):
-      pass
+  if skus:
+    for skuId in skus:
+      setGettingEntityItem(EN_LICENSE)
+      page_message = getPageMessageForWhom(forWhom=skuId)
+      try:
+        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
+                                  page_message=page_message,
+                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                                  customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'nextPageToken,items(productId,skuId,userId)')
+      except (GAPI_invalid, GAPI_forbidden):
+        pass
+  else:
+    for productId in products:
+      setGettingEntityItem(EN_LICENSE)
+      page_message = getPageMessageForWhom(forWhom=productId)
+      try:
+        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
+                                  page_message=page_message,
+                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                                  customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
+      except (GAPI_invalid, GAPI_forbidden):
+        pass
   for u_license in licenses:
     a_license = {}
     for title in u_license:
