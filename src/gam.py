@@ -4983,7 +4983,7 @@ def getEntitiesFromCSVFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <PythonRegularExpression>] [datafield <FieldName> [delimiter <String>]]
+# <FileName> [charset <String>] keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <RegularExpression>] [datafield <FieldName> [delimiter <String>]]
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
@@ -5533,7 +5533,7 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
-# gam csv <FileName>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] gam <GAM argument list>
+# gam csv <FileName>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
 def doCSV():
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -13840,7 +13840,6 @@ def infoUsers(entityList):
   projection = u'full'
   customFieldMask = viewType = None
   fieldsList = []
-  products = []
   skus = sorted(GOOGLE_USER_SKUS)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -13851,11 +13850,11 @@ def infoUsers(entityList):
     elif myarg in [u'nolicenses', u'nolicences']:
       getLicenses = False
     elif myarg in [u'products', u'product']:
-      products = getGoogleProductListMap()
       skus = []
+      for productId in getGoogleProductListMap():
+        skus += [skuId for skuId in GOOGLE_SKUS if GOOGLE_SKUS[skuId] == productId]
     elif myarg in [u'sku', u'skus']:
       skus = getGoogleSKUListMap()
-      products = []
     elif myarg == u'noschemas':
       getSchemas = False
       projection = u'basic'
@@ -14068,24 +14067,6 @@ def infoUsers(entityList):
             continue
           except (GAPI_userNotFound, GAPI_forbidden):
             entityUnknownWarning(EN_USER, userEmail, i, count)
-            break
-        badUser = False
-        for productId in products:
-          for skuId in GOOGLE_SKUS:
-            if GOOGLE_SKUS[skuId] == productId:
-              try:
-                result = callGAPI(lic.licenseAssignments(), u'get',
-                                  throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
-                                  userId=user[u'primaryEmail'], productId=productId, skuId=skuId)
-                if result:
-                  licenses.append(result[u'skuId'])
-              except GAPI_notFound:
-                continue
-              except (GAPI_userNotFound, GAPI_forbidden):
-                entityUnknownWarning(EN_USER, userEmail, i, count)
-                badUser = True
-                break
-          if badUser:
             break
         if len(licenses) > 0:
           printKeyValueList([u'Licenses', u''])
@@ -19029,7 +19010,7 @@ def updateLabelSettings(users):
 LABEL_TYPE_SYSTEM = u'system'
 LABEL_TYPE_USER = u'user'
 
-# gam <UserTypeEntity> update label|labels [search <PythonRegularExpression>] [replace <LabelReplacement>] [merge]
+# gam <UserTypeEntity> update label|labels [search <RegularExpression>] [replace <LabelReplacement>] [merge]
 #	search defaults to '^Inbox/(.*)$' which will find all labels in the Inbox
 #	replace defaults to '%s'
 def updateLabels(users):
@@ -19111,7 +19092,7 @@ def updateLabels(users):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<PythonRegularExpression>
+# gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<RegularExpression>
 def deleteLabel(users):
   def _handleProcessGmailError(exception, ri):
     http_status, reason, message = checkGAPIError(exception)
@@ -22337,7 +22318,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
     sys.stderr = savedStderr
   return GM_Globals[GM_SYSEXITRC]
 
-# gam loop <FileName>|- [charset <String>] [matchfield <FieldName> <PythonRegularExpression>] gam <GAM argument list>
+# gam loop <FileName>|- [charset <String>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
 def doLoop(processGamCfg=True):
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
