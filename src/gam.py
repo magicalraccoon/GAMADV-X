@@ -12034,25 +12034,24 @@ def doPrintGroupMembers():
       for title in fieldsList:
         member_attr[title] = member[title]
       if membernames:
-        if member[u'type'] == u'USER':
+        member_attr[u'name'] = u'Unknown'
+        memberType = member.get(u'type')
+        if memberType == u'USER':
           try:
             mbinfo = callGAPI(cd.users(), u'get',
                               throw_reasons=GAPI_USER_GET_THROW_REASONS,
                               userKey=member[u'id'], fields=u'name')
-            memberName = mbinfo[u'name'][u'fullName']
+            member_attr[u'name'] = mbinfo[u'name'][u'fullName']
           except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
-            memberName = u'Unknown'
-        elif member[u'type'] == u'GROUP':
+            pass
+        elif memberType == u'GROUP':
           try:
             mbinfo = callGAPI(cd.groups(), u'get',
                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                               groupKey=member[u'id'], fields=u'name')
-            memberName = mbinfo[u'name']
+            member_attr[u'name'] = mbinfo[u'name']
           except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
-            memberName = u'Unknown'
-        else:
-          memberName = u'Unknown'
-        member_attr[u'name'] = memberName
+            pass
       csvRows.append(member_attr)
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
