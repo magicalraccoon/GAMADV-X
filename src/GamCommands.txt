@@ -407,7 +407,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(all cros)|
 		(cros <CrOSList>)|
 		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
-		(croscsvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
 		(cros_ou|cros_org <OrgUnitPath)|
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
@@ -433,7 +433,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvfile <FileName>:<FieldName> [charset <Charset>] [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)|
 		(groups <GroupList)|
@@ -454,7 +454,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
 <CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <RegularExpression>] [datafield <FieldName> [delimiter <String>]]
 <CSVDataSelector> ::= csvdata <FieldName>
-<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>:<FieldName> [charset <Charset>])
+<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>])
 
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>

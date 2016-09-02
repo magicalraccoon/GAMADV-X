@@ -722,6 +722,16 @@ An argument containing instances of ~~xxx~~ has xxx replaced by the value of fie
 An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
 For example, ~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~ would replace foo@bar.com (from the primaryEmail column) with foo AT bar.com
 
+4.20.00
+
+107) The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+. This allows you to gather data
+from several columns; the columns do not have to be contiguous. Given the file FourUsers.csv:
+UserA,UserB,UserC,UserD
+user1a@bar.com,user1b@bar.com,user1c@bar.com,user1d@bar.com
+user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
+...
+gam update group group@bar.com sync members csvfile FourUsers.csv:UserA:UserB:UserC:UserD
+
 *** Calendar Enhancements ***
 
 00) Add additional commands to manage calendar events.

@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.19.07'
+__version__ = u'4.20.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -659,7 +659,7 @@ OB_EVENT_ID_ENTITY = u'EventIDEntity'
 OB_FIELD_NAME = u'FieldName'
 OB_FIELD_NAME_LIST = "FieldNameList"
 OB_FILE_NAME = u'FileName'
-OB_FILE_NAME_FIELD_NAME = OB_FILE_NAME+u':'+OB_FIELD_NAME
+OB_FILE_NAME_FIELD_NAME = OB_FILE_NAME+u'(:'+OB_FIELD_NAME+u')+'
 OB_FILE_NAME_OR_URL = u'FileName|URL'
 OB_FILE_PATH = u'FilePath'
 OB_FILTER_ID_ENTITY = u'FilterIDEntity'
@@ -4958,28 +4958,32 @@ def getEntitiesFromFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName>:<FieldName> [charset <String>] [delimiter <String>]
+# <FileName>(:<FieldName>)+ [charset <String>] [delimiter <String>]
 def getEntitiesFromCSVFile(shlexSplit):
   try:
-    (filename, fieldName) = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
+    fileFieldNameList = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
   except ValueError:
-    filename = fieldName = None
-  if (not filename) or (not fieldName):
+    fileFieldNameList = []
+  if len(fileFieldNameList) < 2:
+    putArgumentBack()
     invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
   encoding = getCharSet()
   dataDelimiter = getDelimiter()
   entitySet = set()
   entityList = list()
-  f = openFile(filename)
+  f = openFile(fileFieldNameList[0])
   csvFile = UnicodeDictReader(f, encoding=encoding)
-  if fieldName not in csvFile.fieldnames:
-    csvFieldErrorExit(fieldName, csvFile.fieldnames)
+  for fieldName in fileFieldNameList[1:]:
+    if fieldName not in csvFile.fieldnames:
+      putArgumentBack()
+      csvFieldErrorExit(fieldName, csvFile.fieldnames)
   for row in csvFile:
-    for item in splitEntityList(row[fieldName].strip(), dataDelimiter, shlexSplit):
-      item = item.strip()
-      if item and (item not in entitySet):
-        entitySet.add(item)
-        entityList.append(item)
+    for fieldName in fileFieldNameList[1:]:
+      for item in splitEntityList(row[fieldName].strip(), dataDelimiter, shlexSplit):
+        item = item.strip()
+        if item and (item not in entitySet):
+          entitySet.add(item)
+          entityList.append(item)
   closeFile(f)
   return entityList
 
