@@ -724,13 +724,61 @@ For example, ~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~ would replace foo@bar.com
 
 4.20.00
 
-107) The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+. This allows you to gather data
-from several columns; the columns do not have to be contiguous. Given the file FourUsers.csv:
+107) The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+.
+This allows you to gather data from several columns; the columns do not have to be contiguous.
+
+Given the file FourUsers.csv:
 UserA,UserB,UserC,UserD
 user1a@bar.com,user1b@bar.com,user1c@bar.com,user1d@bar.com
 user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
 ...
 gam update group group@bar.com sync members csvfile FourUsers.csv:UserA:UserB:UserC:UserD
+
+4.20.01
+
+108) Selectors/commands that use the matchfield argument have been extended to allow multiple instances of matchfield.
+To select a row from a CSV file, all matchfields must be present in the row and all <RegularExpression>s must match.
+<CrOSTypeEntity> ::=
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvkmd cros <FileName> [charset <Charset>]
+			keyfield <FieldName> [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+<UserTypeEntity> ::=
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
+			keyfield <FieldName> [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam loop <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+
+109) The csvkmd datafield <FieldName> argument has been expaned to datafield <FieldName>(:<FieldName>)*.
+This allows you to gather data from several columns; the columns do not have to be contiguous.
+<FieldName>(:<FieldName>*) must be the same in csvkmd and csvcros/csvdata.
+<CrOSTypeEntity> ::=
+		(csvkmd cros <FileName> [charset <Charset>]
+			keyfield <FieldName> [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+		(csvcros <FieldName>(:<FieldName>*))
+<UserTypeEntity> ::=
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
+			keyfield <FieldName> [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+		(csvdata <FieldName>(:<FieldName>*))
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+
+
+Given the file GroupFourUsers.csv:
+Group,UserA,UserB,UserC,UserD
+group1@bar.com,user1a@bar.com,user1b@bar.com,user1c@bar.com,user1d@bar.com
+group2@bar.com,user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
+...
+gam update groups csvkmd GroupFourUsers.csv keyfield Group datafield UserA:UserB:UserC:UserD sync members csvdata UserA:UserB:UserC:UserD
+
 
 *** Calendar Enhancements ***
 

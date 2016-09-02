@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.00'
+__version__ = u'4.20.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -148,7 +148,7 @@ GM_CSVFILE_WRITE_HEADER = u'cswh'
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
 # Index of <UserTypeEntity> in command line
 GM_ENTITY_CL_INDEX = u'enin'
-# csvfile keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <MatchPattern>] [datafield <FieldName> [delimiter <String>]]
+# csvfile keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <MatchPattern>)* [datafield <FieldName>(:<FieldName>*) [delimiter <String>]]
 # { key: [datafieldvalues]}
 GM_CSV_DATA_DICT = u'csdd'
 GM_CSV_KEY_FIELD = u'cskf'
@@ -1231,7 +1231,6 @@ DATAFIELD_ARGUMENT = [u'datafield',]
 DATA_ARGUMENT = [u'data',]
 FILE_ARGUMENT = [u'file',]
 FROM_ARGUMENT = [u'from',]
-IDFIRST_ARGUMENT = [u'idfirst',]
 IDS_ARGUMENT = [u'ids',]
 ID_ARGUMENT = [u'id',]
 KEYFIELD_ARGUMENT = [u'keyfield',]
@@ -1610,6 +1609,7 @@ MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and 
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
+MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
@@ -1916,10 +1916,6 @@ def csvFieldErrorExit(fieldName, fieldNames, backupArg=False):
   if backupArg:
     putArgumentBack()
   usageErrorExit(MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS.format(fieldName, u','.join(fieldNames)))
-
-def csvNoDataErrorExit():
-  putArgumentBack()
-  usageErrorExit(MESSAGE_NO_CSV_FILE_DATA_SAVED)
 
 def csvDataAlreadySavedErrorExit():
   putArgumentBack()
@@ -2675,14 +2671,29 @@ def getDelimiter():
     return getString(OB_STRING)
   return None
 
-def getMatchField(fieldNames):
-  if not checkArgumentPresent([u'matchfield',]):
-    return (None, None)
-  matchField = getString(OB_FIELD_NAME).strip(u'~')
-  if (not matchField) or (matchField not in fieldNames):
-    csvFieldErrorExit(matchField, fieldNames, backupArg=True)
-  matchPattern = getREPattern()
-  return (matchField, matchPattern)
+def getMatchFields(fieldNames):
+  matchFields = {}
+  while checkArgumentPresent([u'matchfield',]):
+    matchField = getString(OB_FIELD_NAME).strip(u'~')
+    if (not matchField) or (matchField not in fieldNames):
+      csvFieldErrorExit(matchField, fieldNames, backupArg=True)
+    matchFields[matchField] = getREPattern()
+  return matchFields
+
+def checkMatchFields(row, matchFields):
+  for matchField, matchPattern in matchFields.items():
+    if (matchField not in row) or not matchPattern.search(row[matchField]):
+      return False
+  return True
+
+def checkDataField():
+  if not GM_Globals[GM_CSV_DATA_DICT]:
+    putArgumentBack()
+    usageErrorExit(MESSAGE_NO_CSV_FILE_DATA_SAVED)
+  chkDataField = getString(OB_FIELD_NAME, checkBlank=True)
+  if chkDataField != GM_Globals[GM_CSV_DATA_FIELD]:
+    putArgumentBack()
+    usageErrorExit(MESSAGE_DATA_FIELD_MISMATCH.format(chkDataField, GM_Globals[GM_CSV_DATA_FIELD]))
 
 MAX_MESSAGE_BYTES_PATTERN = re.compile(r'^(\d+)([mkb]?)$')
 MAX_MESSAGE_BYTES_FORMAT_REQUIRED = u'<Number>[m|k|b]'
@@ -4689,7 +4700,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     printErrorMessage(USAGE_ERROR_RC, formatKeyValueList(u'', [singularEntityName(entityType), entityName, PHRASE_INVALID], u''))
 
   doNotExist = invalid = 0
-  usersList = list()
+  usersList = []
   usersSet = set()
   if entityType in [CL_ENTITY_USER, CL_ENTITY_USERS]:
     buildGAPIObject(GAPI_DIRECTORY_API)
@@ -4917,7 +4928,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
 def getEntitiesFromArgs():
   marker = getString(OB_STRING)
   entitySet = set()
-  entityList = list()
+  entityList = []
   while CL_argvI < CL_argvLen:
     item = getString(singularEntityName(EN_ENTITY))
     if item == marker:
@@ -4946,7 +4957,7 @@ def getEntitiesFromFile(shlexSplit):
   encoding = getCharSet()
   dataDelimiter = getDelimiter()
   entitySet = set()
-  entityList = list()
+  entityList = []
   f = openFile(filename)
   uf = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   for row in uf:
@@ -4958,7 +4969,7 @@ def getEntitiesFromFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName>(:<FieldName>)+ [charset <String>] [delimiter <String>]
+# <FileName>(:<FieldName>)+ [charset <String>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
 def getEntitiesFromCSVFile(shlexSplit):
   try:
     fileFieldNameList = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
@@ -4968,26 +4979,27 @@ def getEntitiesFromCSVFile(shlexSplit):
     putArgumentBack()
     invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
   encoding = getCharSet()
-  dataDelimiter = getDelimiter()
-  entitySet = set()
-  entityList = list()
   f = openFile(fileFieldNameList[0])
   csvFile = UnicodeDictReader(f, encoding=encoding)
+  matchFields = getMatchFields(csvFile.fieldnames)
+  dataDelimiter = getDelimiter()
+  entitySet = set()
+  entityList = []
   for fieldName in fileFieldNameList[1:]:
     if fieldName not in csvFile.fieldnames:
-      putArgumentBack()
-      csvFieldErrorExit(fieldName, csvFile.fieldnames)
+      csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True)
   for row in csvFile:
-    for fieldName in fileFieldNameList[1:]:
-      for item in splitEntityList(row[fieldName].strip(), dataDelimiter, shlexSplit):
-        item = item.strip()
-        if item and (item not in entitySet):
-          entitySet.add(item)
-          entityList.append(item)
+    if not matchFields or checkMatchFields(row, matchFields):
+      for fieldName in fileFieldNameList[1:]:
+        for item in splitEntityList(row[fieldName].strip(), dataDelimiter, shlexSplit):
+          item = item.strip()
+          if item and (item not in entitySet):
+            entitySet.add(item)
+            entityList.append(item)
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <RegularExpression>] [datafield <FieldName> [delimiter <String>]]
+# <FileName> [charset <String>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
@@ -4998,16 +5010,19 @@ def getEntitiesFromCSVbyField():
   if keyField not in csvFile.fieldnames:
     csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
   keyDelimiter = getDelimiter()
-  matchField, matchPattern = getMatchField(csvFile.fieldnames)
+  matchFields = getMatchFields(csvFile.fieldnames)
   if checkArgumentPresent(DATAFIELD_ARGUMENT):
     if GM_Globals[GM_CSV_DATA_DICT]:
       csvDataAlreadySavedErrorExit()
-    GM_Globals[GM_CSV_DATA_FIELD] = getString(OB_FIELD_NAME)
-    if GM_Globals[GM_CSV_DATA_FIELD] and (GM_Globals[GM_CSV_DATA_FIELD] not in csvFile.fieldnames):
-      csvFieldErrorExit(GM_Globals[GM_CSV_DATA_FIELD], csvFile.fieldnames, backupArg=True)
+    GM_Globals[GM_CSV_DATA_FIELD] = getString(OB_FIELD_NAME, checkBlank=True)
+    dataFields = GM_Globals[GM_CSV_DATA_FIELD].split(u':')
+    for dataField in dataFields:
+      if dataField not in csvFile.fieldnames:
+        csvFieldErrorExit(dataField, csvFile.fieldnames, backupArg=True)
     dataDelimiter = getDelimiter()
   else:
     GM_Globals[GM_CSV_DATA_FIELD] = None
+    dataFields = []
     dataDelimiter = None
   entitySet = set()
   entityList = []
@@ -5017,7 +5032,7 @@ def getEntitiesFromCSVbyField():
     item = row[keyField].strip()
     if not item:
       continue
-    if matchField and ((matchField not in row) or (not matchPattern.search(row[matchField]))):
+    if matchFields and not checkMatchFields(row, matchFields):
       continue
     keyList = splitEntityList(item, keyDelimiter, False)
     for keyValue in keyList:
@@ -5027,17 +5042,18 @@ def getEntitiesFromCSVbyField():
         entityList.append(keyValue)
         if GM_Globals[GM_CSV_DATA_FIELD]:
           csvDataKeys[keyValue] = set()
-          GM_Globals[GM_CSV_DATA_DICT][keyValue] = list()
-    if GM_Globals[GM_CSV_DATA_FIELD] and GM_Globals[GM_CSV_DATA_FIELD] in row:
-      dataList = splitEntityList(row[GM_Globals[GM_CSV_DATA_FIELD]].strip(), dataDelimiter, False)
-      for dataValue in dataList:
-        dataValue = dataValue.strip()
-        if not dataValue:
-          continue
-        for keyValue in keyList:
-          if dataValue not in csvDataKeys[keyValue]:
-            csvDataKeys[keyValue].add(dataValue)
-            GM_Globals[GM_CSV_DATA_DICT][keyValue].append(dataValue)
+          GM_Globals[GM_CSV_DATA_DICT][keyValue] = []
+    for dataField in dataFields:
+      if dataField in row:
+        dataList = splitEntityList(row[dataField].strip(), dataDelimiter, False)
+        for dataValue in dataList:
+          dataValue = dataValue.strip()
+          if not dataValue:
+            continue
+          for keyValue in keyList:
+            if dataValue not in csvDataKeys[keyValue]:
+              csvDataKeys[keyValue].add(dataValue)
+              GM_Globals[GM_CSV_DATA_DICT][keyValue].append(dataValue)
   closeFile(f)
   return entityList
 
@@ -5103,11 +5119,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
       return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType != CL_ENTITY_CROS],
               getUsersToModify(entityType, getEntitiesFromCSVbyField()))
     if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA, CL_ENTITY_SELECTOR_CSVCROS]:
-      if not GM_Globals[GM_CSV_DATA_DICT]:
-        csvNoDataErrorExit()
-      chkDataField = getString(OB_FIELD_NAME)
-      if chkDataField != GM_Globals[GM_CSV_DATA_FIELD]:
-        csvFieldErrorExit(chkDataField, [GM_Globals[GM_CSV_DATA_FIELD]], backupArg=True)
+      checkDataField()
       return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entitySelector == CL_ENTITY_SELECTOR_CSVDATA],
               GM_Globals[GM_CSV_DATA_DICT])
   entityChoices = []
@@ -5141,11 +5153,7 @@ def getEntityList(item, listOptional=False, shlexSplit=False):
     if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
       return getEntitiesFromCSVbyField()
     if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
-      if not GM_Globals[GM_CSV_DATA_DICT]:
-        csvNoDataErrorExit()
-      chkDataField = getString(OB_FIELD_NAME)
-      if chkDataField != GM_Globals[GM_CSV_DATA_FIELD]:
-        csvFieldErrorExit(chkDataField, [GM_Globals[GM_CSV_DATA_FIELD]], backupArg=True)
+      checkDataField()
       return GM_Globals[GM_CSV_DATA_DICT]
     return getEntitiesFromArgs()
   return convertEntityToList(getString(item, optional=listOptional, emptyOK=True), shlexSplit=shlexSplit)
@@ -5537,7 +5545,7 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
-# gam csv <FileName>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
+# gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doCSV():
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -5546,14 +5554,14 @@ def doCSV():
   encoding = getCharSet()
   f = openFile(filename)
   csvFile = UnicodeDictReader(f, encoding=encoding)
-  matchField, matchPattern = getMatchField(csvFile.fieldnames)
+  matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
     missingArgumentExit(OB_GAM_ARGUMENT_LIST)
   GAM_argv, subFields = getSubFields([], csvFile.fieldnames)
   items = []
   for row in csvFile:
-    if (not matchField) or ((matchField in row) and (matchPattern.search(row[matchField]))):
+    if (not matchFields) or checkMatchFields(row, matchFields):
       items.append(processSubFields(GAM_argv, row, subFields))
   closeFile(f)
   run_batch(items, len(items))
@@ -5573,7 +5581,6 @@ def doListUser(entityList):
 def doList(entityList, entityType):
   buildGAPIObject(GAPI_DIRECTORY_API)
   todrive = checkArgumentPresent(TODRIVE_ARGUMENT)
-  checkArgumentPresent(IDFIRST_ARGUMENT)
   if not entityList:
     entityList = getEntityList(OB_ENTITY)
   if GM_Globals[GM_CSV_DATA_DICT]:
@@ -6104,7 +6111,7 @@ def doReport():
     writeCSVfile(csvRows, titles, u'User Reports - {0}'.format(try_date), to_drive)
   elif report == u'customer':
     titles, csvRows = initializeTitlesCSVfile([u'name', u'value', u'client_id'])
-    auth_apps = list()
+    auth_apps = []
     while True:
       try:
         usage = callGAPIpages(rep.customerUsageReports(), u'get', u'usageReports',
@@ -11840,11 +11847,11 @@ def doPrintGroups():
                                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                                      groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
         if members:
-          allMembers = list()
+          allMembers = []
         if managers:
-          allManagers = list()
+          allManagers = []
         if owners:
-          allOwners = list()
+          allOwners = []
         for member in groupMembers:
           member_email = member.get(u'email', member.get(u'id', None))
           if not member_email:
@@ -12121,7 +12128,7 @@ def getNotificationParameters(function):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   selected = False
   isUnread = None
-  ids = list()
+  ids = []
   get_all = True
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -12137,7 +12144,7 @@ def getNotificationParameters(function):
         get_all = True
         isUnread = None
         selected = False
-        ids = list()
+        ids = []
       else:
         get_all = False
         ids.append(notificationId)
@@ -13661,7 +13668,7 @@ def undeleteUsers(entityList):
                                       customer=GC_Values[GC_CUSTOMER_ID], showDeleted=True, maxResults=GC_Values[GC_USER_MAX_RESULTS])
       except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
         accessErrorExit(cd)
-      matching_users = list()
+      matching_users = []
       for deleted_user in deleted_users:
         if str(deleted_user[u'primaryEmail']).lower() == user:
           matching_users.append(deleted_user)
@@ -20103,56 +20110,60 @@ FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP = {
 
 def _printFilter(user, userFilter, labels):
   row = {u'User': user, u'id': userFilter[u'id']}
-  for item in userFilter[u'criteria']:
-    if item in [u'hasAttachment', u'excludeChats']:
-      row[item] = item
-    elif item == u'size':
-      row[item] = u'size {0} {1}'.format(userFilter[u'criteria'][u'sizeComparison'], formatMaxMessageBytes(userFilter[u'criteria'][item]))
-    elif item == u'sizeComparison':
-      pass
-    else:
-      row[item] = u'{0} {1}'.format(item, userFilter[u'criteria'][item])
-  for labelId in userFilter[u'action'].get(u'addLabelIds', []):
-    if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
-      row[FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]
-    else:
-      row[u'label'] = u'label {0}'.format(_getLabelName(labels, labelId))
-  for labelId in userFilter[u'action'].get(u'removeLabelIds', []):
-    if labelId in FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP:
-      row[FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]
-  if userFilter[u'action'].get(u'forward'):
-    row[u'forward'] = u'forward {0}'.format(userFilter[u'action'][u'forward'])
+  if u'criteria' in userFilter:
+    for item in userFilter[u'criteria']:
+      if item in [u'hasAttachment', u'excludeChats']:
+        row[item] = item
+      elif item == u'size':
+        row[item] = u'size {0} {1}'.format(userFilter[u'criteria'][u'sizeComparison'], formatMaxMessageBytes(userFilter[u'criteria'][item]))
+      elif item == u'sizeComparison':
+        pass
+      else:
+        row[item] = u'{0} {1}'.format(item, userFilter[u'criteria'][item])
+  if u'action' in userFilter:
+    for labelId in userFilter[u'action'].get(u'addLabelIds', []):
+      if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
+        row[FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]
+      else:
+        row[u'label'] = u'label {0}'.format(_getLabelName(labels, labelId))
+    for labelId in userFilter[u'action'].get(u'removeLabelIds', []):
+      if labelId in FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP:
+        row[FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]
+    if userFilter[u'action'].get(u'forward'):
+      row[u'forward'] = u'forward {0}'.format(userFilter[u'action'][u'forward'])
   return row
 
 def _showFilter(userFilter, j, jcount, labels):
   printEntityName(EN_FILTER, userFilter[u'id'], j, jcount)
   incrementIndentLevel()
   printKeyValueList([pluralEntityName(EN_CRITERIA), None])
-  incrementIndentLevel()
-  for item in userFilter[u'criteria']:
-    if item in [u'hasAttachment', u'excludeChats']:
-      printKeyValueList([item])
-    elif item == u'size':
-      printKeyValueList([u'{0} {1} {2}'.format(item, userFilter[u'criteria'][u'sizeComparison'], formatMaxMessageBytes(userFilter[u'criteria'][item]))])
-    elif item == u'sizeComparison':
-      pass
-    else:
-      printKeyValueList([u'{0} "{1}"'.format(item, userFilter[u'criteria'][item])])
-  decrementIndentLevel()
+  if u'criteria' in userFilter:
+    incrementIndentLevel()
+    for item in userFilter[u'criteria']:
+      if item in [u'hasAttachment', u'excludeChats']:
+        printKeyValueList([item])
+      elif item == u'size':
+        printKeyValueList([u'{0} {1} {2}'.format(item, userFilter[u'criteria'][u'sizeComparison'], formatMaxMessageBytes(userFilter[u'criteria'][item]))])
+      elif item == u'sizeComparison':
+        pass
+      else:
+        printKeyValueList([u'{0} "{1}"'.format(item, userFilter[u'criteria'][item])])
+    decrementIndentLevel()
   printKeyValueList([pluralEntityName(EN_ACTION), None])
-  incrementIndentLevel()
-  for labelId in userFilter[u'action'].get(u'addLabelIds', []):
-    if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
-      printKeyValueList([FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]])
-    else:
-      printKeyValueList([u'label "{0}"'.format(_getLabelName(labels, labelId))])
-  for labelId in userFilter[u'action'].get(u'removeLabelIds', []):
-    if labelId in FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP:
-      printKeyValueList([FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]])
-  decrementIndentLevel()
-  if userFilter[u'action'].get(u'forward'):
-    printKeyValueList([singularEntityName(EN_FORWARDING_ADDRESS), userFilter[u'action'][u'forward']])
-  decrementIndentLevel()
+  if u'action' in userFilter:
+    incrementIndentLevel()
+    for labelId in userFilter[u'action'].get(u'addLabelIds', []):
+      if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
+        printKeyValueList([FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]])
+      else:
+        printKeyValueList([u'label "{0}"'.format(_getLabelName(labels, labelId))])
+    for labelId in userFilter[u'action'].get(u'removeLabelIds', []):
+      if labelId in FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP:
+        printKeyValueList([FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]])
+    decrementIndentLevel()
+    if userFilter[u'action'].get(u'forward'):
+      printKeyValueList([singularEntityName(EN_FORWARDING_ADDRESS), userFilter[u'action'][u'forward']])
+    decrementIndentLevel()
 #
 FILTER_CRITERIA_CHOICES_MAP = {
   u'excludechats': u'excludeChats',
@@ -22322,7 +22333,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
     sys.stderr = savedStderr
   return GM_Globals[GM_SYSEXITRC]
 
-# gam loop <FileName>|- [charset <String>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
+# gam loop <FileName>|- [charset <String>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doLoop(processGamCfg=True):
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -22331,7 +22342,7 @@ def doLoop(processGamCfg=True):
   encoding = getCharSet()
   f = openFile(filename)
   csvFile = UnicodeDictReader(f, encoding=encoding)
-  matchField, matchPattern = getMatchField(csvFile.fieldnames)
+  matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
     missingArgumentExit(OB_GAM_ARGUMENT_LIST)
@@ -22354,7 +22365,7 @@ def doLoop(processGamCfg=True):
       nextProcessGamCfg = False
   GAM_argv, subFields = getSubFields([CL_argv[0]], csvFile.fieldnames)
   for row in csvFile:
-    if (not matchField) or ((matchField in row) and (matchPattern.search(row[matchField]))):
+    if (not matchFields) or checkMatchFields(row, matchFields):
       ProcessGAMCommand(processSubFields(GAM_argv, row, subFields), processGamCfg=processGamCfg)
       if (GM_Globals[GM_SYSEXITRC] > 0) and (GM_Globals[GM_SYSEXITRC] <= HARD_ERROR_RC):
         break

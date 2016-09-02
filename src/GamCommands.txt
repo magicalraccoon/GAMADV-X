@@ -407,7 +407,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(all cros)|
 		(cros <CrOSList>)|
 		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
-		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [delimiter <String>])|
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
 		(cros_ou|cros_org <OrgUnitPath)|
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
@@ -417,9 +417,9 @@ If an item contains spaces, it should be surrounded by " or '.
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
-			[matchfield <FieldName> <RegularExpression>]
-			[datafield <FieldName> [delimiter <String>]])|
-		(csvcros <FieldName>)
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+		(csvcros <FieldName>(:<FieldName>*))
 
 # Specify a collection of Users by directly specifying them or by specifiying items that will yield a list of users
 <UserTypeEntity> ::=
@@ -433,7 +433,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)|
 		(groups <GroupList)|
@@ -446,13 +446,13 @@ If an item contains spaces, it should be surrounded by " or '.
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
 			keyfield <FieldName> [delimiter <String>]
-			[matchfield <FieldName> <RegularExpression>]
-			[datafield <FieldName> [delimiter <String>]])|
-		(csvdata <FieldName>)
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+		(csvdata <FieldName>(:<FieldName>*))
 
 # Specify a collection of items by directly specifying them; the item type is determined by context.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
-<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] [matchfield <FieldName> <RegularExpression>] [datafield <FieldName> [delimiter <String>]]
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>])
 
@@ -653,11 +653,11 @@ gam version [check]
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
+gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-gam loop <FileName>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
+gam loop <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-# You can make substitutions in <GAM argument list> with values from the CSV file.
+# You can make substitutions in <GAMArgumentList> with values from the CSV file.
 # An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
 # An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
 # An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
