@@ -1573,6 +1573,8 @@ PHRASE_NOT_ALLOWED = u'Not Allowed'
 PHRASE_NOT_FOUND = u'Not Found'
 PHRASE_NOW_THE_PRIMARY_DOMAIN = u'Now the primary domain'
 PHRASE_NO_ENTITIES_MATCHED = u'No {0} matched'
+PHRASE_NO_FILTER_CRITERIA = U'No {0} criteria specified'
+PHRASE_NO_FILTER_ACTIONS = U'No {0} actions specified'
 PHRASE_NO_LABELS_MATCH = u'No Labels match'
 PHRASE_NO_MESSAGES_WITH_LABEL = u'No Messages with Label'
 PHRASE_NO_PRINT_JOBS = u'No Print Jobs'
@@ -20123,6 +20125,8 @@ def _printFilter(user, userFilter, labels):
         pass
       else:
         row[item] = u'{0} {1}'.format(item, userFilter[u'criteria'][item])
+  else:
+    row[u'error'] = u'NoCriteria'
   if u'action' in userFilter:
     for labelId in userFilter[u'action'].get(u'addLabelIds', []):
       if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
@@ -20134,14 +20138,16 @@ def _printFilter(user, userFilter, labels):
         row[FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]
     if userFilter[u'action'].get(u'forward'):
       row[u'forward'] = u'forward {0}'.format(userFilter[u'action'][u'forward'])
+  else:
+    row[u'error'] = u'NoActions'
   return row
 
 def _showFilter(userFilter, j, jcount, labels):
   printEntityName(EN_FILTER, userFilter[u'id'], j, jcount)
   incrementIndentLevel()
   printKeyValueList([pluralEntityName(EN_CRITERIA), None])
+  incrementIndentLevel()
   if u'criteria' in userFilter:
-    incrementIndentLevel()
     for item in userFilter[u'criteria']:
       if item in [u'hasAttachment', u'excludeChats']:
         printKeyValueList([item])
@@ -20151,10 +20157,12 @@ def _showFilter(userFilter, j, jcount, labels):
         pass
       else:
         printKeyValueList([u'{0} "{1}"'.format(item, userFilter[u'criteria'][item])])
-    decrementIndentLevel()
+  else:
+    printKeyValueList([ERROR, PHRASE_NO_FILTER_CRITERIA.format(singularEntityName(EN_FILTER))])
+  decrementIndentLevel()
   printKeyValueList([pluralEntityName(EN_ACTION), None])
+  incrementIndentLevel()
   if u'action' in userFilter:
-    incrementIndentLevel()
     for labelId in userFilter[u'action'].get(u'addLabelIds', []):
       if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
         printKeyValueList([FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]])
@@ -20166,7 +20174,10 @@ def _showFilter(userFilter, j, jcount, labels):
     decrementIndentLevel()
     if userFilter[u'action'].get(u'forward'):
       printKeyValueList([singularEntityName(EN_FORWARDING_ADDRESS), userFilter[u'action'][u'forward']])
+  else:
+    printKeyValueList([ERROR, PHRASE_NO_FILTER_ACTIONS.format(singularEntityName(EN_FILTER))])
     decrementIndentLevel()
+  decrementIndentLevel()
 #
 FILTER_CRITERIA_CHOICES_MAP = {
   u'excludechats': u'excludeChats',
