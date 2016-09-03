@@ -1912,9 +1912,12 @@ def badEntitiesExit(entityType, count, phraseList, backupArg=False):
     putArgumentBack()
   usageErrorExit(u'{0} {1} {2}'.format(count, chooseEntityName(entityType, count), phraseList[count == 1]))
 
-def csvFieldErrorExit(fieldName, fieldNames, backupArg=False):
+def csvFieldErrorExit(fieldName, fieldNames, backupArg=False, checkForCharset=False):
   if backupArg:
     putArgumentBack()
+    if checkForCharset and CL_argv[CL_argvI-1] == u'charset':
+      putArgumentBack()
+      putArgumentBack()
   usageErrorExit(MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS.format(fieldName, u','.join(fieldNames)))
 
 def csvDataAlreadySavedErrorExit():
@@ -4981,13 +4984,13 @@ def getEntitiesFromCSVFile(shlexSplit):
   encoding = getCharSet()
   f = openFile(fileFieldNameList[0])
   csvFile = UnicodeDictReader(f, encoding=encoding)
+  for fieldName in fileFieldNameList[1:]:
+    if fieldName not in csvFile.fieldnames:
+      csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True, checkForCharset=True)
   matchFields = getMatchFields(csvFile.fieldnames)
   dataDelimiter = getDelimiter()
   entitySet = set()
   entityList = []
-  for fieldName in fileFieldNameList[1:]:
-    if fieldName not in csvFile.fieldnames:
-      csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True)
   for row in csvFile:
     if not matchFields or checkMatchFields(row, matchFields):
       for fieldName in fileFieldNameList[1:]:
