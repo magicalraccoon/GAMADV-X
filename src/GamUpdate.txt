@@ -150,7 +150,7 @@ available format in the list is chosen.
 	(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>])|
 	(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
 		keyfield <FieldName> [delimiter <String>]
-		[matchfield <FieldName> <PythonRegularExpression>]
+		[matchfield <FieldName> <RegularExpression>]
 		[datafield <FieldName> [delimiter <String>]])|
 	(csvdata <FieldName>)
 
@@ -188,10 +188,10 @@ The following commands have been extended to allow specification of the characte
 <Charset> defaults to ascii; other typical values are: utf-8, utf-16, latin-1.
 
 13) Extend gam csv/loop to select rows from a csv file by matching a field value.
-    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] gam ...
-    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] gam ...
+    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam ...
+    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam ...
 <FieldName> does not have a leading ~ and must be a column heading in <FileName>.
-For documentation on <PythonRegularExpression> see https://docs.python.org/2/library/re.html
+For documentation on <RegularExpression> see https://docs.python.org/2/library/re.html
     gam csv DeptGroups.csv matchfield Department Sales gam print group-members group ~Group
 DeptGroups.csv:
 Department,Group
@@ -201,8 +201,8 @@ Marketing,mktg-ny@bar.com
 Marketing,mktg-nj@bar.com
 
 14) Extend gam csv/loop to allow field substitution within an argument.
-    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] [fieldsub] gam ...
-    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <PythonRegularExpression>] [fieldsub] gam ...
+    gam csv <Filename>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] [fieldsub] gam ...
+    gam loop <Filename>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] [fieldsub] gam ...
 If fieldsub is specified, you can have arguments made of text combined with CSV fields; ~<FieldName>~ will be
 replaced with the data in column <FieldName> of the CSV file.
     gam csv Users.csv fieldsub gam update user ~User note text-plain 'Full Name: ~First~ ~Last~'
@@ -754,7 +754,7 @@ To select a row from a CSV file, all matchfields must be present in the row and 
 gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 gam loop <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-109) The csvkmd datafield <FieldName> argument has been expaned to datafield <FieldName>(:<FieldName>)*.
+109) The csvkmd datafield <FieldName> argument has been expanded to datafield <FieldName>(:<FieldName>)*.
 This allows you to gather data from several columns; the columns do not have to be contiguous.
 <FieldName>(:<FieldName>*) must be the same in csvkmd and csvcros/csvdata.
 <CrOSTypeEntity> ::=
