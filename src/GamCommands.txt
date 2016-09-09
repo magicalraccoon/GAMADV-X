@@ -1077,7 +1077,6 @@ gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
 gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 
-
 gam <UserTypeEntity> delete|del alias|aliases
 
 gam <UserTypeEntity> add group|groups [owner|manager|member] [<GroupEntity>]
@@ -1162,8 +1161,8 @@ gam <UserTypeEntity> language <Language>
 
 gam <UserTypeEntity> pagesize 25|50|100
 
-gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
-gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]

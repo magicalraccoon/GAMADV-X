@@ -779,6 +779,10 @@ group2@bar.com,user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
 ...
 gam update groups csvkmd GroupFourUsers.csv keyfield Group datafield UserA:UserB:UserC:UserD sync members csvdata UserA:UserB:UserC:UserD
 
+4.20.02
+
+110) Signatures and vacation messages were converting newlines to <br/> inappropriately, this has been corrected.
+
 
 *** Calendar Enhancements ***
 
