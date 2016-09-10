@@ -482,7 +482,7 @@ If an item contains spaces, it should be surrounded by " or '.
 # Item attributes
 <CalendarAttributes> ::=
 	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
-	(reminder clear|(email|sms|pop <Number>))|
+	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
 	(notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))
 
 <CalendarSettings> ::==
@@ -557,7 +557,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	(source <String> <URL>)|(privateproperty <PropertyKey> <PropertyValue>)|(sharedproperty <PropertyKey> <PropertyValue>)|
 	(recurrence <RRULE, EXRULE, RDATE and EXDATE line>)|
 	(start allday <Date>)|(start <Time>)|(end allday <Date>)|(end <Time>)|(timezone <Timezone>)|
-	(noreminders|(reminder email|popup|sms <Number>))|
+	(noreminders|(reminder email|popup|sms <Number>)|(reminder <Number> email|popup|sms))|
 	(colorindex|colorid <EventColorIndex>)
 
 <GroupAttributes> ::=
@@ -1067,6 +1067,7 @@ gam <UserTypeEntity> trash drivefile <DriveFileEntity>
 gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
+gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
@@ -1123,8 +1124,9 @@ gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <
 
 gam <UserTypeEntity> show gmailprofile
 gam <UserTypeEntity> print gplusprofile [todrive]
-gam <UserTypeEntity> show gmailprofile
+gam <UserTypeEntity> show gplusprofile
 gam <UserTypeEntity> print gplusprofile [todrive]
+
 gam <UserTypeEntity> arrows <Boolean>
 
 gam <UserTypeEntity> add delegate|delegates <UserEntity>
