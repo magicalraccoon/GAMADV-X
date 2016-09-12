@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.03'
+__version__ = u'4.20.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -5079,7 +5079,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
     choices = []
     if entitySelector == CL_ENTITY_SELECTOR_ALL:
       if userAllowed:
-        choices += CL_USER_ENTITY_SELECTOR_ALL_SUBTYPES[:]
+        choices += CL_USER_ENTITY_SELECTOR_ALL_SUBTYPES
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ALL_SUBTYPES
       entityType = CL_ENTITY_SELECTOR_ALL_SUBTYPES_MAP[getChoice(choices)]
@@ -5087,7 +5087,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
               getUsersToModify(entityType, None))
     if entitySelector == CL_ENTITY_SELECTOR_ARGS:
       if userAllowed:
-        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES[:]
+        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       entityType = mapEntityType(getChoice(choices, choiceAliases=CL_ENTITY_ALIAS_MAP), typeMap)
@@ -5109,7 +5109,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
                 getUsersToModify(CL_ENTITY_CROS, getEntitiesFromCSVFile(False)))
     if entitySelector == CL_ENTITY_SELECTOR_DATAFILE:
       if userAllowed:
-        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES[:]
+        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       entityType = mapEntityType(getChoice(choices), typeMap)
@@ -5117,7 +5117,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
               getUsersToModify(entityType, getEntitiesFromFile(shlexSplit=entityType in [CL_ENTITY_OUS, CL_ENTITY_OUS_AND_CHILDREN, CL_ENTITY_CROS_OUS, CL_ENTITY_CROS_OUS_AND_CHILDREN])))
     if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
       if userAllowed:
-        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES[:]
+        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
       entityType = mapEntityType(getChoice(choices, choiceAliases=CL_ENTITY_ALIAS_MAP), typeMap)
@@ -5145,7 +5145,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
   invalidChoiceExit(selectorChoices+entityChoices)
 
 def getEntityList(item, listOptional=False, shlexSplit=False):
-  selectorChoices = CL_ENTITY_SELECTORS
+  selectorChoices = CL_ENTITY_SELECTORS[:]
   selectorChoices.remove(CL_ENTITY_SELECTOR_ALL)
   selectorChoices.remove(CL_ENTITY_SELECTOR_DATAFILE)
   selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
