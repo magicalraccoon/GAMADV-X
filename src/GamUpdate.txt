@@ -1,3 +1,15 @@
+4.20.08
+
+Expand gam calendars show events and add gam calendars print events.
+    gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
+	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+    gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
+	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+
+Handle untranslatable Unicode characters.
+
 4.20.05
 
 Implement command to claim Google Drive file ownership. Credit to Mattias Bystedt for the original code.

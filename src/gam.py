@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.07'
+__version__ = u'4.20.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -313,6 +313,7 @@ GC_Values = {}
 
 GC_TYPE_BOOLEAN = u'bool'
 GC_TYPE_CHOICE = u'choi'
+GC_TYPE_DATETIME = u'datm'
 GC_TYPE_DIRECTORY = u'dire'
 GC_TYPE_EMAIL = u'emai'
 GC_TYPE_FILE = u'file'
@@ -528,9 +529,9 @@ GDATA_UNKNOWN_ERROR = 600
 GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR, GDATA_INVALID_VALUE]
 # oauth errors
-OAUTH2_TOKEN_ERRORS = [u'access_denied', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
-                       u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID', u'invalid_grant: Bad Request',
-                       u'invalid_request: Invalid impersonation prn email address.', u'internal_failure: Backend Error']
+OAUTH2_HARD_ERRORS = [u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.']
+OAUTH2_SOFT_ERRORS = [u'access_denied', u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID', u'invalid_grant: Bad Request',
+                      u'invalid_request: Invalid impersonation prn email address.', u'internal_failure: Backend Error']
 # callGAPI throw reasons
 GAPI_ABORTED = u'aborted'
 GAPI_ALREADY_EXISTS = u'alreadyExists'
@@ -1702,9 +1703,7 @@ def convertUTF8(data):
   if isinstance(data, str):
     return data
   if isinstance(data, unicode):
-    if GM_Globals[GM_WINDOWS]:
-      return data
-    return data.encode(GM_Globals[GM_SYS_ENCODING])
+    return data.encode(GM_Globals[GM_SYS_ENCODING], 'replace')
   if isinstance(data, collections.Mapping):
     return dict(map(convertUTF8, data.iteritems()))
   if isinstance(data, collections.Iterable):
@@ -1805,9 +1804,7 @@ def formatKeyValueList(prefixStr, kvList, suffixStr):
         if i < l:
           msg += u' '
   msg += suffixStr
-  if GM_Globals[GM_WINDOWS]:
-    return msg
-  return msg.encode(GM_Globals[GM_SYS_ENCODING])
+  return msg.encode(GM_Globals[GM_SYS_ENCODING], 'replace')
 
 def indentMultiLineText(message, n=0):
   n += GM_Globals[GM_INDENT_LEVEL]
@@ -3686,13 +3683,14 @@ def doGAMCheckForUpdates(forceCheck=False):
     return
 
 def handleOAuthTokenError(e, soft_errors):
-  if e.message in OAUTH2_TOKEN_ERRORS:
+  if e.message in OAUTH2_SOFT_ERRORS:
     if soft_errors:
       return None
     if not GM_Globals[GM_CURRENT_API_USER]:
       APIAccessDeniedExit()
     systemErrorExit(SERVICE_NOT_APPLICABLE_RC, MESSAGE_SERVICE_NOT_APPLICABLE.format(GM_Globals[GM_CURRENT_API_USER]))
-  systemErrorExit(AUTHENTICATION_TOKEN_REFRESH_ERROR_RC, u'Authentication Token Error - {0}'.format(e))
+  stderrErrorMsg(u'Authentication Token Error - {0}'.format(e))
+  APIAccessDeniedExit()
 
 def getCredentialsForScope(oauth2Scope, storageOnly=False):
   try:
@@ -8626,9 +8624,64 @@ def doCalendarMoveEvent(cal, calendarList):
         break
     decrementIndentLevel()
 
-# gam calendars <CalendarEntity> show events
+SHOW_EVENTS_ATTRIBUTES = {
+  u'alwaysincludeemail': [u'alwaysIncludeEmail', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'endtime': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  u'icaluid': [u'iCalUID', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'maxattendees': [u'maxAttendees', {GC_VAR_TYPE: GC_TYPE_INTEGER}],
+  u'orderby': [u'orderBy', {GC_VAR_TYPE: GC_TYPE_CHOICE, u'choices': {u'starttime': u'startTime', u'updated': u'updated'}}],
+  u'privateextendedproperty': [u'privateExtendedProperty', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'query': [u'q', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'q': [u'q', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'sharedextendedproperty': [u'sharedExtendedProperty', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'showdeleted': [u'showDeleted', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'showhiddeninvitations': [u'showHiddenInvitations', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'singleevents': [u'singleEvents', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'starttime': [u'timeMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  u'timemax': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  u'timemin': [u'timeMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  u'timezone': [u'timeZone', {GC_VAR_TYPE: GC_TYPE_STRING}],
+  u'updatedmin': [u'updatedMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  }
+
+# gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Integer>]
+#	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+def doCalendarPrintEvents(cal, calendarList):
+  calendarPrintShowEvents(cal, calendarList, True)
+
+# gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Integer>]
+#	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 def doCalendarShowEvents(cal, calendarList):
-  checkForExtraneousArguments()
+  calendarPrintShowEvents(cal, calendarList, False)
+
+def calendarPrintShowEvents(cal, calendarList, csvFormat):
+  if csvFormat:
+    todrive = False
+    titles, csvRows = initializeTitlesCSVfile(None)
+  kwargs = {}
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = True
+    else:
+      attrProperties = SHOW_EVENTS_ATTRIBUTES.get(myarg)
+      if not attrProperties:
+        unknownArgumentExit()
+      attrName = attrProperties[0]
+      attribute = attrProperties[1]
+      attrType = attribute[GC_VAR_TYPE]
+      if attrType == GC_TYPE_BOOLEAN:
+        kwargs[attrName] = True
+      elif attrType == GC_TYPE_STRING:
+        kwargs[attrName] = getString(OB_STRING)
+      elif attrType == GC_TYPE_CHOICE:
+        kwargs[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
+      elif attrType == GC_TYPE_DATETIME:
+        kwargs[attrName] = getFullTime()
+      else: # GC_TYPE_INTEGER
+        kwargs[attrName] = getInteger()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
@@ -8639,20 +8692,29 @@ def doCalendarShowEvents(cal, calendarList):
     try:
       events = callGAPIpages(cal.events(), u'list', u'items',
                              throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-                             calendarId=calendarId, fields=u'nextPageToken,items')
+                             calendarId=calendarId, fields=u'nextPageToken,items', **kwargs)
       jcount = len(events)
-      entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      incrementIndentLevel()
-      j = 0
-      for event in events:
-        j += 1
-        _showCalendarEvent(event, j, jcount)
-      decrementIndentLevel()
+      if not csvFormat:
+        entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
+        if jcount > 0:
+          incrementIndentLevel()
+          j = 0
+          for event in events:
+            j += 1
+            _showCalendarEvent(event, j, jcount)
+          decrementIndentLevel()
+      else:
+        if jcount > 0:
+          for event in events:
+            row = {u'calendarId': calendarId}
+            addRowTitlesToCSVfile(flattenJSON(event, flattened=row), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
+  if csvFormat:
+    sortCSVTitles([u'calendarId']+EVENT_PRINT_ORDER, titles)
+    writeCSVfile(csvRows, titles, u'Calendar Events', todrive)
 
 # gam calendars <CalendarEntity> wipe events
 # gam calendar <CalendarItem> wipe
@@ -21928,6 +21990,12 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: AC_MOVE,
      CMD_FUNCTION:
        {u'event':	doCalendarMoveEvent,
+       },
+    },
+  u'print':
+    {CMD_ACTION: AC_PRINT,
+     CMD_FUNCTION:
+       {u'events':	doCalendarPrintEvents,
        },
     },
   u'show':

@@ -495,12 +495,12 @@ If an item contains spaces, it should be surrounded by " or '.
 	    (neighborhood <String>)|(locality <String>)|(region <String>)|(postalcode <String>)|(country <String>) notprimary|primary))|
 	(address clear|(work|home|other|<String> (formatted|unstructured <String>)|(streetaddress <String>)|(pobox <String>)|
 	(billinginfo <String>)|
-	(birthday <YYYY-MM-DD>)|
+	(birthday <yyyy-mm-dd>)|
 	(calendar clear|(work|home|free-busy|<String> <URL> notprimary|primary))|
 	(contactgroup clear|<ContactGroupItem>)|
 	(directoryserver <String>)|
 	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
-	(event clear|anniversary|other|<String> <YYYY-MM-DD>))|
+	(event clear|anniversary|other|<String> <yyyy-mm-dd>))|
 	(externalid clear|(account|customer|network|organization|<String> <String>))|
 	(familyname|lastname <String>)|
 	(gender female|male)|
@@ -779,7 +779,12 @@ gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>+
 gam calendars <CalendarEntity> delete event <EventIDEntity>
 gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem>
 gam calendars <CalendarEntity> info event <EventIDEntity>
-gam calendars <CalendarEntity> show events
+gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
+	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
+	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 gam calendars <CalendarEntity> wipe events
 
 gam create contact <ContactAttributes>+
