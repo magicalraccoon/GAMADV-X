@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.06'
+__version__ = u'4.20.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -17760,34 +17760,36 @@ def validateUserGetPermissionId(user):
 
 # gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def transferDriveFileOwnership(users):
-  def _transferOwnership(drive, user, i, count, fileId, fileName, j, jcount, newOwner, permissionId):
+  def _transferOwnership(drive, user, i, count, f_file, j, jcount, newOwner, permissionId):
     body = {u'role': u'owner'}
     bodyAdd = {u'role': u'writer', u'type': u'user', u'value': newOwner}
+    entityType = [EN_DRIVE_FILE, EN_DRIVE_FOLDER][f_file[u'mimeType'] == MIMETYPE_GA_FOLDER]
+    fileDesc = u'{0} ({1})'.format(f_file[DRIVE_FILE_NAME], f_file[u'id'])
     try:
       callGAPI(drive.permissions(), DRIVE_PATCH_PERMISSIONS,
                throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
-               fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
-      entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
+               fileId=f_file[u'id'], permissionId=permissionId, transferOwnership=True, body=body)
+      entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, entityType, fileDesc, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
     except GAPI_permissionNotFound:
       # this might happen if target user isn't explicitly in ACL (i.e. shared with anyone)
       try:
         callGAPI(drive.permissions(), DRIVE_CREATE_PERMISSIONS,
                  throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_SHARING_REQUEST, GAPI_FILE_NOT_FOUND],
-                 fileId=fileId, sendNotificationEmails=False, body=bodyAdd)
+                 fileId=f_file[u'id'], sendNotificationEmails=False, body=bodyAdd)
         callGAPI(drive.permissions(), DRIVE_PATCH_PERMISSIONS,
                  throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
-                 fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
-        entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
+                 fileId=f_file[u'id'], permissionId=permissionId, transferOwnership=True, body=body)
+        entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, entityType, fileDesc, AC_MODIFIER_TO, None, singularEntityName(EN_USER), newOwner, j, jcount)
       except GAPI_invalidSharingRequest as e:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileDesc, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
       except GAPI_permissionNotFound:
-        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
+        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, entityType, fileDesc, EN_PERMISSION_ID, permissionId, j, jcount)
       except GAPI_fileNotFound:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
+        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileDesc, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
     except GAPI_fileNotFound:
-      entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
+      entityItemValueActionFailedWarning(EN_USER, user, entityType, fileDesc, PHRASE_DOES_NOT_EXIST, j, jcount)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
@@ -17798,7 +17800,7 @@ def transferDriveFileOwnership(users):
         if folderId == parent[u'id']:
           if trashed or not f_file[u'labels'][u'trashed']:
             if f_file[u'ownedByMe']:
-              _transferOwnership(drive, user, i, count, f_file[u'id'], f_file[DRIVE_FILE_NAME], 0, 0, newOwner, permissionId)
+              _transferOwnership(drive, user, i, count, f_file, 0, 0, newOwner, permissionId)
             if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
               _recursiveTransferOwnership(drive, user, i, count, f_file[u'id'], newOwner, permissionId, feed, trashed)
           break
@@ -17855,12 +17857,12 @@ def transferDriveFileOwnership(users):
                                orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,ownedByMe,labels(trashed),parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
           if trashed or not metadata[u'labels'][u'trashed']:
             if metadata[u'ownedByMe'] and metadata[u'parents']:
-              _transferOwnership(drive, user, i, count, fileId, metadata[DRIVE_FILE_NAME], j, jcount, newOwner, permissionId)
+              _transferOwnership(drive, user, i, count, metadata, j, jcount, newOwner, permissionId)
             _recursiveTransferOwnership(drive, user, i, count, fileId, newOwner, permissionId, feed, trashed)
         else:
           if trashed or not metadata[u'labels'][u'trashed']:
             if metadata[u'ownedByMe']:
-              _transferOwnership(drive, user, i, count, fileId, metadata[DRIVE_FILE_NAME], j, jcount, newOwner, permissionId)
+              _transferOwnership(drive, user, i, count, metadata, j, jcount, newOwner, permissionId)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -17964,7 +17966,7 @@ def claimDriveFolderOwnership(users):
               callGAPI(source_drive.files(), u'patch',
                        fileId=fileId, body=bodyShare)
             entityType = fileInfo[u'type']
-            fileDesc = u'{0}({1})'.format(fileInfo[u'name'], fileId)
+            fileDesc = u'{0} ({1})'.format(fileInfo[u'name'], fileId)
             try:
               callGAPI(source_drive.permissions(), DRIVE_PATCH_PERMISSIONS,
                        throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
@@ -18004,7 +18006,7 @@ def claimDriveFolderOwnership(users):
           for fileId, fileInfo in files[oldOwner].items():
             k += 1
             entityType = fileInfo[u'type']
-            fileDesc = u'{0}({1})'.format(fileInfo[u'name'], fileId)
+            fileDesc = u'{0} ({1})'.format(fileInfo[u'name'], fileId)
             entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, fileDesc, PHRASE_USER_IN_OTHER_DOMAIN.format(singularEntityName(EN_USER), oldOwner), k, kcount)
           decrementIndentLevel()
       decrementIndentLevel()
