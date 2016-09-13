@@ -2599,7 +2599,7 @@ def getYYYYMMDD_HHMM():
         invalidArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
 
-YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
+YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff](Z|+hh:mm|-hh:mm)'
 
 def getFullTime(returnDateTime=False):
   from iso8601 import iso8601
