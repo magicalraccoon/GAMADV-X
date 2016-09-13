@@ -1,6 +1,17 @@
+4.20.05
+
+Implement command to claim Google Drive file ownership. Credit to Mattias Bystedt for the original code.
+See: https://github.com/lerklompen/GAM/releases/tag/v3.66-writerscantshare
+    gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare]
+
+4.20.04
+
+Big fix.
+
 4.20.03
 
 Implement command to transfer Google Drive file ownership. Credit to Mattias Bystedt for the original code.
+See: https://github.com/lerklompen/GAM/releases/tag/v3.66-writerscantshare
     gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*GAMADV>
 
 4.20.02
@@ -785,6 +796,5 @@ This isn't elegant but it's a start; you can say:
     print 'GAM returned {0}'.format(rc)
     with open(GAM_STDOUT, 'rU') as f:
         for line in f:
-            # Process outout
-            print line.rstrip()
+            sys.stdout.write(line)
 

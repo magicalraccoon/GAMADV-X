@@ -377,6 +377,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <CourseIDList> ::= '<CourseID>(,<CourseID>)*'
 <CrOSFieldNameList> ::= '<CrOSFieldName(,<CrOSFieldName>)*'
 <CrOSList> ::= '<CrOSID>(,<CrOSID>)*'
+<DomainNameList> ::= '<DomainName>(,<DomainName>)*'
 <DriveFileList> ::= '<DriveFileItem>(,<DriveFileItem>)*'
 <EmailAddressList> ::= '<EmailAddress>(,<EmailAddress>)*'
 <EventIDList> ::= '<EventID>(,<EventID>)*'
@@ -463,7 +464,8 @@ If an item contains spaces, it should be surrounded by " or '.
 <CourseEntity> ::= <CourseIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CrOSEntity> ::= <CrOSItem>|<CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)|(drivefilename[:| ]<DriveFileName>)|(query[:| ]<QueryDriveFile>)|root
+<DomainNameEntity> ::= <DomainNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>)|(drivefilename(:| )<DriveFileName>)|(query(:| )<QueryDriveFile>)|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <FilterIDEntity> ::= <FilterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
@@ -1068,6 +1070,7 @@ gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
 gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare]
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 

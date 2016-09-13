@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.04'
+__version__ = u'4.20.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -645,6 +645,7 @@ OB_CROS_ENTITY = u'CrOSEntity'
 OB_CUSTOMER_ID = u'CustomerID'
 OB_DOMAIN_ALIAS = u'DomainAlias'
 OB_DOMAIN_NAME = u'DomainName'
+OB_DOMAIN_NAME_ENTITY = u'DomainNameEntity'
 OB_DRIVE_FILE_ENTITY = u'DriveFileEntity'
 OB_DRIVE_FILE_ID = u'DriveFileID'
 OB_DRIVE_FILE_NAME = u'DriveFileName'
@@ -1255,6 +1256,8 @@ UNSTRUCTURED_FORMATTED_ARGUMENT = [u'unstructured', u'formatted',]
 AC_ADD = u'add '
 AC_BACKUP = u'back'
 AC_CANCEL = u'canc'
+AC_CLAIM = u'clai'
+AC_CLAIM_OWNERSHIP = u'clow'
 AC_COPY = u'copy'
 AC_CREATE = u'crea'
 AC_DELETE = u'dele'
@@ -1289,7 +1292,7 @@ AC_SPAM = u'spam'
 AC_SUBMIT = u'subm'
 AC_SYNC = u'sync'
 AC_TRANSFER = u'tran'
-AC_TRANSFER_OWNERSHIP = u'trOn'
+AC_TRANSFER_OWNERSHIP = u'trow'
 AC_TRASH = u'tras'
 AC_UNDELETE = u'unde'
 AC_UNTRASH = u'untr'
@@ -1305,6 +1308,8 @@ ACTION_NAMES = {
   AC_ADD: [u'Added', u'Add'],
   AC_BACKUP: [u'Backed up', u'Backup'],
   AC_CANCEL: [u'Cancelled', u'Cancel'],
+  AC_CLAIM: [u'Claimed', u'Claim'],
+  AC_CLAIM_OWNERSHIP: [u'Ownership Claimed', u'Claim Ownership'],
   AC_COPY: [u'Copied', u'Copy'],
   AC_CREATE: [u'Created', u'Create'],
   AC_DELETE: [u'Deleted', u'Delete'],
@@ -1338,7 +1343,7 @@ ACTION_NAMES = {
   AC_SUBMIT: [u'Submitted', u'Submit'],
   AC_SYNC: [u'Synced', u'Sync'],
   AC_TRANSFER: [u'Transferred', u'Transfer'],
-  AC_TRANSFER_OWNERSHIP: [u'Transferred Ownership', u'Transfer Ownership'],
+  AC_TRANSFER_OWNERSHIP: [u'Ownership Transferred', u'Transfer Ownership'],
   AC_TRASH: [u'Trashed', u'Trash'],
   AC_UNDELETE: [u'Undeleted', u'Undelete'],
   AC_UNTRASH: [u'Untrashed', u'Untrash'],
@@ -1597,6 +1602,7 @@ PHRASE_UNKNOWN = u'Unknown'
 PHRASE_UNKNOWN_COMMAND_SELECTOR = u'Unknown command or selector'
 PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION = u'Use the "doit" argument to perform action'
 PHRASE_USE_RECURSIVE_ARGUMENT_TO_COPY_FOLDERS = u'Use "recursive" argument to copy folders'
+PHRASE_USER_IN_OTHER_DOMAIN = '{0}: {1} in other domain.'
 PHRASE_WAITING_FOR_PROCESSES_TO_COMPLETE = u'Waiting for running processes to finish before proceeding...'
 PHRASE_WITH = u'with'
 PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
@@ -5129,7 +5135,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
               GM_Globals[GM_CSV_DATA_DICT])
   entityChoices = []
   if userAllowed:
-    entityChoices += CL_USER_ENTITIES[:]
+    entityChoices += CL_USER_ENTITIES
   if crosAllowed:
     entityChoices += CL_CROS_ENTITIES
   entityType = mapEntityType(getChoice(entityChoices, choiceAliases=CL_ENTITY_ALIAS_MAP, defaultChoice=defaultEntityType), typeMap)
@@ -5144,23 +5150,29 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
     return (None, None)
   invalidChoiceExit(selectorChoices+entityChoices)
 
-def getEntityList(item, listOptional=False, shlexSplit=False):
+def getEntitySelector():
   selectorChoices = CL_ENTITY_SELECTORS[:]
   selectorChoices.remove(CL_ENTITY_SELECTOR_ALL)
   selectorChoices.remove(CL_ENTITY_SELECTOR_DATAFILE)
   selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
-  entitySelector = getChoice(selectorChoices, defaultChoice=None)
+  return getChoice(selectorChoices, defaultChoice=None)
+
+def getEntitySelection(entitySelector, shlexSplit):
+  if entitySelector in [CL_ENTITY_SELECTOR_FILE]:
+    return getEntitiesFromFile(shlexSplit)
+  if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE]:
+    return getEntitiesFromCSVFile(shlexSplit)
+  if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
+    return getEntitiesFromCSVbyField()
+  if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
+    checkDataField()
+    return GM_Globals[GM_CSV_DATA_DICT]
+  return getEntitiesFromArgs()
+
+def getEntityList(item, listOptional=False, shlexSplit=False):
+  entitySelector = getEntitySelector()
   if entitySelector:
-    if entitySelector in [CL_ENTITY_SELECTOR_FILE]:
-      return getEntitiesFromFile(shlexSplit)
-    if entitySelector in [CL_ENTITY_SELECTOR_CSV, CL_ENTITY_SELECTOR_CSVFILE]:
-      return getEntitiesFromCSVFile(shlexSplit)
-    if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
-      return getEntitiesFromCSVbyField()
-    if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
-      checkDataField()
-      return GM_Globals[GM_CSV_DATA_DICT]
-    return getEntitiesFromArgs()
+    return getEntitySelection(entitySelector, shlexSplit)
   return convertEntityToList(getString(item, optional=listOptional, emptyOK=True), shlexSplit=shlexSplit)
 
 # Write a CSV file
@@ -16558,11 +16570,24 @@ def cleanFileIDsList(fileIdSelection, fileIds):
   i = 0
   for fileId in fileIds:
     if fileId[:8].lower() == u'https://' or fileId[:7].lower() == u'http://':
-      fileId = fileId[fileId.find(u'/d/')+3:]
-      if fileId.find(u'/') != -1:
-        fileId = fileId[:fileId.find(u'/')]
-    if fileId.lower() == u'root':
+      loc = fileId.find(u'/d/')
+      if loc > 0:
+        fileId = fileId[loc+3:]
+        loc = fileId.find(u'/')
+        if loc != -1:
+          fileId = fileId[:loc]
+      else:
+        loc = fileId.find(u'/folderview?id=')
+        if loc > 0:
+          fileId = fileId[loc+15:]
+          loc = fileId.find(u'&')
+          if loc != -1:
+            fileId = fileId[:loc]
+        else:
+          continue
+    elif fileId.lower() == u'root':
       fileIdSelection[u'root'].append(i)
+      fileId = fileId.lower()
     fileIdSelection[u'fileIds'].append(fileId)
     i += 1
 
@@ -16571,45 +16596,52 @@ def initDriveFileEntity():
 
 def getDriveFileEntity(default=None, ignore=None):
   fileIdSelection = initDriveFileEntity()
-  myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True, optional=default)
-  if not myarg:
-    if default:
-      cleanFileIDsList(fileIdSelection, default)
-    return fileIdSelection
-  mycmd = myarg.lower()
-  if ignore and mycmd in ignore:
-    putArgumentBack()
-    if default:
-      cleanFileIDsList(fileIdSelection, default)
-    return fileIdSelection
-  if mycmd == u'id':
-    cleanFileIDsList(fileIdSelection, getStringReturnInList(OB_DRIVE_FILE_ID))
-  elif mycmd == u'ids':
-    entityList = getEntityList(OB_DRIVE_FILE_ENTITY)
-    if isinstance(entityList, dict):
-      fileIdSelection[u'dict'] = entityList
-    else:
-      cleanFileIDsList(fileIdSelection, entityList)
-  elif mycmd == u'query':
-    fileIdSelection[u'query'] = getString(OB_QUERY)
-  elif mycmd[:6] == u'query:':
-    fileIdSelection[u'query'] = myarg[6:]
-  elif mycmd == u'drivefilename':
-    fileIdSelection[u'query'] = u"'me' in owners and title = '{0}'".format(getString(OB_DRIVE_FILE_NAME))
-  elif mycmd[:14] == u'drivefilename:':
-    fileIdSelection[u'query'] = u"'me' in owners and title = '{0}'".format(myarg[14:])
-  elif mycmd == u'root':
-    cleanFileIDsList(fileIdSelection, [mycmd,])
+  entitySelector = getEntitySelector()
+  if entitySelector:
+    cleanFileIDsList(fileIdSelection, getEntitySelection(entitySelector, False))
   else:
-    cleanFileIDsList(fileIdSelection, [myarg,])
+    myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True, optional=default)
+    if not myarg:
+      if default:
+        cleanFileIDsList(fileIdSelection, default)
+      return fileIdSelection
+    mycmd = myarg.lower()
+    if ignore and mycmd in ignore:
+      putArgumentBack()
+      if default:
+        cleanFileIDsList(fileIdSelection, default)
+      return fileIdSelection
+    if mycmd == u'id':
+      cleanFileIDsList(fileIdSelection, getStringReturnInList(OB_DRIVE_FILE_ID))
+    elif mycmd == u'ids':
+      entityList = getEntityList(OB_DRIVE_FILE_ENTITY)
+      if isinstance(entityList, dict):
+        fileIdSelection[u'dict'] = entityList
+      else:
+        cleanFileIDsList(fileIdSelection, entityList)
+    elif mycmd == u'query':
+      fileIdSelection[u'query'] = getString(OB_QUERY)
+    elif mycmd[:6] == u'query:':
+      fileIdSelection[u'query'] = myarg[6:]
+    elif mycmd == u'drivefilename':
+      fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+    elif mycmd[:14] == u'drivefilename:':
+      fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+    elif mycmd == u'root':
+      cleanFileIDsList(fileIdSelection, [mycmd,])
+    else:
+      cleanFileIDsList(fileIdSelection, [myarg,])
   return fileIdSelection
 
-def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
+def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, drive=None):
   if fileIdSelection[u'dict']:
     cleanFileIDsList(fileIdSelection, fileIdSelection[u'dict'][user])
-  user, drive = buildDriveGAPIObject(user)
   if not drive:
-    return (user, None, 0)
+    user, drive = buildDriveGAPIObject(user)
+    if not drive:
+      return (user, None, 0)
+  else:
+    user = convertUserUIDtoEmailAddress(user)
   if parameters[DFA_PARENTQUERY]:
     more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY])
     if more_parents == None:
@@ -17834,6 +17866,147 @@ def transferDriveFileOwnership(users):
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
+
+# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare]
+def claimDriveFolderOwnership(users):
+
+  def _identifyFilesToClaimOwnership(user, files, feed, folderId, skipids, skipusers, trashed):
+    for f_file in feed:
+      if not f_file[u'ownedByMe'] and f_file[u'id'] not in skipids:
+        owner = f_file[u'owners'][0][u'emailAddress']
+        if trashed or not f_file[u'labels'][u'trashed'] and owner not in skipusers:
+          for parent in f_file[u'parents']:
+            if folderId == parent[u'id']:
+              files.setdefault(owner, {})
+              if f_file[u'id'] not in files[owner]:
+                files[owner][f_file[u'id']] = f_file[DRIVE_FILE_NAME]
+                if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+                  _identifyFilesToClaimOwnership(user, files, feed, f_file[u'id'], skipids, skipusers, trashed)
+            break
+
+  fileIdSelection = getDriveFileEntity()
+  skipIdSelection = initDriveFileEntity()
+  body, parameters = initializeDriveFileAttributes()
+  skipbody, skipparameters = initializeDriveFileAttributes()
+  files = {}
+  skipusers = []
+  subdomains = []
+  trashed = False
+  writerscanshare = True
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'skipids':
+      skipIdSelection = getDriveFileEntity()
+    elif myarg == u'skipusers':
+      _, skipusers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
+    elif myarg == u'subdomains':
+      subdomains = getEntityList(OB_DOMAIN_NAME_ENTITY)
+    elif myarg == u'includetrashed':
+      trashed = True
+    elif myarg == u'writerscantshare':
+      writerscanshare = False
+    else:
+      unknownArgumentExit()
+  setActionName(AC_CLAIM_OWNERSHIP)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    origUser = user
+    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+    if not drive:
+      continue
+    permissionId = validateUserGetPermissionId(user)
+    if not permissionId:
+      continue
+    entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FILE_OR_FOLDER, i, count)
+    if jcount == 0:
+      continue
+    if skipIdSelection[u'query'] or skipIdSelection[u'root']:
+      validateUserGetFileIDs(origUser, i, count, skipIdSelection, skipbody, skipparameters, drive=drive)
+    try:
+      printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, user, i, count)
+      page_message = getPageMessageForWhom()
+      feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                           page_message=page_message,
+                           throw_reasons=GAPI_DRIVE_THROW_REASONS,
+                           fields=u'nextPageToken,items(id,{0},mimeType,ownedByMe,parents(id),owners(emailAddress),labels(trashed))'.format(DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+      for source_folder in fileIdSelection[u'fileIds']:
+        for f_file in feed:
+          if f_file[u'id'] == source_folder:
+            if not f_file[u'ownedByMe'] and f_file[u'id'] not in skipIdSelection[u'fileIds']:
+              owner = f_file[u'owners'][0][u'emailAddress']
+              if trashed or not f_file[u'labels'][u'trashed'] and owner not in skipusers:
+                files.setdefault(owner, {})
+                if f_file[u'id'] not in files[owner]:
+                  files[owner][f_file[u'id']] = f_file[DRIVE_FILE_NAME]
+            break
+        _identifyFilesToClaimOwnership(user, files, feed, source_folder, skipIdSelection[u'fileIds'], skipusers, trashed)
+      body = {u'role': u'owner'}
+      bodyAdd = {u'role': u'writer', u'type': u'user', u'value': user}
+      if not writerscanshare:
+        bodyShare = {u'writersCanShare': False}
+      jcount = len(files)
+      entityPerformActionNumItems(EN_USER, user, jcount, EN_USER, i, count)
+      incrementIndentLevel()
+      j = 0
+      for oldOwner in files:
+        j += 1
+        _, userdomain = splitEmailAddress(oldOwner)
+        kcount = len(files[oldOwner])
+        if userdomain == GC_Values[GC_DOMAIN] or userdomain in subdomains:
+          source_drive = buildGAPIServiceObject(u'drive', oldOwner)
+          entityPerformActionNumItemsModifier(EN_USER, user, kcount, EN_DRIVE_FILE_OR_FOLDER, u'{0} {1}: {2}'.format(AC_MODIFIER_FROM, singularEntityName(EN_USER), oldOwner), j, jcount)
+          incrementIndentLevel()
+          k = 0
+          for fileId, fileName in files[oldOwner].items():
+            k += 1
+            if not writerscanshare:
+              callGAPI(source_drive.files(), u'patch',
+                       fileId=fileId, body=bodyShare)
+            try:
+              callGAPI(source_drive.permissions(), DRIVE_PATCH_PERMISSIONS,
+                       throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
+                       fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
+              entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_FROM, None, singularEntityName(EN_USER), oldOwner, k, kcount)
+            except GAPI_permissionNotFound:
+              # if claimer not in ACL (file might be visible for all with link)
+              try:
+                setActionName(AC_ADD)
+                callGAPI(source_drive.permissions(), DRIVE_CREATE_PERMISSIONS,
+                         throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_SHARING_REQUEST, GAPI_FILE_NOT_FOUND],
+                         fileId=fileId, sendNotificationEmails=False, body=bodyAdd)
+                entityItemValueItemValueActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, k, kcount)
+                setActionName(AC_CLAIM_OWNERSHIP)
+                callGAPI(source_drive.permissions(), DRIVE_PATCH_PERMISSIONS,
+                         throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
+                         fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body)
+                entityItemValueModifierNewValueInfoActionPerformed(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, AC_MODIFIER_FROM, None, singularEntityName(EN_USER), oldOwner, k, kcount)
+              except GAPI_invalidSharingRequest as e:
+                entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), k, kcount)
+              except GAPI_permissionNotFound:
+                entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, EN_PERMISSION_ID, permissionId, k, kcount)
+              except GAPI_fileNotFound:
+                entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, k, kcount)
+              except (GAPI_serviceNotAvailable, GAPI_authError):
+                entityServiceNotApplicableWarning(EN_USER, user, i, count)
+            except GAPI_fileNotFound:
+              entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_DOES_NOT_EXIST, k, kcount)
+            except (GAPI_serviceNotAvailable, GAPI_authError):
+              entityServiceNotApplicableWarning(EN_USER, user, i, count)
+              break
+          decrementIndentLevel()
+        else:
+          entityPerformActionModifierNumItemsModifier(EN_USER, user, u'Not Performed', kcount, EN_DRIVE_FILE_OR_FOLDER, u'{0} {1}: {2}'.format(AC_MODIFIER_FROM, singularEntityName(EN_USER), oldOwner), j, jcount)
+          incrementIndentLevel()
+          k = 0
+          for fileId, fileName in files[oldOwner].items():
+            k += 1
+            entityItemValueActionNotPerformedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileName, PHRASE_USER_IN_OTHER_DOMAIN.format(singularEntityName(EN_USER), oldOwner), k, kcount)
+          decrementIndentLevel()
+      decrementIndentLevel()
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
 # gam <UserTypeEntity> delete|del emptydrivefolders
 def deleteEmptyDriveFolders(users):
@@ -21934,6 +22107,15 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_LABELS:	CL_OB_LABEL,
         u'licence':	CL_OB_LICENSE,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
+       },
+    },
+  u'claim':
+    {CMD_ACTION: AC_CLAIM,
+     CMD_FUNCTION:
+       {CL_OB_OWNERSHIP: claimDriveFolderOwnership,
+       },
+     CMD_OBJ_ALIASES:
+       {
        },
     },
   u'copy':
