@@ -17872,17 +17872,16 @@ def claimDriveFolderOwnership(users):
 
   def _identifyFilesToClaimOwnership(user, files, feed, folderId, skipids, skipusers, trashed):
     for f_file in feed:
-      if not f_file[u'ownedByMe'] and f_file[u'id'] not in skipids:
-        owner = f_file[u'owners'][0][u'emailAddress']
-        if trashed or not f_file[u'labels'][u'trashed'] and owner not in skipusers:
-          for parent in f_file[u'parents']:
-            if folderId == parent[u'id']:
-              files.setdefault(owner, {})
-              if f_file[u'id'] not in files[owner]:
-                files[owner][f_file[u'id']] = {u'name': f_file[DRIVE_FILE_NAME], u'type': [EN_DRIVE_FILE, EN_DRIVE_FOLDER][f_file[u'mimeType'] == MIMETYPE_GA_FOLDER]}
-              if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
-                _identifyFilesToClaimOwnership(user, files, feed, f_file[u'id'], skipids, skipusers, trashed)
-            break
+      for parent in f_file[u'parents']:
+        if folderId == parent[u'id']:
+          owner = f_file[u'owners'][0][u'emailAddress']
+          if not f_file[u'ownedByMe'] and f_file[u'id'] not in skipids and (trashed or not f_file[u'labels'][u'trashed']) and owner not in skipusers:
+            files.setdefault(owner, {})
+            if f_file[u'id'] not in files[owner]:
+              files[owner][f_file[u'id']] = {u'name': f_file[DRIVE_FILE_NAME], u'type': [EN_DRIVE_FILE, EN_DRIVE_FOLDER][f_file[u'mimeType'] == MIMETYPE_GA_FOLDER]}
+          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER and f_file[u'id'] not in skipids and (trashed or not f_file[u'labels'][u'trashed']):
+            _identifyFilesToClaimOwnership(user, files, feed, f_file[u'id'], skipids, skipusers, trashed)
+          break
 
   fileIdSelection = getDriveFileEntity()
   skipIdSelection = initDriveFileEntity()
