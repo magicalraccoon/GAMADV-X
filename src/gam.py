@@ -7100,8 +7100,8 @@ def updateOrgs(entityList):
     j = 0
     for deviceId in CrOSList:
       j += 1
-      parameters = dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
       if bsize > 1:
+        parameters = dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
         dbatch.add(cd.chromeosdevices().patch(**parameters), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
         bcount += 1
         if bcount == bsize:
