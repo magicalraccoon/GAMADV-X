@@ -1,3 +1,7 @@
+4.20.10
+
+Handle incomplete author information in gam print siteactivity.
+
 4.20.09
 
 Added userfields to gam print group-members to allow output of additional user fields.

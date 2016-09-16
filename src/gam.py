@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.09'
+__version__ = u'4.20.10'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -12815,6 +12815,13 @@ class SitesManager(object):
           return
       fields[fieldName] = objAttr
 
+    def GetActivityFieldData(objAttr, attrlist, default):
+      for attr in attrlist:
+        objAttr = getattr(objAttr, attr)
+        if not objAttr:
+          return default
+      return  objAttr
+
     def AppendItemToFieldsList(fieldName, fieldValue):
       fields.setdefault(fieldName, [])
       fields[fieldName].append(fieldValue)
@@ -12823,7 +12830,7 @@ class SitesManager(object):
     GetActivityField(u'Summary', [u'title', u'text'])
     GetActivityField(u'Updated', [u'updated', u'text'])
     for author in activity_entry.author:
-      AppendItemToFieldsList('Authors', u'{0}/{1}'.format(author.name.text, author.email.text))
+      AppendItemToFieldsList('Authors', u'{0}/{1}'.format(GetActivityFieldData(author, [u'name', u'text'], u'Unknown Name'), GetActivityFieldData(author, [u'email', u'text'], u'Unknown Email')))
     fields[u'Operation'] = activity_entry.Kind()
     return fields
 
