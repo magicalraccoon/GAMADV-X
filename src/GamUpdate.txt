@@ -1,3 +1,9 @@
+4.20.09
+
+Added userfields to gam print group-members to allow output of additional user fields.
+    gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
+
 4.20.08
 
 Expand gam calendars show events and add gam calendars print events.

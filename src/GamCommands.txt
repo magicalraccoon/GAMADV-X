@@ -879,7 +879,8 @@ gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <
 
 
 gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
-	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [recursive [noduplicates]]
+	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
+
 
 gam print licenses [todrive] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 

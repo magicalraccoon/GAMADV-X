@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.08'
+__version__ = u'4.20.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -5182,6 +5182,12 @@ def addTitlesToCSVfile(addTitles, titles):
   for title in addTitles:
     if title not in titles[u'set']:
       addTitleToCSVfile(title, titles)
+
+def removeTitlesFromCSVfile(removeTitles, titles):
+  for title in removeTitles:
+    if title in titles[u'set']:
+      titles[u'set'].remove(title)
+      titles[u'list'].remove(title)
 
 def addRowTitlesToCSVfile(row, csvRows, titles):
   csvRows.append(row)
@@ -12001,15 +12007,15 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
             if member[u'id'] in membersSet:
               continue
             membersSet.add(member[u'id'])
-          member[u'subgroup'] = groupEmail
           member[u'level'] = level
+          member[u'subgroup'] = [u'', groupEmail][level > 0]
           membersList.append(member)
         else:
           getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
   except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
     entityUnknownWarning(EN_GROUP, groupEmail, i, count)
 
-MEMBERS_FIELD_NAMES_MAP = {
+GROUPMEMBERS_FIELD_NAMES_MAP = {
   u'email': u'email',
   u'groupemail': u'group',
   u'id': u'id',
@@ -12019,6 +12025,8 @@ MEMBERS_FIELD_NAMES_MAP = {
   u'type': u'type',
   u'useremail': u'email',
   }
+
+GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'status']
 
 # gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 #	[membernames] <MemberFiledName>* [fields <MembersFieldNameList>] [noduplicates] [recursive]
@@ -12032,6 +12040,8 @@ def doPrintGroupMembers():
   fieldsTitles = {}
   titles, csvRows = initializeTitlesCSVfile(None)
   entityList = None
+  userFieldsList = []
+  userFieldsTitles = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -12050,20 +12060,30 @@ def doPrintGroupMembers():
     elif myarg == u'select':
       entityList = getEntityList(OB_GROUP_ENTITY)
       subTitle = u'{0} {1}'.format(PHRASE_SELECTED, pluralEntityName(EN_GROUP))
-    elif myarg in MEMBERS_FIELD_NAMES_MAP:
-      myarg = MEMBERS_FIELD_NAMES_MAP[myarg]
+    elif myarg in GROUPMEMBERS_FIELD_NAMES_MAP:
+      myarg = GROUPMEMBERS_FIELD_NAMES_MAP[myarg]
       addFieldToCSVfile(myarg, {myarg: [myarg]}, fieldsList, fieldsTitles, titles)
     elif myarg == u'fields':
       fieldNameList = getString(OB_FIELD_NAME_LIST)
       for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in MEMBERS_FIELD_NAMES_MAP:
-          field = MEMBERS_FIELD_NAMES_MAP[field]
+        if field in GROUPMEMBERS_FIELD_NAMES_MAP:
+          field = GROUPMEMBERS_FIELD_NAMES_MAP[field]
           addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
         else:
           putArgumentBack()
-          invalidChoiceExit(MEMBERS_FIELD_NAMES_MAP)
+          invalidChoiceExit(GROUPMEMBERS_FIELD_NAMES_MAP)
     elif myarg == u'membernames':
       membernames = True
+      if u'name.fullName' not in userFieldsList:
+        userFieldsList.append(u'name.fullName')
+    elif myarg == u'userfields':
+      fieldNameList = getString(OB_FIELD_NAME_LIST)
+      for field in fieldNameList.lower().replace(u',', u' ').split():
+        if field in USER_ARGUMENT_TO_PROPERTY_MAP:
+          addFieldToCSVfile(field, USER_ARGUMENT_TO_PROPERTY_MAP, userFieldsList, userFieldsTitles, titles)
+        else:
+          putArgumentBack()
+          invalidChoiceExit(USER_ARGUMENT_TO_PROPERTY_MAP)
     elif myarg == u'noduplicates':
       noduplicates = True
     elif myarg == u'recursive':
@@ -12092,10 +12112,8 @@ def doPrintGroupMembers():
       else:
         accessErrorExit(cd)
   if not fieldsList:
-    for field in [u'id', u'role', u'group', u'email', u'type', u'status']:
+    for field in GROUPMEMBERS_DEFAULT_FIELDS:
       addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
-    if membernames:
-      addTitlesToCSVfile([u'name'], titles)
   else:
     if u'name'in fieldsList:
       membernames = True
@@ -12103,8 +12121,13 @@ def doPrintGroupMembers():
   if u'group' in fieldsList:
     groupname = True
     fieldsList.remove(u'group')
-  if recursive:
-    addTitlesToCSVfile([u'subgroup', u'level'], titles)
+  if userFieldsList:
+    if not membernames and u'name.fullName' in userFieldsList:
+      membernames = True
+    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
+  if membernames:
+    addTitlesToCSVfile([u'name'], titles)
+    removeTitlesFromCSVfile([u'name.fullName'], titles)
   membersSet = set()
   level = 0
   i = 0
@@ -12118,31 +12141,45 @@ def doPrintGroupMembers():
     membersList = []
     getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level)
     for member in membersList:
-      member_attr = {}
+      row = {}
       if groupname:
-        member_attr[u'group'] = groupEmail
+        row[u'group'] = groupEmail
+      if recursive:
+        row[u'level'] = member[u'level']
+        row[u'subgroup'] = member[u'subgroup']
       for title in fieldsList:
-        member_attr[title] = member[title]
-      if membernames:
-        member_attr[u'name'] = u'Unknown'
+        row[title] = member[title]
+      if userFieldsList:
+        if membernames:
+          row[u'name'] = u'Unknown'
         memberType = member.get(u'type')
         if memberType == u'USER':
           try:
             mbinfo = callGAPI(cd.users(), u'get',
                               throw_reasons=GAPI_USER_GET_THROW_REASONS,
-                              userKey=member[u'id'], fields=u'name')
-            member_attr[u'name'] = mbinfo[u'name'][u'fullName']
+                              userKey=member[u'id'], fields=userFieldsList)
+            if membernames:
+              row[u'name'] = mbinfo[u'name'][u'fullName']
+              del mbinfo[u'name'][u'fullName']
+            addRowTitlesToCSVfile(flattenJSON(mbinfo, flattened=row), csvRows, titles)
           except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
-            pass
-        elif memberType == u'GROUP':
-          try:
-            mbinfo = callGAPI(cd.groups(), u'get',
-                              throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                              groupKey=member[u'id'], fields=u'name')
-            member_attr[u'name'] = mbinfo[u'name']
-          except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
-            pass
-      csvRows.append(member_attr)
+            csvRows.append(row)
+        else:
+          if membernames and memberType == u'GROUP':
+            try:
+              mbinfo = callGAPI(cd.groups(), u'get',
+                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                groupKey=member[u'id'], fields=u'name')
+              row[u'name'] = mbinfo[u'name']
+            except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+              pass
+          csvRows.append(row)
+      else:
+        csvRows.append(row)
+  sortCSVTitles(GROUPMEMBERS_DEFAULT_FIELDS, titles)
+  if recursive:
+    removeTitlesFromCSVfile([u'level', u'subgroup'], titles)
+    addTitlesToCSVfile([u'level', u'subgroup'], titles)
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
 # gam print licenses [todrive] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
