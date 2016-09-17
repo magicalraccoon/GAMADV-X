@@ -1,3 +1,7 @@
+4.20.12
+
+Handle linefeeds in site summaries. Convert \n to \\n in print sites, convert \\n to \n in create/update sites, indent properly in info site.
+
 4.20.11
 
 Add includeallsites to gam print sites to expand list of sites printed for a user.

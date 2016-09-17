@@ -242,6 +242,7 @@ def AclFeedFromString(xml_string):
   return atom.CreateClassFromXMLString(AclFeed, xml_string)
 
 class ActivityEntry(gdata.BatchEntry):
+  """Describes an entry in a feed of site activity (changes)."""
   _tag = 'entry'
   _namespace = atom.ATOM_NAMESPACE
   _children = gdata.BatchEntry._children.copy()
@@ -269,7 +270,7 @@ def ActivityEntryFromString(xml_string):
   return atom.CreateClassFromXMLString(ActivityEntry, xml_string)
 
 class ActivityFeed(gdata.BatchFeed, gdata.LinkFinder):
-  """Describes a feed of an access control list (ACL)."""
+  """Describes a feed of site activity (changes)."""
   _tag = 'feed'
   _namespace = atom.ATOM_NAMESPACE
   _children = gdata.BatchFeed._children.copy()

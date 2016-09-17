@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.11'
+__version__ = u'4.20.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -12881,7 +12881,7 @@ class SitesManager(object):
         elif fieldName == SITE_SOURCELINK:
           fields[fieldName] = getString(OB_URI)
         elif fieldName == SITE_SUMMARY:
-          fields[fieldName] = getString(OB_STRING, emptyOK=True)
+          fields[fieldName] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
         elif fieldName == SITE_THEME:
           fields[fieldName] = getString(OB_STRING)
         elif fieldName == SITE_CATEGORIES:
@@ -13086,7 +13086,13 @@ def doInfoSites(users, entityType):
           for field in SITE_FIELD_PRINT_ORDER:
             if field in fields:
               if not isinstance(fields[field], list):
-                printKeyValueList([field, fields[field]])
+                if field != SITE_SUMMARY:
+                  printKeyValueList([field, fields[field]])
+                else:
+                  printKeyValueList([field, None])
+                  incrementIndentLevel()
+                  printKeyValueList([indentMultiLineText(fields[field])])
+                  decrementIndentLevel()
               else:
                 printKeyValueList([field, u','.join(fields[field])])
           if fields.get(SITE_WEB_ADDRESS_MAPPINGS):
@@ -13166,12 +13172,15 @@ def doPrintSites(users, entityType):
           continue
         sitesSet.add(fields[SITE_SITE])
         siteRow = {singularEntityName(entityType): user, SITE_SITE: U'{0}/{1}'.format(domain, fields[SITE_SITE])}
-        for key in fields:
-          if key != SITE_SITE:
-            if not isinstance(fields[key], list):
-              siteRow[key] = fields[key]
+        for field in fields:
+          if field != SITE_SITE:
+            if not isinstance(fields[field], list):
+              if field != SITE_SUMMARY:
+                siteRow[field] = fields[field]
+              else:
+                siteRow[field] = fields[field].replace(u'\n', u'\\n')
             else:
-              siteRow[key] = u','.join(fields[key])
+              siteRow[field] = u','.join(fields[field])
         rowShown = False
         if roles:
           acls = callGDataPages(sitesObject, u'GetAclFeed',
