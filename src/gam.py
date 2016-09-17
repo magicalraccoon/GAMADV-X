@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.10'
+__version__ = u'4.20.11'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -13111,7 +13111,7 @@ def doInfoSites(users, entityType):
         entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
     decrementIndentLevel()
 
-# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
+# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
 def printUserSites(users):
   doPrintSites(users, EN_USER)
 
@@ -13132,6 +13132,8 @@ def doPrintSites(users, entityType):
       domain = getString(OB_DOMAIN_NAME)
       if entityType == EN_DOMAIN:
         users[0] = domain
+    elif myarg == u'includeallsites':
+      url_params[u'include-all-sites'] = u'true'
     elif myarg == u'maxresults':
       url_params[u'max-results'] = getInteger(minVal=1)
     elif myarg == u'withmappings':
@@ -13140,6 +13142,8 @@ def doPrintSites(users, entityType):
       roles = getACLRoles(SITE_ACL_ROLES_MAP)
     else:
       unknownArgumentExit()
+  if domain == u'site':
+    del url_params[u'include-all-sites']
   sitesManager = SitesManager()
   sitesSet = set()
   i = 0
