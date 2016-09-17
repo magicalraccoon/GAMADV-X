@@ -13117,7 +13117,7 @@ def doInfoSites(users, entityType):
         entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
     decrementIndentLevel()
 
-# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
+# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 def printUserSites(users):
   doPrintSites(users, EN_USER)
 
@@ -13128,7 +13128,7 @@ def doPrintSites(users, entityType):
   domain = GC_Values[GC_DOMAIN]
   url_params = {u'include-all-sites': [u'false', u'true'][entityType == EN_DOMAIN]}
   roles = None
-  todrive = False
+  convertSummaryNL = todrive = False
   titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), SITE_SITE, SITE_NAME])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -13146,6 +13146,8 @@ def doPrintSites(users, entityType):
       url_params[u'with-mappings'] = u'true'
     elif myarg == u'roles':
       roles = getACLRoles(SITE_ACL_ROLES_MAP)
+    elif myarg == u'convertsummarynl':
+      convertSummaryNL = True
     else:
       unknownArgumentExit()
   if domain == u'site':
@@ -13175,7 +13177,7 @@ def doPrintSites(users, entityType):
         for field in fields:
           if field != SITE_SITE:
             if not isinstance(fields[field], list):
-              if field != SITE_SUMMARY:
+              if field != SITE_SUMMARY or not convertSummaryNL:
                 siteRow[field] = fields[field]
               else:
                 siteRow[field] = fields[field].replace(u'\n', u'\\n')
