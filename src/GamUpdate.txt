@@ -1,3 +1,7 @@
+4.20.13
+
+Fix uninitialized variable bug in doLoop.
+
 4.20.12
 
 Handle linefeeds in site summaries.

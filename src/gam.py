@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.20.12'
+__version__ = u'4.20.13'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -309,7 +309,7 @@ GC_Defaults = {
   GC_USER_MAX_RESULTS: 500,
   }
 
-GC_Values = {}
+GC_Values = {GC_DEBUG_LEVEL: 0}
 
 GC_TYPE_BOOLEAN = u'bool'
 GC_TYPE_CHOICE = u'choi'
