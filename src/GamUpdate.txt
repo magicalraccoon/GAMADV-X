@@ -2,7 +2,7 @@
 
 Handle linefeeds in site summaries.
 In gam print sites, convertsummarynl causes \n to be converted to \\n, otherwise \n is not changed.
-In gam create/supdate sites, \\n is  converted to \n in summary <String>.
+In gam create/update sites, \\n is  converted to \n in summary <String>.
     gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 
 4.20.11
