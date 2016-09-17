@@ -1,3 +1,8 @@
+4.20.11
+
+Add includeallsites to gam print sites to expand list of sites printed for a user.
+    gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>]
+
 4.20.10
 
 Handle incomplete author information in gam print siteactivity.
