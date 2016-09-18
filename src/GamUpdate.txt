@@ -1,4 +1,9 @@
-4.20.14
+4.21.01
+
+Added gam show sites command.
+    gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>]
+
+4.21.01
 
 Expanded gam print sites to take a <DomandNameEntity> rather than just a <DomainName>. This allows printing site information for several domains with one command.
     gam [<UserTypeEntity>] print sites [todrive] [domain <DomainNameEntity>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]

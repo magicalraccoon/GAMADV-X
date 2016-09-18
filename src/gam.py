@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.21.00'
+__version__ = u'4.21.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -3063,6 +3063,13 @@ def entityPerformActionNumItems(entityType, entityName, itemCount, itemType, i=0
   sys.stdout.write(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
                                       [singularEntityName(entityType), entityName,
                                        u'{0} {1} {2}'.format(GM_Globals[GM_ACTION_TO_PERFORM], itemCount, chooseEntityName(itemType, itemCount))],
+                                      currentCountNL(i, count)))
+
+def entityPerformActionItemValueNumItems(entityType, entityName, itemType, itemValue, subItemCount, subItemType, i=0, count=0):
+  sys.stdout.write(formatKeyValueList(GM_Globals[GM_INDENT_SPACES],
+                                      [singularEntityName(entityType), entityName,
+                                       singularEntityName(itemType), itemValue,
+                                       u'{0} {1} {2}'.format(GM_Globals[GM_ACTION_TO_PERFORM], subItemCount, chooseEntityName(subItemType, subItemCount))],
                                       currentCountNL(i, count)))
 
 def entityPerformActionModifierNumItems(entityType, entityName, modifier, itemCount, itemType, i=0, count=0):
@@ -13009,6 +13016,57 @@ def doUpdateSites(users, entityType):
       except (GData_badRequest, GData_forbidden) as e:
         entityActionFailedWarning(EN_SITE, domainSite, e.message)
 
+SITE_FIELD_PRINT_ORDER = [
+  SITE_UPDATED,
+  SITE_NAME,
+  SITE_SUMMARY,
+  SITE_THEME,
+  SITE_SOURCELINK,
+  SITE_CATEGORIES,
+  SITE_LINK,
+  ]
+
+def _showSite(sitesManager, sitesObject, domain, site, roles, j, jcount):
+  fields = sitesManager.SiteToFields(site)
+  domainSite = u'{0}/{1}'.format(domain, fields[SITE_SITE])
+  printKeyValueListWithCount([SITE_SITE, domainSite], j, jcount)
+  incrementIndentLevel()
+  for field in SITE_FIELD_PRINT_ORDER:
+    if field in fields:
+      if not isinstance(fields[field], list):
+        if field != SITE_SUMMARY:
+          printKeyValueList([field, fields[field]])
+        else:
+          printKeyValueList([field, None])
+          incrementIndentLevel()
+          printKeyValueList([indentMultiLineText(fields[field])])
+          decrementIndentLevel()
+      else:
+        printKeyValueList([field, u','.join(fields[field])])
+  if fields.get(SITE_WEB_ADDRESS_MAPPINGS):
+    printKeyValueList([SITE_WEB_ADDRESS_MAPPINGS, None])
+    incrementIndentLevel()
+    for link in fields[SITE_WEB_ADDRESS_MAPPINGS]:
+      printKeyValueList([link, None])
+    decrementIndentLevel()
+  if roles:
+    try:
+      acls = callGDataPages(sitesObject, u'GetAclFeed',
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                            domain=domain, site=fields[SITE_SITE])
+      printKeyValueList([SITE_ACLS, None])
+      incrementIndentLevel()
+      for acl in acls:
+        fields = sitesManager.AclEntryToFields(acl)
+        if fields[u'role'] in roles:
+          printKeyValueList([formatACLRule(fields)])
+      decrementIndentLevel()
+    except GData_notFound:
+      entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
+    except GData_forbidden as e:
+      entityActionFailedWarning(EN_SITE, domainSite, e.message)
+  decrementIndentLevel()
+
 SITE_ACL_ROLES_MAP = {
   u'editor': u'writer',
   u'invite': u'invite',
@@ -13030,17 +13088,7 @@ def getACLRoles(aclRolesMap):
       invalidChoiceExit(aclRolesMap)
   return list(set(roles))
 
-SITE_FIELD_PRINT_ORDER = [
-  SITE_UPDATED,
-  SITE_NAME,
-  SITE_SUMMARY,
-  SITE_THEME,
-  SITE_SOURCELINK,
-  SITE_CATEGORIES,
-  SITE_LINK,
-  ]
-
-# gam [<UserTypeEntity>] info site <SiteEntity> [withmappings] [roles all|<SiteACLRoleList>]
+# gam [<UserTypeEntity>] info site <SiteEntity> [withmappings] [role|roles all|<SiteACLRoleList>]
 def infoUserSites(users):
   doInfoSites(users, EN_USER)
 
@@ -13056,7 +13104,7 @@ def doInfoSites(users, entityType):
     myarg = getArgument()
     if myarg == u'withmappings':
       url_params[u'with-mappings'] = u'true'
-    elif myarg == u'roles':
+    elif myarg in [u'role', u'roles']:
       roles = getACLRoles(SITE_ACL_ROLES_MAP)
     else:
       unknownArgumentExit()
@@ -13087,77 +13135,63 @@ def doInfoSites(users, entityType):
                            throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
                            domain=domain, site=site, url_params=url_params)
         if result:
-          fields = sitesManager.SiteToFields(result)
-          printKeyValueList([SITE_SITE, u'{0}/{1}'.format(domain, fields[SITE_SITE])])
-          incrementIndentLevel()
-          for field in SITE_FIELD_PRINT_ORDER:
-            if field in fields:
-              if not isinstance(fields[field], list):
-                if field != SITE_SUMMARY:
-                  printKeyValueList([field, fields[field]])
-                else:
-                  printKeyValueList([field, None])
-                  incrementIndentLevel()
-                  printKeyValueList([indentMultiLineText(fields[field])])
-                  decrementIndentLevel()
-              else:
-                printKeyValueList([field, u','.join(fields[field])])
-          if fields.get(SITE_WEB_ADDRESS_MAPPINGS):
-            printKeyValueList([SITE_WEB_ADDRESS_MAPPINGS, None])
-            incrementIndentLevel()
-            for link in fields[SITE_WEB_ADDRESS_MAPPINGS]:
-              printKeyValueList([link, None])
-            decrementIndentLevel()
-          if roles:
-            acls = callGDataPages(sitesObject, u'GetAclFeed',
-                                  throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
-                                  domain=domain, site=fields[SITE_SITE])
-            printKeyValueList([SITE_ACLS, None])
-            incrementIndentLevel()
-            for acl in acls:
-              fields = sitesManager.AclEntryToFields(acl)
-              if fields[u'role'] in roles:
-                printKeyValueList([formatACLRule(fields)])
-            decrementIndentLevel()
-          decrementIndentLevel()
+          _showSite(sitesManager, sitesObject, domain, result, roles, j, jcount)
       except GData_notFound:
         entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST)
       except GData_forbidden as e:
         entityActionFailedWarning(EN_SITE, domainSite, e.message)
     decrementIndentLevel()
 
-# gam [<UserTypeEntity>] print sites [todrive] [domain <DomainNameEntity>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+# gam [<UserTypeEntity>] print sites [todrive] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 def printUserSites(users):
-  doPrintSites(users, EN_USER)
+  printShowSites(users, EN_USER, True)
 
+# gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+def showUserSites(users):
+  printShowSites(users, EN_USER, False)
+
+# gam print sites [todrive] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 def doPrintDomainSites():
-  doPrintSites([GC_Values[GC_DOMAIN],], EN_DOMAIN)
+  printShowSites([GC_Values[GC_DOMAIN],], EN_DOMAIN, True)
 
-def doPrintSites(entityList, entityType):
-  def _getSites(entity, i, count, domain):
+# gam show sites [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+def doShowDomainSites():
+  printShowSites([GC_Values[GC_DOMAIN],], EN_DOMAIN, False)
+
+def printShowSites(entityList, entityType, csvFormat):
+  def _getSites(domain, i, count):
     try:
       page_message = getPageMessage()
-      sites = callGDataPages(sitesObject, u'GetSiteFeed',
-                             page_message=page_message,
-                             throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
-                             domain=domain, url_params=url_params)
-      for site in sites:
-        fields = sitesManager.SiteToFields(site)
-        if fields[SITE_SITE] in sitesSet:
-          continue
-        sitesSet.add(fields[SITE_SITE])
-        siteRow = {singularEntityName(entityType): entity, SITE_SITE: U'{0}/{1}'.format(domain, fields[SITE_SITE])}
-        for field in fields:
-          if field != SITE_SITE:
-            if not isinstance(fields[field], list):
-              if field != SITE_SUMMARY or not convertSummaryNL:
-                siteRow[field] = fields[field]
-              else:
-                siteRow[field] = fields[field].replace(u'\n', u'\\n')
+      return callGDataPages(sitesObject, u'GetSiteFeed',
+                            page_message=page_message,
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                            domain=domain, url_params=url_params)
+    except GData_notFound:
+      entityActionFailedWarning(EN_DOMAIN, domain, PHRASE_DOES_NOT_EXIST, i, count)
+    except GData_forbidden as e:
+      entityActionFailedWarning(EN_DOMAIN, domain, e.message, i, count)
+    return []
+
+  def _printSites(entity, i, count, domain, sites):
+    for site in sites:
+      fields = sitesManager.SiteToFields(site)
+      if fields[SITE_SITE] in sitesSet:
+        continue
+      sitesSet.add(fields[SITE_SITE])
+      domainSite = u'{0}/{1}'.format(domain, fields[SITE_SITE])
+      siteRow = {singularEntityName(entityType): entity, SITE_SITE: domainSite}
+      for field in fields:
+        if field != SITE_SITE:
+          if not isinstance(fields[field], list):
+            if field != SITE_SUMMARY or not convertSummaryNL:
+              siteRow[field] = fields[field]
             else:
-              siteRow[field] = u','.join(fields[field])
-        rowShown = False
-        if roles:
+              siteRow[field] = fields[field].replace(u'\n', u'\\n')
+          else:
+            siteRow[field] = u','.join(fields[field])
+      rowShown = False
+      if roles:
+        try:
           acls = callGDataPages(sitesObject, u'GetAclFeed',
                                 throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
                                 domain=domain, site=fields[SITE_SITE])
@@ -13172,35 +13206,51 @@ def doPrintSites(entityList, entityType):
                 siteACLRow[u'Scope'] = fields[u'scope'][u'type']
               rowShown = True
               addRowTitlesToCSVfile(siteACLRow, csvRows, titles)
-        if not rowShown:
-          addRowTitlesToCSVfile(siteRow, csvRows, titles)
-    except GData_notFound:
-      entityActionFailedWarning(EN_DOMAIN, domain, PHRASE_DOES_NOT_EXIST, i, count)
-    except GData_forbidden as e:
-      entityActionFailedWarning(EN_DOMAIN, domain, e.message, i, count)
+        except GData_notFound:
+          entityActionFailedWarning(EN_SITE, domainSite, PHRASE_DOES_NOT_EXIST, i, count)
+        except GData_forbidden as e:
+          entityActionFailedWarning(EN_SITE, domainSite, e.message, i, count)
+      if not rowShown:
+        addRowTitlesToCSVfile(siteRow, csvRows, titles)
 
-  domainList = [GC_Values[GC_DOMAIN],]
+  def _showSites(entity, i, count, domain, sites):
+    jcount = len(sites)
+    if entityType == EN_USER:
+      entityPerformActionItemValueNumItems(entityType, entity, EN_DOMAIN, domain, jcount, EN_SITE, i, count)
+    else:
+      entityPerformActionNumItems(entityType, entity, jcount, EN_SITE, i, count)
+    incrementIndentLevel()
+    j = 0
+    for site in sites:
+      j += 1
+      _showSite(sitesManager, sitesObject, domain, site, roles, j, jcount)
+    decrementIndentLevel()
+
+  domains = []
+  domainLists = []
   url_params = {}
   includeAllSites = [u'false', u'true'][entityType == EN_DOMAIN]
   roles = None
-  convertSummaryNL = todrive = False
-  titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), SITE_SITE, SITE_NAME])
+  if csvFormat:
+    convertSummaryNL = todrive = False
+    titles, csvRows = initializeTitlesCSVfile([singularEntityName(entityType), SITE_SITE, SITE_NAME])
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'todrive':
+    if csvFormat and myarg == u'todrive':
       todrive = True
-    elif myarg == u'domain':
+    elif myarg in [u'domain', u'domains']:
       if entityType == EN_DOMAIN:
         entityList = getEntityList(OB_DOMAIN_NAME_ENTITY)
       else:
-        domainList = getEntityList(OB_DOMAIN_NAME_ENTITY)
+        domains = getEntityList(OB_DOMAIN_NAME_ENTITY)
+        domainLists = domains if isinstance(domains, dict) else None
     elif myarg == u'includeallsites':
       includeAllSites = u'true'
     elif myarg == u'maxresults':
       url_params[u'max-results'] = getInteger(minVal=1)
     elif myarg == u'withmappings':
       url_params[u'with-mappings'] = u'true'
-    elif myarg == u'roles':
+    elif myarg in [u'role', u'roles']:
       roles = getACLRoles(SITE_ACL_ROLES_MAP)
     elif myarg == u'convertsummarynl':
       convertSummaryNL = True
@@ -13213,16 +13263,30 @@ def doPrintSites(entityList, entityType):
   if entityType == EN_USER:
     for user in entityList:
       i += 1
+      if domainLists:
+        domainList = domainLists[user]
+      elif domains:
+        domainList = domains
+      else:
+        _, domain = splitEmailAddress(user)
+        domainList = [domain]
       user, sitesObject = getSitesObject(entityType, user, i, count)
       if not sitesObject:
         continue
+      jcount = len(domainList)
+      j = 0
       for domain in domainList:
+        j += 1
         if domain != u'site':
           url_params[u'include-all-sites'] = includeAllSites
         else:
           url_params.pop(u'include-all-sites', None)
         printGettingAllEntityItemsForWhom(EN_SITE, u'{0}: {1}, {2}: {3}'.format(singularEntityName(EN_USER), user, singularEntityName(EN_DOMAIN), domain))
-        _getSites(user, i, count, domain)
+        sites = _getSites(domain, i, count)
+        if not csvFormat:
+          _showSites(domain, j, jcount, domain, sites)
+        else:
+          _printSites(user, j, jcount, domain, sites)
   else:
     for domain in entityList:
       i += 1
@@ -13234,8 +13298,16 @@ def doPrintSites(entityList, entityType):
       else:
         url_params.pop(u'include-all-sites', None)
       printGettingAllEntityItemsForWhom(EN_SITE, u'{0}: {1}'.format(singularEntityName(EN_DOMAIN), domain))
-      _getSites(domain, i, count, domain)
-  writeCSVfile(csvRows, titles, u'Sites', todrive)
+      sites = _getSites(domain, i, count)
+      if not csvFormat:
+        _showSites(domain, i, count, domain, sites)
+      else:
+        _printSites(domain, i, count, domain, sites)
+  if csvFormat:
+    if roles:
+      removeTitlesFromCSVfile([u'Scope', u'Role'], titles)
+      addTitlesToCSVfile([u'Scope', u'Role'], titles)
+    writeCSVfile(csvRows, titles, u'Sites', todrive)
 
 # gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
 # gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
@@ -21901,14 +21973,16 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {CL_OB_CONTACTS:	doShowDomainContacts,
         CL_OB_GUARDIANS: doShowGuardians,
-        CL_OB_SITEACLS:	doProcessDomainSiteACLs,
         CL_OB_SCHEMAS:	doShowUserSchemas,
+        CL_OB_SITES:	doShowDomainSites,
+        CL_OB_SITEACLS:	doProcessDomainSiteACLs,
        },
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_GUARDIAN:	CL_OB_GUARDIANS,
-        CL_OB_SITEACL:	CL_OB_SITEACLS,
         CL_OB_SCHEMA:	CL_OB_SCHEMAS,
+        CL_OB_SITE:	CL_OB_SITES,
+        CL_OB_SITEACL:	CL_OB_SITEACLS,
        },
     },
   u'update':
@@ -22499,6 +22573,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_PROFILE:	showProfile,
         CL_OB_SENDAS:	showSendAs,
         CL_OB_SIGNATURE:showSignature,
+        CL_OB_SITES:	showUserSites,
         CL_OB_SITEACLS:	processUserSiteACLs,
         CL_OB_THREADS:	showThreads,
         CL_OB_TOKENS:	showTokens,
@@ -22520,6 +22595,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_LABEL:	CL_OB_LABELS,
         CL_OB_MESSAGE:	CL_OB_MESSAGES,
         u'sig':		CL_OB_SIGNATURE,
+        CL_OB_SITE:	CL_OB_SITES,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
         CL_OB_THREAD:	CL_OB_THREADS,
         CL_OB_TOKEN:	CL_OB_TOKENS,
