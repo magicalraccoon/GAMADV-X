@@ -1,3 +1,11 @@
+4.20.14
+
+Expanded gam print sites to take a <DomandNameEntity> rather than just a <DomainName>. This allows printing site information for several domains with one command.
+    gam [<UserTypeEntity>] print sites [todrive] [domain <DomainNameEntity>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+Examples:
+     gam print sites domain domain1.com,domain2.com
+     gam redirect csv ./domains.csv print domains | gam print sites domain csvfile ./domains.csv:domainName
+
 4.20.13
 
 Fix uninitialized variable bug in doLoop.

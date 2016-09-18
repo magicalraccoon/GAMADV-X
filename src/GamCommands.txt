@@ -911,7 +911,7 @@ gam print schema|schemas [todrive]
 gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
 gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [roles all|<SiteACLRoleList>]
-gam [<UserTypeEntity>] print sites [todrive] [domain <DomainName>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+gam [<UserTypeEntity>] print sites [todrive] [domain <DomainNameEntity>] [includeallsites] [withmappings] [roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 
