@@ -1,3 +1,7 @@
+4.21.02
+
+Retry Sites API calls on Internal Server Error
+
 4.21.01
 
 Added gam show sites command.
