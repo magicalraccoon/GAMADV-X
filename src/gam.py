@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.21.01'
+__version__ = u'4.21.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -12751,6 +12751,7 @@ def checkSiteExists(sitesObject, domain, site):
   try:
     callGData(sitesObject, u'GetSite',
               throw_errors=[GDATA_NOT_FOUND],
+              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
               domain=domain, site=site)
     return True
   except GData_notFound:
@@ -12956,6 +12957,7 @@ def doCreateSite(users, entityType):
       siteEntry = sitesManager.FieldsToSite(fields)
       callGData(sitesObject, u'CreateSite',
                 throw_errors=[GDATA_NOT_FOUND, GDATA_ENTITY_EXISTS, GDATA_BAD_REQUEST, GDATA_FORBIDDEN],
+                retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                 siteentry=siteEntry, domain=domain, site=None)
       entityActionPerformed(EN_SITE, domainSite)
     except GData_notFound:
@@ -13001,6 +13003,7 @@ def doUpdateSites(users, entityType):
       try:
         siteEntry = callGData(sitesObject, u'GetSite',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               domain=domain, site=site)
         fields = sitesManager.SiteToFields(siteEntry)
         for field in updateFields:
@@ -13009,6 +13012,7 @@ def doUpdateSites(users, entityType):
         newSiteEntry = sitesManager.FieldsToSite(fields)
         callGData(sitesObject, u'UpdateSite',
                   throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_FORBIDDEN],
+                  retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                   siteentry=newSiteEntry, domain=domain, site=site, extra_headers={u'If-Match': siteEntry.etag})
         entityActionPerformed(EN_SITE, domainSite)
       except GData_notFound:
@@ -13053,6 +13057,7 @@ def _showSite(sitesManager, sitesObject, domain, site, roles, j, jcount):
     try:
       acls = callGDataPages(sitesObject, u'GetAclFeed',
                             throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                            retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             domain=domain, site=fields[SITE_SITE])
       printKeyValueList([SITE_ACLS, None])
       incrementIndentLevel()
@@ -13133,6 +13138,7 @@ def doInfoSites(users, entityType):
       try:
         result = callGData(sitesObject, u'GetSite',
                            throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                           retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                            domain=domain, site=site, url_params=url_params)
         if result:
           _showSite(sitesManager, sitesObject, domain, result, roles, j, jcount)
@@ -13165,6 +13171,7 @@ def printShowSites(entityList, entityType, csvFormat):
       return callGDataPages(sitesObject, u'GetSiteFeed',
                             page_message=page_message,
                             throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                            retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             domain=domain, url_params=url_params)
     except GData_notFound:
       entityActionFailedWarning(EN_DOMAIN, domain, PHRASE_DOES_NOT_EXIST, i, count)
@@ -13194,6 +13201,7 @@ def printShowSites(entityList, entityType, csvFormat):
         try:
           acls = callGDataPages(sitesObject, u'GetAclFeed',
                                 throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                                retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                 domain=domain, site=fields[SITE_SITE])
           for acl in acls:
             fields = sitesManager.AclEntryToFields(acl)
@@ -13372,6 +13380,7 @@ def doProcessSiteACLs(users, entityType):
               acl = sitesManager.FieldsToAclEntry(fields)
               acl = callGData(sitesObject, u'CreateAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_ENTITY_EXISTS, GDATA_BAD_REQUEST, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               aclentry=acl, domain=domain, site=site)
               fields = sitesManager.AclEntryToFields(acl)
               if not fields.get(u'inviteLink'):
@@ -13381,24 +13390,29 @@ def doProcessSiteACLs(users, entityType):
             elif action == AC_UPDATE:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               domain=domain, site=site, ruleId=ruleId)
               acl.role.value = role
               acl = callGData(sitesObject, u'UpdateAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               aclentry=acl, domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
               fields = sitesManager.AclEntryToFields(acl)
               entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, formatACLRule(fields), k, kcount)
             elif action == AC_DELETE:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               domain=domain, site=site, ruleId=ruleId)
               callGData(sitesObject, u'DeleteAclEntry',
                         throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                        retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                         domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
               entityItemValueActionPerformed(EN_SITE, domainSite, EN_ACL, formatACLScopeRole(ruleId, None), k, kcount)
             elif action == AC_INFO:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                              retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               domain=domain, site=site, ruleId=ruleId)
               fields = sitesManager.AclEntryToFields(acl)
               printEntityItemValue(EN_SITE, domainSite, EN_ACL, formatACLRule(fields), k, kcount)
@@ -13416,6 +13430,7 @@ def doProcessSiteACLs(users, entityType):
         try:
           acls = callGDataPages(sitesObject, u'GetAclFeed',
                                 throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                                retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                 domain=domain, site=site)
           kcount = len(acls)
           entityPerformActionNumItems(EN_SITE, domainSite, kcount, EN_ACL, j, jcount)
@@ -13486,6 +13501,7 @@ def doPrintSiteActivity(users, entityType):
         activities = callGDataPages(sitesObject, u'GetActivityFeed',
                                     page_message=page_message,
                                     throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
+                                    retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                     domain=domain, site=site, url_params=url_params)
         for activity in activities:
           fields = sitesManager.ActivityEntryToFields(activity)
