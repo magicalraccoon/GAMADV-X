@@ -1,3 +1,7 @@
+4.22.01
+
+Handle cache_discovery_only when discovery is read from file.
+
 4.22.00
 
 Added cache_discovery_only to gam.cfg.
