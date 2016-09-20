@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.21.02'
+__version__ = u'4.22.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -177,6 +177,10 @@ GM_MAP_ROLE_NAME_TO_ID = u'rn2i'
 GM_MAP_USER_ID_TO_NAME = u'ui2n'
 # oauth2.txt.lock lockfile
 GM_OAUTH2_TXT_LOCK = 'oalk'
+# GAM cache directory. If no_cache is True, this variable will be set to None
+GM_CACHE_DIR = u'gacd'
+# Reset GAM cache directory after discovery
+GM_CACHE_DISCOVERY_ONLY = u'gcdo'
 #
 GM_Globals = {
   GM_SYSEXITRC: 0,
@@ -217,6 +221,8 @@ GM_Globals = {
   GM_MAP_ROLE_NAME_TO_ID: None,
   GM_MAP_USER_ID_TO_NAME: None,
   GM_OAUTH2_TXT_LOCK: None,
+  GM_CACHE_DIR: None,
+  GM_CACHE_DISCOVERY_ONLY: False,
   }
 
 # Global variables defined in gam.cfg
@@ -229,8 +235,10 @@ GC_ACTIVITY_MAX_RESULTS = u'activity_max_results'
 GC_AUTO_BATCH_MIN = u'auto_batch_min'
 # When processing items in batches, how many should be processed in each batch
 GC_BATCH_SIZE = u'batch_size'
-# GAM cache directory. If no_cache is specified, this variable will be set to None
+# GAM cache directory
 GC_CACHE_DIR = u'cache_dir'
+# GAM cache discovery only. If no_cache is False, only API discovery calls will be cached
+GC_CACHE_DISCOVERY_ONLY = u'cache_discovery_only'
 # Character set of batch, csv, data files
 GC_CHARSET = u'charset'
 # Path to client_secrets.json
@@ -284,6 +292,7 @@ GC_Defaults = {
   GC_AUTO_BATCH_MIN: 0,
   GC_BATCH_SIZE: 50,
   GC_CACHE_DIR: u'',
+  GC_CACHE_DISCOVERY_ONLY: FALSE,
   GC_CHARSET: DEFAULT_CHARSET,
   GC_CLIENT_SECRETS_JSON: FN_CLIENT_SECRETS_JSON,
   GC_CONFIG_DIR: u'',
@@ -331,6 +340,7 @@ GC_VAR_INFO = {
   GC_AUTO_BATCH_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_AUTOBATCH', GC_VAR_LIMITS: (0, None)},
   GC_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_BATCH_SIZE', GC_VAR_LIMITS: (1, 1000)},
   GC_CACHE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMCACHEDIR'},
+  GC_CACHE_DISCOVERY_ONLY: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'cachediscoveryonly.txt', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_CHARSET: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CHARSET'},
   GC_CLIENT_SECRETS_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'CLIENTSECRETSFILE'},
   GC_CONFIG_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMUSERCONFIGDIR'},
@@ -360,6 +370,7 @@ GC_SETTABLE_VARS = [
   GC_ACTIVITY_MAX_RESULTS,
   GC_AUTO_BATCH_MIN,
   GC_BATCH_SIZE,
+  GC_CACHE_DISCOVERY_ONLY,
   GC_CHARSET,
   GC_CONTACT_MAX_RESULTS,
   GC_DEBUG_LEVEL,
@@ -3653,7 +3664,11 @@ def SetGlobalVariables():
     _chkCfgDirectories(sectionName)
     _chkCfgFiles(sectionName)
     if GC_Values[GC_NO_CACHE]:
-      GC_Values[GC_CACHE_DIR] = None
+      GM_Globals[GM_CACHE_DIR] = None
+      GM_Globals[GM_CACHE_DISCOVERY_ONLY] = False
+    else:
+      GM_Globals[GM_CACHE_DIR] = GC_Values[GC_CACHE_DIR]
+      GM_Globals[GM_CACHE_DISCOVERY_ONLY] = GC_Values[GC_CACHE_DISCOVERY_ONLY]
     return True
 # We're done, nothing else to do
   return False
@@ -4388,9 +4403,12 @@ def readDiscoveryFile(api_version):
 def getAPIversionHttpService(api):
   api, version, api_version = getAPIVersion(api)
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                       cache=GC_Values[GC_CACHE_DIR])
+                       cache=GM_Globals[GM_CACHE_DIR])
   try:
-    return (api_version, http, googleapiclient.discovery.build(api, version, http=http, cache_discovery=False))
+    service = googleapiclient.discovery.build(api, version, http=http, cache_discovery=False)
+    if GM_Globals[GM_CACHE_DISCOVERY_ONLY]:
+      http.cache = None
+    return (api_version, http, service)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(NETWORK_ERROR_RC, e)
   except googleapiclient.errors.UnknownApiNameOrVersion:
@@ -4499,8 +4517,7 @@ def getGDataUserCredentials(api, user, i=0, count=0):
     systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(discovery.get(u'title', api_version)))
   credentials = getSvcAcctCredentials(GM_Globals[GM_CURRENT_API_SCOPES], userEmail)
   try:
-    credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                                      cache=GC_Values[GC_CACHE_DIR]))
+    credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
     return (userEmail, credentials)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(NETWORK_ERROR_RC, e)

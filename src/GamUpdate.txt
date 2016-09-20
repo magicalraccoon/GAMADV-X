@@ -1,3 +1,12 @@
+4.22.00
+
+Added cache_discovery_only to gam.cfg.
+If no_cache = True, no GAM API calls are cached.
+If no_cache = False and cache_discovery_only = False, all GAM API calls are cached.
+If no_cache = False and cache_discovery_only = True, only GAM discovery API calls are cached.
+The last combination caches GAM discovery API calls that usually return the same value
+without consuming large amounts of disc space as when all GAM API calls are cached.
+
 4.21.02
 
 Retry Sites API calls on Internal Server Error
