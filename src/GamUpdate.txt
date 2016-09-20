@@ -1,3 +1,7 @@
+4.22.02
+
+Fix error in gam print group-members.
+
 4.22.01
 
 Handle cache_discovery_only when discovery is read from file.
