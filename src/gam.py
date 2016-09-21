@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.00'
+__version__ = u'4.23.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -540,9 +540,9 @@ GDATA_UNKNOWN_ERROR = 600
 GDATA_NON_TERMINATING_ERRORS = [GDATA_BAD_GATEWAY, GDATA_QUOTA_EXCEEDED, GDATA_SERVICE_UNAVAILABLE, GDATA_TOKEN_EXPIRED]
 GDATA_EMAILSETTINGS_THROW_LIST = [GDATA_INVALID_DOMAIN, GDATA_DOES_NOT_EXIST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_BAD_REQUEST, GDATA_NAME_NOT_VALID, GDATA_INTERNAL_SERVER_ERROR, GDATA_INVALID_VALUE]
 # oauth errors
-OAUTH2_HARD_ERRORS = [u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.']
-OAUTH2_SOFT_ERRORS = [u'access_denied', u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID', u'invalid_grant: Bad Request',
-                      u'invalid_request: Invalid impersonation prn email address.', u'internal_failure: Backend Error']
+OAUTH2_TOKEN_ERRORS = [u'access_denied', u'invalid_grant', u'unauthorized_client: Unauthorized client or scope in request.', u'access_denied: Requested client not authorized.',
+                       u'invalid_grant: Not a valid email.', u'invalid_grant: Invalid email or User ID', u'invalid_grant: Bad Request',
+                       u'invalid_request: Invalid impersonation prn email address.', u'internal_failure: Backend Error']
 # callGAPI throw reasons
 GAPI_ABORTED = u'aborted'
 GAPI_ALREADY_EXISTS = u'alreadyExists'
@@ -3708,7 +3708,7 @@ def doGAMCheckForUpdates(forceCheck=False):
     return
 
 def handleOAuthTokenError(e, soft_errors):
-  if e.message in OAUTH2_SOFT_ERRORS:
+  if e.message in OAUTH2_TOKEN_ERRORS:
     if soft_errors:
       return None
     if not GM_Globals[GM_CURRENT_API_USER]:

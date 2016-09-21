@@ -1,3 +1,7 @@
+4.23.01
+
+Improve handling of inappropriate email addresses in GAPI Service calls.
+
 4.23.00
 
 Allow mapping of keyfield value in csvkmd selectors. 
