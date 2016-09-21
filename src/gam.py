@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.22.02'
+__version__ = u'4.23.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -2521,8 +2521,8 @@ def getREPattern():
         usageErrorExit(u'{0} {1}: {2}'.format(OB_RE_PATTERN, PHRASE_ERROR, e))
   missingArgumentExit(OB_RE_PATTERN)
 
-SITENAME_PATTERN = re.compile(r'^[a-z0-9\-]+$')
-SITENAME_FORMAT_REQUIRED = u'[a-z,0-9,-]+'
+SITENAME_PATTERN = re.compile(r'^[a-z0-9\-_]+$')
+SITENAME_FORMAT_REQUIRED = u'[a-z,0-9,-_]+'
 
 def validateSplitSiteName(fullSite):
   siteParts = fullSite.lower().split(u'/', 1)
@@ -5038,7 +5038,7 @@ def getEntitiesFromCSVFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
+# <FileName> [charset <String>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
@@ -5048,6 +5048,14 @@ def getEntitiesFromCSVbyField():
   keyField = GM_Globals[GM_CSV_KEY_FIELD] = getString(OB_FIELD_NAME)
   if keyField not in csvFile.fieldnames:
     csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
+  if checkArgumentPresent([u'keypattern',]):
+    keyPattern = getREPattern()
+  else:
+    keyPattern = keyField
+  if checkArgumentPresent([u'keyvalue',]):
+    keyValue = getString(OB_STRING)
+  else:
+    keyValue = keyField
   keyDelimiter = getDelimiter()
   matchFields = getMatchFields(csvFile.fieldnames)
   if checkArgumentPresent(DATAFIELD_ARGUMENT):
@@ -5073,15 +5081,17 @@ def getEntitiesFromCSVbyField():
       continue
     if matchFields and not checkMatchFields(row, matchFields):
       continue
-    keyList = splitEntityList(item, keyDelimiter, False)
-    for keyValue in keyList:
-      keyValue = keyValue.strip()
-      if keyValue and (keyValue not in entitySet):
-        entitySet.add(keyValue)
-        entityList.append(keyValue)
+    if isinstance(keyPattern, str):
+      keyList = [re.sub(keyPattern, keyItem.strip(), keyValue) for keyItem in splitEntityList(item, keyDelimiter, False)]
+    else:
+      keyList = [keyPattern.sub(keyValue, keyItem.strip()) for keyItem in splitEntityList(item, keyDelimiter, False)]
+    for key in keyList:
+      if key and (key not in entitySet):
+        entitySet.add(key)
+        entityList.append(key)
         if GM_Globals[GM_CSV_DATA_FIELD]:
-          csvDataKeys[keyValue] = set()
-          GM_Globals[GM_CSV_DATA_DICT][keyValue] = []
+          csvDataKeys[key] = set()
+          GM_Globals[GM_CSV_DATA_DICT][key] = []
     for dataField in dataFields:
       if dataField in row:
         dataList = splitEntityList(row[dataField].strip(), dataDelimiter, False)
@@ -5089,10 +5099,10 @@ def getEntitiesFromCSVbyField():
           dataValue = dataValue.strip()
           if not dataValue:
             continue
-          for keyValue in keyList:
-            if dataValue not in csvDataKeys[keyValue]:
-              csvDataKeys[keyValue].add(dataValue)
-              GM_Globals[GM_CSV_DATA_DICT][keyValue].append(dataValue)
+          for key in keyList:
+            if dataValue not in csvDataKeys[key]:
+              csvDataKeys[key].add(dataValue)
+              GM_Globals[GM_CSV_DATA_DICT][key].append(dataValue)
   closeFile(f)
   return entityList
 

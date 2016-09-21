@@ -417,7 +417,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(args cros <Marker> <CrOSID>* <Marker>)|
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>]
-			keyfield <FieldName> [delimiter <String>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvcros <FieldName>(:<FieldName>*))
@@ -446,14 +446,14 @@ If an item contains spaces, it should be surrounded by " or '.
 		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
-			keyfield <FieldName> [delimiter <String>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvdata <FieldName>(:<FieldName>*))
 
 # Specify a collection of items by directly specifying them; the item type is determined by context.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
-<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>])
 
