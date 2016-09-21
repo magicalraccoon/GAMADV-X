@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.01'
+__version__ = u'4.23.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -6735,7 +6735,6 @@ ADDRESS_FIELDS_ARGUMENT_MAP = {
 #	[locality <String>] [region <String>] [postalcode <String>] [country|countrycode <String>]
 def doUpdateCustomer():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  language = None
   body = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -6749,8 +6748,7 @@ def doUpdateCustomer():
     elif myarg in [u'phone', u'phonenumber']:
       body[u'phoneNumber'] = getString(OB_STRING, emptyOK=True)
     elif myarg == u'language':
-#      body[u'language'] = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
-      language = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
+      body[u'language'] = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
     else:
       unknownArgumentExit()
   if body:
@@ -6763,17 +6761,6 @@ def doUpdateCustomer():
       entityItemValueActionFailedWarning(EN_CUSTOMER_ID, GC_Values[GC_CUSTOMER_ID], EN_DOMAIN, body[u'customerDomain'], PHRASE_DOMAIN_NOT_VERIFIED_SECONDARY)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
-  if language:
-    adminSettingsObject = getAdminSettingsObject()
-    try:
-      result = callGData(adminSettingsObject, u'UpdateDefaultLanguage',
-                         throw_errors=[GDATA_INVALID_DOMAIN, GDATA_INVALID_VALUE],
-                         defaultLanguage=language)
-      entityItemValueActionPerformed(EN_CUSTOMER_ID, GC_Values[GC_CUSTOMER_ID], EN_DEFAULT_LANGUAGE, result[u'defaultLanguage'])
-    except GData_invalidDomain as e:
-      printErrorMessage(INVALID_DOMAIN_RC, e.message)
-    except GData_invalidValue as e:
-      printErrorMessage(INVALID_DOMAIN_VALUE_RC, e.message)
 
 SERVICE_NAME_TO_ID_MAP = {u'Drive': u'55656082996', u'Google+': u'553547912911',}
 

@@ -1,3 +1,7 @@
+4.23.02
+
+Use Directory API to update customer language.
+
 4.23.01
 
 Improve handling of inappropriate email addresses in GAPI Service calls.
