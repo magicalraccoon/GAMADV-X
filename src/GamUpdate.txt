@@ -1,3 +1,32 @@
+4.23.03
+
+Custom schema fields can be single-valued or multi-valued. Gam has always supported both but has not supported the
+type characteristic within a multi-valued schema field. In gam create/update user, schema fields are now specified as:
+    <SchemaName>.<FieldName> [multivalued [type work|home|other|(custom <CustomType>)]] <String>
+Examples:
+TestSchema.SVField <String> - value is <String>
+TestSchema.MVField <String> - type is work (default), value is <String>
+TestSchema.MVField type home <String> - type is home, value is <String>
+TestSchema.MVField type custom <CustomType> <String> - type is custom, customType is <CustomType>, value is <String>
+Compatability note: In the unlikely case that you are currently setting a multi-valued schema field with the value "type",
+i.e., TestSchema.MVField type, you will have to change this to TestSchema.MVField type work type.
+
+If you have external programs that produce multi-column files of data, but witout headers, you have to add a
+header row to the file before Gam can read the file as a CSV file. Now, you can use the file as is and specify the
+headers in Gam. There are several places where the headers can be specified:
+    croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
+    csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
+    csvkmd cros|users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [fields <FieldNameList>]
+    	   keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+	   (matchfield <FieldName> <RegularExpression>)*
+	   [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+    <CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [fields <FieldNameList>]
+				keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+				(matchfield <FieldName> <RegularExpression>)*
+				[datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+    gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+    gam loop <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+
 4.23.02
 
 Use Directory API to update customer language.

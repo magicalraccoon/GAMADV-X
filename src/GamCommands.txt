@@ -91,6 +91,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <EventColorIndex> ::== <Number in range 1-11>
 <EventID> ::= <String>
 <FieldName> ::= <String>
+<FieldNameList> ::= '<FieldName>(,<FieldName>)*'
 <FileName> ::= <String>
 <FileNamePattern> ::= <String>
 <FilterID> ::= <Sttring>
@@ -370,12 +371,12 @@ If an item contains spaces, it should be surrounded by " or '.
 
 <ACLList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
-<ContactFieldNameList> ::= '<ContactFieldName(,<ContactFieldName>)*'
+<ContactFieldNameList> ::= '<ContactFieldName>(,<ContactFieldName>)*'
 <ContactIDList> ::= '<ContactID>(,<ContactID>)*'
 <ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
 <CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
 <CourseIDList> ::= '<CourseID>(,<CourseID>)*'
-<CrOSFieldNameList> ::= '<CrOSFieldName(,<CrOSFieldName>)*'
+<CrOSFieldNameList> ::= '<CrOSFieldName>(,<CrOSFieldName>)*'
 <CrOSList> ::= '<CrOSID>(,<CrOSID>)*'
 <DomainNameList> ::= '<DomainName>(,<DomainName>)*'
 <DriveFileList> ::= '<DriveFileItem>(,<DriveFileItem>)*'
@@ -383,11 +384,11 @@ If an item contains spaces, it should be surrounded by " or '.
 <EventIDList> ::= '<EventID>(,<EventID>)*'
 <FileFormatList> ::= '<FileFormat>(,<FileFormat)*'
 <FilterIDList> ::= '<FilterID>(,<FilterID>)*'
-<GroupFieldNameList> ::= '<GroupFieldName(,<GroupFieldName>)*'
+<GroupFieldNameList> ::= '<GroupFieldName>(,<GroupFieldName>)*'
 <GroupList> ::= '<GroupItem>(,<GroupItem>)*'
 <GuardianStateList> ::= '<GuardianState>(,<GuardianState>)*'
 <LabelNameList> ::= '<LabelName>(,<LabelName)*'
-<MembersFieldNameList> ::= '<MembersFieldName(,<MembersFieldName>)*'
+<MembersFieldNameList> ::= '<MembersFieldName>(,<MembersFieldName>)*'
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
 <OrgUnitList> ::== '<OrgUnitPath>(,<OrgUnitPath>)*'
@@ -400,7 +401,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <SiteList> ::= '<SiteItem>(,<SiteItem>)*'
 <SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
 <ThreadIDList> ::= '<ThreadID>(,<ThreadID>)*'
-<UserFieldNameList> ::= '<UserFieldName(,<UserFieldName>)*'
+<UserFieldNameList> ::= '<UserFieldName>(,<UserFieldName>)*'
 <UserList> ::= '<UserItem>(,<UserItem>)*'
 
 # Specify a collection of ChromeOS devices by directly specifying them
@@ -408,7 +409,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(all cros)|
 		(cros <CrOSList>)|
 		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
-		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
 		(cros_ou|cros_org <OrgUnitPath)|
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath)|
@@ -416,7 +417,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList)|
 		(args cros <Marker> <CrOSID>* <Marker>)|
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvkmd cros <FileName> [charset <Charset>]
+		(csvkmd cros <FileName> [charset <Charset>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
@@ -434,7 +435,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)|
 		(groups <GroupList)|
@@ -445,7 +446,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(teachers <CourseIDList>)|
 		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>]
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
@@ -453,9 +454,12 @@ If an item contains spaces, it should be surrounded by " or '.
 
 # Specify a collection of items by directly specifying them; the item type is determined by context.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
-<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [fields <FieldNameList>]
+			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			    (matchfield <FieldName> <RegularExpression>)*
+			    [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
 <CSVDataSelector> ::= csvdata <FieldName>
-<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>])
+<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>])
 
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
@@ -635,8 +639,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	(relation|relations clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
 	(suspended <Boolean>)|
 	(website|websites clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> [notprimary|primary]))|
-	(<SchemaName>.<FieldName> [multivalued|multivalue|value] <String>)
-
+	(<SchemaName>.<FieldName> [multivalued|multivalue|value [type work|home|other|(custom <String>)]] <String>)
 
 # Select a section from gam.cfg and process a GAM command using values from that section
 <Select> ::=
@@ -655,9 +658,9 @@ gam version [check]
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-gam loop <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam loop <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
 # You can make substitutions in <GAMArgumentList> with values from the CSV file.
 # An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
@@ -934,7 +937,7 @@ gam update users <UserTypeEntity> <UserAttributes>+
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 
 gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
-	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
+	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom <SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
 	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
 gam <UserTypeEntity> print

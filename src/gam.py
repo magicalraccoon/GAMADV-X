@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.02'
+__version__ = u'4.23.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -1246,7 +1246,6 @@ FILE_ARGUMENT = [u'file',]
 FROM_ARGUMENT = [u'from',]
 IDS_ARGUMENT = [u'ids',]
 ID_ARGUMENT = [u'id',]
-KEYFIELD_ARGUMENT = [u'keyfield',]
 LOGO_ARGUMENT = [u'logo',]
 MODE_ARGUMENT = [u'mode',]
 MOVE_ADD_ARGUMENT = [u'move', u'add',]
@@ -1507,7 +1506,11 @@ USER_PROPERTIES = {
                             u'profile', u'other', u'reservations',
                             u'app_install_page'],},},
   u'customSchemas':
-    {PROPERTY_CLASS: PC_SCHEMAS, PROPERTY_TITLE: u'Custom Schemas',},
+    {PROPERTY_CLASS: PC_SCHEMAS, PROPERTY_TITLE: u'Custom Schemas',
+     PROPERTY_TYPE_KEYWORDS:
+       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom',
+        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
+        PTKW_KEYWORD_LIST: [u'custom', u'home', u'other', u'work'],},},
   u'aliases': {
     PROPERTY_CLASS: PC_ALIASES, PROPERTY_TITLE: u'Email Aliases',},
   u'nonEditableAliases': {
@@ -3259,13 +3262,16 @@ class UnicodeDictReader(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', **kwds):
+  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', fieldnames=None, **kwds):
     self.encoding = encoding
     try:
       self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != u'utf-8' else f, dialect=dialect, **kwds)
-      self.fieldnames = self.reader.next()
-      if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
-        self.fieldnames[0] = self.fieldnames[0].replace(codecs.BOM_UTF8, u'', 1)
+      if not fieldnames:
+        self.fieldnames = self.reader.next()
+        if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
+          self.fieldnames[0] = self.fieldnames[0].replace(codecs.BOM_UTF8, u'', 1)
+      else:
+        self.fieldnames = fieldnames
     except (csv.Error, StopIteration):
       self.fieldnames = []
     except LookupError as e:
@@ -3316,6 +3322,17 @@ class UnicodeDictWriter(csv.DictWriter, object):
   def __init__(self, f, fieldnames, dialect=u'nixstdout', *args, **kwds):
     super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=u'nixstdout', *args, **kwds)
     self.writer = UnicodeWriter(f, dialect, **kwds)
+
+# Open a CSV file, get optional arguments [charset <String>] [fields <FieldNameList>]
+def openCSVFileReader(filename):
+  encoding = getCharSet()
+  if checkArgumentPresent([u'fields',]):
+    fieldnames = shlexSplitList(getString(OB_FIELD_NAME_LIST))
+  else:
+    fieldnames = None
+  f = openFile(filename)
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames)
+  return (f, csvFile)
 
 # Set global variables from config file
 # Check for GAM updates based on status of no_update_check in config file
@@ -4701,6 +4718,13 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
     return u'{0}{1}'.format(emailAddressOrUID, addDomain)
   return emailAddressOrUID
 
+def shlexSplitList(entity, dataDelimiter=' ,'):
+  import shlex
+  lexer = shlex.shlex(entity, posix=True)
+  lexer.whitespace = dataDelimiter
+  lexer.whitespace_split = True
+  return list(lexer)
+
 def convertEntityToList(entity, shlexSplit=False, nonListEntityType=False):
   if not entity:
     return []
@@ -4714,11 +4738,7 @@ def convertEntityToList(entity, shlexSplit=False, nonListEntityType=False):
     return [entity,]
   if not shlexSplit:
     return entity.replace(u',', u' ').split()
-  import shlex
-  lexer = shlex.shlex(entity, posix=True)
-  lexer.whitespace = ' ,'
-  lexer.whitespace_split = True
-  return list(lexer)
+  return shlexSplitList(entity)
 
 # Add entries in members to usersList if conditions are met
 def addMembersToUsers(usersList, usersSet, emailField, members, checkNotSuspended=False, checkOrgUnit=None):
@@ -4984,11 +5004,7 @@ def splitEntityList(entity, dataDelimiter, shlexSplit):
     return [entity,]
   if not shlexSplit:
     return entity.split(dataDelimiter)
-  import shlex
-  lexer = shlex.shlex(entity, posix=True)
-  lexer.whitespace = dataDelimiter
-  lexer.whitespace_split = True
-  return list(lexer)
+  return shlexSplitList(entity, dataDelimiter)
 
 # <FileName> [charset <String>] [delimiter <String>]
 def getEntitiesFromFile(shlexSplit):
@@ -5008,7 +5024,7 @@ def getEntitiesFromFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName>(:<FieldName>)+ [charset <String>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
+# <FileName>(:<FieldName>)+ [charset <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
 def getEntitiesFromCSVFile(shlexSplit):
   try:
     fileFieldNameList = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
@@ -5017,9 +5033,7 @@ def getEntitiesFromCSVFile(shlexSplit):
   if len(fileFieldNameList) < 2:
     putArgumentBack()
     invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
-  encoding = getCharSet()
-  f = openFile(fileFieldNameList[0])
-  csvFile = UnicodeDictReader(f, encoding=encoding)
+  f, csvFile = openCSVFileReader(fileFieldNameList[0])
   for fieldName in fileFieldNameList[1:]:
     if fieldName not in csvFile.fieldnames:
       csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True, checkForCharset=True)
@@ -5038,13 +5052,11 @@ def getEntitiesFromCSVFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
+# <FileName> [charset <String>] [fields <FieldNameList>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
-  encoding = getCharSet()
-  f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding)
-  checkArgumentPresent(KEYFIELD_ARGUMENT, required=True)
+  f, csvFile = openCSVFileReader(filename)
+  checkArgumentPresent([u'keyfield',], required=True)
   keyField = GM_Globals[GM_CSV_KEY_FIELD] = getString(OB_FIELD_NAME)
   if keyField not in csvFile.fieldnames:
     csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
@@ -5606,15 +5618,13 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
-# gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
+# gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doCSV():
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
     putArgumentBack()
     usageErrorExit(MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE.format(u'csv'))
-  encoding = getCharSet()
-  f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding)
+  f, csvFile = openCSVFileReader(filename)
   matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
@@ -13804,13 +13814,17 @@ def getUserAttributes(updateCmd=False, noUid=False):
       up = u'customSchemas'
       body.setdefault(up, {})
       body[up].setdefault(schemaName, {})
-      is_multivalue = checkArgumentPresent(MULTIVALUE_ARGUMENT)
-      field_value = getString(OB_STRING)
-      if is_multivalue:
+      if checkArgumentPresent(MULTIVALUE_ARGUMENT):
         body[up][schemaName].setdefault(fieldName, [])
-        body[up][schemaName][fieldName].append({u'value': field_value})
+        typeKeywords = USER_PROPERTIES[up][PROPERTY_TYPE_KEYWORDS]
+        clTypeKeyword = typeKeywords[PTKW_CL_TYPE_KEYWORD]
+        schemaValue = {}
+        if checkArgumentPresent([clTypeKeyword,]):
+          getKeywordAttribute(typeKeywords, schemaValue)
+        schemaValue[u'value'] = getString(OB_STRING)
+        body[up][schemaName][fieldName].append(schemaValue)
       else:
-        body[up][schemaName][fieldName] = field_value
+        body[up][schemaName][fieldName] = getString(OB_STRING)
     else:
       unknownArgumentExit()
   if need_password:
@@ -14309,6 +14323,11 @@ def infoUsers(entityList):
         up = u'customSchemas'
         if up in user:
           propertyValue = user[up]
+          userProperty = USER_PROPERTIES[up]
+          propertyTitle = userProperty[PROPERTY_TITLE]
+          typeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_KEYWORD]
+          typeCustomValue = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_CUSTOM_VALUE]
+          customTypeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_CUSTOMTYPE_KEYWORD]
           printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], u''])
           incrementIndentLevel()
           for schema in propertyValue:
@@ -14319,7 +14338,10 @@ def infoUsers(entityList):
                 printKeyValueList([field])
                 incrementIndentLevel()
                 for an_item in propertyValue[schema][field]:
-                  printKeyValueList([an_item[u'value']])
+                  _showType(up, an_item, typeKey, typeCustomValue, customTypeKey)
+                  incrementIndentLevel()
+                  printKeyValueList([u'value', an_item[u'value']])
+                  decrementIndentLevel()
                 decrementIndentLevel()
               else:
                 printKeyValueList([field, propertyValue[schema][field]])
@@ -22807,15 +22829,13 @@ def ProcessGAMCommand(args, processGamCfg=True):
     sys.stderr = savedStderr
   return GM_Globals[GM_SYSEXITRC]
 
-# gam loop <FileName>|- [charset <String>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
+# gam loop <FileName>|- [charset <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doLoop(processGamCfg=True):
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
     putArgumentBack()
     usageErrorExit(MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE.format(u'loop'))
-  encoding = getCharSet()
-  f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding)
+  f, csvFile = openCSVFileReader(filename)
   matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
