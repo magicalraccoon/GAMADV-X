@@ -1,3 +1,11 @@
+4.23.04
+
+Added showbody argument to print/show messages/threads to allow display of plain message body.
+    gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
+    gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+	[headers <String>] [showlabels] [showbody]  [showsize] [showsnippet] [todrive]
+
 4.23.03
 
 Custom schema fields can be single-valued or multi-valued. Gam has always supported both but has not supported the

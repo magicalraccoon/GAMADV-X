@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.03'
+__version__ = u'4.23.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -9498,8 +9498,8 @@ class ContactsManager(object):
         contactEntry.calendarLink.append(gdata.apps.contacts.CalendarLink(href=calendarLink[u'value'], rel=calendarLink[u'rel'], label=calendarLink[u'label'], primary=calendarLink[u'primary']))
     value = GetField(CONTACT_EMAILS)
     if value:
-      for email in value:
-        contactEntry.email.append(gdata.apps.contacts.Email(address=email[u'value'], rel=email[u'rel'], label=email[u'label'], primary=email[u'primary']))
+      for emailaddr in value:
+        contactEntry.email.append(gdata.apps.contacts.Email(address=emailaddr[u'value'], rel=emailaddr[u'rel'], label=emailaddr[u'label'], primary=emailaddr[u'primary']))
     value = GetField(CONTACT_EXTERNALIDS)
     if value:
       for externalid in value:
@@ -9634,12 +9634,12 @@ class ContactsManager(object):
                               u'label': calendarLink.label,
                               u'value': calendarLink.href,
                               u'primary': calendarLink.primary})
-    for email in contactEntry.email:
+    for emailaddr in contactEntry.email:
       AppendItemToFieldsList(CONTACT_EMAILS,
-                             {u'rel': email.rel,
-                              u'label': email.label,
-                              u'value': email.address,
-                              u'primary': email.primary})
+                             {u'rel': emailaddr.rel,
+                              u'label': emailaddr.label,
+                              u'value': emailaddr.address,
+                              u'primary': emailaddr.primary})
     for externalid in contactEntry.externalId:
       AppendItemToFieldsList(CONTACT_EXTERNALIDS,
                              {u'rel': externalid.rel,
@@ -20020,19 +20020,19 @@ SMTP_HEADERS_MAP = {
   u'x400-trace': u'X400-Trace',
   }
 
-# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive]
+# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [todrive]
 def printMessages(users):
   printShowMessagesThreads(users, EN_MESSAGE, True)
 
-# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet] [todrive]GAMADVNOTOLD>
+# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [todrive]GAMADVNOTOLD>
 def printThreads(users):
   printShowMessagesThreads(users, EN_THREAD, True)
 
-# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
 def showMessages(users):
   printShowMessagesThreads(users, EN_MESSAGE, False)
 
-# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showsize] [showsnippet]
+# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
 def showThreads(users):
   printShowMessagesThreads(users, EN_THREAD, False)
 
@@ -20050,6 +20050,14 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     http_status, reason, message = checkGAPIError(exception)
     errMsg = getHTTPError(REASON_TO_MESSAGE_MAP, http_status, reason, message)
     entityItemValueActionFailedWarning(EN_USER, ri[RI_ENTITY], entityType, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+
+  def _getMessageBody(result):
+    if result[u'payload'][u'body'][u'size']:
+      return base64.urlsafe_b64decode(str(result[u'payload'][u'body'][u'data']))
+    for part in result[u'payload'][u'parts']:
+      if part[u'mimeType'] == u'text/plain':
+        return base64.urlsafe_b64decode(str(part[u'body'][u'data']))
+    return u'Body not available'
 
   def _showMessage(result, j, jcount):
     printEntityName(EN_MESSAGE, result[u'id'], j, jcount)
@@ -20070,6 +20078,11 @@ def printShowMessagesThreads(users, entityType, csvFormat):
             messageLabels.append(label[u'name'])
             break
       printKeyValueList([u'Labels', u','.join(messageLabels)])
+    if show_body:
+      printKeyValueList([u'Body', u''])
+      incrementIndentLevel()
+      printKeyValueList([indentMultiLineText(_getMessageBody(result))])
+      decrementIndentLevel()
     decrementIndentLevel()
 
   def _callbackShowMessage(request_id, response, exception):
@@ -20102,6 +20115,8 @@ def printShowMessagesThreads(users, entityType, csvFormat):
             messageLabels.append(label[u'name'])
             break
       row[u'Labels'] = u','.join(messageLabels)
+    if show_body:
+      row[u'Body'] = _getMessageBody(result).replace(u'\r\n', u'\\r\\n')
     addRowTitlesToCSVfile(row, csvRows, titles)
 
   def _callbackPrintMessage(request_id, response, exception):
@@ -20159,7 +20174,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     j = 0
     for message in messageIds:
       j += 1
-      parameters = dict([(u'userId', u'me'), (u'id', message[u'id']), (u'format', u'metadata')]+GM_Globals[GM_EXTRA_ARGS_LIST])
+      parameters = dict([(u'userId', u'me'), (u'id', message[u'id']), (u'format', [u'metadata', u'full'][show_body])]+GM_Globals[GM_EXTRA_ARGS_LIST])
       dbatch.add(service.get(**parameters), request_id=batchRequestID(user, i, count, j, jcount, message[u'id']))
       bcount += 1
       if maxToProcess and j == maxToProcess:
@@ -20177,7 +20192,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
   includeSpamTrash = False
   quick = True
   maxToProcess = 0
-  show_labels = show_size = show_snippet = False
+  show_body = show_labels = show_size = show_snippet = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-ID']
   if csvFormat:
@@ -20213,18 +20228,14 @@ def printShowMessagesThreads(users, entityType, csvFormat):
       maxToProcess = getInteger(minVal=0)
     elif myarg == u'headers':
       headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
+    elif myarg == u'showbody':
+      show_body = True
     elif myarg == u'showlabels':
       show_labels = True
-      if csvFormat:
-        addTitleToCSVfile(u'Labels', titles)
     elif myarg == u'showsize':
       show_size = True
-      if csvFormat:
-        addTitleToCSVfile(u'SizeEstimate', titles)
     elif myarg == u'showsnippet':
       show_snippet = True
-      if csvFormat:
-        addTitleToCSVfile(u'Snippet', titles)
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     else:
@@ -20296,6 +20307,15 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
+    removeTitlesFromCSVfile([u'Snippet', u'SizeEstimate', u'Labels', u'Body'], titles)
+    if show_snippet:
+      addTitleToCSVfile(u'Snippet', titles)
+    if show_size:
+      addTitleToCSVfile(u'SizeEstimate', titles)
+    if show_labels:
+      addTitleToCSVfile(u'Labels', titles)
+    if show_body:
+      addTitleToCSVfile(u'Body', titles)
     writeCSVfile(csvRows, titles, u'Messages', todrive)
 
 # Process Email Settings
