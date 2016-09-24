@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.05'
+__version__ = u'4.23.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -20054,10 +20054,13 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     errMsg = getHTTPError(REASON_TO_MESSAGE_MAP, http_status, reason, message)
     entityItemValueActionFailedWarning(EN_USER, ri[RI_ENTITY], entityType, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
-  def _getMessageBody(result):
-    if result[u'payload'][u'body'][u'size']:
-      return dehtml(base64.urlsafe_b64decode(str(result[u'payload'][u'body'][u'data'])))
-    for part in result[u'payload'][u'parts']:
+  def _getMessageBody(payload):
+    for header in payload[u'headers']:
+      if header[u'name'].lower() == u'content-type' and header[u'value'].startswith(u'multipart/mixed'):
+        return _getMessageBody(payload[u'parts'][0])
+    if payload[u'body'][u'size']:
+      return dehtml(base64.urlsafe_b64decode(str(payload[u'body'][u'data'])))
+    for part in payload[u'parts']:
       if part[u'mimeType'] == u'text/plain':
         return dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))
     return u'Body not available'
@@ -20084,7 +20087,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     if show_body:
       printKeyValueList([u'Body', u''])
       incrementIndentLevel()
-      printKeyValueList([indentMultiLineText(_getMessageBody(result))])
+      printKeyValueList([indentMultiLineText(_getMessageBody(result[u'payload']))])
       decrementIndentLevel()
     decrementIndentLevel()
 
@@ -20120,9 +20123,9 @@ def printShowMessagesThreads(users, entityType, csvFormat):
       row[u'Labels'] = u','.join(messageLabels)
     if show_body:
       if not convertBodyNL:
-        row[u'Body'] = _getMessageBody(result)
+        row[u'Body'] = _getMessageBody(result[u'payload'])
       else:
-        row[u'Body'] = _getMessageBody(result).replace(u'\r', u'\\r').replace(u'\n', u'\\n')
+        row[u'Body'] = _getMessageBody(result[u'payload']).replace(u'\r', u'\\r').replace(u'\n', u'\\n')
     addRowTitlesToCSVfile(row, csvRows, titles)
 
   def _callbackPrintMessage(request_id, response, exception):

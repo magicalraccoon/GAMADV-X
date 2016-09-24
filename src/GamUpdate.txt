@@ -1,3 +1,7 @@
+4.23.06
+
+Handle multipart/mixed messages in print/show messages.
+
 4.23.05
 
 Handle carriage returns/linefeeds in message bodies.
