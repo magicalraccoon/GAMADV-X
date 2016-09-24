@@ -20053,10 +20053,10 @@ def printShowMessagesThreads(users, entityType, csvFormat):
 
   def _getMessageBody(result):
     if result[u'payload'][u'body'][u'size']:
-      return base64.urlsafe_b64decode(str(result[u'payload'][u'body'][u'data']))
+      return dehtml(base64.urlsafe_b64decode(str(result[u'payload'][u'body'][u'data'])))
     for part in result[u'payload'][u'parts']:
       if part[u'mimeType'] == u'text/plain':
-        return base64.urlsafe_b64decode(str(part[u'body'][u'data']))
+        return dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))
     return u'Body not available'
 
   def _showMessage(result, j, jcount):
