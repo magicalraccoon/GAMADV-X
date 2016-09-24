@@ -1,3 +1,10 @@
+4.23.05
+
+Handle carriage returns/linefeeds in message bodies.
+In gam print messages/threads, convertbodynl causes \n to be converted to \\n, \r to be converted to \\r, otherwise \n and \r are not changed.
+    gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+	[headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive]
+
 4.23.04
 
 Added showbody argument to print/show messages/threads to allow display of plain message body.

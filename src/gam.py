@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.04'
+__version__ = u'4.23.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -1739,7 +1739,10 @@ class _DeHTMLParser(HTMLParser):
     self.__text.append(unichr(int(name[1:], 16)) if name.startswith('x') else unichr(int(name)))
 
   def handle_entityref(self, name):
-    self.__text.append(unichr(name2codepoint[name]))
+    try:
+      self.__text.append(unichr(name2codepoint[name]))
+    except KeyError:
+      self.__text.append(u'&'+name)
 
   def handle_starttag(self, tag, attrs):
     if tag == 'p':
@@ -20020,19 +20023,19 @@ SMTP_HEADERS_MAP = {
   u'x400-trace': u'X400-Trace',
   }
 
-# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [todrive]
+# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive]
 def printMessages(users):
   printShowMessagesThreads(users, EN_MESSAGE, True)
 
-# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [todrive]GAMADVNOTOLD>
+# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive]GAMADVNOTOLD>
 def printThreads(users):
   printShowMessagesThreads(users, EN_THREAD, True)
 
-# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
+# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet]
 def showMessages(users):
   printShowMessagesThreads(users, EN_MESSAGE, False)
 
-# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
+# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet]
 def showThreads(users):
   printShowMessagesThreads(users, EN_THREAD, False)
 
@@ -20116,7 +20119,10 @@ def printShowMessagesThreads(users, entityType, csvFormat):
             break
       row[u'Labels'] = u','.join(messageLabels)
     if show_body:
-      row[u'Body'] = _getMessageBody(result).replace(u'\r\n', u'\\r\\n')
+      if not convertBodyNL:
+        row[u'Body'] = _getMessageBody(result)
+      else:
+        row[u'Body'] = _getMessageBody(result).replace(u'\r', u'\\r').replace(u'\n', u'\\n')
     addRowTitlesToCSVfile(row, csvRows, titles)
 
   def _callbackPrintMessage(request_id, response, exception):
@@ -20192,7 +20198,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
   includeSpamTrash = False
   quick = True
   maxToProcess = 0
-  show_body = show_labels = show_size = show_snippet = False
+  convertBodyNL = show_body = show_labels = show_size = show_snippet = False
   messageIds = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-ID']
   if csvFormat:
@@ -20228,6 +20234,8 @@ def printShowMessagesThreads(users, entityType, csvFormat):
       maxToProcess = getInteger(minVal=0)
     elif myarg == u'headers':
       headersToShow = getString(OB_STRING, emptyOK=True).replace(u',', u' ').split()
+    elif myarg == u'convertbodynl':
+      convertBodyNL = True
     elif myarg == u'showbody':
       show_body = True
     elif myarg == u'showlabels':
