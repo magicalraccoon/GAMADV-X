@@ -1,6 +1,6 @@
 4.23.06
 
-Handle multipart/mixed messages in print/show messages.
+Handle multipart/mixed and multipart/related messages in print/show messages.
 
 4.23.05
 

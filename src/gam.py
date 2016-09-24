@@ -20056,8 +20056,10 @@ def printShowMessagesThreads(users, entityType, csvFormat):
 
   def _getMessageBody(payload):
     for header in payload[u'headers']:
-      if header[u'name'].lower() == u'content-type' and header[u'value'].startswith(u'multipart/mixed'):
-        return _getMessageBody(payload[u'parts'][0])
+      if header[u'name'].lower() == u'content-type':
+        if header[u'value'].startswith(u'multipart/mixed') or header[u'value'].startswith(u'multipart/related'):
+          return _getMessageBody(payload[u'parts'][0])
+        break
     if payload[u'body'][u'size']:
       return dehtml(base64.urlsafe_b64decode(str(payload[u'body'][u'data'])))
     for part in payload[u'parts']:
