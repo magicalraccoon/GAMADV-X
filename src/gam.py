@@ -1739,9 +1739,10 @@ class _DeHTMLParser(HTMLParser):
     self.__text.append(unichr(int(name[1:], 16)) if name.startswith('x') else unichr(int(name)))
 
   def handle_entityref(self, name):
-    try:
-      self.__text.append(unichr(name2codepoint[name]))
-    except KeyError:
+    cp = name2codepoint.get(name)
+    if cp:
+      self.__text.append(unichr(cp))
+    else:
       self.__text.append(u'&'+name)
 
   def handle_starttag(self, tag, attrs):
