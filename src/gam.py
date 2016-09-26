@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.23.06'
+__version__ = u'4.24.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -20343,10 +20343,7 @@ def _processEmailSettings(user, i, count, service, function, **kwargs):
   except (GData_serviceNotApplicable, GData_invalidDomain):
     entityServiceNotApplicableWarning(EN_USER, user, i, count)
   except (GData_badRequest, GData_internalServerError, GData_nameNotValid, GData_invalidValue) as e:
-    if u'forward_to' in kwargs:
-      entityItemValueActionFailedWarning(EN_USER, user, EN_FORWARDING_ADDRESS, kwargs[u'forward_to'], PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED, i, count)
-    else:
-      entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.message, i, count)
+    entityBadRequestWarning(EN_USER, user, EN_EMAIL_SETTINGS, None, e.message, i, count)
   return None
 
 # gam <UserTypeEntity> arrows <Boolean>
@@ -20940,11 +20937,9 @@ EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP = {
   u'trash': u'trash',
   }
 
-# gam <UserTypeEntity> forward <FalseValues> [newapi]
-# gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress> [newapi]
+# gam <UserTypeEntity> forward <FalseValues>
+# gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
 def setForward(users):
-  newAPI = False
-  action = forward_to = None
   enable = getBoolean()
   body = {u'enabled': enable}
   if enable:
@@ -20954,8 +20949,6 @@ def setForward(users):
         body[u'disposition'] = EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP[myarg]
       elif myarg == u'confirm':
         pass
-      elif myarg == u'newapi':
-        newAPI = True
       elif myarg.find(u'@') != -1:
         body[u'emailAddress'] = normalizeEmailAddressOrUID(CL_argv[CL_argvI-1])
       else:
@@ -20964,47 +20957,28 @@ def setForward(users):
       missingChoiceExit(EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP)
     if not body.get(u'emailAddress'):
       missingArgumentExit(OB_EMAIL_ADDRESS)
-  else:
-    while CL_argvI < CL_argvLen:
-      myarg = getArgument()
-      if myarg == u'newapi':
-        newAPI = True
-      else:
-        unknownArgumentExit()
-  if not newAPI:
-    emailSettings = getEmailSettingsObject()
-    if enable:
-      action = EMAILSETTINGS_OLD_NEW_OLD_FORWARD_ACTION_MAP[body[u'disposition']]
-      forward_to = body[u'emailAddress']
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if newAPI:
-      user, gmail = buildGmailGAPIObject(user)
-      if not gmail:
-        continue
-      try:
-        result = callGAPI(gmail.users().settings(), u'updateAutoForwarding',
-                          throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_FAILED_PRECONDITION],
-                          userId=u'me', body=body)
-        _showForward(user, i, count, result)
-      except GAPI_failedPrecondition:
-        entityItemValueActionFailedWarning(EN_USER, user, EN_FORWARDING_ADDRESS, body[u'emailAddress'], PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED, i, count)
-      except (GAPI_serviceNotAvailable, GAPI_badRequest):
-        entityServiceNotApplicableWarning(EN_USER, user, i, count)
-    else:
-      user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
-      result = _processEmailSettings(user, i, count, emailSettings, u'UpdateForwarding',
-                                     username=userName, enable=enable, action=action, forward_to=forward_to)
-      if result:
-        _showForward(user, i, count, result)
+    user, gmail = buildGmailGAPIObject(user)
+    if not gmail:
+      continue
+    try:
+      result = callGAPI(gmail.users().settings(), u'updateAutoForwarding',
+                        throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_FAILED_PRECONDITION],
+                        userId=u'me', body=body)
+      _showForward(user, i, count, result)
+    except GAPI_failedPrecondition:
+      entityItemValueActionFailedWarning(EN_USER, user, EN_FORWARDING_ADDRESS, body[u'emailAddress'], PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED, i, count)
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
-# gam <UserTypeEntity> print forward [todrive] [newapi]
+# gam <UserTypeEntity> print forward [todrive]
 def printForward(users):
   printShowForward(users, True)
 
-# gam <UserTypeEntity> show forward [newapi]
+# gam <UserTypeEntity> show forward
 def showForward(users):
   printShowForward(users, False)
 
@@ -21025,44 +20999,29 @@ def printShowForward(users, csvFormat):
   if csvFormat:
     todrive = False
     titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardEnabled', u'forwardTo', u'disposition'])
-  newAPI = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif myarg == u'newapi':
-      newAPI = True
     else:
       unknownArgumentExit()
-  if not newAPI:
-    emailSettings = getEmailSettingsObject()
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if newAPI:
-      user, gmail = buildGmailGAPIObject(user)
-      if not gmail:
-        continue
-      try:
-        result = callGAPI(gmail.users().settings(), u'getAutoForwarding',
-                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                          userId=u'me')
-        if not csvFormat:
-          _showForward(user, i, count, result)
-        else:
-          _printForward(user, result)
-      except (GAPI_serviceNotAvailable, GAPI_badRequest):
-        entityServiceNotApplicableWarning(EN_USER, user, i, count)
-    else:
-      user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
-      result = _processEmailSettings(user, i, count, emailSettings, u'GetForward',
-                                     username=userName)
-      if result:
-        if not csvFormat:
-          _showForward(user, i, count, result)
-        else:
-          _printForward(user, result)
+    user, gmail = buildGmailGAPIObject(user)
+    if not gmail:
+      continue
+    try:
+      result = callGAPI(gmail.users().settings(), u'getAutoForwarding',
+                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                        userId=u'me')
+      if not csvFormat:
+        _showForward(user, i, count, result)
+      else:
+        _printForward(user, result)
+    except (GAPI_serviceNotAvailable, GAPI_badRequest):
+      entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Forward', todrive)
 
@@ -21782,8 +21741,6 @@ def setVacation(users):
       body[responseBodyType] = message
     if not message and not body.get(u'responseSubject'):
       missingArgumentExit(u'message or subject')
-  else:
-    checkForExtraneousArguments()
   i = 0
   count = len(users)
   for user in users:

@@ -1,3 +1,7 @@
+4.24.00
+
+Gam forward and print/show forward now use Gmail API. 
+
 4.23.06
 
 Handle multipart/mixed and multipart/related messages in print/show messages.
