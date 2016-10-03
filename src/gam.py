@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.24.00'
+__version__ = u'4.24.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -14130,11 +14130,11 @@ USER_ARGUMENT_TO_PROPERTY_MAP = {
 
 INFO_USER_OPTIONS = [u'noaliases', u'nogroups', u'nolicenses', u'nolicences', u'noschemas', u'schemas', u'userview',]
 
-# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
+# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 def doInfoUsers():
   infoUsers(getEntityToModify(defaultEntityType=CL_ENTITY_USERS)[1])
 
-# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>]
+# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 # gam info user
 def doInfoUser():
   if CL_argvI < CL_argvLen:
@@ -14146,9 +14146,12 @@ def doInfoUser():
 def infoUsers(entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   getSchemas = getAliases = getGroups = getLicenses = True
+  formatJSON = False
   projection = u'full'
   customFieldMask = viewType = None
   fieldsList = []
+  groups = []
+  licenses = []
   skus = sorted(GOOGLE_USER_SKUS)
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -14191,12 +14194,16 @@ def infoUsers(entityList):
 # Ignore info group arguments that may have come from whatis
     elif myarg in INFO_GROUP_OPTIONS:
       pass
+    elif myarg == "formatjson":
+      formatJSON = True
     else:
       unknownArgumentExit()
   if fieldsList:
     fieldsList = u','.join(set(fieldsList)).replace(u'.', u'/')
   else:
     fieldsList = None
+  if getLicenses:
+    lic = buildGAPIObject(GAPI_LICENSING_API)
   i = 0
   count = len(entityList)
   for userEmail in entityList:
@@ -14206,6 +14213,27 @@ def infoUsers(entityList):
       user = callGAPI(cd.users(), u'get',
                       throw_reasons=GAPI_USER_GET_THROW_REASONS,
                       userKey=userEmail, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fieldsList)
+      if getGroups:
+        groups = callGAPIpages(cd.groups(), u'list', u'groups',
+                               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                               userKey=user[u'primaryEmail'], fields=u'nextPageToken,groups(name,email)')
+      if getLicenses:
+        for skuId in skus:
+          try:
+            result = callGAPI(lic.licenseAssignments(), u'get',
+                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
+                              userId=user[u'primaryEmail'], productId=GOOGLE_SKUS[skuId], skuId=skuId)
+            if result:
+              licenses.append(result[u'skuId'])
+          except GAPI_notFound:
+            continue
+      if formatJSON:
+        if getGroups:
+          user[u'Groups'] = groups
+        if getLicenses:
+          user[u'Licenses'] = licenses
+        sys.stdout.write(str(convertUTF8(user))+u'\n')
+        continue
       printEntityName(EN_USER, user[u'primaryEmail'], i, count)
       incrementIndentLevel()
       printKeyValueList([u'Settings', u''])
@@ -14360,37 +14388,18 @@ def infoUsers(entityList):
             for alias in propertyValue:
               printKeyValueList([alias])
             decrementIndentLevel()
-      if getGroups:
-        groups = callGAPIpages(cd.groups(), u'list', u'groups',
-                               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                               userKey=user[u'primaryEmail'], fields=u'nextPageToken,groups(name,email)')
-        if groups:
-          printKeyValueList([pluralEntityName(EN_GROUP), u'({0})'.format(len(groups))])
-          incrementIndentLevel()
-          for group in groups:
-            printKeyValueList([group[u'name'], group[u'email']])
-          decrementIndentLevel()
-      if getLicenses:
-        lic = buildGAPIObject(GAPI_LICENSING_API)
-        licenses = []
-        for skuId in skus:
-          try:
-            result = callGAPI(lic.licenseAssignments(), u'get',
-                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
-                              userId=user[u'primaryEmail'], productId=GOOGLE_SKUS[skuId], skuId=skuId)
-            if result:
-              licenses.append(result[u'skuId'])
-          except GAPI_notFound:
-            continue
-          except (GAPI_userNotFound, GAPI_forbidden):
-            entityUnknownWarning(EN_USER, userEmail, i, count)
-            break
-        if len(licenses) > 0:
-          printKeyValueList([u'Licenses', u''])
-          incrementIndentLevel()
-          for u_license in licenses:
-            printKeyValueList([u_license])
-          decrementIndentLevel()
+      if groups:
+        printKeyValueList([pluralEntityName(EN_GROUP), u'({0})'.format(len(groups))])
+        incrementIndentLevel()
+        for group in groups:
+          printKeyValueList([group[u'name'], group[u'email']])
+        decrementIndentLevel()
+      if licenses:
+        printKeyValueList([pluralEntityName(EN_LICENSE), u'({0})'.format(len(licenses))])
+        incrementIndentLevel()
+        for u_license in licenses:
+          printKeyValueList([u_license])
+        decrementIndentLevel()
       decrementIndentLevel()
     except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
       entityUnknownWarning(EN_USER, userEmail, i, count)

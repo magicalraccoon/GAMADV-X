@@ -1,3 +1,9 @@
+4.24.01
+
+Added formatjson argument to info user/users to cause output to be in JSON format.
+    gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
+    gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
+
 4.24.00
 
 Gam forward and print/show forward now use Gmail API. 
@@ -187,7 +193,7 @@ Big fix.
 
 Implement command to transfer Google Drive file ownership. Credit to Mattias Bystedt for the original code.
 See: https://github.com/lerklompen/GAM/releases/tag/v3.66-writerscantshare
-    gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*GAMADV>
+    gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
 
 4.20.02
 

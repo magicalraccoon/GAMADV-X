@@ -929,12 +929,12 @@ gam create user <EmailAddress> <UserAttrubutes>*
 gam update user <UserItem> <UserAttributes>+
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
-gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
+gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
 gam delete users <UserTypeEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam update users <UserTypeEntity> <UserAttributes>+
-gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
+gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
 gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom <SchemaNameList>]
