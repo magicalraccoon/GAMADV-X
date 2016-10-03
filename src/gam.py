@@ -14229,10 +14229,10 @@ def infoUsers(entityList):
             continue
       if formatJSON:
         if getGroups:
-          user[u'Groups'] = groups
+          user[u'groups'] = groups
         if getLicenses:
-          user[u'Licenses'] = licenses
-        sys.stdout.write(str(convertUTF8(user))+u'\n')
+          user[u'licenses'] = licenses
+        printLine(json.dumps(user, ensure_ascii=False, sort_keys=True))
         continue
       printEntityName(EN_USER, user[u'primaryEmail'], i, count)
       incrementIndentLevel()
