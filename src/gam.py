@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.24.01'
+__version__ = u'4.24.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -7305,14 +7305,14 @@ def doInfoOrg():
 
 def infoOrgs(entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  get_users = True
-  show_children = False
+  getUsers = True
+  showChildren = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'nousers':
-      get_users = False
+      getUsers = False
     elif myarg in [u'children', u'child']:
-      show_children = True
+      showChildren = True
     else:
       unknownArgumentExit()
   i = 0
@@ -7337,7 +7337,7 @@ def infoOrgs(entityList):
         if key in [u'kind', u'etag']:
           continue
         printKeyValueList([key, value])
-      if get_users:
+      if getUsers:
         orgUnitPath = result[u'orgUnitPath']
         setGettingEntityItem(EN_USER)
         page_message = getPageMessage(showFirstLastItems=True)
@@ -7353,7 +7353,7 @@ def infoOrgs(entityList):
         for user in users:
           if orgUnitPath == user[u'orgUnitPath'].lower():
             printKeyValueList([user[u'primaryEmail']])
-          elif show_children:
+          elif showChildren:
             printKeyValueList([u'{0} (child)'.format(user[u'primaryEmail'])])
         decrementIndentLevel()
       decrementIndentLevel()
@@ -11708,11 +11708,11 @@ GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
 
 INFO_GROUP_OPTIONS = [u'nousers', u'groups',]
 
-# gam info groups <GroupEntity> [noaliases] [nousers] [groups] <GroupFieldName>* [fields <GroupFieldNameList>]
+# gam info groups <GroupEntity> [noaliases] [nousers] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 def doInfoGroups():
   infoGroups(getEntityList(OB_GROUP_ENTITY))
 
-# gam info group <GroupItem> [noaliases] [nousers] [groups] <GroupFieldName>* [fields <GroupFieldNameList>]
+# gam info group <GroupItem> [noaliases] [nousers] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 def doInfoGroup():
   infoGroups(getStringReturnInList(OB_GROUP_ITEM))
 
@@ -11721,6 +11721,9 @@ def infoGroups(entityList):
   gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
   getAliases = getUsers = True
   getGroups = getSettings = False
+  formatJSON = False
+  groups = []
+  members = []
   cdfieldsList = gsfieldsList = None
   settings = {}
   while CL_argvI < CL_argvLen:
@@ -11757,6 +11760,8 @@ def infoGroups(entityList):
     elif myarg in INFO_USER_OPTIONS:
       if myarg == u'schemas':
         getString(OB_SCHEMA_NAME_LIST)
+    elif myarg == "formatjson":
+      formatJSON = True
     else:
       unknownArgumentExit()
   if cdfieldsList:
@@ -11781,6 +11786,22 @@ def infoGroups(entityList):
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                             retry_reasons=[GAPI_SERVICE_LIMIT],
                             groupUniqueId=group, fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
+      if getGroups:
+        groups = callGAPIpages(cd.groups(), u'list', u'groups',
+                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                               userKey=group, fields=u'nextPageToken,groups(name,email)')
+      if getUsers:
+        members = callGAPIpages(cd.members(), u'list', u'members',
+                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                groupKey=group)
+      if formatJSON:
+        basic_info.update(settings)
+        if getGroups:
+          basic_info[u'groups'] = groups
+        if getUsers:
+          basic_info[u'members'] = members
+        printLine(json.dumps(basic_info, ensure_ascii=False, sort_keys=True))
+        continue
       printEntityName(EN_GROUP, group, i, count)
       incrementIndentLevel()
       printKeyValueList([singularEntityName(EN_GROUP_SETTINGS), u''])
@@ -11806,25 +11827,19 @@ def infoGroups(entityList):
       if getAliases:
         aliases = basic_info.get(u'aliases', [])
         if aliases:
-          printKeyValueList([pluralEntityName(EN_EMAIL_ALIAS), u''])
+          printKeyValueList([pluralEntityName(EN_EMAIL_ALIAS), u'({0})'.format(len(aliases))])
           incrementIndentLevel()
           for alias in aliases:
             printKeyValueList([alias])
           decrementIndentLevel()
       if getGroups:
-        groups = callGAPIpages(cd.groups(), u'list', u'groups',
-                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                               userKey=group, fields=u'nextPageToken,groups(name,email)')
         printKeyValueList([pluralEntityName(EN_GROUP), u'({0})'.format(len(groups))])
         incrementIndentLevel()
         for groupm in groups:
           printKeyValueList([groupm[u'name'], groupm[u'email']])
         decrementIndentLevel()
       if getUsers:
-        members = callGAPIpages(cd.members(), u'list', u'members',
-                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                                groupKey=group)
-        printKeyValueList([pluralEntityName(EN_MEMBER), u''])
+        printKeyValueList([pluralEntityName(EN_MEMBER), u'({0})'.format(len(members))])
         incrementIndentLevel()
         for member in members:
           try:
