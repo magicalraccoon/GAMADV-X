@@ -17267,6 +17267,8 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'writerscanshare': u'writersCanShare',
   }
 
+FILEPATH_FIELDS = [u'mimeType', u'parents']
+
 # gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 def showDriveFileInfo(users):
   filepath = False
@@ -17407,8 +17409,6 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymedate': u'lastViewedByMeDate',
   u'viewedbymetime': u'lastViewedByMeDate',
   }
-
-FILEPATH_FIELDS = [u'mimeType', u'parents']
 
 # gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
@@ -17576,10 +17576,10 @@ def showDriveFilePath(users):
     user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
     if not drive:
       continue
-    filePathInfo = initFilePathInfo(drive)
     entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FILE_OR_FOLDER, i, count)
     if jcount == 0:
       continue
+    filePathInfo = initFilePathInfo(drive)
     incrementIndentLevel()
     j = 0
     for fileId in fileIdSelection[u'fileIds']:
