@@ -1,3 +1,8 @@
+4.24.04
+
+Whenever a file path is shown, there is also an indication as to whether the path is "orphaned", i.e., the file path does not start at the root of Drive.
+In gam show filelist, for every header "path.#", there will also be a header "orphaned.#".
+
 4.24.03
 
 The commands gam show fileinfo/filelist/filepath now show all file paths for a file or folder; previously, only one file path was shown.
