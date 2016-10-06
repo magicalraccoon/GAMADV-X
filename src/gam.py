@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.24.02'
+__version__ = u'4.24.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -5356,14 +5356,14 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None):
     for i, item in enumerate(structure):
       if listLimit and (i >= listLimit):
         break
-      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened=flattened, listLimit=listLimit)
+      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
   else:
     for new_key, value in structure.items():
       if new_key in [u'kind', u'etag']:
         continue
       if value == NEVER_TIME:
         value = NEVER
-      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened=flattened, listLimit=listLimit)
+      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
   return flattened
 
 # Show a json object
@@ -5386,7 +5386,7 @@ def showJSON(object_name, object_value, skip_objects=[], level=0):
       if isinstance(sub_value, (str, unicode, int, bool)):
         printKeyValueList([sub_value])
       else:
-        showJSON(None, sub_value, skip_objects=skip_objects, level=level+1)
+        showJSON(None, sub_value, skip_objects, level+1)
     if object_name != None:
       decrementIndentLevel()
   elif isinstance(object_value, dict):
@@ -5398,7 +5398,7 @@ def showJSON(object_name, object_value, skip_objects=[], level=0):
       indentAfterFirst = unindentAfterLast = True
     for sub_object in sorted(object_value):
       if sub_object not in skip_objects:
-        showJSON(sub_object, object_value[sub_object], skip_objects=skip_objects, level=level+1)
+        showJSON(sub_object, object_value[sub_object], skip_objects, level+1)
         if indentAfterFirst:
           incrementIndentLevel()
           indentAfterFirst = False
@@ -6315,7 +6315,7 @@ def _showDomainAlias(alias, alias_skip_objects):
     if field in alias:
       printKeyValueList([field, alias[field]])
       alias_skip_objects.append(field)
-  showJSON(None, alias, skip_objects=alias_skip_objects)
+  showJSON(None, alias, alias_skip_objects)
   decrementIndentLevel()
 
 # gam info domainalias|aliasdomain <DomainAlias>
@@ -6445,8 +6445,8 @@ def doInfoDomain():
       alias_skip_objects = [u'domainAliasName',]
       for alias in aliases:
         _showDomainAlias(alias, alias_skip_objects)
-        showJSON(None, alias, skip_objects=alias_skip_objects)
-    showJSON(None, result, skip_objects=skip_objects)
+        showJSON(None, alias, alias_skip_objects)
+    showJSON(None, result, skip_objects)
     decrementIndentLevel()
   except GAPI_domainNotFound:
     entityActionFailedWarning(EN_DOMAIN, domainName, PHRASE_DOES_NOT_EXIST)
@@ -8399,9 +8399,9 @@ def _showCalendarEvent(event, j, jcount):
   incrementIndentLevel()
   for field in EVENT_PRINT_ORDER:
     if field in event:
-      showJSON(field, event[field], skip_objects=skip_objects)
+      showJSON(field, event[field], skip_objects)
       skip_objects.append(field)
-  showJSON(None, event, skip_objects=skip_objects)
+  showJSON(None, event, skip_objects)
   decrementIndentLevel()
 #
 CALENDAR_MIN_COLOR_INDEX = 1
@@ -14867,7 +14867,7 @@ def printShowGuardians(csvFormat):
           j += 1
           printKeyValueListWithCount([u'invitedEmailAddress', guardian[u'invitedEmailAddress']], j, jcount)
           incrementIndentLevel()
-          showJSON(None, guardian, skip_objects=[u'invitedEmailAddress',])
+          showJSON(None, guardian, [u'invitedEmailAddress',])
           decrementIndentLevel()
         decrementIndentLevel()
       else:
@@ -17141,24 +17141,55 @@ def printDriveSettings(users):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   writeCSVfile(csvRows, titles, u'User Drive Settings', todrive)
 
-def getFilePath(drive, initialResult):
-  entityType = [EN_DRIVE_FOLDER_ID, EN_DRIVE_FILE_ID][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER]
-  path = []
-  name = initialResult[DRIVE_FILE_NAME]
-  parents = initialResult[u'parents']
-  while True:
-    path.append(name)
-    if len(parents) == 0:
-      path.reverse()
-      return (entityType, os.path.join(*path))
+def initFilePathInfo():
+  return {u'ids': {}, u'allPaths': {}, u'localPaths': None}
+
+def getFilePaths(drive, initialResult, filePathInfo):
+  def _followParent(paths, parentId):
     try:
+      paths.setdefault(parentId, {})
       result = callGAPI(drive.files(), u'get',
                         throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                        fileId=parents[0][u'id'], fields=u'{0},parents(id)'.format(DRIVE_FILE_NAME))
-      name = result[DRIVE_FILE_NAME]
-      parents = result[u'parents']
+                        fileId=parentId, fields=u'{0},parents(id)'.format(DRIVE_FILE_NAME))
+      filePathInfo[u'ids'][parentId] = result[DRIVE_FILE_NAME]
+      for lparent in result[u'parents']:
+        lparentId = lparent[u'id']
+        if lparentId not in filePathInfo[u'allPaths']:
+          _followParent(paths[parentId], lparentId)
+          filePathInfo[u'allPaths'][lparentId] = paths[parentId][lparentId]
+        else:
+          paths[parentId][lparentId] = filePathInfo[u'allPaths'][lparentId]
     except (GAPI_fileNotFound, GAPI_serviceNotAvailable, GAPI_authError):
-      return (entityType, PHRASE_PATH_NOT_AVAILABLE)
+      pass
+
+  def _makeFilePaths(localPaths, fplist, filePaths, name):
+    for k, v in localPaths.items():
+      fplist.append(filePathInfo[u'ids'][k])
+      if not v:
+        fp = fplist[:]
+        fp.reverse()
+        fp.append(name)
+        filePaths.append(os.path.join(*fp))
+        fplist.pop()
+        return
+      _makeFilePaths(v, fplist, filePaths, name)
+      fplist.pop()
+    return
+
+  parents = initialResult[u'parents']
+  if parents:
+    filePathInfo[u'localPaths'] = {}
+    for parent in parents:
+      parentId = parent[u'id']
+      if parentId not in filePathInfo[u'allPaths']:
+        _followParent(filePathInfo[u'allPaths'], parentId)
+      filePathInfo[u'localPaths'][parentId] = filePathInfo[u'allPaths'][parentId]
+    fplist = []
+    filePaths = []
+    _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[DRIVE_FILE_NAME])
+  else:
+    filePaths = [initialResult[DRIVE_FILE_NAME]]
+  return ([EN_DRIVE_FOLDER, EN_DRIVE_FILE][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER], filePaths)
 
 DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'alternatelink': DRIVE_FILE_VIEW_LINK,
@@ -17228,6 +17259,7 @@ def showDriveFileInfo(users):
   filepath = False
   fieldsList = []
   labelsList = []
+  skip_objects = []
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   while CL_argvI < CL_argvLen:
@@ -17243,12 +17275,23 @@ def showDriveFileInfo(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    fieldsList.append(DRIVE_FILE_NAME)
+    if DRIVE_FILE_NAME not in fieldsList:
+      fieldsList.append(DRIVE_FILE_NAME)
+      skip_objects.append(DRIVE_FILE_NAME)
+    if u'mimeType' not in fieldsList:
+      fieldsList.append(u'mimeType')
+      skip_objects.append(u'mimeType')
+    if filepath:
+      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
+      fieldsList.extend(FILEPATH_FIELDS)
     fields = u','.join(set(fieldsList))
     if labelsList:
       fields += u',labels({0})'.format(u','.join(set(labelsList)))
   else:
     fields = u'*'
+    skip_objects = [u'kind', u'etag']
+  if filepath:
+    filePathInfo = initFilePathInfo()
   i = 0
   count = len(users)
   for user in users:
@@ -17267,12 +17310,19 @@ def showDriveFileInfo(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=fields)
-        printEntityName(EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
+        printEntityName([EN_DRIVE_FOLDER, EN_DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], u'{0} ({1})'.format(result[DRIVE_FILE_NAME], fileId), j, jcount)
         incrementIndentLevel()
         if filepath:
-          _, path = getFilePath(drive, result)
-          printKeyValueList([u'path', path])
-        showJSON(None, result)
+          _, paths = getFilePaths(drive, result, filePathInfo)
+          kcount = len(paths)
+          printKeyValueList([u'paths', kcount])
+          incrementIndentLevel()
+          k = 0
+          for path in paths:
+            printKeyValueList([u'path.{0}'.format(k), path])
+            k += 1
+          decrementIndentLevel()
+        showJSON(None, result, skip_objects)
         decrementIndentLevel()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -17302,18 +17352,20 @@ def showDriveFileRevisions(users):
       j += 1
       try:
         result = callGAPI(drive.revisions(), u'list',
-                          throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
+                          throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_BAD_REQUEST],
                           fileId=fileId, fields=DRIVE_REVISIONS_LIST)
-        printEntityName(EN_DRIVE_FILE_OR_FOLDER_ID, fileId, j, jcount)
+        printEntityName(EN_DRIVE_FILE_ID, fileId, j, jcount)
         incrementIndentLevel()
         for revision in result[DRIVE_REVISIONS_LIST]:
           printEntityName(EN_REVISION_ID, revision[u'id'])
           incrementIndentLevel()
-          showJSON(None, revision, skip_objects=[u'id',])
+          showJSON(None, revision, [u'id',])
           decrementIndentLevel()
         decrementIndentLevel()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GAPI_badRequest as e:
+        entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, e.message, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
@@ -17345,13 +17397,16 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
-# gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+FILEPATH_FIELDS = [u'mimeType', u'parents']
+
+# gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
   allfields = filepath = todrive = False
   fieldsList = []
   fieldsTitles = {}
   labelsList = []
   orderByList = []
+  skip_objects = []
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = u"'me' in owners"
   while CL_argvI < CL_argvLen:
@@ -17360,9 +17415,6 @@ def printDriveFileList(users):
       todrive = True
     elif myarg == u'filepath':
       filepath = True
-      if fieldsList:
-        fieldsList.extend([u'mimeType', u'parents'])
-      addTitlesToCSVfile([u'path',], titles)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
@@ -17384,6 +17436,9 @@ def printDriveFileList(users):
       unknownArgumentExit()
   if fieldsList or labelsList:
     fields = u'nextPageToken,{0}('.format(DRIVE_FILES_LIST)
+    if filepath:
+      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
+      fieldsList.extend(FILEPATH_FIELDS)
     if fieldsList:
       fields += u','.join(set(fieldsList))
       if labelsList:
@@ -17394,13 +17449,20 @@ def printDriveFileList(users):
   elif not allfields:
     for field in [u'name', u'alternatelink']:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field]]}, fieldsList, fieldsTitles, titles)
+    if filepath:
+      skip_objects = FILEPATH_FIELDS
+      fieldsList.extend(FILEPATH_FIELDS)
     fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, u','.join(set(fieldsList)))
   else:
     fields = u'*'
+    skip_objects = [u'kind', u'etag']
   if orderByList:
     orderBy = u','.join(orderByList)
   else:
     orderBy = None
+  if filepath:
+    filePathInfo = initFilePathInfo()
+    addTitlesToCSVfile([u'paths',], titles)
   i = 0
   count = len(users)
   for user in users:
@@ -17418,10 +17480,18 @@ def printDriveFileList(users):
       for f_file in feed:
         a_file = {u'Owner': user}
         if filepath:
-          _, path = getFilePath(drive, f_file)
-          a_file[u'path'] = path
+          _, paths = getFilePaths(drive, f_file, filePathInfo)
+          jcount = len(paths)
+          a_file[u'paths'] = jcount
+          j = 0
+          for path in paths:
+            key = u'path.{0}'.format(j)
+            if key not in titles[u'set']:
+              addTitleToCSVfile(key, titles)
+            a_file[key] = path
+            j += 1
         for attrib in f_file:
-          if attrib in [u'kind', u'etag']:
+          if attrib in skip_objects:
             continue
           if not isinstance(f_file[attrib], dict):
             if isinstance(f_file[attrib], list):
@@ -17478,6 +17548,7 @@ def showDriveFilePath(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   checkForExtraneousArguments()
+  filePathInfo = initFilePathInfo()
   i = 0
   count = len(users)
   for user in users:
@@ -17496,8 +17567,15 @@ def showDriveFilePath(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=u'{0},mimeType,parents(id)'.format(DRIVE_FILE_NAME))
-        entityType, path = getFilePath(drive, result)
-        printEntityItemValue(entityType, fileId, EN_DRIVE_PATH, path, j, jcount)
+        entityType, paths = getFilePaths(drive, result, filePathInfo)
+        kcount = len(paths)
+        entityPerformActionNumItems(entityType, u'{0} ({1})'.format(result[DRIVE_FILE_NAME], fileId), kcount, EN_DRIVE_PATH, j, jcount)
+        incrementIndentLevel()
+        k = 0
+        for path in paths:
+          k += 1
+          printEntityName(EN_DRIVE_PATH, path, k, kcount)
+        decrementIndentLevel()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -18318,9 +18396,7 @@ def claimDriveFolderOwnership(users):
           k = 0
           for fileId, fileInfo in files[oldOwner].items():
             k += 1
-            entityType = fileInfo[u'type']
-            fileDesc = u'{0} ({1})'.format(fileInfo[u'name'], fileId)
-            entityItemValueActionNotPerformedWarning(EN_USER, user, entityType, fileDesc, PHRASE_USER_IN_OTHER_DOMAIN.format(singularEntityName(EN_USER), oldOwner), k, kcount)
+            entityItemValueActionNotPerformedWarning(EN_USER, user, fileInfo[u'type'], u'{0} ({1})'.format(fileInfo[u'name'], fileId), PHRASE_USER_IN_OTHER_DOMAIN.format(singularEntityName(EN_USER), oldOwner), k, kcount)
           decrementIndentLevel()
       decrementIndentLevel()
     except (GAPI_serviceNotAvailable, GAPI_authError):

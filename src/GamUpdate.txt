@@ -1,3 +1,12 @@
+4.24.03
+
+The commands gam show fileinfo/filelist/filepath now show all file paths for a file or folder; previously, only one file path was shown.
+The headers for gam show filelist have been changed. Previously, there was a header "path" with a value showing one possible path to a file.
+Now, there is a header "paths" with a value indicating the number of paths to the file; the paths have headers "path.0", "path.1", ...
+    gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
+    gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+    gam <UserTypeEntity> show filepath <DriveFileEntity>
+
 4.24.02
 
 Added formatjson argument to info group/groups to cause output to be in JSON format.
