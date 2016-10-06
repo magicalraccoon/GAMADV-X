@@ -1,12 +1,18 @@
+4.24.05
+
+Update 4.24.04 was too complicated; if a drive file has no parents, it will have no paths; there is no need for "orphaned".
+In gam print filelist, the headers will be "paths" with a value indicating the number of paths to the file; the paths have headers "path.0", "path.1", ...
+If a file has no parents, "paths" will be 0 and there will be no values for "path.0", "path.1", ...
+
 4.24.04
 
 Whenever a file path is shown, there is also an indication as to whether the path is "orphaned", i.e., the file path does not start at the root of Drive.
-In gam show filelist, for every header "path.#", there will also be a header "orphaned.#".
+In gam print filelist, for every header "path.#", there will also be a header "orphaned.#".
 
 4.24.03
 
-The commands gam show fileinfo/filelist/filepath now show all file paths for a file or folder; previously, only one file path was shown.
-The headers for gam show filelist have been changed. Previously, there was a header "path" with a value showing one possible path to a file.
+The commands gam show fileinfo/filepath and print filelist now show all file paths for a file or folder; previously, only one file path was shown.
+The headers for gam print filelist have been changed. Previously, there was a header "path" with a value showing one possible path to a file.
 Now, there is a header "paths" with a value indicating the number of paths to the file; the paths have headers "path.0", "path.1", ...
     gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
     gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
