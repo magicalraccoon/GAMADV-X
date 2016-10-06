@@ -17290,8 +17290,6 @@ def showDriveFileInfo(users):
   else:
     fields = u'*'
     skip_objects = [u'kind', u'etag']
-  if filepath:
-    filePathInfo = initFilePathInfo()
   i = 0
   count = len(users)
   for user in users:
@@ -17302,6 +17300,8 @@ def showDriveFileInfo(users):
     entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FILE_OR_FOLDER, i, count)
     if jcount == 0:
       continue
+    if filepath:
+      filePathInfo = initFilePathInfo()
     incrementIndentLevel()
     j = 0
     for fileId in fileIdSelection[u'fileIds']:
@@ -17461,7 +17461,6 @@ def printDriveFileList(users):
   else:
     orderBy = None
   if filepath:
-    filePathInfo = initFilePathInfo()
     addTitlesToCSVfile([u'paths',], titles)
   i = 0
   count = len(users)
@@ -17470,6 +17469,8 @@ def printDriveFileList(users):
     user, drive = buildDriveGAPIObject(user)
     if not drive:
       continue
+    if filepath:
+      filePathInfo = initFilePathInfo()
     try:
       printGettingAllEntityItemsForWhom(EN_DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
       page_message = getPageMessageForWhom()
@@ -17548,7 +17549,6 @@ def showDriveFilePath(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   checkForExtraneousArguments()
-  filePathInfo = initFilePathInfo()
   i = 0
   count = len(users)
   for user in users:
@@ -17556,6 +17556,7 @@ def showDriveFilePath(users):
     user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
     if not drive:
       continue
+    filePathInfo = initFilePathInfo()
     entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FILE_OR_FOLDER, i, count)
     if jcount == 0:
       continue
