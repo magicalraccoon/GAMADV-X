@@ -17399,6 +17399,13 @@ FILELIST_FIELDS = [u'id', u'mimeType']
 
 # gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>]) [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
+  def _stripMeInOwners(query):
+    if query == u"'me' in owners":
+      return None
+    if query.startswith(u"'me' in owners and "):
+      return query[19:]
+    return query
+
   def _setSelectionFields():
     if fileIdSelection != None and maxdepth != 0:
       skip_objects.extend([field for field in FILELIST_FIELDS if field not in fieldsList])
@@ -17475,7 +17482,7 @@ def printDriveFileList(users):
     except (GAPI_serviceNotAvailable, GAPI_authError, GAPI_fileNotFound):
       pass
 
-  allfields = filepath = showdepth = todrive = False
+  allfields = anyowner = filepath = showdepth = todrive = False
   maxdepth = 0
   fieldsList = []
   fieldsTitles = {}
@@ -17500,16 +17507,11 @@ def printDriveFileList(users):
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
     elif myarg == u'query':
-      if query:
-        query += u' and '
-      query += getString(OB_QUERY)
+      query += u' and '+getString(OB_QUERY)
     elif myarg == u'fullquery':
       query = getString(OB_QUERY)
     elif myarg == u'anyowner':
-      if query == u"'me' in owners":
-        query = u''
-      elif query.startswith(u"'me' in owners and "):
-        query = query[19:]
+      anyowner = True
       childrenQuery = u"'{0}' in parents"
     elif myarg == u'select':
       fileIdSelection = getDriveFileEntity()
@@ -17554,6 +17556,8 @@ def printDriveFileList(users):
   for user in users:
     i += 1
     if fileIdSelection == None:
+      if anyowner:
+        query = _stripMeInOwners(query)
       user, drive = buildDriveGAPIObject(user)
       if not drive:
         continue
@@ -17578,6 +17582,8 @@ def printDriveFileList(users):
     else:
       showdepth = True
       addTitlesToCSVfile([u'depth',], titles)
+      if anyowner:
+        fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
       user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
       if not drive:
         continue
