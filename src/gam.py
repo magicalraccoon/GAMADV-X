@@ -17443,7 +17443,7 @@ def printDriveFileList(users):
     if query == ME_IN_OWNERS:
       return None
     if query.startswith(ME_IN_OWNERS_AND):
-      return query[ME_IN_OWNERS_AND:]
+      return query[len(ME_IN_OWNERS_AND):]
     return query
 
   def _setSelectionFields():
