@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.25.01'
+__version__ = u'4.25.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -414,6 +414,8 @@ ROLE_MANAGER_MEMBER_OWNER = u','.join([ROLE_MANAGER, ROLE_MEMBER, ROLE_OWNER])
 ROLE_MEMBER_OWNER = u','.join([ROLE_MEMBER, ROLE_OWNER])
 PROJECTION_CHOICES_MAP = {u'basic': u'BASIC', u'full': u'FULL',}
 SORTORDER_CHOICES_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
+ME_IN_OWNERS = u"'me' in owners"
+ME_IN_OWNERS_AND = ME_IN_OWNERS+u" and "
 # Cloudprint
 CLOUDPRINT_ACCESS_URL = u'https://www.google.com/cloudprint/addpublicprinter.html?printerid={0}&key={1}'
 # Valid language codes
@@ -4280,7 +4282,7 @@ def callGAPIpages(service, function, items,
                   throw_reasons=[], retry_reasons=[],
                   **kwargs):
   pageToken = None
-  allResults = []
+  allResults = collections.deque()
   totalItems = 0
   maxResults = kwargs.get(u'maxResults', 0)
   tweakMaxResults = maxItems and maxResults
@@ -6149,12 +6151,13 @@ def doReport():
         user = normalizeEmailAddressOrUID(user)
       while True:
         try:
-          usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
-                                date=try_date, userKey=user, customerId=customerId, filters=filters, parameters=parameters,
-                                maxResults=maxResults)
-          for user_report in usage:
+          feed = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports',
+                               page_message=page_message,
+                               throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
+                               date=try_date, userKey=user, customerId=customerId, filters=filters, parameters=parameters,
+                               maxResults=maxResults)
+          while feed:
+            user_report = feed.popleft()
             row = {u'email': user_report[u'entity'][u'userEmail'], u'date': try_date}
             for item in user_report.get(u'parameters', {}):
               name = item[u'name']
@@ -6241,13 +6244,14 @@ def doReport():
       if normalizeUsers:
         user = normalizeEmailAddressOrUID(user)
       try:
-        activities = callGAPIpages(rep.activities(), u'list', u'items',
-                                   page_message=page_message,
-                                   throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_AUTH_ERROR],
-                                   applicationName=report, userKey=user, customerId=customerId,
-                                   actorIpAddress=actorIpAddress, startTime=startTime, endTime=endTime, eventName=eventName, filters=filters,
-                                   maxResults=maxResults)
-        for activity in activities:
+        feed = callGAPIpages(rep.activities(), u'list', u'items',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_AUTH_ERROR],
+                             applicationName=report, userKey=user, customerId=customerId,
+                             actorIpAddress=actorIpAddress, startTime=startTime, endTime=endTime, eventName=eventName, filters=filters,
+                             maxResults=maxResults)
+        while feed:
+          activity = feed.popleft()
           events = activity[u'events']
           del activity[u'events']
           activity_row = flattenJSON(activity)
@@ -6680,10 +6684,11 @@ def doPrintAdmins():
     else:
       unknownArgumentExit()
   try:
-    result = callGAPIpages(cd.roleAssignments(), u'list', u'items',
-                           throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
-                           customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
-    for admin in result:
+    feed = callGAPIpages(cd.roleAssignments(), u'list', u'items',
+                         throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
+                         customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
+    while feed:
+      admin = feed.popleft()
       admin_attrib = {}
       for attr, value in admin.items():
         if attr == u'assignedTo':
@@ -11038,13 +11043,13 @@ def doPrintCrOSDevices(entityList=None):
     printGettingAccountEntitiesInfo(EN_CROS_DEVICE, qualifier=queryQualifier(query))
     page_message = getPageMessage()
     try:
-      entityList = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                                 page_message=page_message,
-                                 throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                                 customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
-                                 orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-      for cros in entityList:
-        _printCrOS(cros)
+      feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                           page_message=page_message,
+                           throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                           customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
+                           orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+      while feed:
+        _printCrOS(feed.popleft())
     except GAPI_invalidInput:
       entityActionFailedWarning(EN_CROS_DEVICE, PHRASE_LIST, invalidQuery(query))
       return
@@ -11226,12 +11231,13 @@ def doPrintMobileDevices():
   try:
     printGettingAccountEntitiesInfo(EN_MOBILE_DEVICE, qualifier=queryQualifier(query))
     page_message = getPageMessage()
-    devices = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices',
-                            page_message=page_message,
-                            throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                            customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
-                            orderBy=orderBy, sortOrder=sortOrder, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-    for mobile in devices:
+    feed = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices',
+                         page_message=page_message,
+                         throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                         customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
+                         orderBy=orderBy, sortOrder=sortOrder, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+    while feed:
+      mobile = feed.popleft()
       mobiledevice = {}
       for attrib in mobile:
         if attrib in [u'kind', u'etag', u'applications']:
@@ -12276,7 +12282,7 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [GOOGLE_APPS_PRODUCT, GOOGLE_VAULT_PRODUCT]
-  licenses = []
+  feed = collections.deque()
   todrive = False
   titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId'])
   if not return_list:
@@ -12297,10 +12303,10 @@ def doPrintLicenses(return_list=False, skus=None):
       setGettingEntityItem(EN_LICENSE)
       page_message = getPageMessageForWhom(forWhom=skuId)
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
-                                  page_message=page_message,
-                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'nextPageToken,items(productId,skuId,userId)')
+        feed += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
+                              page_message=page_message,
+                              throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                              customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'nextPageToken,items(productId,skuId,userId)')
       except (GAPI_invalid, GAPI_forbidden):
         pass
   else:
@@ -12308,13 +12314,14 @@ def doPrintLicenses(return_list=False, skus=None):
       setGettingEntityItem(EN_LICENSE)
       page_message = getPageMessageForWhom(forWhom=productId)
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
-                                  page_message=page_message,
-                                  throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
+        feed += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
+                              page_message=page_message,
+                              throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                              customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
       except (GAPI_invalid, GAPI_forbidden):
         pass
-  for u_license in licenses:
+  while feed:
+    u_license = feed.popleft()
     a_license = {}
     for title in u_license:
       if title in [u'kind', u'etags', u'selfLink']:
@@ -14607,14 +14614,14 @@ def doPrintUsers(entityList=None):
     printGettingAccountEntitiesInfo(EN_USER, qualifier=queryQualifier(query))
     page_message = getPageMessage(showFirstLastItems=True)
     try:
-      entityList = callGAPIpages(cd.users(), u'list', u'users',
-                                 page_message=page_message, message_attribute=u'primaryEmail',
-                                 throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                                 customer=customer, domain=domain, fields=fields, query=query,
-                                 showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
-                                 projection=projection, customFieldMask=customFieldMask, maxResults=GC_Values[GC_USER_MAX_RESULTS])
-      for userEntity in entityList:
-        _printUser(userEntity)
+      feed = callGAPIpages(cd.users(), u'list', u'users',
+                           page_message=page_message, message_attribute=u'primaryEmail',
+                           throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                           customer=customer, domain=domain, fields=fields, query=query,
+                           showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
+                           projection=projection, customFieldMask=customFieldMask, maxResults=GC_Values[GC_USER_MAX_RESULTS])
+      while feed:
+        _printUser(feed.popleft())
     except GAPI_domainNotFound:
       entityItemValueActionFailedWarning(EN_USER, PHRASE_LIST, EN_DOMAIN, domain, PHRASE_NOT_FOUND)
       return
@@ -16940,7 +16947,7 @@ def cleanFileIDsList(fileIdSelection, fileIds):
 def initDriveFileEntity():
   return {u'fileIds': [], u'query': None, u'dict': None, u'root': []}
 
-def getDriveFileEntity():
+def getDriveFileEntity(anyowner=False):
   fileIdSelection = initDriveFileEntity()
   entitySelector = getEntitySelector()
   if entitySelector:
@@ -16965,9 +16972,9 @@ def getDriveFileEntity():
     elif mycmd[:6] == u'query:':
       fileIdSelection[u'query'] = myarg[6:]
     elif mycmd == u'drivefilename':
-      fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+      fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
     elif mycmd[:14] == u'drivefilename:':
-      fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+      fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
     elif mycmd == u'root':
       cleanFileIDsList(fileIdSelection, [mycmd,])
     else:
@@ -17087,7 +17094,7 @@ def getDriveFileAttribute(body, parameters, myarg, update):
     body.setdefault(u'parents', [])
     body[u'parents'].append({u'id': getString(OB_DRIVE_FOLDER_ID)})
   elif myarg == u'parentname':
-    parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
+    parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
   elif myarg == u'writerscantshare':
     body[u'writersCanShare'] = False
   else:
@@ -17126,8 +17133,8 @@ def printDriveActivity(users):
                            source=u'drive.google.com', userId=u'me',
                            drive_ancestorId=drive_ancestorId, groupingStrategy=u'none',
                            drive_fileId=drive_fileId, pageSize=GC_Values[GC_ACTIVITY_MAX_RESULTS])
-      for item in feed:
-        addRowTitlesToCSVfile(flattenJSON(item[u'combinedEvent']), csvRows, titles)
+      while feed:
+        addRowTitlesToCSVfile(flattenJSON(feed.popleft()[u'combinedEvent']), csvRows, titles)
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
@@ -17433,10 +17440,10 @@ FILELIST_FIELDS = [u'id', u'mimeType']
 # gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>]) [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
   def _stripMeInOwners(query):
-    if query == u"'me' in owners":
+    if query == ME_IN_OWNERS:
       return None
-    if query.startswith(u"'me' in owners and "):
-      return query[19:]
+    if query.startswith(ME_IN_OWNERS_AND):
+      return query[ME_IN_OWNERS_AND:]
     return query
 
   def _setSelectionFields():
@@ -17447,7 +17454,7 @@ def printDriveFileList(users):
       skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
 
-  def _printFileList(f_file, depth=None):
+  def _printFileInfo(f_file, depth=None):
     a_file = {u'Owner': user}
     if showdepth:
       a_file[u'depth'] = depth
@@ -17504,7 +17511,7 @@ def printDriveFileList(users):
     csvRows.append(a_file)
 
   def _recursivePrintFileList(f_file, depth):
-    _printFileList(f_file, depth)
+    _printFileInfo(f_file, depth)
     try:
       if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
         children = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
@@ -17523,7 +17530,7 @@ def printDriveFileList(users):
   orderByList = []
   skip_objects = []
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
-  query = u"'me' in owners"
+  query = ME_IN_OWNERS
   childrenQuery = query+u" and '{0}' in parents"
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
@@ -17603,8 +17610,8 @@ def printDriveFileList(users):
                              page_message=page_message,
                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
                              q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
-        for f_file in feed:
-          _printFileList(f_file)
+        while feed:
+          _printFileInfo(feed.popleft())
       except GAPI_invalidQuery:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE, PHRASE_LIST, invalidQuery(query), i, count)
         break
@@ -17686,14 +17693,14 @@ def showDriveFilePath(users):
 
 # gam <UserTypeEntity> show filetree [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def showDriveFileTree(users):
-  def _printDriveFolderContents(feed, folderId):
+  def _showDriveFolderContents(folderId):
     for f_file in feed:
-      for parent in f_file[u'parents']:
+      for parent in f_file.get(u'parents', []):
         if folderId == parent[u'id']:
           printKeyValueList([f_file[DRIVE_FILE_NAME]])
           if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
             incrementIndentLevel()
-            _printDriveFolderContents(feed, f_file[u'id'])
+            _showDriveFolderContents(f_file[u'id'])
             decrementIndentLevel()
           break
 
@@ -17703,7 +17710,7 @@ def showDriveFileTree(users):
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'select':
-      fileIdSelection = getDriveFileEntity()
+      fileIdSelection = getDriveFileEntity(True)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
@@ -17745,7 +17752,7 @@ def showDriveFileTree(users):
                             fileId=fileId, fields=DRIVE_FILE_NAME)
           printEntityName(EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
           incrementIndentLevel()
-          _printDriveFolderContents(feed, fileId)
+          _showDriveFolderContents(fileId)
           decrementIndentLevel()
         except GAPI_fileNotFound:
           entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -17914,7 +17921,7 @@ def copyDriveFile(users):
       body.setdefault(u'parents', [])
       body[u'parents'].append({u'id': getString(OB_DRIVE_FILE_ID)})
     elif myarg == u'parentname':
-      parameters[DFA_PARENTQUERY] = u"'me' in owners and mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
+      parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
     else:
       unknownArgumentExit()
   i = 0
@@ -18138,8 +18145,8 @@ def transferDriveFiles(users):
       remove_source_user = False
     else:
       unknownArgumentExit()
-  source_query = u"'me' in owners and trashed = false"
-  target_query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
+  source_query = ME_IN_OWNERS_AND+u"trashed = false"
+  target_query = ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   target_user, target_drive = buildDriveGAPIObject(target_user)
   if not target_drive:
     return
@@ -18516,7 +18523,7 @@ def claimDriveFolderOwnership(users):
 def deleteEmptyDriveFolders(users):
   checkForExtraneousArguments()
   setActionName(AC_DELETE_EMPTY)
-  query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
+  query = ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   i = 0
   count = len(users)
   for user in users:

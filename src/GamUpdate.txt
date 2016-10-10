@@ -1,3 +1,7 @@
+4.25.02
+
+Use collections.deque() to reduce memory usage on some gam print operations.
+
 4.25.01
 
 Added convertfooternl argument ot gam print groups, it  causes \n to be converted to \\n in customFooterText, otherwise \n is not changed.
