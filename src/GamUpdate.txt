@@ -1,3 +1,11 @@
+4.25.01
+
+Added convertfooternl argument ot gam print groups, it  causes \n to be converted to \\n in customFooterText, otherwise \n is not changed.
+Added countsonly argument to gam print groups, it causes the number of members/owners/managers to be shown, not the list of email addresses.
+    gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
+	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
+
 4.25.00
 
 Note!!! Syntax change.

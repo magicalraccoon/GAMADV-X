@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.25.00'
+__version__ = u'4.25.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -11865,7 +11865,7 @@ def groupQuery(domain, usemember):
   return u''
 
 # gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
-#	[maxresults <Number>] [delimiter <String>]
+#	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
 #	[members] [owners] [managers] <GroupFieldName>* [fields <GroupFieldNameList>] [settings]
 def doPrintGroups():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -11874,7 +11874,7 @@ def doPrintGroups():
   domain = usemember = None
   aliasDelimiter = u' '
   memberDelimiter = u'\n'
-  todrive = False
+  convertFooterNL = countsOnly = todrive = False
   maxResults = None
   cdfieldsList = []
   gsfieldsList = []
@@ -11900,6 +11900,10 @@ def doPrintGroups():
       maxResults = getInteger(minVal=1)
     elif myarg == u'delimiter':
       aliasDelimiter = memberDelimiter = getString(OB_STRING)
+    elif myarg == u'convertfooternl':
+      convertFooterNL = True
+    elif myarg == u'countsonly':
+      countsOnly = True
     elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
       addFieldTitleToCSVfile(myarg, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
     elif myarg in GROUP_ATTRIBUTES:
@@ -11987,38 +11991,64 @@ def doPrintGroups():
                                      page_message=page_message, message_attribute=u'email',
                                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                                      groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
-        if members:
-          allMembers = []
-        if managers:
-          allManagers = []
-        if owners:
-          allOwners = []
-        for member in groupMembers:
-          member_email = member.get(u'email', member.get(u'id', None))
-          if not member_email:
-            sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
-            continue
-          role = member.get(u'role', None)
-          if role:
-            if role == ROLE_MEMBER:
-              if members:
+        if not countsOnly:
+          if members:
+            allMembers = []
+          if managers:
+            allManagers = []
+          if owners:
+            allOwners = []
+          for member in groupMembers:
+            member_email = member.get(u'email', member.get(u'id', None))
+            if not member_email:
+              sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
+              continue
+            role = member.get(u'role', None)
+            if role:
+              if role == ROLE_MEMBER:
+                if members:
+                  allMembers.append(member_email)
+              elif role == ROLE_MANAGER:
+                if managers:
+                  allManagers.append(member_email)
+              elif role == ROLE_OWNER:
+                if owners:
+                  allOwners.append(member_email)
+              elif members:
                 allMembers.append(member_email)
-            elif role == ROLE_MANAGER:
-              if managers:
-                allManagers.append(member_email)
-            elif role == ROLE_OWNER:
-              if owners:
-                allOwners.append(member_email)
             elif members:
               allMembers.append(member_email)
-          elif members:
-            allMembers.append(member_email)
-        if members:
-          group[u'Members'] = memberDelimiter.join(allMembers)
-        if managers:
-          group[u'Managers'] = memberDelimiter.join(allManagers)
-        if owners:
-          group[u'Owners'] = memberDelimiter.join(allOwners)
+          if members:
+            group[u'Members'] = memberDelimiter.join(allMembers)
+          if managers:
+            group[u'Managers'] = memberDelimiter.join(allManagers)
+          if owners:
+            group[u'Owners'] = memberDelimiter.join(allOwners)
+        else:
+          allMembers = allManagers = allOwners = 0
+          for member in groupMembers:
+            member_email = member.get(u'email', member.get(u'id', None))
+            if not member_email:
+              sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
+              continue
+            role = member.get(u'role', None)
+            if role:
+              if role == ROLE_MEMBER:
+                allMembers += 1
+              elif role == ROLE_MANAGER:
+                allManagers += 1
+              elif role == ROLE_OWNER:
+                allOwners += 1
+              else:
+                allMembers += 1
+            else:
+              allMembers += 1
+          if members:
+            group[u'Members'] = allMembers
+          if managers:
+            group[u'Managers'] = allManagers
+          if owners:
+            group[u'Owners'] = allOwners
       if getSettings:
         printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
         gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
@@ -12034,7 +12064,10 @@ def doPrintGroups():
             setting_value = u''
           if key not in titles[u'set']:
             addTitleToCSVfile(key, titles)
-          group[key] = setting_value
+          if key != u'customFooterText' or not convertFooterNL:
+            group[key] = setting_value
+          else:
+            group[key] = setting_value.replace(u'\n', u'\\n')
       csvRows.append(group)
     except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
       entityUnknownWarning(EN_GROUP, groupEmail, i, count)
