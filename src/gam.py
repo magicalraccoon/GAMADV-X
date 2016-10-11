@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.25.02'
+__version__ = u'4.25.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -17295,8 +17295,9 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'writerscanshare': u'writersCanShare',
   }
 
-FILEINFO_FIELDS = [DRIVE_FILE_NAME, u'mimeType']
-FILEPATH_FIELDS = [u'mimeType', u'parents', DRIVE_FILE_NAME]
+FILEINFO_FIELDS_TITLES = [DRIVE_FILE_NAME, u'mimeType']
+FILEPATH_TITLES = [u'mimeType', u'parents', DRIVE_FILE_NAME]
+FILEPATH_FIELDS = [u'mimeType', u'parents(id)', DRIVE_FILE_NAME]
 
 # gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 def showDriveFileInfo(users):
@@ -17319,10 +17320,10 @@ def showDriveFileInfo(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    skip_objects.extend([field for field in FILEINFO_FIELDS if field not in fieldsList])
-    fieldsList.extend(FILEINFO_FIELDS)
+    skip_objects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
+    fieldsList.extend(FILEINFO_FIELDS_TITLES)
     if filepath:
-      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
+      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
     fields = u','.join(set(fieldsList))
     if labelsList:
@@ -17435,7 +17436,7 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
-FILELIST_FIELDS = [u'id', u'mimeType']
+FILELIST_FIELDS_TITLES = [u'id', u'mimeType']
 
 # gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>]) [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
@@ -17448,16 +17449,14 @@ def printDriveFileList(users):
 
   def _setSelectionFields():
     if fileIdSelection != None and maxdepth != 0:
-      skip_objects.extend([field for field in FILELIST_FIELDS if field not in fieldsList])
-      fieldsList.extend(FILELIST_FIELDS)
+      skip_objects.extend([field for field in FILELIST_FIELDS_TITLES if field not in fieldsList])
+      fieldsList.extend(FILELIST_FIELDS_TITLES)
     if filepath:
-      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
+      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
 
-  def _printFileInfo(f_file, depth=None):
+  def _printFileInfo(f_file):
     a_file = {u'Owner': user}
-    if showdepth:
-      a_file[u'depth'] = depth
     if filepath:
       _, paths = getFilePaths(drive, f_file, filePathInfo)
       kcount = len(paths)
@@ -17511,7 +17510,7 @@ def printDriveFileList(users):
     csvRows.append(a_file)
 
   def _recursivePrintFileList(f_file, depth):
-    _printFileInfo(f_file, depth)
+    _printFileInfo(f_file)
     try:
       if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
         children = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
@@ -17522,7 +17521,7 @@ def printDriveFileList(users):
     except (GAPI_serviceNotAvailable, GAPI_authError, GAPI_fileNotFound):
       pass
 
-  allfields = anyowner = filepath = showdepth = todrive = False
+  allfields = anyowner = filepath = todrive = False
   maxdepth = 0
   fieldsList = []
   fieldsTitles = {}
@@ -17620,8 +17619,6 @@ def printDriveFileList(users):
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
     else:
-      showdepth = True
-      addTitlesToCSVfile([u'depth',], titles)
       if anyowner:
         fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
       user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
