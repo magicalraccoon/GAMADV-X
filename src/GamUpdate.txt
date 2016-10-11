@@ -1,3 +1,7 @@
+4.25.04
+
+Improve performance of gam print filelist select.
+
 4.25.03
 
 Eliminated depth column in gam print filelist select. Changed depth to default to -1.
