@@ -17522,7 +17522,7 @@ def printDriveFileList(users):
       pass
 
   allfields = anyowner = filepath = todrive = False
-  maxdepth = 0
+  maxdepth = -1
   fieldsList = []
   fieldsTitles = {}
   labelsList = []
