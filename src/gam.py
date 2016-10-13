@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.26.00'
+__version__ = u'4.26.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -5727,7 +5727,7 @@ OAUTH2_SCOPES = [
   u'https://www.googleapis.com/auth/classroom.profile.photos',         #  7:Classroom API - Profile Photos
   u'https://www.googleapis.com/auth/classroom.rosters',                #  8:Classroom API - Rosters (RO)
   u'https://www.googleapis.com/auth/cloudprint',                       #  9:Cloudprint API
-  u'https://www.google.com/m8/feeds/contacts',                         # 10:Contacts API - Domain Shared and Users
+  u'https://www.google.com/m8/feeds',                                  # 10:Contacts API - Domain Shared and Users and GAL
   u'https://www.googleapis.com/auth/admin.datatransfer',               # 11:Data Transfer API (RO)
   u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  # 12:Directory API - Chrome OS Devices (RO)
   u'https://www.googleapis.com/auth/admin.directory.customer',         # 13:Directory API - Customers (RO)
