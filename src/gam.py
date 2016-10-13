@@ -23,7 +23,7 @@ For more information, see https://github.com/jay0lee/GAM
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.25.04'
+__version__ = u'4.26.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
@@ -531,11 +531,12 @@ GDATA_INVALID_DOMAIN = 605
 GDATA_INVALID_VALUE = 1801
 GDATA_NAME_NOT_VALID = 1303
 GDATA_NOT_FOUND = 606
-GDATA_PRECONDITION_FAILED = 607
-GDATA_QUOTA_EXCEEDED = 608
+GDATA_NOT_IMPLEMENTED = 607
+GDATA_PRECONDITION_FAILED = 608
+GDATA_QUOTA_EXCEEDED = 609
 GDATA_SERVICE_NOT_APPLICABLE = 1410
-GDATA_SERVICE_UNAVAILABLE = 609
-GDATA_TOKEN_EXPIRED = 610
+GDATA_SERVICE_UNAVAILABLE = 610
+GDATA_TOKEN_EXPIRED = 611
 GDATA_TOKEN_INVALID = 403
 GDATA_UNKNOWN_ERROR = 600
 #
@@ -1179,6 +1180,7 @@ CL_OB_FILTERS = u'filters'
 CL_OB_FORWARD = u'forward'
 CL_OB_FORWARDINGADDRESS = u'forwardingaddress'
 CL_OB_FORWARDINGADDRESSES = u'forwardingaddresses'
+CL_OB_GAL = u'gal'
 CL_OB_GMAILPROFILE = u'gmailprofile'
 CL_OB_GPLUSPROFILE = u'gplusprofile'
 CL_OB_GROUP = u'group'
@@ -1276,6 +1278,7 @@ AC_CREATE = u'crea'
 AC_DELETE = u'dele'
 AC_DELETE_EMPTY = u'delm'
 AC_DEPROVISION = u'depr'
+AC_DISABLE = u'disa'
 AC_DOWNLOAD = u'down'
 AC_EMPTY = u'empt'
 AC_FETCH = u'fetc'
@@ -1290,6 +1293,7 @@ AC_MOVE = u'move'
 AC_PERFORM = u'perf'
 AC_PRINT = u'prin'
 AC_PURGE = u'purg'
+AC_REENABLE = u'reen'
 AC_REGISTER = u'regi'
 AC_RELABEL = u'rela'
 AC_REMOVE = u'remo'
@@ -1328,6 +1332,7 @@ ACTION_NAMES = {
   AC_DELETE: [u'Deleted', u'Delete'],
   AC_DELETE_EMPTY: [u'Deleted', u'Delete Empty'],
   AC_DEPROVISION: [u'Deprovisioned', u'Deprovision'],
+  AC_DISABLE: [u'Disabled', u'Disable'],
   AC_DOWNLOAD: [u'Downloaded', u'Download'],
   AC_EMPTY: [u'Emptied', u'Empty'],
   AC_FORWARD: [u'Forwarded', u'Forward'],
@@ -1341,6 +1346,7 @@ ACTION_NAMES = {
   AC_PERFORM: [u'Action Performed', u'Perfrom Action'],
   AC_PRINT: [u'Printed', u'Print'],
   AC_PURGE: [u'Purged', u'Purge'],
+  AC_REENABLE: [u'Reenabled', u'Reenable'],
   AC_REGISTER: [u'Registered', u'Register'],
   AC_RELABEL: [u'Relabeled', u'Relabel'],
   AC_REMOVE: [u'Removed', u'Remove'],
@@ -1641,6 +1647,7 @@ MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not ex
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
 MESSAGE_NO_SCOPES_FOR_API = u'There are no scopes authorized for the {0}'
 MESSAGE_NO_TRANSFER_LACK_OF_DISK_SPACE = u'Cowardly refusing to perform migration due to lack of target drive space.'
+MESSAGE_REFUSING_TO_DEPROVISION_DEVICES = u'Refusing to deprovision {0} devices because acknowledge_device_touch_requirement not specified.\nDeprovisioning a device means the device will have to be physically wiped and re-enrolled to be managed by your domain again.\nThis requires physical access to the device and is very time consuming to perform for each device.\nPlease add "acknowledge_device_touch_requirement" to the GAM command if you understand this and wish to proceed with the deprovision.\nPlease also be aware that deprovisioning can have an effect on your device license count.\nSee https://support.google.com/chrome/a/answer/3523633 for full details.'
 MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files were returned, try requesting again'
 MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloading, current status is: {0}'
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
@@ -1649,7 +1656,6 @@ MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater 
 MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please follow the instructions at this site to setup a Service account.'
 
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
-ARGUMENTS_MUTUALLY_EXCLUSIVE = u'muex'
 ARGUMENT_BLANK = u'blnk'
 ARGUMENT_EMPTY = u'empt'
 ARGUMENT_EXTRANEOUS = u'extr'
@@ -1658,7 +1664,6 @@ ARGUMENT_MISSING = u'miss'
 # ARGUMENT_ERROR_NAMES[0] is plural,ARGUMENT_ERROR_NAMES[1] is singular
 # These values can be translated into other languages
 ARGUMENT_ERROR_NAMES = {
-  ARGUMENTS_MUTUALLY_EXCLUSIVE: [u'Mutually exclusive arguments', u'Mutually exclusive arguments'],
   ARGUMENT_BLANK: [u'Blank arguments', u'Blank argument'],
   ARGUMENT_EMPTY: [u'Empty arguments', u'Empty argument'],
   ARGUMENT_EXTRANEOUS: [u'Extra arguments', u'Extra argument'],
@@ -1983,9 +1988,6 @@ def invalidChoiceExit(choices):
 
 def missingChoiceExit(choices):
   expectedArgumentExit(ARGUMENT_ERROR_NAMES[ARGUMENT_MISSING][1], formatChoiceList(choices))
-
-def mutuallyExclusiveChoiceExit(choices):
-  expectedArgumentExit(ARGUMENT_ERROR_NAMES[ARGUMENTS_MUTUALLY_EXCLUSIVE][1], formatChoiceList(choices))
 
 # Initialize arguments
 def initializeArguments(args):
@@ -3835,6 +3837,8 @@ def checkGDataError(e, service):
       return (GDATA_FORBIDDEN, e[0][u'body'])
     if e[0][u'reason'] == u'Not Found':
       return (GDATA_NOT_FOUND, e[0][u'body'])
+    if e[0][u'reason'] == u'Not Implemented':
+      return (GDATA_NOT_IMPLEMENTED, e[0][u'body'])
     if e[0][u'reason'] == u'Precondition Failed':
       return (GDATA_PRECONDITION_FAILED, e[0][u'reason'])
   elif e.error_code == 602:
@@ -3897,6 +3901,7 @@ class GData_invalidDomain(Exception): pass
 class GData_invalidValue(Exception): pass
 class GData_nameNotValid(Exception): pass
 class GData_notFound(Exception): pass
+class GData_notImplemented(Exception): pass
 class GData_preconditionFailed(Exception): pass
 class GData_serviceNotApplicable(Exception): pass
 
@@ -3911,6 +3916,7 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_INVALID_VALUE: GData_invalidValue,
   GDATA_NAME_NOT_VALID: GData_nameNotValid,
   GDATA_NOT_FOUND: GData_notFound,
+  GDATA_NOT_IMPLEMENTED: GData_notImplemented,
   GDATA_PRECONDITION_FAILED: GData_preconditionFailed,
   GDATA_SERVICE_NOT_APPLICABLE: GData_serviceNotApplicable,
   }
@@ -3967,6 +3973,8 @@ def callGDataPages(service, function,
     if this_page:
       nextLink = this_page.GetNextLink()
       pageItems = len(this_page.entry)
+      if pageItems == 0:
+        nextLink = None
       totalItems += pageItems
       allResults.extend(this_page.entry)
     else:
@@ -4560,16 +4568,16 @@ def getAuditObject():
   import gdata.apps.audit.service
   return initGDataObject(gdata.apps.audit.service.AuditService(), GDATA_EMAIL_AUDIT_API)
 
-def getContactsObject(entityType=EN_DOMAIN, entityName=None, i=0, count=0):
+def getContactsObject(entityType=EN_DOMAIN, entityName=None, i=0, count=0, contactFeed=True):
   import gdata.apps.contacts.service
   if entityType == EN_DOMAIN:
-    contactsObject = initGDataObject(gdata.apps.contacts.service.ContactsService(),
+    contactsObject = initGDataObject(gdata.apps.contacts.service.ContactsService(contactFeed=contactFeed),
                                      GDATA_CONTACTS_API)
     return (entityName or GC_Values[GC_DOMAIN], contactsObject)
   userEmail, credentials = getGDataUserCredentials(GDATA_CONTACTS_API, entityName, i=i, count=count)
   if not credentials:
     return (userEmail, None)
-  contactsObject = gdata.apps.contacts.service.ContactsService(source=GAM_INFO,
+  contactsObject = gdata.apps.contacts.service.ContactsService(source=GAM_INFO, contactFeed=contactFeed,
                                                                additional_headers={u'Authorization': u'Bearer {0}'.format(credentials.access_token)})
   if GC_Values[GC_DEBUG_LEVEL] > 0:
     contactsObject.debug = True
@@ -9760,7 +9768,8 @@ def normalizeContactId(contactId):
   return contactId
 
 def _initContactQueryAttributes():
-  return {u'query': None, u'projection': u'full', u'url_params': {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])}, u'contactGroup': None, u'group': None, u'emailMatchPattern': None, u'emailMatchType': None}
+  return {u'query': None, u'projection': u'full', u'url_params': {u'max-results': str(GC_Values[GC_CONTACT_MAX_RESULTS])},
+          u'contactGroup': None, u'group': None, u'emailMatchPattern': None, u'emailMatchType': None}
 
 def _getContactQueryAttributes(contactQuery, myarg, entityType, allowOutputAttributes):
   if myarg == u'query':
@@ -10130,7 +10139,11 @@ def infoUserContacts(users):
 def doInfoDomainContacts():
   doInfoContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN)
 
-def doInfoContacts(users, entityType):
+# gam info gal <GalEntity> [basic|full] [fields <ContactFieldNameList>]
+def doInfoGAL():
+  doInfoContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN, False)
+
+def doInfoContacts(users, entityType, contactFeed=True):
   contactsManager = ContactsManager()
   entityList = getEntityList(OB_CONTACT_ENTITY)
   contactIdLists = entityList if isinstance(entityList, dict) else None
@@ -10161,7 +10174,7 @@ def doInfoContacts(users, entityType):
     i += 1
     if contactIdLists:
       entityList = contactIdLists[user]
-    user, contactsObject = getContactsObject(entityType, user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count, contactFeed=contactFeed)
     if not contactsObject:
       continue
     contactGroupIDs = None
@@ -10177,7 +10190,7 @@ def doInfoContacts(users, entityType):
       try:
         contactId = normalizeContactId(contact)
         contact = callGData(contactsObject, u'GetContact',
-                            throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN, GDATA_NOT_IMPLEMENTED],
                             retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId, projection=contactQuery[u'projection']))
         fields = contactsManager.ContactToFields(contact)
@@ -10186,7 +10199,7 @@ def doInfoContacts(users, entityType):
         _showContact(contactsManager, fields, displayFieldsList, [None, contactGroupIDs][showContactGroups], j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
-      except GData_forbidden:
+      except (GData_forbidden, GData_notImplemented):
         entityServiceNotApplicableWarning(entityType, user, i, count)
         break
       except GData_serviceNotApplicable:
@@ -10214,7 +10227,17 @@ def doPrintDomainContacts():
 def doShowDomainContacts():
   printShowContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN, False)
 
-def printShowContacts(users, entityType, csvFormat):
+# gam print [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
+#	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+def doPrintGAL():
+  printShowContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN, True, False)
+
+# gam show gal [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min yyyy-mm-dd]
+#	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+def doShowGAL():
+  printShowContacts([GC_Values[GC_DOMAIN],], EN_DOMAIN, False, False)
+
+def printShowContacts(users, entityType, csvFormat, contactFeed=True):
   contactsManager = ContactsManager()
   if csvFormat:
     todrive = False
@@ -10226,7 +10249,7 @@ def printShowContacts(users, entityType, csvFormat):
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif myarg == u'showgroups':
+    elif contactFeed and myarg == u'showgroups':
       showContactGroups = True
     elif myarg == u'fields':
       fieldNameList = getString(OB_FIELD_NAME_LIST)
@@ -10244,7 +10267,7 @@ def printShowContacts(users, entityType, csvFormat):
   count = len(users)
   for user in users:
     i += 1
-    user, contactsObject = getContactsObject(entityType, user, i, count)
+    user, contactsObject = getContactsObject(entityType, user, i, count, contactFeed=contactFeed)
     if not contactsObject:
       continue
     contactGroupIDs = contactGroupNames = None
@@ -10666,19 +10689,24 @@ UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP = {
   u'org': u'orgUnitPath',
   u'orgunitpath': u'orgUnitPath',
   u'ou': u'orgUnitPath',
-  u'status': u'status',
   u'tag': u'annotatedAssetId',
   u'user': u'annotatedUser',
   }
 
-CROS_STATUS_CHOICES_MAP = {
-  u'active': u'ACTIVE',
-  u'deprovisioned': u'DEPROVISIONED',
-  u'inactive': u'INACTIVE',
-  u'returnapproved': u'RETURN_APPROVED',
-  u'returnrequested': u'RETURN_REQUESTED',
-  u'shipped': u'SHIPPED',
-  u'unknown': u'UNKNOWN',
+CROS_ACTION_CHOICES_MAP = {
+  u'deprovisionsamemodelreplace': (u'deprovision', u'same_model_replacement'),
+  u'deprovisionsamemodelreplacement': (u'deprovision', u'same_model_replacement'),
+  u'deprovisiondifferentmodelreplace': (u'deprovision', u'different_model_replacement'),
+  u'deprovisiondifferentmodelreplacement': (u'deprovision', u'different_model_replacement'),
+  u'deprovisionretiringdevice': (u'deprovision', u'retiring_device'),
+  u'disable': (u'disable', None),
+  u'reenable': (u'reenable', None)
+  }
+
+CROS_ACTION_NAME_MAP = {
+  u'deprovIsion': AC_DEPROVISION,
+  u'disable': AC_DISABLE,
+  u'reenable': AC_REENABLE,
   }
 
 # gam update cros|croses <CrOSEntity> <CrOSAttributes>
@@ -10689,34 +10717,55 @@ def doUpdateCrOSDevices():
 def updateCrOSDevices(entityList, cd=None):
   if not cd:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  body = {}
+  update_body = {}
+  action_body = {}
+  ack_wipe = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg in UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP:
       up = UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'orgUnitPath':
-        body[up] = getOrgUnitPath()
-      elif up == u'status':
-        body[up] = getChoice(CROS_STATUS_CHOICES_MAP, mapChoice=True)
-      elif up == u'notes':
-        body[up] = getString(OB_STRING, emptyOK=True)
+        update_body[up] = getOrgUnitPath()
       else:
-        body[up] = getString(OB_STRING)
+        update_body[up] = getString(OB_STRING, emptyOK=up != u'annotatedAssetId')
+    elif myarg == u'action':
+      action_body[u'action'], deprovisionReason = getChoice(CROS_ACTION_CHOICES_MAP, mapChoice=True)
+      if deprovisionReason:
+        action_body[u'deprovisionReason'] = deprovisionReason
+      setActionName(CROS_ACTION_NAME_MAP[action_body[u'action']])
+    elif myarg == u'acknowledgedevicetouchrequirement':
+      ack_wipe = True
     else:
       unknownArgumentExit()
   i = 0
   count = len(entityList)
-  for deviceId in entityList:
-    i += 1
-    try:
-      callGAPI(cd.chromeosdevices(), u'patch',
-               throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-               customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=body)
-      entityActionPerformed(EN_CROS_DEVICE, deviceId, i, count)
-    except GAPI_invalid as e:
-      entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.message, i, count)
-    except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-      checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
+  if action_body:
+    if action_body[u'action'] == u'deprovision' and not ack_wipe:
+      stderrWarningMsg(MESSAGE_REFUSING_TO_DEPROVISION_DEVICES.format(count))
+      systemErrorExit(AC_NOT_PERFORMED_RC, None)
+    for deviceId in entityList:
+      i += 1
+      try:
+        callGAPI(cd.chromeosdevices(), u'action',
+                 throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                 customerId=GC_Values[GC_CUSTOMER_ID], resourceId=deviceId, body=action_body)
+        entityActionPerformed(EN_CROS_DEVICE, deviceId, i, count)
+      except GAPI_invalid as e:
+        entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.message, i, count)
+      except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
+        checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
+  elif update_body:
+    for deviceId in entityList:
+      i += 1
+      try:
+        callGAPI(cd.chromeosdevices(), u'patch',
+                 throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                 customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=update_body)
+        entityActionPerformed(EN_CROS_DEVICE, deviceId, i, count)
+      except GAPI_invalid as e:
+        entityActionFailedWarning(EN_CROS_DEVICE, deviceId, e.message, i, count)
+      except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
+        checkEntityAFDNEorAccessErrorExit(cd, EN_CROS_DEVICE, deviceId, i, count)
 
 CROS_ARGUMENT_TO_PROPERTY_MAP = {
   u'activetimeranges': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
@@ -17442,6 +17491,8 @@ FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 # gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>]) [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
   def _stripMeInOwners(query):
+    if not query:
+      return query
     if query == ME_IN_OWNERS:
       return None
     if query.startswith(ME_IN_OWNERS_AND):
@@ -22119,6 +22170,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_DOMAIN:	doInfoDomain,
         CL_OB_DOMAIN_ALIAS:	doInfoDomainAlias,
         CL_OB_INSTANCE:	doInfoInstance,
+        CL_OB_GAL:	doInfoGAL,
         CL_OB_GROUP:	doInfoGroup,
         CL_OB_GROUPS:	doInfoGroups,
         CL_OB_MOBILES:	doInfoMobileDevices,
@@ -22170,6 +22222,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_DATA_TRANSFERS:	doPrintDataTransfers,
         CL_OB_DOMAINS:	doPrintDomains,
         CL_OB_DOMAIN_ALIASES:	doPrintDomainAliases,
+        CL_OB_GAL:	doPrintGAL,
         CL_OB_GROUP_MEMBERS: doPrintGroupMembers,
         CL_OB_GROUPS:	doPrintGroups,
         CL_OB_GUARDIANS: doPrintGuardians,
@@ -22215,6 +22268,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: AC_SHOW,
      CMD_FUNCTION:
        {CL_OB_CONTACTS:	doShowDomainContacts,
+        CL_OB_GAL:	doShowGAL,
         CL_OB_GUARDIANS: doShowGuardians,
         CL_OB_SCHEMAS:	doShowUserSchemas,
         CL_OB_SITES:	doShowDomainSites,

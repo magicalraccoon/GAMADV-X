@@ -1,3 +1,18 @@
+4.26.00
+
+Thanks to Jay for the following change.
+Added arguments to gam update cros to perform device actions. See: https://developers.google.com/admin-sdk/directory/v1/reference/chromeosdevices/action
+You can either update CrOS device attributes or perform a CrOS device action; if you specify both, only the device action will be performed.
+    gam update cros <CrOSList> (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
+As a precatuion, none of the deprovisioning actions are performed unless you also specify the acknowledge_device_touch_requirement argument.
+
+Implemented commands to show the global address list.
+    gam <UserTypeEntity> info gal <ContactEntity> [basic|full] [fields <ContactFieldNameList>]
+    gam <UserTypeEntity> show gal [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+    gam <UserTypeEntity> print gal [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+
 4.25.04
 
 Improve performance of gam print filelist select.

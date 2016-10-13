@@ -543,7 +543,6 @@ If an item contains spaces, it should be surrounded by " or '.
 	(location <String>)|
 	(notes <String>)|
 	(org|ou <OrgUnitPath>)|
-	(status active|deprovisioned|inactive|returnapproved|returnrequested|shipped|unknown)|
 	(user <Name>)
 
 <DriveFileAddAttributes> ::=
@@ -817,9 +816,15 @@ gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
 gam <UserTypeEntity> print contactgroups [todrive] [updated_min yyyy-mm-dd]
 	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 
+gam <UserTypeEntity> info gal <ContactEntity> [basic|full] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> show gal [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
+gam <UserTypeEntity> print gal [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
-gam update cros <CrOSEntity> <CrOSAttributes>+
-gam <CrOSTypeEntity> update <CrOSAttributes>+
+
+gam update cros <CrOSEntity>  (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
+gam <CrOSTypeEntity> update  (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])<
 gam info cros <CrosEntity> [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 gam <CrOSTypeEntity> info [nolists] [listlimit <Number>]
