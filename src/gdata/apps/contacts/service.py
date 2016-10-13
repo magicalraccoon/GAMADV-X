@@ -31,7 +31,7 @@ class ContactsService(gdata.service.GDataService):
 
   def __init__(self, email=None, password=None, source=None,
                server='www.google.com', additional_headers=None,
-               contact_list='default', **kwargs):
+               contact_list='default', contactFeed=True, **kwargs):
     """Creates a client for the Contacts service.
 
     Args:
@@ -44,14 +44,17 @@ class ContactsService(gdata.service.GDataService):
       contact_list: string (optional) The name of the default contact list to
           use when no URI is specified to the methods of the service.
           Default value: 'default' (the logged in user's contact list).
+      contactFeed: Boolean (optional) Is this contacts feed or a gal feed
+          Default value: True (the logged in user's contact list).
       **kwargs: The other parameters to pass to gdata.service.GDataService
           constructor.
     """
 
     self.contact_list = contact_list
+    self.feed_type = ['gal', 'contacts'][contactFeed]
     if additional_headers == None:
       additional_headers = {}
-    additional_headers['GData-Version'] = '3.1'
+    additional_headers['GData-Version'] = ['1.1', '3.1'][contactFeed]
     gdata.service.GDataService.__init__(self,
                                         email=email, password=password, service='cp', source=source,
                                         server=server, additional_headers=additional_headers, **kwargs)
@@ -76,7 +79,7 @@ class ContactsService(gdata.service.GDataService):
   def GetContactFeedUri(self, contact_list=None, projection='full', contactId=None):
     """Builds a contact feed URI. """
     contact_list = contact_list or self.contact_list
-    uri = 'https://{0}/m8/feeds/contacts/{1}/{2}'.format(self.server, contact_list, projection)
+    uri = 'https://{0}/m8/feeds/{1}/{2}/{3}'.format(self.server, self.feed_type, contact_list, projection)
     if contactId:
       uri += '/{0}'.format(contactId)
     return uri
@@ -332,8 +335,10 @@ class ContactsService(gdata.service.GDataService):
 class ContactsQuery(gdata.service.Query):
 
   def __init__(self, feed=None, text_query=None, params=None,
-               categories=None):
+               categories=None, group=None):
     self.feed = feed or '/m8/feeds/contacts/default/full'
+    if group:
+      self['group'] = group
     gdata.service.Query.__init__(self, feed=self.feed, text_query=text_query,
                                  params=params, categories=categories)
 
