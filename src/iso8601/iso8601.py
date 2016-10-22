@@ -4,9 +4,11 @@
 """
 
 from datetime import (datetime, timedelta, tzinfo)
+import time as _time
 import re
 
 ISO8601_REGEX = re.compile(r'^(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})(?P<separator>[ T])(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2}):(?P<second>[0-9]{2})([.,](?P<second_fraction>[0-9]+)){0,1}(?P<timezone>Z|(?P<tz_sign>[-+])(?P<tz_hour>[0-9]{2}):(?P<tz_minute>[0-9]{2}))$')
+ISO8601_TZ_REGEX = re.compile(r'^(?P<timezone>Z|(?P<tz_sign>[-+])(?P<tz_hour>[0-9]{2}):(?P<tz_minute>[0-9]{2}))$')
 
 class ParseError(Exception):
   """Raised when there is a problem parsing a date string"""
@@ -63,6 +65,46 @@ class FixedOffset(tzinfo):
   def __repr__(self):
     return "<FixedOffset %r %r>" % (self.__name, self.__offset)
 
+# A class capturing the platform's idea of local time.
+
+STDOFFSET = timedelta(seconds = -_time.timezone)
+if _time.daylight:
+    DSTOFFSET = timedelta(seconds = -_time.altzone)
+else:
+    DSTOFFSET = STDOFFSET
+
+DSTDIFF = DSTOFFSET - STDOFFSET
+
+class LocalTimezone(tzinfo):
+  """Local time zone
+
+  """
+
+  def utcoffset(self, dt):
+    if self._isdst(dt):
+      return DSTOFFSET
+    else:
+      return STDOFFSET
+
+  def dst(self, dt):
+    if self._isdst(dt):
+      return DSTDIFF
+    else:
+      return ZERO
+
+  def tzname(self, dt):
+    return _time.tzname[self._isdst(dt)]
+
+  def _isdst(self, dt):
+    tt = (dt.year, dt.month, dt.day,
+          dt.hour, dt.minute, dt.second,
+          dt.weekday(), 0, 0)
+    stamp = _time.mktime(tt)
+    tt = _time.localtime(stamp)
+    return tt.tm_isdst > 0
+
+Local = LocalTimezone()
+
 def parse_timezone(matches):
   """Parses ISO 8601 time zone specs into tzinfo offsets
 
@@ -79,6 +121,13 @@ def parse_timezone(matches):
     minutes = -minutes
   return FixedOffset(hours, minutes, description)
 
+def parse_timezone_str(tzstring):
+  m = ISO8601_TZ_REGEX.match(tzstring)
+  if not m:
+    raise ParseError("Unable to parse timezone string %r" % tzstring)
+  groups = m.groupdict()
+  return parse_timezone(groups)
+   
 def parse_date(datestring):
   """Parses ISO 8601 dates into datetime objects
 

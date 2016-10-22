@@ -19,24 +19,44 @@
 u"""GAM is a command line tool which allows Administrators to control their Google Apps domain and accounts.
 
 With GAM you can programatically create users, turn on/off services for users like POP and Forwarding and much more.
-For more information, see https://github.com/jay0lee/GAM
+For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.26.01'
+__version__ = u'4.27.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
-import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, ConfigParser, collections, logging, mimetypes
-
+import sys
+import os
+import string
+import time
+import base64
+import codecs
+import collections
+import ConfigParser
+import csv
+import datetime
+from htmlentitydefs import name2codepoint
+from HTMLParser import HTMLParser
 import json
-import httplib2
+import logging
+import mimetypes
+import platform
+import random
+import re
+import socket
+import StringIO
+import subprocess
+
 import googleapiclient
 import googleapiclient.discovery
 import googleapiclient.errors
 import googleapiclient.http
+import httplib2
+from iso8601 import iso8601
 import oauth2client.client
-import oauth2client.service_account
 from oauth2client.contrib.multiprocess_file_storage import MultiprocessFileStorage
+import oauth2client.service_account
 import oauth2client.tools
 
 # Override some oauth2client.tools strings saving us a few GAM-specific mods to oauth2client
@@ -75,6 +95,8 @@ GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
 GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
 GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile'
 GAM_APPSPOT = u'https://gamadvx-update.appspot.com'
+GAM_APPSPOT_STABLE_VERSION = GAM_APPSPOT+u'/stable-version.txt?v='+__version__
+GAM_APPSPOT_STABLE_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/stable-version-announcement.txt?v='+__version__
 GAM_APPSPOT_LATEST_VERSION = GAM_APPSPOT+u'/latest-version.txt?v='+__version__
 GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/latest-version-announcement.txt?v='+__version__
 
@@ -146,6 +168,8 @@ GM_CSVFILE_MODE = u'csmo'
 GM_CSVFILE_WRITE_HEADER = u'cswh'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
+# Disable GAM update check
+GM_NO_UPDATE_CHECK = u'nouc'
 # Index of <UserTypeEntity> in command line
 GM_ENTITY_CL_INDEX = u'enin'
 # csvfile keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <MatchPattern>)* [datafield <FieldName>(:<FieldName>*) [delimiter <String>]]
@@ -195,6 +219,7 @@ GM_Globals = {
   GM_OAUTH2SERVICE_JSON_DATA: None,
   GM_OAUTH2_CLIENT_ID: None,
   GM_LAST_UPDATE_CHECK_TXT: u'',
+  GM_NO_UPDATE_CHECK: False,
   GM_PARSER: None,
   GM_GAM_CFG_PATH: u'',
   GM_GAM_CFG_FILE: u'',
@@ -284,6 +309,8 @@ GC_SECTION = u'section'
 GC_SHOW_COUNTS_MIN = u'show_counts_min'
 # Enable/disable "Getting ... " messages
 GC_SHOW_GETTINGS = u'show_gettings'
+# Time Zone
+GC_TIMEZONE = u'timezone'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 GC_USER_MAX_RESULTS = u'user_max_results'
 
@@ -315,6 +342,7 @@ GC_Defaults = {
   GC_SECTION: u'',
   GC_SHOW_COUNTS_MIN: 1,
   GC_SHOW_GETTINGS: TRUE,
+  GC_TIMEZONE: u'utc',
   GC_USER_MAX_RESULTS: 500,
   }
 
@@ -329,6 +357,7 @@ GC_TYPE_FILE = u'file'
 GC_TYPE_INTEGER = u'inte'
 GC_TYPE_LANGUAGE = u'lang'
 GC_TYPE_STRING = u'stri'
+GC_TYPE_TIMEZONE = u'tmzn'
 
 GC_VAR_TYPE = u'type'
 GC_VAR_ENVVAR = u'enva'
@@ -363,6 +392,7 @@ GC_VAR_INFO = {
   GC_SECTION: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_SECTION'},
   GC_SHOW_COUNTS_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_SHOW_COUNTS_MIN', GC_VAR_LIMITS: (0, None)},
   GC_SHOW_GETTINGS: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_SHOW_GETTINGS'},
+  GC_TIMEZONE: {GC_VAR_TYPE: GC_TYPE_TIMEZONE, GC_VAR_ENVVAR: u'GAM_TIMEZONE'},
   GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
   }
 
@@ -384,6 +414,7 @@ GC_SETTABLE_VARS = [
   GC_NUM_THREADS,
   GC_SHOW_COUNTS_MIN,
   GC_SHOW_GETTINGS,
+  GC_TIMEZONE,
   GC_USER_MAX_RESULTS,
   ]
 
@@ -404,14 +435,14 @@ GOOGLE_NAMESERVERS = [u'8.8.8.8', u'8.8.4.4']
 NEVER_TIME = u'1970-01-01T00:00:00.000Z'
 NEVER_START_DATE = u'1970-01-01'
 NEVER_END_DATE = u'1969-12-31'
-ROLE_MANAGER = u'MANAGER'
 ROLE_MEMBER = u'MEMBER'
+ROLE_MANAGER = u'MANAGER'
 ROLE_OWNER = u'OWNER'
 ROLE_USER = u'USER'
-ROLE_MANAGER_MEMBER = u','.join([ROLE_MANAGER, ROLE_MEMBER])
-ROLE_MANAGER_OWNER = u','.join([ROLE_MANAGER, ROLE_OWNER])
-ROLE_MANAGER_MEMBER_OWNER = u','.join([ROLE_MANAGER, ROLE_MEMBER, ROLE_OWNER])
+ROLE_MEMBER_MANAGER = u','.join([ROLE_MEMBER, ROLE_MANAGER])
 ROLE_MEMBER_OWNER = u','.join([ROLE_MEMBER, ROLE_OWNER])
+ROLE_MEMBER_MANAGER_OWNER = u','.join([ROLE_MEMBER, ROLE_MANAGER, ROLE_OWNER])
+ROLE_MANAGER_OWNER = u','.join([ROLE_MANAGER, ROLE_OWNER])
 PROJECTION_CHOICES_MAP = {u'basic': u'BASIC', u'full': u'FULL',}
 SORTORDER_CHOICES_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
 ME_IN_OWNERS = u"'me' in owners"
@@ -507,6 +538,7 @@ GAPI_CLOUDPRINT_API = u'cloudprint'
 GAPI_DATATRANSFER_API = u'datatransfer'
 GAPI_DIRECTORY_API = u'directory'
 GAPI_DRIVE_API = u'drive'
+GAPI_EMAIL_SETTINGS_API = u'email-settings'
 GAPI_GMAIL_API = u'gmail'
 GAPI_GPLUS_API = u'plus'
 GAPI_GROUPSSETTINGS_API = u'groupssettings'
@@ -517,7 +549,7 @@ GAPI_SITEVERIFICATION_API = u'siteVerification'
 GDATA_ADMIN_SETTINGS_API = GAPI_ADMIN_SETTINGS_API
 GDATA_CONTACTS_API = u'contacts'
 GDATA_EMAIL_AUDIT_API = u'email-audit'
-GDATA_EMAIL_SETTINGS_API = u'email-settings'
+GDATA_EMAIL_SETTINGS_API = GAPI_EMAIL_SETTINGS_API
 GDATA_SITES_API = u'sites'
 # callGData throw errors
 GDATA_BAD_GATEWAY = 601
@@ -628,6 +660,7 @@ DRIVE_CREATE_FILE = u'insert'
 DRIVE_PATCH_FILE = u'patch'
 DRIVE_UPDATE_FILE = u'update'
 #
+DRIVE_PERMISSIONS_EXPIRATION = u'expirationDate'
 DRIVE_PERMISSIONS_NAME = u'name'
 DRIVE_PERMISSIONS_LIST = u'items'
 DRIVE_CREATE_PERMISSIONS = u'insert'
@@ -683,7 +716,8 @@ OB_FORMAT_LIST = u'FormatList'
 OB_GAM_ARGUMENT_LIST = u'GAM argument list'
 OB_GROUP_ENTITY = u'GroupEntity'
 OB_GROUP_ITEM = u'GroupItem'
-OB_GUARDIAN_ID = U'GuardianID'
+OB_GUARDIAN_INVITATION_ID = U'GuardianInvitationID'
+OB_GUARDIAN_ITEM = U'GuardianItem'
 OB_GUARDIAN_STATE_LIST = u'GuardianStateList'
 OB_HOST_NAME = u'HostName'
 OB_JOB_ID = u'JobID'
@@ -719,6 +753,7 @@ OB_ROLE_ID = u'RoleId'
 OB_ROLE_LIST = u'RoleList'
 OB_SCHEMA_ENTITY = u'SchemaEntity'
 OB_SCHEMA_NAME = u'SchemaName'
+OB_SCHEMA_NAME_FIELD_NAME = u'SchemaName.FieldName'
 OB_SCHEMA_NAME_LIST = u'SchemaNameList'
 OB_SECTION_NAME = u'SectionName'
 OB_SERVICE_NAME = u'ServiceName'
@@ -726,9 +761,8 @@ OB_SITE_ENTITY = u'SiteEntity'
 OB_SKU_ID = u'SKUID'
 OB_SKU_ID_LIST = u'SKUIDList'
 OB_STRING = u'String'
-OB_STUDENT_ID = u'StudentID'
+OB_STUDENT_ITEM = u'StudentItem'
 OB_TAG = u'Tag'
-OB_TEACHER_ID = u'TeacherID'
 OB_THREAD_ID = u'ThreadID'
 OB_TRANSFER_ID = u'TransferID'
 OB_URI = u'URI'
@@ -983,14 +1017,14 @@ ENTITY_NAMES = {
   EN_VACATION_ENABLED: [u'Vacation Enabled', u'Vacation Enabled'],
   EN_VALUE: [u'Values', u'Value'],
   EN_WEBCLIPS_ENABLED: [u'Web Clips Enabled', u'Web Clips Enabled'],
-  ROLE_MANAGER: [u'Managers', u'Manager'],
-  ROLE_MANAGER_MEMBER: [u'Managers, Members', u'Manager, Member'],
-  ROLE_MANAGER_MEMBER_OWNER: [u'Managers, Members, Owners', u'Manager, Member, Owners'],
-  ROLE_MANAGER_OWNER: [u'Managers, Owners', u'Manager, Owner'],
   ROLE_MEMBER: [u'Members', u'Member'],
-  ROLE_MEMBER_OWNER: [u'Members, Owners', u'Member, Owner'],
+  ROLE_MANAGER: [u'Managers', u'Manager'],
   ROLE_OWNER: [u'Owners', u'Owner'],
   ROLE_USER: [u'Users', u'User'],
+  ROLE_MEMBER_MANAGER: [u'Members, Managers', u'Member, Manager'],
+  ROLE_MEMBER_OWNER: [u'Members, Owners', u'Member, Owner'],
+  ROLE_MEMBER_MANAGER_OWNER: [u'Members, Managers, Owners', u'Member, Manager, Owner'],
+  ROLE_MANAGER_OWNER: [u'Managers, Owners', u'Manager, Owner'],
   }
 # GAM entity types as specified on the command line
 CL_ENTITY_COURSEPARTICIPANTS = u'courseparticipants'
@@ -1002,6 +1036,7 @@ CL_ENTITY_CROS_OUS = u'cros_ous'
 CL_ENTITY_CROS_OUS_AND_CHILDREN = u'cros_ous_and_children'
 CL_ENTITY_GROUP = u'group'
 CL_ENTITY_GROUPS = u'groups'
+CL_ENTITY_GROUP_USERS = u'group_users'
 CL_ENTITY_LICENSES = u'licenses'
 CL_ENTITY_OU = u'ou'
 CL_ENTITY_OU_AND_CHILDREN = u'ou_and_children'
@@ -1025,6 +1060,7 @@ CL_USER_ENTITIES = [
   CL_ENTITY_COURSEPARTICIPANTS,
   CL_ENTITY_GROUP,
   CL_ENTITY_GROUPS,
+  CL_ENTITY_GROUP_USERS,
   CL_ENTITY_LICENSES,
   CL_ENTITY_OU,
   CL_ENTITY_OU_AND_CHILDREN,
@@ -1126,6 +1162,7 @@ CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES = [
 CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES = [
   CL_ENTITY_USERS,
   CL_ENTITY_GROUPS,
+  CL_ENTITY_GROUP_USERS,
   CL_ENTITY_OUS,
   CL_ENTITY_OUS_AND_CHILDREN,
   CL_ENTITY_COURSEPARTICIPANTS,
@@ -1188,6 +1225,8 @@ CL_OB_GROUPS = u'groups'
 CL_OB_GROUP_MEMBERS = u'group-members'
 CL_OB_GUARDIAN = u'guardian'
 CL_OB_GUARDIANS = u'guardians'
+CL_OB_GUARDIAN_INVITATION = u'guardianinvitation'
+CL_OB_GUARDIAN_INVITATIONS = u'guardianinvitations'
 CL_OB_IMAP = u'imap'
 CL_OB_INSTANCE = u'instance'
 CL_OB_LABEL = u'label'
@@ -1571,6 +1610,7 @@ PHRASE_GETTING = u'Getting'
 PHRASE_GETTING_ALL = u'Getting all'
 PHRASE_GOOGLE_EARLIEST_REPORT_TIME = u'Google earliest report time'
 PHRASE_GOT = u'Got'
+PHRASE_GUARDIAN_INVITATION_STATUS_NOT_PENDING = 'Guardian invitation status is not PENDING'
 PHRASE_HAS_CHILD_ORGS = 'Has child {0}'
 PHRASE_INVALID = u'Invalid'
 PHRASE_INVALID_ALIAS = u'Invalid Alias'
@@ -1730,9 +1770,6 @@ def convertUTF8(data):
   if isinstance(data, collections.Iterable):
     return type(data)(map(convertUTF8, data))
   return data
-
-from HTMLParser import HTMLParser
-from htmlentitydefs import name2codepoint
 
 class _DeHTMLParser(HTMLParser):
   def __init__(self):
@@ -2066,7 +2103,7 @@ def getChoice(choices, **opts):
       if choice in opts.get(CHOICE_ALIASES, []):
         choice = opts[CHOICE_ALIASES][choice]
       if choice not in choices:
-        choice = choice.replace(u'_', u'')
+        choice = choice.replace(u'_', u'').replace(u'-', u'')
         if choice in opts.get(CHOICE_ALIASES, []):
           choice = opts[CHOICE_ALIASES][choice]
       if choice in choices:
@@ -2150,6 +2187,21 @@ def normalizeEmailAddressOrUID(emailAddressOrUID, noUid=False):
     else:
       emailAddressOrUID = u'{0}{1}'.format(emailAddressOrUID, GC_Values[GC_DOMAIN])
   return emailAddressOrUID.lower()
+
+#
+# Normalize student/guardian email address/uid
+# uid:12345678 -> 12345678
+# 12345678 -> 12345678
+# - -> -
+# foo -> foo@domain
+# foo@ -> foo@domain
+# foo@bar.com -> foo@bar.com
+# @domain -> domain
+#
+def normalizeStudentGuardianEmailAddressOrUID(emailAddressOrUID):
+  if emailAddressOrUID.isdigit() or emailAddressOrUID == u'-':
+    return emailAddressOrUID
+  return normalizeEmailAddressOrUID(emailAddressOrUID)
 
 def getEmailAddress(noUid=False, emptyOK=False, optional=False):
   global CL_argvI
@@ -2377,11 +2429,11 @@ def getGoogleSKUListMap():
   missingArgumentExit(OB_SKU_ID_LIST)
 
 def integerLimits(minVal, maxVal):
-  if (minVal != None) and (maxVal != None):
+  if (minVal is not None) and (maxVal is not None):
     return u'integer {0}<=x<={1}'.format(minVal, maxVal)
-  if minVal != None:
+  if minVal is not None:
     return u'integer x>={0}'.format(minVal)
-  if maxVal != None:
+  if maxVal is not None:
     return u'integer x<={0}'.format(maxVal)
   return u'integer x'
 
@@ -2622,9 +2674,9 @@ def getYYYYMMDD_HHMM():
   missingArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
 
 YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff](Z|+hh:mm|-hh:mm)'
+TIMEZONE_FORMAT_REQUIRED = u'Z|+hh:mm|-hh:mm'
 
 def getFullTime(returnDateTime=False):
-  from iso8601 import iso8601
   global CL_argvI
   if CL_argvI < CL_argvLen:
     argstr = CL_argv[CL_argvI].strip().upper()
@@ -2670,7 +2722,7 @@ def getAgeTime():
       else: # age_unit == u'd':
         age = now-(age*SECONDS_PER_DAY)
       CL_argvI += 1
-      return age
+      return age*1000
     invalidArgumentExit(AGE_TIME_FORMAT_REQUIRED)
   missingArgumentExit(AGE_TIME_FORMAT_REQUIRED)
 
@@ -2794,6 +2846,20 @@ def formatFileSize(fileSize):
   if fileSize < ONE_GIGA_BYTES:
     return u'{0}mb'.format(fileSize / ONE_MEGA_BYTES)
   return u'{0}gb'.format(fileSize / ONE_GIGA_BYTES)
+
+def formatLocalTime(dateTimeStr):
+  if dateTimeStr == NEVER_TIME:
+    return NEVER
+  if not GC_Values[GC_TIMEZONE] or not dateTimeStr.endswith(u'Z'):
+    return dateTimeStr
+  try:
+    timestamp, _ = iso8601.parse_date(dateTimeStr)
+    return timestamp.astimezone(GC_Values[GC_TIMEZONE]).isoformat()
+  except iso8601.ParseError:
+    return dateTimeStr
+
+def formatLocalTimestamp(timestamp):
+  return datetime.datetime.fromtimestamp(int(timestamp)/1000, GC_Values[GC_TIMEZONE]).isoformat()
 
 def formatMaxMessageBytes(maxMessageBytes):
   if maxMessageBytes < ONE_KILO_BYTES:
@@ -3393,8 +3459,18 @@ def SetGlobalVariables():
     if not os.path.isfile(srcFile):
       return
     data = readFile(srcFile, mode=u'rU', continueOnError=True, displayError=False)
-    if (data != None) and writeFile(dstFile, data, continueOnError=True):
+    if (data is not None) and writeFile(dstFile, data, continueOnError=True):
       printKeyValueList([ACTION_NAMES[AC_COPY][0], srcFile, PHRASE_TO, dstFile])
+
+  def _printValueError(sectionName, itemName, value, errMessage):
+    printErrorMessage(CONFIG_ERROR_RC,
+                      formatKeyValueList(u'',
+                                         [singularEntityName(EN_CONFIG_FILE), GM_Globals[GM_GAM_CFG_FILE],
+                                          singularEntityName(EN_SECTION), sectionName,
+                                          singularEntityName(EN_ITEM), itemName,
+                                          singularEntityName(EN_VALUE), value,
+                                          errMessage],
+                                         u''))
 
   def _getCfgBoolean(sectionName, itemName):
     value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
@@ -3402,14 +3478,7 @@ def SetGlobalVariables():
       return True
     if value in FALSE_VALUES:
       return False
-    printErrorMessage(CONFIG_ERROR_RC,
-                      formatKeyValueList(u'',
-                                         [singularEntityName(EN_CONFIG_FILE), GM_Globals[GM_GAM_CFG_FILE],
-                                          singularEntityName(EN_SECTION), sectionName,
-                                          singularEntityName(EN_ITEM), itemName,
-                                          singularEntityName(EN_VALUE), value,
-                                          PHRASE_EXPECTED, formatChoiceList(TRUE_FALSE)],
-                                         u''))
+    _printValueError(sectionName, itemName, value, u'{0}: {1}'.format(PHRASE_EXPECTED, formatChoiceList(TRUE_FALSE)))
     status[u'errors'] = True
     return False
 
@@ -3422,14 +3491,7 @@ def SetGlobalVariables():
         return number
     except ValueError:
       pass
-    printErrorMessage(CONFIG_ERROR_RC,
-                      formatKeyValueList(u'',
-                                         [singularEntityName(EN_CONFIG_FILE), GM_Globals[GM_GAM_CFG_FILE],
-                                          singularEntityName(EN_SECTION), sectionName,
-                                          singularEntityName(EN_ITEM), itemName,
-                                          singularEntityName(EN_VALUE), value,
-                                          PHRASE_EXPECTED, integerLimits(minVal, maxVal)],
-                                         u''))
+    _printValueError(sectionName, itemName, value, u'{0}: {1}'.format(PHRASE_EXPECTED, integerLimits(minVal, maxVal)))
     status[u'errors'] = True
     return 0
 
@@ -3439,19 +3501,26 @@ def SetGlobalVariables():
       return ConfigParser.DEFAULTSECT
     if GM_Globals[GM_PARSER].has_section(value):
       return value
-    printErrorMessage(CONFIG_ERROR_RC,
-                      formatKeyValueList(u'',
-                                         [singularEntityName(EN_CONFIG_FILE), GM_Globals[GM_GAM_CFG_FILE],
-                                          singularEntityName(EN_SECTION), sectionName,
-                                          singularEntityName(EN_ITEM), itemName,
-                                          singularEntityName(EN_VALUE), value,
-                                          PHRASE_NOT_FOUND],
-                                         u''))
+    _printValueError(sectionName, itemName, value, PHRASE_NOT_FOUND)
     status[u'errors'] = True
     return ConfigParser.DEFAULTSECT
 
   def _getCfgString(sectionName, itemName):
     return GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+
+  def _getCfgTimezone(sectionName, itemName):
+    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower()
+    if value == u'utc':
+      return None
+    if value == u'local':
+      return iso8601.Local
+    try:
+      return iso8601.parse_timezone_str(value)
+    except iso8601.ParseError:
+      pass
+    _printValueError(sectionName, itemName, value, u'{0}: {1}'.format(PHRASE_EXPECTED, TIMEZONE_FORMAT_REQUIRED))
+    status[u'errors'] = True
+    return u''
 
   def _getCfgDirectory(sectionName, itemName):
     dirPath = os.path.expanduser(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
@@ -3589,8 +3658,6 @@ def SetGlobalVariables():
       GM_Globals[GM_PARSER] = ConfigParser.SafeConfigParser(defaults=collections.OrderedDict(sorted(GC_Defaults.items(), key=lambda t: t[0])))
       _readGamCfgFile(GM_Globals[GM_PARSER], GM_Globals[GM_GAM_CFG_FILE])
     GM_Globals[GM_LAST_UPDATE_CHECK_TXT] = os.path.join(_getCfgDirectory(ConfigParser.DEFAULTSECT, GC_CONFIG_DIR), FN_LAST_UPDATE_CHECK_TXT)
-    if not GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, GC_NO_UPDATE_CHECK, raw=True):
-      doGAMCheckForUpdates()
   status = {u'errors': False}
   sectionName = _getCfgSection(ConfigParser.DEFAULTSECT, GC_SECTION)
 # select <SectionName> [save] [verify]
@@ -3623,6 +3690,8 @@ def SetGlobalVariables():
         elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_INTEGER:
           minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
           value = str(getInteger(minVal=minVal, maxVal=maxVal))
+        elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_TIMEZONE:
+          value = getString(OB_STRING, checkBlank=True)
         else:
           value = getString(OB_STRING)
         GM_Globals[GM_PARSER].set(sectionName, itemName, value)
@@ -3641,6 +3710,8 @@ def SetGlobalVariables():
       GC_Values[itemName] = _getCfgInteger(sectionName, itemName)
     elif varType == GC_TYPE_STRING:
       GC_Values[itemName] = _getCfgString(sectionName, itemName)
+    elif varType == GC_TYPE_TIMEZONE:
+      GC_Values[itemName] = _getCfgTimezone(sectionName, itemName)
     elif varType == GC_TYPE_FILE:
       GC_Values[itemName] = _getCfgFile(sectionName, itemName)
   if status[u'errors']:
@@ -3683,6 +3754,8 @@ def SetGlobalVariables():
         sys.stderr = _setSTDFile(filename, [u'w', u'a'][checkArgumentPresent([u'append',])])
   if not GM_Globals[GM_CSVFILE]:
     _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET])
+  if not GM_Globals[GM_NO_UPDATE_CHECK]:
+    doGAMCheckForUpdates()
 # If no select/options commands were executed or some were and there are more arguments on the command line,
 # warn if the json files are missing and return True
   if (CL_argvI == 1) or (CL_argvI < CL_argvLen):
@@ -3699,24 +3772,25 @@ def SetGlobalVariables():
   return False
 
 def doGAMCheckForUpdates(forceCheck=False):
-  import urllib2, calendar
+  import urllib2
+  import calendar
+
   current_version = __version__
   now_time = calendar.timegm(time.gmtime())
   if not forceCheck:
-    last_check_time = readFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], continueOnError=True, displayError=forceCheck)
-    if last_check_time == None:
-      last_check_time = 0
+    last_check_time_str = readFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], continueOnError=True, displayError=False)
+    last_check_time = int(last_check_time_str) if last_check_time_str and last_check_time_str.isdigit() else 0
     if last_check_time > now_time-604800:
       return
   try:
-    c = urllib2.urlopen(GAM_APPSPOT_LATEST_VERSION)
+    c = urllib2.urlopen([GAM_APPSPOT_STABLE_VERSION, GAM_APPSPOT_LATEST_VERSION][forceCheck])
     latest_version = c.read().strip()
     if forceCheck or (latest_version > current_version):
-      printKeyValueList([u'Version', u'Check', u'Current', u'{0}'.format(current_version), u'Latest', u'{0}'.format(latest_version)])
+      printKeyValueList([u'Version', u'Check', u'Current', u'{0}'.format(current_version), [u'Stable', u'Latest'][forceCheck], u'{0}'.format(latest_version)])
     if latest_version <= current_version:
       writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
       return
-    a = urllib2.urlopen(GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT)
+    a = urllib2.urlopen([GAM_APPSPOT_STABLE_VERSION_ANNOUNCEMENT, GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT][forceCheck])
     announcement = a.read()
     sys.stderr.write(announcement)
     try:
@@ -3891,19 +3965,32 @@ def waitOnFailure(n, retries, error_code, error_message):
   if n > 3:
     sys.stderr.write(u'attempt {0}/{1}\n'.format(n+1, retries))
 
-class GData_badRequest(Exception): pass
-class GData_doesNotExist(Exception): pass
-class GData_entityExists(Exception): pass
-class GData_forbidden(Exception): pass
-class GData_insufficientPermissions(Exception): pass
-class GData_internalServerError(Exception): pass
-class GData_invalidDomain(Exception): pass
-class GData_invalidValue(Exception): pass
-class GData_nameNotValid(Exception): pass
-class GData_notFound(Exception): pass
-class GData_notImplemented(Exception): pass
-class GData_preconditionFailed(Exception): pass
-class GData_serviceNotApplicable(Exception): pass
+class GData_badRequest(Exception):
+  pass
+class GData_doesNotExist(Exception):
+  pass
+class GData_entityExists(Exception):
+  pass
+class GData_forbidden(Exception):
+  pass
+class GData_insufficientPermissions(Exception):
+  pass
+class GData_internalServerError(Exception):
+  pass
+class GData_invalidDomain(Exception):
+  pass
+class GData_invalidValue(Exception):
+  pass
+class GData_nameNotValid(Exception):
+  pass
+class GData_notFound(Exception):
+  pass
+class GData_notImplemented(Exception):
+  pass
+class GData_preconditionFailed(Exception):
+  pass
+class GData_serviceNotApplicable(Exception):
+  pass
 
 GDATA_ERROR_CODE_EXCEPTION_MAP = {
   GDATA_BAD_REQUEST: GData_badRequest,
@@ -3922,9 +4009,13 @@ GDATA_ERROR_CODE_EXCEPTION_MAP = {
   }
 
 def callGData(service, function,
-              soft_errors=False, throw_errors=[], retry_errors=[],
+              soft_errors=False, throw_errors=None, retry_errors=None,
               **kwargs):
   import gdata.apps.service
+  if throw_errors is None:
+    throw_errors = []
+  if retry_errors is None:
+    retry_errors = []
   method = getattr(service, function)
   retries = 10
   for n in range(1, retries+1):
@@ -3959,9 +4050,13 @@ def callGData(service, function,
 
 def callGDataPages(service, function,
                    page_message=None,
-                   soft_errors=False, throw_errors=[], retry_errors=[],
+                   soft_errors=False, throw_errors=None, retry_errors=None,
                    uri=None,
                    **kwargs):
+  if throw_errors is None:
+    throw_errors = []
+  if retry_errors is None:
+    retry_errors = []
   nextLink = None
   allResults = []
   totalItems = 0
@@ -4128,62 +4223,115 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       if u'Cannot delete primary send-as' in message:
         reason = GAPI_CANNOT_DELETE_PRIMARY_SENDAS
   except KeyError:
-    reason = http_status
+    reason = u'{0}'.format(http_status)
   return (http_status, reason, message)
 
-class GAPI_aborted(Exception): pass
-class GAPI_alreadyExists(Exception): pass
-class GAPI_authError(Exception): pass
-class GAPI_backendError(Exception): pass
-class GAPI_badRequest(Exception): pass
-class GAPI_cannotChangeOwnAcl(Exception): pass
-class GAPI_cannotChangeOwnerAcl(Exception): pass
-class GAPI_cannotDeletePrimaryCalendar(Exception): pass
-class GAPI_cannotDeletePrimarySendAs(Exception): pass
-class GAPI_conditionNotMet(Exception): pass
-class GAPI_customerNotFound(Exception): pass
-class GAPI_cyclicMembershipsNotAllowed(Exception): pass
-class GAPI_deleted(Exception): pass
-class GAPI_deletedUserNotFound(Exception): pass
-class GAPI_domainNotFound(Exception): pass
-class GAPI_domainNotVerifiedSecondary(Exception): pass
-class GAPI_domainAliasNotFound(Exception): pass
-class GAPI_duplicate(Exception): pass
-class GAPI_failedPrecondition(Exception): pass
-class GAPI_fileNotFound(Exception): pass
-class GAPI_forbidden(Exception): pass
-class GAPI_groupNotFound(Exception): pass
-class GAPI_insufficientPermissions(Exception): pass
-class GAPI_internalError(Exception): pass
-class GAPI_invalid(Exception): pass
-class GAPI_invalidArgument(Exception): pass
-class GAPI_invalidCustomerId(Exception): pass
-class GAPI_invalidInput(Exception): pass
-class GAPI_invalidMember(Exception): pass
-class GAPI_invalidOrgunit(Exception): pass
-class GAPI_invalidParentOrgunit(Exception): pass
-class GAPI_invalidQuery(Exception): pass
-class GAPI_invalidResource(Exception): pass
-class GAPI_invalidSchemaValue(Exception): pass
-class GAPI_invalidScopeValue(Exception): pass
-class GAPI_invalidSharingRequest(Exception): pass
-class GAPI_loginRequired(Exception): pass
-class GAPI_memberNotFound(Exception): pass
-class GAPI_notFound(Exception): pass
-class GAPI_notImplemented(Exception): pass
-class GAPI_orgunitNotFound(Exception): pass
-class GAPI_permissionDenied(Exception): pass
-class GAPI_permissionNotFound(Exception): pass
-class GAPI_photoNotFound(Exception): pass
-class GAPI_required(Exception): pass
-class GAPI_resourceNotFound(Exception): pass
-class GAPI_resourceIdNotFound(Exception): pass
-class GAPI_serviceLimit(Exception): pass
-class GAPI_serviceNotAvailable(Exception): pass
-class GAPI_systemError(Exception): pass
-class GAPI_timeRangeEmpty(Exception): pass
-class GAPI_unknownError(Exception): pass
-class GAPI_userNotFound(Exception): pass
+class GAPI_aborted(Exception):
+  pass
+class GAPI_alreadyExists(Exception):
+  pass
+class GAPI_authError(Exception):
+  pass
+class GAPI_backendError(Exception):
+  pass
+class GAPI_badRequest(Exception):
+  pass
+class GAPI_cannotChangeOwnAcl(Exception):
+  pass
+class GAPI_cannotChangeOwnerAcl(Exception):
+  pass
+class GAPI_cannotDeletePrimaryCalendar(Exception):
+  pass
+class GAPI_cannotDeletePrimarySendAs(Exception):
+  pass
+class GAPI_conditionNotMet(Exception):
+  pass
+class GAPI_customerNotFound(Exception):
+  pass
+class GAPI_cyclicMembershipsNotAllowed(Exception):
+  pass
+class GAPI_deleted(Exception):
+  pass
+class GAPI_deletedUserNotFound(Exception):
+  pass
+class GAPI_domainAliasNotFound(Exception):
+  pass
+class GAPI_domainNotFound(Exception):
+  pass
+class GAPI_domainNotVerifiedSecondary(Exception):
+  pass
+class GAPI_duplicate(Exception):
+  pass
+class GAPI_failedPrecondition(Exception):
+  pass
+class GAPI_fileNotFound(Exception):
+  pass
+class GAPI_forbidden(Exception):
+  pass
+class GAPI_groupNotFound(Exception):
+  pass
+class GAPI_insufficientPermissions(Exception):
+  pass
+class GAPI_internalError(Exception):
+  pass
+class GAPI_invalid(Exception):
+  pass
+class GAPI_invalidArgument(Exception):
+  pass
+class GAPI_invalidCustomerId(Exception):
+  pass
+class GAPI_invalidInput(Exception):
+  pass
+class GAPI_invalidMember(Exception):
+  pass
+class GAPI_invalidOrgunit(Exception):
+  pass
+class GAPI_invalidParentOrgunit(Exception):
+  pass
+class GAPI_invalidQuery(Exception):
+  pass
+class GAPI_invalidResource(Exception):
+  pass
+class GAPI_invalidSchemaValue(Exception):
+  pass
+class GAPI_invalidScopeValue(Exception):
+  pass
+class GAPI_invalidSharingRequest(Exception):
+  pass
+class GAPI_loginRequired(Exception):
+  pass
+class GAPI_memberNotFound(Exception):
+  pass
+class GAPI_notFound(Exception):
+  pass
+class GAPI_notImplemented(Exception):
+  pass
+class GAPI_orgunitNotFound(Exception):
+  pass
+class GAPI_permissionDenied(Exception):
+  pass
+class GAPI_permissionNotFound(Exception):
+  pass
+class GAPI_photoNotFound(Exception):
+  pass
+class GAPI_required(Exception):
+  pass
+class GAPI_resourceIdNotFound(Exception):
+  pass
+class GAPI_resourceNotFound(Exception):
+  pass
+class GAPI_serviceLimit(Exception):
+  pass
+class GAPI_serviceNotAvailable(Exception):
+  pass
+class GAPI_systemError(Exception):
+  pass
+class GAPI_timeRangeEmpty(Exception):
+  pass
+class GAPI_unknownError(Exception):
+  pass
+class GAPI_userNotFound(Exception):
+  pass
 
 GAPI_REASON_EXCEPTION_MAP = {
   GAPI_ABORTED: GAPI_aborted,
@@ -4242,8 +4390,12 @@ GAPI_REASON_EXCEPTION_MAP = {
   }
 
 def callGAPI(service, function,
-             silent_errors=False, soft_errors=False, throw_reasons=[], retry_reasons=[],
+             silent_errors=False, soft_errors=False, throw_reasons=None, retry_reasons=None,
              **kwargs):
+  if throw_reasons is None:
+    throw_reasons = []
+  if retry_reasons is None:
+    retry_reasons = []
   method = getattr(service, function)
   retries = 10
   parameters = dict(kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
@@ -4287,8 +4439,12 @@ def callGAPI(service, function,
 
 def callGAPIpages(service, function, items,
                   page_message=None, message_attribute=None, maxItems=0,
-                  throw_reasons=[], retry_reasons=[],
+                  throw_reasons=None, retry_reasons=None,
                   **kwargs):
+  if throw_reasons is None:
+    throw_reasons = []
+  if retry_reasons is None:
+    retry_reasons = []
   pageToken = None
   allResults = collections.deque()
   totalItems = 0
@@ -4339,8 +4495,12 @@ def callGAPIpages(service, function, items,
       return allResults
 
 def callGAPIitems(service, function, items,
-                  throw_reasons=[], retry_reasons=[],
+                  throw_reasons=None, retry_reasons=None,
                   **kwargs):
+  if throw_reasons is None:
+    throw_reasons = []
+  if retry_reasons is None:
+    retry_reasons = []
   results = callGAPI(service, function,
                      throw_reasons=throw_reasons, retry_reasons=retry_reasons,
                      **kwargs)
@@ -4348,12 +4508,18 @@ def callGAPIitems(service, function, items,
     return results.get(items, [])
   return []
 
-class GCP_cantModifyFinishedJob(Exception): pass
-class GCP_failedToShareThePrinter(Exception): pass
-class GCP_noPrintJobs(Exception): pass
-class GCP_unknownJobId(Exception): pass
-class GCP_unknownPrinter(Exception): pass
-class GCP_userIsNotAuthorized(Exception): pass
+class GCP_cantModifyFinishedJob(Exception):
+  pass
+class GCP_failedToShareThePrinter(Exception):
+  pass
+class GCP_noPrintJobs(Exception):
+  pass
+class GCP_unknownJobId(Exception):
+  pass
+class GCP_unknownPrinter(Exception):
+  pass
+class GCP_userIsNotAuthorized(Exception):
+  pass
 
 GCP_MESSAGE_EXCEPTION_MAP = {
   GCP_CANT_MODIFY_FINISHED_JOB: GCP_cantModifyFinishedJob,
@@ -4364,7 +4530,9 @@ GCP_MESSAGE_EXCEPTION_MAP = {
   GCP_USER_IS_NOT_AUTHORIZED: GCP_userIsNotAuthorized,
   }
 
-def checkCloudPrintResult(result, throw_messages=[]):
+def checkCloudPrintResult(result, throw_messages=None):
+  if throw_messages is None:
+    throw_messages = []
   if isinstance(result, str):
     try:
       result = json.loads(result)
@@ -4379,7 +4547,7 @@ def checkCloudPrintResult(result, throw_messages=[]):
   return result
 
 def callGCP(service, function,
-            throw_messages=[],
+            throw_messages=None,
             **kwargs):
   result = callGAPI(service, function,
                     **kwargs)
@@ -4396,7 +4564,7 @@ API_VER_MAPPING = {
   GAPI_DIRECTORY_API: u'directory_v1',
   GAPI_DRIVE_API: DRIVE_API_VERSION,
   GDATA_EMAIL_AUDIT_API: u'v1',
-  GDATA_EMAIL_SETTINGS_API: u'v2',
+  GAPI_EMAIL_SETTINGS_API: u'v2',
   GAPI_GMAIL_API: u'v1',
   GAPI_GPLUS_API: u'v1',
   GAPI_GROUPSSETTINGS_API: u'v1',
@@ -4754,35 +4922,57 @@ def convertEntityToList(entity, shlexSplit=False, nonListEntityType=False):
     return entity.replace(u',', u' ').split()
   return shlexSplitList(entity)
 
-# Add entries in members to usersList if conditions are met
-def addMembersToUsers(usersList, usersSet, emailField, members, checkNotSuspended=False, checkOrgUnit=None):
-  for member in members:
-    email = member.get(emailField, None)
-    if email:
-      if checkNotSuspended and member[u'suspended']:
-        continue
-      if checkOrgUnit and (checkOrgUnit != member[u'orgUnitPath'].lower()):
-        continue
-      if email not in usersSet:
-        usersSet.add(email)
-        usersList.append(email)
+GROUP_ROLES_MAP = {
+  u'owner': ROLE_OWNER,
+  u'owners': ROLE_OWNER,
+  u'manager': ROLE_MANAGER,
+  u'managers': ROLE_MANAGER,
+  u'member': ROLE_MEMBER,
+  u'members': ROLE_MEMBER,
+  }
 
 # Turn the entity into a list of Users/CrOS devices
 def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False):
+  def _addGroupMembersToUsers(group, domains, recursive):
+    doNotExist = 0
+    try:
+      printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER_MANAGER_OWNER, group, entityType=EN_GROUP)
+      page_message = getPageMessageForWhom(noNL=True)
+      result = callGAPIpages(cd.members(), u'list', u'members',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
+                             groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)')
+      for member in result:
+        email = member[u'email']
+        if member[u'type'] == u'USER':
+          if domains:
+            _, domain = splitEmailAddress(email)
+            if domain not in domains:
+              continue
+          if email not in entitySet:
+            entitySet.add(email)
+            entityList.append(email)
+        elif recursive:
+          doNotExist += _addGroupMembersToUsers(email, domains, recursive)
+    except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
+      entityUnknownWarning(EN_GROUP, group)
+      doNotExist += 1
+    return doNotExist
+
   def _showInvalidEntity(entityType, entityName):
     printErrorMessage(USAGE_ERROR_RC, formatKeyValueList(u'', [singularEntityName(entityType), entityName, PHRASE_INVALID], u''))
 
   doNotExist = invalid = 0
-  usersList = []
-  usersSet = set()
+  entityList = []
+  entitySet = set()
   if entityType in [CL_ENTITY_USER, CL_ENTITY_USERS]:
     buildGAPIObject(GAPI_DIRECTORY_API)
-    members = convertEntityToList(entity, nonListEntityType=entityType == CL_ENTITY_USER)
-    for user in members:
+    result = convertEntityToList(entity, nonListEntityType=entityType == CL_ENTITY_USER)
+    for user in result:
       if validateEmailAddressOrUID(user):
-        if user not in usersSet:
-          usersSet.add(user)
-          usersList.append(user)
+        if user not in entitySet:
+          entitySet.add(user)
+          entityList.append(user)
       else:
         _showInvalidEntity(EN_USER, user)
         invalid += 1
@@ -4791,14 +4981,16 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     try:
       printGettingAccountEntitiesInfo(EN_USER)
       page_message = getPageMessage(noNL=True)
-      members = callGAPIpages(cd.users(), u'list', u'users',
-                              page_message=page_message,
-                              throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customer=GC_Values[GC_CUSTOMER_ID],
-                              fields=u'nextPageToken,users(primaryEmail,suspended)',
-                              maxResults=GC_Values[GC_USER_MAX_RESULTS])
-      addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkNotSuspended=True)
-      printGettingAccountEntitiesDoneInfo(len(usersSet))
+      result = callGAPIpages(cd.users(), u'list', u'users',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                             customer=GC_Values[GC_CUSTOMER_ID],
+                             fields=u'nextPageToken,users(primaryEmail,suspended)',
+                             maxResults=GC_Values[GC_USER_MAX_RESULTS])
+      for user in result:
+        if not user[u'suspended']:
+          entityList.append(user[u'primaryEmail'])
+      printGettingAccountEntitiesDoneInfo(len(entityList))
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   elif entityType in [CL_ENTITY_GROUP, CL_ENTITY_GROUPS]:
@@ -4808,16 +5000,49 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       if validateEmailAddressOrUID(group):
         try:
           group = normalizeEmailAddressOrUID(group)
-          printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER, group, entityType=EN_GROUP)
+          printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER_MANAGER_OWNER, group, entityType=EN_GROUP)
           page_message = getPageMessageForWhom(noNL=True)
-          members = callGAPIpages(cd.members(), u'list', u'members',
-                                  page_message=page_message,
-                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
-                                  groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email)')
-          addMembersToUsers(usersList, usersSet, u'email', members)
+          result = callGAPIpages(cd.members(), u'list', u'members',
+                                 page_message=page_message,
+                                 throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
+                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email)')
+          for member in result:
+            email = member[u'email']
+            if email not in entitySet:
+              entitySet.add(email)
+              entityList.append(email)
         except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
           entityUnknownWarning(EN_GROUP, group)
           doNotExist += 1
+      else:
+        _showInvalidEntity(EN_GROUP, group)
+        invalid += 1
+  elif entityType in [CL_ENTITY_GROUP_USERS]:
+    cd = buildGAPIObject(GAPI_DIRECTORY_API)
+    groups = convertEntityToList(entity)
+    recursive = False
+    domains = []
+    roles = []
+    while CL_argvI < CL_argvLen:
+      myarg = getArgument()
+      if myarg in GROUP_ROLES_MAP:
+        roles.append(GROUP_ROLES_MAP[myarg])
+      elif myarg == u'primarydomain':
+        domains.append(GC_Values[GC_DOMAIN])
+      elif myarg == u'domains':
+        domains.extend(getEntityList(OB_DOMAIN_NAME_ENTITY))
+      elif myarg == u'recursive':
+        recursive = True
+      elif myarg == u'end':
+        break
+      else:
+        putArgumentBack()
+        missingArgumentExit(u'end')
+    if roles:
+      memberRole = ','.join(roles)
+    for group in groups:
+      if validateEmailAddressOrUID(group):
+        doNotExist += _addGroupMembersToUsers(normalizeEmailAddressOrUID(group), domains, recursive)
       else:
         _showInvalidEntity(EN_GROUP, group)
         invalid += 1
@@ -4835,17 +5060,26 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                             customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=ou)
           ou = result[u'orgUnitPath']
-        checkOrgUnit = [u'', ou.lower()][directlyInOU]
         printGettingAllEntityItemsForWhom(EN_USER, ou, entityType=EN_ORGANIZATIONAL_UNIT)
         page_message = getPageMessageForWhom(noNL=True)
-        members = callGAPIpages(cd.users(), u'list', u'users',
-                                page_message=page_message,
-                                throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                                customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(ou),
-                                fields=u'nextPageToken,users(primaryEmail,suspended,orgUnitPath)',
-                                maxResults=GC_Values[GC_USER_MAX_RESULTS])
-        addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkOrgUnit=checkOrgUnit, checkNotSuspended=checkNotSuspended)
-        totalLen = len(usersSet)
+        result = callGAPIpages(cd.users(), u'list', u'users',
+                               page_message=page_message,
+                               throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                               customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(ou),
+                               fields=u'nextPageToken,users(primaryEmail,suspended,orgUnitPath)',
+                               maxResults=GC_Values[GC_USER_MAX_RESULTS])
+        if directlyInOU:
+          ou = ou.lower()
+          for user in result:
+            email = user[u'primaryEmail']
+            if (ou == user[u'orgUnitPath'].lower()) and (not (checkNotSuspended and user[u'suspended'])):
+              entityList.append(email)
+        else:
+          for user in result:
+            email = user[u'primaryEmail']
+            if not (checkNotSuspended and user[u'suspended']):
+              entityList.append(email)
+        totalLen = len(entityList)
         printGettingEntityItemsDoneInfo(totalLen-prevLen, qualifier=qualifier)
         prevLen = totalLen
       except (GAPI_badRequest, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
@@ -4856,22 +5090,28 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     try:
       printGettingAccountEntitiesInfo(EN_USER, queryQualifier(entity))
       page_message = getPageMessage(noNL=True)
-      members = callGAPIpages(cd.users(), u'list', u'users',
-                              page_message=page_message,
-                              throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customer=GC_Values[GC_CUSTOMER_ID], query=entity,
-                              fields=u'nextPageToken,users(primaryEmail,suspended)',
-                              maxResults=GC_Values[GC_USER_MAX_RESULTS])
-      addMembersToUsers(usersList, usersSet, u'primaryEmail', members, checkNotSuspended=checkNotSuspended)
-      printGettingAccountEntitiesDoneInfo(len(usersSet), u' {0}'.format(PHRASE_THAT_MATCHED_QUERY))
+      result = callGAPIpages(cd.users(), u'list', u'users',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                             customer=GC_Values[GC_CUSTOMER_ID], query=entity,
+                             fields=u'nextPageToken,users(primaryEmail,suspended)',
+                             maxResults=GC_Values[GC_USER_MAX_RESULTS])
+      for user in result:
+        if not (checkNotSuspended and user[u'suspended']):
+          entityList.append(user[u'primaryEmail'])
+      printGettingAccountEntitiesDoneInfo(len(entityList), u' {0}'.format(PHRASE_THAT_MATCHED_QUERY))
     except GAPI_invalidInput:
       putArgumentBack()
       usageErrorExit(PHRASE_INVALID_QUERY)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   elif entityType == CL_ENTITY_LICENSES:
-    licenses = doPrintLicenses(return_list=True, skus=entity.replace(u',', u' ').split())
-    addMembersToUsers(usersList, usersSet, u'userId', licenses)
+    result = doPrintLicenses(return_list=True, skus=entity.replace(u',', u' ').split())
+    for userlicense in result:
+      email = userlicense.get(u'userId', None)
+      if email and (email not in entitySet):
+        entitySet.add(email)
+        entityList.append(email)
   elif entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS, CL_ENTITY_STUDENTS]:
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
     courses = convertEntityToList(entity)
@@ -4881,27 +5121,27 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         if entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS]:
           printGettingAllEntityItemsForWhom(EN_TEACHER, removeCourseIdScope(courseId), entityType=EN_COURSE)
           page_message = getPageMessageForWhom(noNL=True)
-          teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
-                                   page_message=page_message,
-                                   throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST],
-                                   courseId=courseId)
-          for teacher in teachers:
+          result = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                                 page_message=page_message,
+                                 throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST],
+                                 courseId=courseId, fields=u'nextPageToken,teachers/profile/emailAddress')
+          for teacher in result:
             email = teacher[u'profile'].get(u'emailAddress', None)
-            if email and (email not in usersSet):
-              usersSet.add(email)
-              usersList.append(email)
+            if email and (email not in entitySet):
+              entitySet.add(email)
+              entityList.append(email)
         if entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_STUDENTS]:
           printGettingAllEntityItemsForWhom(EN_STUDENT, removeCourseIdScope(courseId), entityType=EN_COURSE)
           page_message = getPageMessageForWhom(noNL=True)
-          students = callGAPIpages(croom.courses().students(), u'list', u'students',
-                                   page_message=page_message,
-                                   throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST],
-                                   courseId=courseId)
-          for student in students:
+          result = callGAPIpages(croom.courses().students(), u'list', u'students',
+                                 page_message=page_message,
+                                 throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST],
+                                 courseId=courseId, fields=u'nextPageToken,students/profile/emailAddress')
+          for student in result:
             email = student[u'profile'].get(u'emailAddress', None)
-            if email and (email not in usersSet):
-              usersSet.add(email)
-              usersList.append(email)
+            if email and (email not in entitySet):
+              entitySet.add(email)
+              entityList.append(email)
       except GAPI_notFound:
         entityDoesNotExistWarning(EN_COURSE, removeCourseIdScope(courseId))
         doNotExist += 1
@@ -4909,23 +5149,24 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         APIAccessDeniedExit()
   elif entityType == CL_ENTITY_CROS:
     buildGAPIObject(GAPI_DIRECTORY_API)
-    members = convertEntityToList(entity)
-    for user in members:
-      if user not in usersSet:
-        usersSet.add(user)
-        usersList.append(user)
+    result = convertEntityToList(entity)
+    for deviceId in result:
+      if deviceId not in entitySet:
+        entitySet.add(deviceId)
+        entityList.append(deviceId)
   elif entityType == CL_ENTITY_ALL_CROS:
     cd = buildGAPIObject(GAPI_DIRECTORY_API)
     try:
       printGettingAccountEntitiesInfo(EN_CROS_DEVICE)
       page_message = getPageMessage(noNL=True)
-      members = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                              page_message=page_message,
-                              throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customerId=GC_Values[GC_CUSTOMER_ID],
-                              fields=u'nextPageToken,chromeosdevices(deviceId)',
-                              maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-      addMembersToUsers(usersList, usersSet, u'deviceId', members)
+      result = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                             customerId=GC_Values[GC_CUSTOMER_ID],
+                             fields=u'nextPageToken,chromeosdevices(deviceId)',
+                             maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+      for device in result:
+        entityList.append(device[u'deviceId'])
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   elif entityType == CL_ENTITY_CROS_QUERY:
@@ -4933,14 +5174,15 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     try:
       printGettingAccountEntitiesInfo(EN_CROS_DEVICE, queryQualifier(entity))
       page_message = getPageMessage(noNL=True)
-      members = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                              page_message=page_message,
-                              throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customerId=GC_Values[GC_CUSTOMER_ID], query=entity,
-                              fields=u'nextPageToken,chromeosdevices(deviceId)',
-                              maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-      addMembersToUsers(usersList, usersSet, u'deviceId', members)
-      printGettingAccountEntitiesDoneInfo(len(usersSet), u' {0}'.format(PHRASE_THAT_MATCHED_QUERY))
+      result = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_INVALID_INPUT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                             customerId=GC_Values[GC_CUSTOMER_ID], query=entity,
+                             fields=u'nextPageToken,chromeosdevices(deviceId)',
+                             maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+      for device in result:
+        entityList.append(device[u'deviceId'])
+      printGettingAccountEntitiesDoneInfo(len(entityList), u' {0}'.format(PHRASE_THAT_MATCHED_QUERY))
     except GAPI_invalidInput:
       putArgumentBack()
       usageErrorExit(PHRASE_INVALID_QUERY)
@@ -4967,32 +5209,30 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     try:
       printGettingAccountEntitiesInfo(EN_CROS_DEVICE)
       page_message = getPageMessage(noNL=True)
-      members = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                              page_message=page_message,
-                              throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                              customerId=GC_Values[GC_CUSTOMER_ID],
-                              fields=u'nextPageToken,chromeosdevices(deviceId,orgUnitPath)',
-                              maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+      result = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                             page_message=page_message,
+                             throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                             customerId=GC_Values[GC_CUSTOMER_ID],
+                             fields=u'nextPageToken,chromeosdevices(deviceId,orgUnitPath)',
+                             maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
       if directlyInOU:
-        for cros in members:
-          if cros[u'orgUnitPath'].lower() in ouDict:
-            usersSet.add(cros[u'deviceId'])
-            usersList.append(cros[u'deviceId'])
+        for device in result:
+          if device[u'orgUnitPath'].lower() in ouDict:
+            entityList.append(device[u'deviceId'])
       else:
-        for cros in members:
-          crosOu = cros[u'orgUnitPath'].lower()
+        for device in result:
+          deviceOu = device[u'orgUnitPath'].lower()
           for ou in ouDict:
-            if crosOu.startswith(ou):
-              usersSet.add(cros[u'deviceId'])
-              usersList.append(cros[u'deviceId'])
+            if deviceOu.startswith(ou):
+              entityList.append(device[u'deviceId'])
               break
-      printGettingEntityItemsDoneInfo(len(usersSet), qualifier=qualifier)
+      printGettingEntityItemsDoneInfo(len(entityList), qualifier=qualifier)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   else:
     systemErrorExit(UNKNOWN_ERROR_RC, u'getUsersToModify coding error')
   if doNotExist == 0 and invalid == 0:
-    return usersList
+    return entityList
   if doNotExist > 0:
     badEntitiesExit(EN_ENTITY, doNotExist, [PHRASE_DO_NOT_EXIST, PHRASE_DOES_NOT_EXIST], backupArg=True)
   if invalid > 0:
@@ -5077,7 +5317,7 @@ def getEntitiesFromCSVbyField():
   if checkArgumentPresent([u'keypattern',]):
     keyPattern = getREPattern()
   else:
-    keyPattern = keyField
+    keyPattern = None
   if checkArgumentPresent([u'keyvalue',]):
     keyValue = getString(OB_STRING)
   else:
@@ -5107,10 +5347,10 @@ def getEntitiesFromCSVbyField():
       continue
     if matchFields and not checkMatchFields(row, matchFields):
       continue
-    if isinstance(keyPattern, str):
-      keyList = [re.sub(keyPattern, keyItem.strip(), keyValue) for keyItem in splitEntityList(item, keyDelimiter, False)]
-    else:
+    if keyPattern:
       keyList = [keyPattern.sub(keyValue, keyItem.strip()) for keyItem in splitEntityList(item, keyDelimiter, False)]
+    else:
+      keyList = [re.sub(keyField, keyItem.strip(), keyValue) for keyItem in splitEntityList(item, keyDelimiter, False)]
     for key in keyList:
       if key and (key not in entitySet):
         entitySet.add(key)
@@ -5134,7 +5374,7 @@ def getEntitiesFromCSVbyField():
 
 # Typically used to map courseparticipants to students or teachers
 def mapEntityType(entityType, typeMap):
-  if (typeMap != None) and (entityType in typeMap):
+  if (typeMap is not None) and (entityType in typeMap):
     return typeMap[entityType]
   return entityType
 
@@ -5238,6 +5478,20 @@ def getEntityList(item, listOptional=False, shlexSplit=False):
   if entitySelector:
     return getEntitySelection(entitySelector, shlexSplit)
   return convertEntityToList(getString(item, optional=listOptional, emptyOK=True), shlexSplit=shlexSplit)
+
+# Send an email
+def send_email(msg_subj, msg_txt, msg_rcpt=None):
+  from email.mime.text import MIMEText
+  gmail = buildGAPIObject(GAPI_GMAIL_API)
+  sender_email = gmail._http.request.credentials.id_token[u'email']
+  if not msg_rcpt:
+    msg_rcpt = sender_email
+  msg = MIMEText(msg_txt)
+  msg[u'Subject'] = msg_subj
+  msg[u'From'] = sender_email
+  msg[u'To'] = msg_rcpt
+  callGAPI(gmail.users().messages(), u'send',
+           userId=sender_email, body={u'raw': base64.urlsafe_b64encode(msg.as_string())})
 
 # Write a CSV file
 def addTitleToCSVfile(title, titles):
@@ -5357,65 +5611,75 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     closeFile(csvFile)
 
 # Flatten a JSON object
-def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None):
-  if flattened == None:
+def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, time_objects=None):
+  if flattened is None:
     flattened = {}
+  if time_objects is None:
+    time_objects = []
   if not isinstance(structure, (dict, list)):
-    flattened[((path + u'.') if path else u'') + key] = structure
+    if key not in time_objects:
+      flattened[((path + u'.') if path else u'') + key] = structure
+    else:
+      flattened[((path + u'.') if path else u'') + key] = formatLocalTime(structure)
   elif isinstance(structure, list):
     for i, item in enumerate(structure):
       if listLimit and (i >= listLimit):
         break
-      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
+      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
   else:
     for new_key, value in structure.items():
       if new_key in [u'kind', u'etag']:
         continue
-      if value == NEVER_TIME:
-        value = NEVER
-      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
+      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
   return flattened
 
 # Show a json object
-def showJSON(object_name, object_value, skip_objects=[], level=0):
+def showJSON(object_name, object_value, skip_objects=None, time_objects=None, level=0):
+  if skip_objects is None:
+    skip_objects = []
+  if time_objects is None:
+    time_objects = []
   if object_name in [u'kind', u'etag', u'etags'] or object_name in skip_objects:
     return
-  if object_name != None:
+  if object_name is not None:
     printJSONKey(object_name)
   if isinstance(object_value, list):
     if len(object_value) == 1 and isinstance(object_value[0], (str, unicode, int, bool)):
-      if object_name != None:
+      if object_name is not None:
         printJSONValue(object_value[0])
       else:
         printKeyValueList([object_value[0]])
       return
-    if object_name != None:
+    if object_name is not None:
       printBlankLine()
       incrementIndentLevel()
     for sub_value in object_value:
       if isinstance(sub_value, (str, unicode, int, bool)):
         printKeyValueList([sub_value])
       else:
-        showJSON(None, sub_value, skip_objects, level+1)
-    if object_name != None:
+        showJSON(None, sub_value, skip_objects, time_objects, level+1)
+    if object_name is not None:
       decrementIndentLevel()
   elif isinstance(object_value, dict):
     indentAfterFirst = unindentAfterLast = False
-    if object_name != None:
+    if object_name is not None:
       printBlankLine()
       incrementIndentLevel()
     elif level > 0:
       indentAfterFirst = unindentAfterLast = True
     for sub_object in sorted(object_value):
       if sub_object not in skip_objects:
-        showJSON(sub_object, object_value[sub_object], skip_objects, level+1)
+        showJSON(sub_object, object_value[sub_object], skip_objects, time_objects, level+1)
         if indentAfterFirst:
           incrementIndentLevel()
           indentAfterFirst = False
-    if object_name != None or unindentAfterLast:
+    if object_name is not None or unindentAfterLast:
       decrementIndentLevel()
   else:
-    printJSONValue(object_value)
+    if object_name not in time_objects:
+      printJSONValue(object_value)
+    else:
+      printJSONValue(formatLocalTime(object_value))
 
 # Batch processing request_id fields
 RI_ENTITY = 0
@@ -5428,20 +5692,6 @@ RI_ROLE = 6
 
 def batchRequestID(entityName, i, count, j, jcount, item, role=u''):
   return u'{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}'.format(entityName, i, count, j, jcount, item, role)
-
-# Send an email
-def send_email(msg_subj, msg_txt, msg_rcpt=None):
-  from email.mime.text import MIMEText
-  gmail = buildGAPIObject(GAPI_GMAIL_API)
-  sender_email = gmail._http.request.credentials.id_token[u'email']
-  if not msg_rcpt:
-    msg_rcpt = sender_email
-  msg = MIMEText(msg_txt)
-  msg[u'Subject'] = msg_subj
-  msg[u'From'] = sender_email
-  msg[u'To'] = msg_rcpt
-  callGAPI(gmail.users().messages(), u'send',
-           userId=sender_email, body={u'raw': base64.urlsafe_b64encode(msg.as_string())})
 
 # gam version
 def doVersion(checkForCheck=True):
@@ -5488,7 +5738,9 @@ def batch_worker():
     GM_Globals[GM_BATCH_QUEUE].task_done()
 
 def run_batch(items, total_items):
-  import Queue, threading
+  import Queue
+  import threading
+
   current_item = 0
   python_cmd = [sys.executable.lower(),]
   if not getattr(sys, u'frozen', False): # we're not frozen
@@ -5697,8 +5949,8 @@ def doList(entityList, entityType):
           continue
         itemList = entityItemLists[entity]
         if itemType == CL_ENTITY_USERS:
-          for i in range(len(itemList)):
-            itemList[i] = normalizeEmailAddressOrUID(itemList[i])
+          for i, item in enumerate(itemList):
+            itemList[i] = normalizeEmailAddressOrUID(item)
       if dataDelimiter:
         csvRows.append({keyField: entityEmail, dataField: dataDelimiter.join(itemList)})
       else:
@@ -5717,87 +5969,136 @@ class cmd_flags(object):
     self.auth_host_port = [8080, 9090]
 
 OAUTH2_SCOPES = [
-  u'https://apps-apis.google.com/a/feeds/domain/',                     #  0:Admin Settings API
-  u'https://mail.google.com/',                                         #  1:Admin User - Email upload report document notifications
-  u'https://www.googleapis.com/auth/drive.file',                       #  2:Admin User - Upload report documents to Google Drive
-  u'https://www.googleapis.com/auth/calendar',                         #  3:Calendar API (RO)
-  u'https://www.googleapis.com/auth/classroom.courses',                #  4:Classroom API - Courses (RO)
-  u'https://www.googleapis.com/auth/classroom.guardianlinks.students', #  5:Classroom API - Student Graudians (RO)
-  u'https://www.googleapis.com/auth/classroom.profile.emails',         #  6:Classroom API - Profile Emails
-  u'https://www.googleapis.com/auth/classroom.profile.photos',         #  7:Classroom API - Profile Photos
-  u'https://www.googleapis.com/auth/classroom.rosters',                #  8:Classroom API - Rosters (RO)
-  u'https://www.googleapis.com/auth/cloudprint',                       #  9:Cloudprint API
-  u'https://www.google.com/m8/feeds',                                  # 10:Contacts API - Domain Shared and Users and GAL
-  u'https://www.googleapis.com/auth/admin.datatransfer',               # 11:Data Transfer API (RO)
-  u'https://www.googleapis.com/auth/admin.directory.device.chromeos',  # 12:Directory API - Chrome OS Devices (RO)
-  u'https://www.googleapis.com/auth/admin.directory.customer',         # 13:Directory API - Customers (RO)
-  u'https://www.googleapis.com/auth/admin.directory.domain',           # 14:Directory API - Domains (RO)
-  u'https://www.googleapis.com/auth/admin.directory.group',            # 15:Directory API - Groups (RO)
-  u'https://www.googleapis.com/auth/admin.directory.device.mobile',    # 16:Directory API - Mobile Devices Directory (RO,AO)
-  u'https://www.googleapis.com/auth/admin.directory.notifications',    # 17:Directory API - Notifications
-  u'https://www.googleapis.com/auth/admin.directory.orgunit',          # 18:Directory API - Organizational Units (RO)
-  u'https://www.googleapis.com/auth/admin.directory.resource.calendar',# 19:Directory API - Resource Calendars (RO)
-  u'https://www.googleapis.com/auth/admin.directory.rolemanagement',   # 20:Directory API - Roles (RO)
-  u'https://www.googleapis.com/auth/admin.directory.userschema',       # 21:Directory API - User Schemas (RO)
-  u'https://www.googleapis.com/auth/admin.directory.user.security',    # 22:Directory API - User Security
-  u'https://www.googleapis.com/auth/admin.directory.user',             # 23:Directory API - Users (RO)
-  u'https://apps-apis.google.com/a/feeds/compliance/audit/',           # 24:Email Audit API
-  u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/',          # 25:Email Settings API - Users
-  u'https://www.googleapis.com/auth/apps.groups.settings',             # 26:Group Settings API
-  u'https://www.googleapis.com/auth/apps.licensing',                   # 27:License Manager API
-  u'https://www.googleapis.com/auth/admin.reports.audit.readonly',     # 28:Reports API - Audit Reports
-  u'https://www.googleapis.com/auth/admin.reports.usage.readonly',     # 29:Reports API - Usage Reports
-  u'https://www.googleapis.com/auth/siteverification',                 # 30:Site Verification API
-  u'https://sites.google.com/feeds',                                   # 31:Sites API
+  {u'name': u'Admin Settings API',
+   u'types': [OAUTH2_GAPI_SCOPES, OAUTH2_GDATA_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://apps-apis.google.com/a/feeds/domain/'},
+  {u'name': u'Admin User - Email upload report document notifications',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/gmail.send'},
+  {u'name': u'Admin User - Upload report documents to Google Drive',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/drive.file'},
+  {u'name': u'Calendar Data API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/calendar'},
+  {u'name': u'Classroom API - Courses',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/classroom.courses'},
+  {u'name': u'Classroom API - Student Guardians',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/classroom.guardianlinks.students'},
+  {u'name': u'Classroom API - Profile Emails',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/classroom.profile.emails'},
+  {u'name': u'Classroom API - Profile Photos',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/classroom.profile.photos'},
+  {u'name': u'Classroom API - Rosters',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/classroom.rosters'},
+  {u'name': u'Cloudprint API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/cloudprint'},
+  {u'name': u'Contacts API - Domain Shared and Users and GAL',
+   u'types': [OAUTH2_GDATA_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.google.com/m8/feeds'},
+  {u'name': u'Data Transfer API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.datatransfer'},
+  {u'name': u'Directory API - Chrome OS Devices',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.device.chromeos'},
+  {u'name': u'Directory API - Customers',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.customer'},
+  {u'name': u'Directory API - Domains',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.domain'},
+  {u'name': u'Directory API - Groups',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.group'},
+  {u'name': u'Directory API - Mobile Devices Directory',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly', u'action'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.device.mobile'},
+  {u'name': u'Directory API - Notifications',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.notifications'},
+  {u'name': u'Directory API - Organizational Units',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.orgunit'},
+  {u'name': u'Directory API - Resource Calendars',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.resource.calendar'},
+  {u'name': u'Directory API - Roles',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.rolemanagement'},
+  {u'name': u'Directory API - User Schemas',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.userschema'},
+  {u'name': u'Directory API - User Security',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.user.security'},
+  {u'name': u'Directory API - Users',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [u'readonly'],
+   u'scopes': u'https://www.googleapis.com/auth/admin.directory.user'},
+  {u'name': u'Email Audit API',
+   u'types': [OAUTH2_GDATA_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://apps-apis.google.com/a/feeds/compliance/audit/'},
+  {u'name': u'Email Settings API - Users',
+   u'types': [OAUTH2_GDATA_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/'},
+  {u'name': u'Group Settings API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/apps.groups.settings'},
+  {u'name': u'License Manager API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/apps.licensing'},
+  {u'name': u'Reports API - Audit Reports',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/admin.reports.audit.readonly'},
+  {u'name': u'Reports API - Usage Reports',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/admin.reports.usage.readonly'},
+  {u'name': u'Site Verification API',
+   u'types': [OAUTH2_GAPI_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://www.googleapis.com/auth/siteverification'},
+  {u'name': u'Sites API',
+   u'types': [OAUTH2_GDATA_SCOPES],
+   u'subscopes': [],
+   u'scopes': u'https://sites.google.com/feeds'},
   ]
-OAUTH2_RO_SCOPES = [3, 4, 8, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 23]
-OAUTH2_AO_SCOPES = [16]
-OAUTH2_SCOPES_MAP = {
-  OAUTH2_GAPI_SCOPES: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 26, 27, 28, 29, 30],
-  OAUTH2_GDATA_SCOPES: [0, 10, 24, 25, 31]
-  }
-OAUTH2_MENU = u'''
-Select the authorized scopes by entering a number.
-Append an 'r' to grant read-only access or an 'a' to grant action-only access.
 
-[%%s]  %2d)  Admin Settings API
-[%%s]  %2d)  Admin User - Email upload report document notifications
-[%%s]  %2d)  Admin User - Upload report documents to Google Drive
-[%%s]  %2d)  Calendar API (supports read-only)
-[%%s]  %2d)  Classroom API - Courses (supports read-only)
-[%%s]  %2d)  Classroom API - Student Guardians (supports read-only)
-[%%s]  %2d)  Classroom API - Profile Emails
-[%%s]  %2d)  Classroom API - Profile Photos
-[%%s]  %2d)  Classroom API - Rosters (supports read-only)
-[%%s]  %2d)  Cloud Print API
-[%%s]  %2d)  Contacts API - Domain Shared and Users
-[%%s]  %2d)  Data Transfer API (supports read-only)
-[%%s]  %2d)  Directory API - Chrome OS Devices (supports read-only)
-[%%s]  %2d)  Directory API - Customers (supports read-only)
-[%%s]  %2d)  Directory API - Domains (supports read-only)
-[%%s]  %2d)  Directory API - Groups (supports read-only)
-[%%s]  %2d)  Directory API - Mobile Devices (supports read-only and action-only)
-[%%s]  %2d)  Directory API - Notifications
-[%%s]  %2d)  Directory API - Organizational Units (supports read-only)
-[%%s]  %2d)  Directory API - Resource Calendars (supports read-only)
-[%%s]  %2d)  Directory API - Roles (supports read-only)
-[%%s]  %2d)  Directory API - User Schemas (supports read-only)
-[%%s]  %2d)  Directory API - User Security
-[%%s]  %2d)  Directory API - Users (supports read-only)
-[%%s]  %2d)  Email Audit API - Monitors, Activity and Mailbox Exports
-[%%s]  %2d)  Email Settings API - Users
-[%%s]  %2d)  Groups Settings API
-[%%s]  %2d)  License Manager API
-[%%s]  %2d)  Reports API - Audit Reports
-[%%s]  %2d)  Reports API - Usage Reports
-[%%s]  %2d)  Site Verification API
-[%%s]  %2d)  Sites API
-
-      s)  Select all scopes
-      u)  Unselect all scopes
-      e)  Exit without changes
-      c)  Continue to authorization
-'''
 OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 
 def revokeCredentials():
@@ -5826,31 +6127,54 @@ See this site for instructions:
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
   checkForExtraneousArguments()
+  oauth2_menu = u'''
+Select the authorized scopes by entering a number.
+Append an 'r' to grant read-only access or an 'a' to grant action-only access.
+
+'''
+  for a_scope in OAUTH2_SCOPES:
+    oauth2_menu += u'[%%%%s] %%2d)  %s' % (a_scope[u'name'])
+    if a_scope[u'subscopes']:
+      oauth2_menu += u' (supports %s)' % (u' and '.join(a_scope[u'subscopes']))
+    oauth2_menu += '\n'
+  oauth2_menu += '''
+
+     s)  Select all scopes
+     u)  Unselect all scopes
+     e)  Exit without changes
+     c)  Continue to authorization
+'''
   num_scopes = len(OAUTH2_SCOPES)
-  menu = OAUTH2_MENU % tuple(range(num_scopes))
-  selected_scopes = [u' '] * num_scopes
+  menu = oauth2_menu % tuple(range(num_scopes))
+  selected_scopes = [u'*'] * num_scopes
   for oauth2Scope in OAUTH2_SCOPES_LIST:
     credentials = getCredentialsForScope(oauth2Scope)
     if credentials and not credentials.invalid:
       currentScopes = sorted(credentials.scopes)
-      for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
-        selected_scopes[i] = u' '
-        possibleScope = OAUTH2_SCOPES[i]
-        for currentScope in currentScopes:
-          if currentScope == possibleScope:
-            selected_scopes[i] = u'*'
-            break
-          if i in OAUTH2_RO_SCOPES:
-            if currentScope == possibleScope+u'.readonly':
-              selected_scopes[i] = u'R'
+      i = 0
+      for a_scope in OAUTH2_SCOPES:
+        if oauth2Scope in a_scope[u'types']:
+          selected_scopes[i] = u' '
+          possibleScope = OAUTH2_SCOPES[i][u'scopes']
+          for currentScope in currentScopes:
+            if currentScope == possibleScope:
+              selected_scopes[i] = u'*'
               break
-          if i in OAUTH2_AO_SCOPES:
-            if currentScope == possibleScope+u'.action':
-              selected_scopes[i] = u'A'
-              break
+            if u'readonly' in OAUTH2_SCOPES[i][u'subscopes']:
+              if currentScope == possibleScope+u'.readonly':
+                selected_scopes[i] = u'R'
+                break
+            if u'action' in OAUTH2_SCOPES[i][u'subscopes']:
+              if currentScope == possibleScope+u'.action':
+                selected_scopes[i] = u'A'
+                break
+      i += 1
     else:
-      for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
-        selected_scopes[i] = u'*'
+      i = 0
+      for a_scope in OAUTH2_SCOPES:
+        if oauth2Scope in a_scope[u'types']:
+          selected_scopes[i] = u'*'
+        i += 1
   prompt = u'Please enter 0-{0}[a|r] or {1}: '.format(num_scopes-1, u'|'.join(OAUTH2_CMDS))
   while True:
     os.system([u'clear', u'cls'][GM_Globals[GM_WINDOWS]])
@@ -5871,11 +6195,11 @@ See this site for instructions:
           selection = int(selection)
         if isinstance(selection, int) and selection < num_scopes:
           if mode == u'R':
-            if selection not in OAUTH2_RO_SCOPES:
+            if u'readonly' not in OAUTH2_SCOPES[selection][u'subscopes']:
               sys.stdout.write(u'{0}Scope {1} does not support read-only mode!\n'.format(ERROR_PREFIX, selection))
               continue
           elif mode == u'A':
-            if selection not in OAUTH2_AO_SCOPES:
+            if u'action' not in OAUTH2_SCOPES[selection][u'subscopes']:
               sys.stdout.write(u'{0}Scope {1} does not support action-only mode!\n'.format(ERROR_PREFIX, selection))
               continue
           elif selected_scopes[selection] != u'*':
@@ -5902,13 +6226,16 @@ See this site for instructions:
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
   for oauth2Scope in OAUTH2_SCOPES_LIST:
     scopes = [u'email',] # Email Display Scope, always included for client
-    for i in OAUTH2_SCOPES_MAP[oauth2Scope]:
-      if selected_scopes[i] == u'*':
-        scopes.append(OAUTH2_SCOPES[i])
-      elif selected_scopes[i] == u'R':
-        scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i]))
-      elif selected_scopes[i] == u'A':
-        scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i]))
+    i = 0
+    for a_scope in OAUTH2_SCOPES:
+      if oauth2Scope in a_scope[u'types']:
+        if selected_scopes[i] == u'*':
+          scopes.append(OAUTH2_SCOPES[i][u'scopes'])
+        elif selected_scopes[i] == u'R':
+          scopes.append(u'{0}.readonly'.format(OAUTH2_SCOPES[i][u'scopes']))
+        elif selected_scopes[i] == u'A':
+          scopes.append(u'{0}.action'.format(OAUTH2_SCOPES[i][u'scopes']))
+      i += 1
     storage = getCredentialsForScope(oauth2Scope, storageOnly=True)
     try:
       FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
@@ -6069,6 +6396,8 @@ REPORT_CHOICES_MAP = {
   u'users': u'user',
   }
 
+REPORT_ACTIVITIES_TIME_OBJECTS = [u'time']
+
 # gam report <users|user> [todrive] [nodatechange] [maxresults <Number>]
 #	[date <Date>] [user all|<UserItem>] [select <UserTypeEntity>] [filter|filters <String>] [fields|parameters <String>]
 # gam report <customers|customer|domain> [todrive] [nodatechange]
@@ -6136,7 +6465,7 @@ def doReport():
       filters = getString(OB_STRING)
     else:
       unknownArgumentExit()
-  if try_date == None:
+  if try_date is None:
     try_date = str(datetime.date.today())
   if report == u'user':
     if select:
@@ -6173,7 +6502,10 @@ def doReport():
                 addTitleToCSVfile(name, titles)
               for ptype in REPORTS_PARAMETERS_SIMPLE_TYPES:
                 if ptype in item:
-                  row[name] = item[ptype]
+                  if ptype != u'datetimeValue':
+                    row[name] = item[ptype]
+                  else:
+                    row[name] = formatLocalTime(item[ptype])
                   break
               else:
                 row[name] = u''
@@ -6207,7 +6539,10 @@ def doReport():
           name = item[u'name']
           for ptype in REPORTS_PARAMETERS_SIMPLE_TYPES:
             if ptype in item:
-              csvRows.append({u'name': name, u'value': item[ptype]})
+              if ptype != u'datetimeValue':
+                csvRows.append({u'name': name, u'value': item[ptype]})
+              else:
+                csvRows.append({u'name': name, u'value': formatLocalTime(item[ptype])})
               break
           else:
             if u'msgValue' in item:
@@ -6222,8 +6557,8 @@ def doReport():
                     elif an_item == u'client_id':
                       app[u'client_id'] = subitem[an_item]
                   auth_apps.append(app)
-        for app in auth_apps: # put apps at bottom
-          csvRows.append(app)
+        for row in auth_apps: # put apps at bottom
+          csvRows.append(row)
         break
       except GAPI_invalid as e:
         try_date = _adjustDate(e.message)
@@ -6262,7 +6597,7 @@ def doReport():
           activity = feed.popleft()
           events = activity[u'events']
           del activity[u'events']
-          activity_row = flattenJSON(activity)
+          activity_row = flattenJSON(activity, time_objects=REPORT_ACTIVITIES_TIME_OBJECTS)
           for event in events:
             for item in event.get(u'parameters', []):
               if u'value' in item:
@@ -6322,7 +6657,7 @@ def _showDomainAlias(alias, alias_skip_objects):
   printEntityName(EN_DOMAIN_ALIAS, alias[u'domainAliasName'])
   incrementIndentLevel()
   if u'creationTime' in alias:
-    alias[u'creationTime'] = unicode(datetime.datetime.fromtimestamp(int(alias[u'creationTime'])/1000))
+    alias[u'creationTime'] = formatLocalTimestamp(alias[u'creationTime'])
   for field in DOMAIN_ALIAS_PRINT_ORDER:
     if field in alias:
       printKeyValueList([field, alias[field]])
@@ -6362,16 +6697,16 @@ def doPrintDomainAliases():
                       throw_reasons=[GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                       customer=GC_Values[GC_CUSTOMER_ID])
     for domainAlias in result.get(u'domainAliases', []):
-      domainAlias_attributes = {}
+      row = {}
       for attr in domainAlias:
         if attr in [u'kind', u'etag']:
           continue
         if attr == u'creationTime':
-          domainAlias[attr] = unicode(datetime.datetime.fromtimestamp(int(domainAlias[attr])/1000))
-        domainAlias_attributes[attr] = domainAlias[attr]
+          domainAlias[attr] = formatLocalTimestamp(domainAlias[attr])
+        row[attr] = domainAlias[attr]
         if attr not in titles[u'set']:
           addTitleToCSVfile(attr, titles)
-      csvRows.append(domainAlias_attributes)
+      csvRows.append(row)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Domain Aliases', todrive)
@@ -6445,7 +6780,7 @@ def doInfoDomain():
     printEntityName(EN_DOMAIN, result[u'domainName'])
     incrementIndentLevel()
     if u'creationTime' in result:
-      result[u'creationTime'] = unicode(datetime.datetime.fromtimestamp(int(result[u'creationTime'])/1000))
+      result[u'creationTime'] = formatLocalTimestamp(result[u'creationTime'])
     for field in DOMAIN_PRINT_ORDER:
       if field in result:
         printKeyValueList([field, result[field]])
@@ -6481,32 +6816,32 @@ def doPrintDomains():
                        throw_reasons=[GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                        customer=GC_Values[GC_CUSTOMER_ID])
     for domain in domains[u'domains']:
-      domain_attributes = {}
+      row = {}
       domain[u'type'] = [u'secondary', u'primary'][domain[u'isPrimary']]
       for attr in domain:
         if attr in [u'kind', u'etag', u'domainAliases', u'isPrimary']:
           continue
         if attr == u'creationTime':
-          domain[attr] = unicode(datetime.datetime.fromtimestamp(int(domain[attr])/1000))
-        domain_attributes[attr] = domain[attr]
+          domain[attr] = formatLocalTimestamp(domain[attr])
+        row[attr] = domain[attr]
         if attr not in titles[u'set']:
           addTitleToCSVfile(attr, titles)
-      csvRows.append(domain_attributes)
+      csvRows.append(row)
       if u'domainAliases' in domain:
         for aliasdomain in domain[u'domainAliases']:
           aliasdomain[u'domainName'] = aliasdomain[u'domainAliasName']
           del aliasdomain[u'domainAliasName']
           aliasdomain[u'type'] = u'alias'
-          aliasdomain_attributes = {}
+          row = {}
           for attr in aliasdomain:
             if attr in [u'kind', u'etag']:
               continue
             if attr == u'creationTime':
-              aliasdomain[attr] = unicode(datetime.datetime.fromtimestamp(int(aliasdomain[attr])/1000))
-            aliasdomain_attributes[attr] = aliasdomain[attr]
+              aliasdomain[attr] = formatLocalTimestamp(aliasdomain[attr])
+            row[attr] = aliasdomain[attr]
             if attr not in titles[u'set']:
               addTitleToCSVfile(attr, titles)
-          csvRows.append(aliasdomain_attributes)
+          csvRows.append(row)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Domains', todrive)
@@ -6528,10 +6863,10 @@ def doPrintAdminRoles():
                           throw_reasons=[GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
                           customer=GC_Values[GC_CUSTOMER_ID], fields=fields)
     for role in roles:
-      role_attrib = {}
+      row = {}
       for attr, value in role.items():
-        role_attrib[attr] = value
-      csvRows.append(role_attrib)
+        row[attr] = value
+      csvRows.append(row)
   except (GAPI_badRequest, GAPI_customerNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Admin Roles', todrive)
@@ -6697,17 +7032,17 @@ def doPrintAdmins():
                          customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
     while feed:
       admin = feed.popleft()
-      admin_attrib = {}
+      row = {}
       for attr, value in admin.items():
         if attr == u'assignedTo':
-          admin_attrib[u'assignedToUser'] = user_from_userid(value)
+          row[u'assignedToUser'] = user_from_userid(value)
         elif attr == u'roleId':
-          admin_attrib[u'role'] = role_from_roleid(value)
+          row[u'role'] = role_from_roleid(value)
         elif attr == u'orgUnitId':
           value = u'id:{0}'.format(value)
-          admin_attrib[u'orgUnit'] = orgunit_from_orgunitid(value)
-        admin_attrib[attr] = value
-      csvRows.append(admin_attrib)
+          row[u'orgUnit'] = orgunit_from_orgunitid(value)
+        row[attr] = value
+      csvRows.append(row)
     writeCSVfile(csvRows, titles, u'Admins', todrive)
   except GAPI_invalid:
     entityUnknownWarning(EN_USER, userKey)
@@ -6726,7 +7061,7 @@ def doInfoCustomer():
                              customerKey=GC_Values[GC_CUSTOMER_ID])
     printKeyValueList([u'Customer ID', customer_info[u'id']])
     printKeyValueList([u'Primary Domain', customer_info[u'customerDomain']])
-    printKeyValueList([u'Customer Creation Time', customer_info[u'customerCreationTime']])
+    printKeyValueList([u'Customer Creation Time', formatLocalTime(customer_info[u'customerCreationTime'])])
     verified = callGAPI(cd.domains(), u'get',
                         customer=customer_info[u'id'], domainName=customer_info[u'customerDomain'], fields=u'verified')[u'verified']
     printKeyValueList([u'Primary Domain Verified', verified])
@@ -6789,7 +7124,7 @@ def doUpdateCustomer():
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
 
-SERVICE_NAME_TO_ID_MAP = {u'Drive': u'55656082996', u'Google+': u'553547912911',}
+SERVICE_NAME_TO_ID_MAP = {u'Drive and Docs': u'55656082996', u'Google+': u'553547912911',}
 
 def appID2app(dt, appID):
   for serviceName, serviceID in SERVICE_NAME_TO_ID_MAP.items():
@@ -6807,13 +7142,10 @@ def appID2app(dt, appID):
     accessErrorExit(None)
 
 SERVICE_NAME_CHOICES_MAP = {
-  u'googleplus': u'Google+',
-  u'google+': u'Google+',
-  u'gplus': u'Google+',
-  u'g+': u'Google+',
-  u'drive': u'Drive',
-  u'googledrive': u'Drive',
-  u'gdrive': u'Drive',
+  u'drive': u'Drive and Docs',
+  u'drive and docs': u'Drive and Docs',
+  u'googledrive': u'Drive and Docs',
+  u'gdrive': u'Drive and Docs',
   }
 
 def getService(dt):
@@ -6826,9 +7158,11 @@ def getService(dt):
                                     customerId=GC_Values[GC_CUSTOMER_ID])
     serviceNameList = []
     for online_service in online_services:
-      if serviceName == online_service[u'name'].lower():
-        return (online_service[u'name'], online_service[u'id'])
-      serviceNameList.append(online_service[u'name'].lower())
+      olServiceName = online_service[u'name']
+      if olServiceName:
+        if serviceName == olServiceName.lower():
+          return (olServiceName, online_service[u'id'])
+        serviceNameList.append(olServiceName.lower())
     putArgumentBack()
     invalidChoiceExit(serviceNameList)
   except (GAPI_unknownError, GAPI_forbidden):
@@ -7432,11 +7766,11 @@ def doPrintOrgs():
     printGettingAccountEntitiesDoneInfo(0)
     return
   printGettingAccountEntitiesDoneInfo(len(orgs[u'organizationUnits']))
-  for orgEntity in orgs[u'organizationUnits']:
-    orgUnit = {}
+  for orgUnit in orgs[u'organizationUnits']:
+    row = {}
     for field in fieldsList:
-      orgUnit[fieldsTitles[field]] = orgEntity.get(field, u'')
-    csvRows.append(orgUnit)
+      row[fieldsTitles[field]] = orgUnit.get(field, u'')
+    csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Orgs', todrive)
 
 ALIAS_TARGET_TYPES = [u'user', u'group', u'target',]
@@ -8406,13 +8740,15 @@ EVENT_PRINT_ORDER = [u'id', u'summary', u'description', u'location',
                      u'start', u'end', u'endTimeUnspecified',
                      u'creator', u'organizer', u'status', u'created', u'updated',]
 
+EVENT_TIME_OBJECTS = [u'created', u'updated', u'dateTime']
+
 def _showCalendarEvent(event, j, jcount):
   printEntityName(EN_EVENT, event[u'id'], j, jcount)
   skip_objects = [u'id',]
   incrementIndentLevel()
   for field in EVENT_PRINT_ORDER:
     if field in event:
-      showJSON(field, event[field], skip_objects)
+      showJSON(field, event[field], skip_objects, EVENT_TIME_OBJECTS)
       skip_objects.append(field)
   showJSON(None, event, skip_objects)
   decrementIndentLevel()
@@ -8899,6 +9235,7 @@ class ContactsManager(object):
     u'websites': CONTACT_WEBSITES,
     u'contactgroup': CONTACT_GROUPS,
     u'contactgroups': CONTACT_GROUPS,
+    u'updated': CONTACT_UPDATED,
     }
 
   GENDER_CHOICE_MAP = {u'male': u'male', u'female': u'female',}
@@ -9854,7 +10191,7 @@ def getContactGroupsInfo(contactsManager, contactsObject, entityType, entityName
 def validateContactGroup(contactsManager, contactsObject, contactGroupName, contactGroupIDs, contactGroupNames, entityType, entityName, i, count):
   if not contactGroupNames:
     contactGroupIDs, contactGroupNames = getContactGroupsInfo(contactsManager, contactsObject, entityType, entityName, i, count)
-    if contactGroupNames == False:
+    if contactGroupNames is False:
       return (None, contactGroupIDs, contactGroupNames)
   if contactGroupName == u'clear':
     return (contactGroupName, contactGroupIDs, contactGroupNames)
@@ -10024,7 +10361,7 @@ def doDeleteContacts(users, entityType):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     if contactQuery[u'query'] or contactQuery[u'group']:
       entityList = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
-      if entityList == None:
+      if entityList is None:
         continue
     j = 0
     jcount = len(entityList)
@@ -10068,7 +10405,9 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
     if displayFieldsList and key not in displayFieldsList:
       continue
     if key in fields:
-      if (key != CONTACT_NOTES) and (key != CONTACT_BILLING_INFORMATION):
+      if key == CONTACT_UPDATED:
+        printKeyValueList([key, formatLocalTime(fields[key])])
+      elif (key != CONTACT_NOTES) and (key != CONTACT_BILLING_INFORMATION):
         printKeyValueList([key, fields[key]])
       else:
         printKeyValueList([key, u''])
@@ -10092,7 +10431,7 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
         if keymap[u'primary']:
           printKeyValueList([u'rank', [u'notprimary', u'primary'][item[u'primary'] == u'true']])
         value = item[u'value']
-        if value == None:
+        if value is None:
           value = u''
         if key == CONTACT_IMS:
           printKeyValueList([u'protocol', contactsManager.IM_REL_TO_PROTOCOL_MAP.get(item[u'protocol'], item[u'protocol'])])
@@ -10117,7 +10456,7 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
         if keymap[u'relMap']:
           decrementIndentLevel()
       decrementIndentLevel()
-  if contactGroupIDs != None and CONTACT_GROUPS in fields:
+  if contactGroupIDs is not None and CONTACT_GROUPS in fields:
     printKeyValueList([pluralEntityName(EN_CONTACT_GROUP), u''])
     incrementIndentLevel()
     for group in fields[CONTACT_GROUPS]:
@@ -10130,6 +10469,15 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
         printKeyValueList([u'id', group])
     decrementIndentLevel()
   decrementIndentLevel()
+
+def _getContactFieldsList(contactsManager, displayFieldsList):
+  fieldNameList = getString(OB_FIELD_NAME_LIST)
+  for field in fieldNameList.lower().replace(u',', u' ').split():
+    if field in contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP:
+      displayFieldsList.append(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP[field])
+    else:
+      putArgumentBack()
+      invalidChoiceExit(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP)
 
 # gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
 def infoUserContacts(users):
@@ -10152,18 +10500,12 @@ def doInfoContacts(users, entityType, contactFeed=True):
   displayFieldsList = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'showgroups':
-      showContactGroups = True
-    elif myarg in CONTACTS_PROJECTION_CHOICES_MAP:
+    if myarg in CONTACTS_PROJECTION_CHOICES_MAP:
       contactQuery[u'projection'] = CONTACTS_PROJECTION_CHOICES_MAP[myarg]
+    elif myarg == u'showgroups':
+      showContactGroups = True
     elif myarg == u'fields':
-      fieldNameList = getString(OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP:
-          displayFieldsList.append(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP[field])
-        else:
-          putArgumentBack()
-          invalidChoiceExit(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP)
+      _getContactFieldsList(contactsManager, displayFieldsList)
       if CONTACT_GROUPS in displayFieldsList:
         showContactGroups = True
     else:
@@ -10252,14 +10594,8 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
     elif contactFeed and myarg == u'showgroups':
       showContactGroups = True
     elif myarg == u'fields':
-      fieldNameList = getString(OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP:
-          displayFieldsList.append(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP[field])
-        else:
-          putArgumentBack()
-          invalidChoiceExit(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP)
-      if CONTACT_GROUPS in displayFieldsList:
+      _getContactFieldsList(contactsManager, displayFieldsList)
+      if contactFeed and CONTACT_GROUPS in displayFieldsList:
         showContactGroups = True
     else:
       _getContactQueryAttributes(contactQuery, myarg, entityType, True)
@@ -10311,7 +10647,9 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
           if displayFieldsList and key not in displayFieldsList:
             continue
           if key in fields:
-            if (key != CONTACT_NOTES) and (key != CONTACT_BILLING_INFORMATION):
+            if key == CONTACT_UPDATED:
+              contactRow[key] = formatLocalTime(fields[key])
+            elif (key != CONTACT_NOTES) and (key != CONTACT_BILLING_INFORMATION):
               contactRow[key] = fields[key]
             else:
               contactRow[key] = fields[key].replace(u'\n', u'\\n')
@@ -10333,7 +10671,7 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
               if keymap[u'primary']:
                 contactRow[fn+u'rank'] = [u'notprimary', u'primary'][item[u'primary'] == u'true']
               value = item[u'value']
-              if value == None:
+              if value is None:
                 value = u''
               if key == CONTACT_IMS:
                 contactRow[fn+u'protocol'] = contactsManager.IM_REL_TO_PROTOCOL_MAP.get(item[u'protocol'], item[u'protocol'])
@@ -10383,7 +10721,7 @@ def doCreateContactGroup(users, entityType):
     if not contactsObject:
       continue
     _, contactGroupNames = getContactGroupsInfo(contactsManager, contactsObject, entityType, user, i, count)
-    if contactGroupNames == False:
+    if contactGroupNames is False:
       continue
     if fields[CONTACT_GROUP_NAME] in contactGroupNames:
       entityActionFailedWarning(entityType, user, entityTypeNameMessage(EN_CONTACT_GROUP_NAME, fields[CONTACT_GROUP_NAME], PHRASE_DUPLICATE), i, count)
@@ -10522,7 +10860,7 @@ def _showContactGroup(contactsManager, group, j, jcount):
   fields = contactsManager.ContactGroupToFields(group)
   printEntityName(EN_CONTACT_GROUP, fields[CONTACT_GROUP_NAME], j, jcount)
   incrementIndentLevel()
-  printKeyValueList([u'updated', [NEVER, fields[CONTACT_GROUP_UPDATED]][fields[CONTACT_GROUP_UPDATED] != NEVER_TIME]])
+  printKeyValueList([u'updated', formatLocalTime(fields[CONTACT_GROUP_UPDATED])])
   printKeyValueList([u'id', fields[CONTACT_GROUP_ID]])
   decrementIndentLevel()
 
@@ -10643,7 +10981,7 @@ def printShowContactGroups(users, entityType, csvFormat):
         for group in groups:
           fields = contactsManager.ContactGroupToFields(group)
           groupRow = {singularEntityName(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
-                      CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: [NEVER, fields[CONTACT_GROUP_UPDATED]][fields[CONTACT_GROUP_UPDATED] != NEVER_TIME]}
+                      CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: formatLocalTime(fields[CONTACT_GROUP_UPDATED])}
           addRowTitlesToCSVfile(groupRow, csvRows, titles)
     except GData_forbidden:
       entityServiceNotApplicableWarning(entityType, user, i, count)
@@ -10826,6 +11164,8 @@ CROS_SCALAR_PROPERTY_PRINT_ORDER = [
   u'willAutoRenew',
   ]
 
+CROS_TIME_OBJECTS = [u'lastSync', u'lastEnrollmentTime', u'supportEndDate']
+
 # gam info cros|croses <CrOSEntity> [nolists] [listlimit <Number>]
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 def doInfoCrOSDevices():
@@ -10890,7 +11230,10 @@ def infoCrOSDevices(entityList, cd=None):
       incrementIndentLevel()
       for up in CROS_SCALAR_PROPERTY_PRINT_ORDER:
         if up in cros:
-          printKeyValueList([up, cros[up]])
+          if up not in CROS_TIME_OBJECTS:
+            printKeyValueList([up, cros[up]])
+          else:
+            printKeyValueList([up, formatLocalTime(cros[up])])
       if not noLists:
         activeTimeRanges = cros.get(u'activeTimeRanges', [])
         lenATR = len(activeTimeRanges)
@@ -10944,7 +11287,7 @@ def doPrintCrOSEntity(entityList):
 def doPrintCrOSDevices(entityList=None):
   def _printCrOS(cros):
     if (not noLists) and (not selectActiveTimeRanges) and (not selectRecentUsers):
-      addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit), csvRows, titles)
+      addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit, time_objects=CROS_TIME_OBJECTS), csvRows, titles)
       return
     row = {}
     for attrib in cros:
@@ -10952,7 +11295,10 @@ def doPrintCrOSDevices(entityList=None):
         continue
       if attrib not in titles[u'set']:
         addTitleToCSVfile(attrib, titles)
-      row[attrib] = cros[attrib]
+      if attrib not in CROS_TIME_OBJECTS:
+        row[attrib] = cros[attrib]
+      else:
+        row[attrib] = formatLocalTime(cros[attrib])
     activeTimeRanges = cros.get(selectActiveTimeRanges, []) if selectActiveTimeRanges else []
     recentUsers = cros.get(selectRecentUsers, []) if selectRecentUsers else []
     if noLists or (not activeTimeRanges and not recentUsers):
@@ -11084,7 +11430,7 @@ def doPrintCrOSDevices(entityList=None):
           invalidChoiceExit(CROS_ARGUMENT_TO_PROPERTY_MAP)
     else:
       unknownArgumentExit()
-  if entityList == None:
+  if entityList is None:
     if fieldsList:
       fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList)).replace(u'.', u'/')
     else:
@@ -11221,8 +11567,10 @@ def doDeleteMobileDevices():
       entityActionPerformed(EN_MOBILE_DEVICE, resourceId, i, count)
     except GAPI_resourceIdNotFound:
       entityActionFailedWarning(EN_MOBILE_DEVICE, resourceId, PHRASE_DOES_NOT_EXIST, i, count)
-    except (GAPI_internalError, GAPI_badRequest, GAPI_resourceIdNotFound, GAPI_forbidden):
+    except (GAPI_internalError, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
+
+MOBILE_TIME_OBJECTS = [u'firstSync', u'lastSync']
 
 # gam info mobile|mobiles <MobileDeviceEntity>
 def doInfoMobileDevices():
@@ -11238,7 +11586,7 @@ def doInfoMobileDevices():
                       customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId)
       printEntityName(EN_MOBILE_DEVICE, resourceId, i, count)
       incrementIndentLevel()
-      showJSON(None, info)
+      showJSON(None, info, time_objects=MOBILE_TIME_OBJECTS)
       decrementIndentLevel()
     except GAPI_resourceIdNotFound:
       entityActionFailedWarning(EN_MOBILE_DEVICE, resourceId, PHRASE_DOES_NOT_EXIST, i, count)
@@ -11287,7 +11635,7 @@ def doPrintMobileDevices():
                          orderBy=orderBy, sortOrder=sortOrder, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
     while feed:
       mobile = feed.popleft()
-      mobiledevice = {}
+      row = {}
       for attrib in mobile:
         if attrib in [u'kind', u'etag', u'applications']:
           continue
@@ -11295,10 +11643,12 @@ def doPrintMobileDevices():
           addTitleToCSVfile(attrib, titles)
         if attrib in [u'name', u'email']:
           if mobile[attrib]:
-            mobiledevice[attrib] = mobile[attrib][0]
+            row[attrib] = mobile[attrib][0]
+        elif attrib not in MOBILE_TIME_OBJECTS:
+          row[attrib] = mobile[attrib]
         else:
-          mobiledevice[attrib] = mobile[attrib]
-      csvRows.append(mobiledevice)
+          row[attrib] = formatLocalTime(mobile[attrib])
+      csvRows.append(row)
   except GAPI_invalidInput:
     entityActionFailedWarning(EN_MOBILE_DEVICE, PHRASE_LIST, invalidQuery(query))
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
@@ -11421,30 +11771,21 @@ def checkGroupExists(cd, group, i=0, count=0):
 
 UPDATE_GROUP_SUBCMDS = [u'add', u'clear', u'delete', u'remove', u'sync', u'update']
 
-UPDATE_GROUP_ROLES_MAP = {
-  u'owner': ROLE_OWNER,
-  u'owners': ROLE_OWNER,
-  u'manager': ROLE_MANAGER,
-  u'managers': ROLE_MANAGER,
-  u'member': ROLE_MEMBER,
-  u'members': ROLE_MEMBER,
-  }
-
 # gam update groups <GroupEntity> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>
-# gam update groups <GroupEntity> add [owner|manager|member] [notsuspended] <UserTypeEntity>
-# gam update groups <GroupEntity> delete|remove [owner|manager|member] <UserTypeEntity>
-# gam update groups <GroupEntity> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
-# gam update groups <GroupEntity> update [owner|manager|member] <UserTypeEntity>
-# gam update groups <GroupEntity> clear [owner] [manager] [member]
+# gam update groups <GroupEntity> add [member|manager|owner] [notsuspended] <UserTypeEntity>
+# gam update groups <GroupEntity> delete|remove [member|manager|owner] <UserTypeEntity>
+# gam update groups <GroupEntity> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
+# gam update groups <GroupEntity> update [member|manager|owner] <UserTypeEntity>
+# gam update groups <GroupEntity> clear [member] [manager] [owner]
 def doUpdateGroups():
   updateGroups(getEntityList(OB_GROUP_ENTITY))
 
-# gam update group <GroupItem> add [owner|manager|member] [notsuspended] <UserTypeEntity>
+# gam update group <GroupItem> add [member|manager|owner] [notsuspended] <UserTypeEntity>
 # gam update group <GroupItem> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>
-# gam update group <GroupItem> delete|remove [owner|manager|member] <UserTypeEntity>
-# gam update group <GroupItem> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
-# gam update group <GroupItem> update [owner|manager|member] <UserTypeEntity>
-# gam update group <GroupItem> clear [owner] [manager] [member]
+# gam update group <GroupItem> delete|remove [member|manager|owner] <UserTypeEntity>
+# gam update group <GroupItem> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
+# gam update group <GroupItem> update [member|manager|owner] <UserTypeEntity>
+# gam update group <GroupItem> clear [member] [manager] [owner]
 def doUpdateGroup():
   updateGroups(getStringReturnInList(OB_GROUP_ITEM))
 
@@ -11644,7 +11985,7 @@ def updateGroups(entityList):
           continue
       entityActionPerformed(EN_GROUP, group, i, count)
   elif CL_subCommand == u'add':
-    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
     _, addMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
     groupMemberLists = addMembers if isinstance(addMembers, dict) else None
@@ -11659,7 +12000,7 @@ def updateGroups(entityList):
       if group:
         _batchAddMembersToGroup(cd, group, i, count, addMembers, role)
   elif CL_subCommand in [u'delete', u'remove']:
-    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True) # Argument ignored
+    role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True) # Argument ignored
     _, removeMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
     groupMemberLists = removeMembers if isinstance(removeMembers, dict) else None
     checkForExtraneousArguments()
@@ -11673,7 +12014,7 @@ def updateGroups(entityList):
       if group:
         _batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, role)
   elif CL_subCommand == u'sync':
-    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
     _, syncMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
     groupMemberLists = syncMembers if isinstance(syncMembers, dict) else None
@@ -11696,7 +12037,7 @@ def updateGroups(entityList):
         _batchAddMembersToGroup(cd, group, i, count, list(syncMembersSet-currentMembersSet), role)
         _batchRemoveMembersFromGroup(cd, group, i, count, list(currentMembersSet-syncMembersSet), role)
   elif CL_subCommand == u'update':
-    role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+    role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
     groupMemberLists = updateMembers if isinstance(updateMembers, dict) else None
     checkForExtraneousArguments()
@@ -11712,7 +12053,7 @@ def updateGroups(entityList):
   else: #clear
     roles = []
     while CL_argvI < CL_argvLen:
-      roles.append(getChoice(UPDATE_GROUP_ROLES_MAP, mapChoice=True))
+      roles.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
     setActionName(AC_REMOVE)
     if roles:
       roles = u','.join(sorted(set(roles)))
@@ -11777,8 +12118,8 @@ def infoGroups(entityList):
   getAliases = getUsers = True
   getGroups = getSettings = False
   formatJSON = False
-  groups = []
-  members = []
+  groups = collections.deque()
+  members = collections.deque()
   cdfieldsList = gsfieldsList = None
   settings = {}
   while CL_argvI < CL_argvLen:
@@ -11821,7 +12162,7 @@ def infoGroups(entityList):
       unknownArgumentExit()
   if cdfieldsList:
     cdfieldsList = u','.join(set(cdfieldsList))
-  if gsfieldsList == None:
+  if gsfieldsList is None:
     getSettings = True
   elif len(gsfieldsList) > 0:
     getSettings = True
@@ -11921,7 +12262,7 @@ def groupQuery(domain, usemember):
 
 # gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 #	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
-#	[members] [owners] [managers] <GroupFieldName>* [fields <GroupFieldNameList>] [settings]
+#	[members] [managers] [owners] <GroupFieldName>* [fields <GroupFieldNameList>] [settings]
 def doPrintGroups():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   members = owners = managers = False
@@ -11999,7 +12340,7 @@ def doPrintGroups():
   elif getSettings:
     gsfields = None
   roles = u','.join(sorted(set(roles)))
-  if entityList == None:
+  if entityList is None:
     printGettingAccountEntitiesInfo(EN_GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
     try:
@@ -12011,14 +12352,14 @@ def doPrintGroups():
                                  maxResults=maxResults)
     except GAPI_invalidMember:
       badRequestWarning(EN_GROUP, EN_MEMBER, usemember)
-      entityList = []
+      entityList = collections.deque()
     except GAPI_domainNotFound:
       badRequestWarning(EN_GROUP, EN_DOMAIN, domain)
-      entityList = []
+      entityList = collections.deque()
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       if domain:
         badRequestWarning(EN_GROUP, EN_DOMAIN, domain)
-        entityList = []
+        entityList = collections.deque()
       else:
         accessErrorExit(cd)
   i = 0
@@ -12032,13 +12373,13 @@ def doPrintGroups():
                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                                groupKey=groupEmail, fields=cdfields)
       groupEmail = groupEntity[u'email']
-      group = {}
+      row = {}
       for field in cdfieldsList:
         if field in groupEntity:
           if isinstance(groupEntity[field], list):
-            group[fieldsTitles[field]] = aliasDelimiter.join(groupEntity[field])
+            row[fieldsTitles[field]] = aliasDelimiter.join(groupEntity[field])
           else:
-            group[fieldsTitles[field]] = groupEntity[field]
+            row[fieldsTitles[field]] = groupEntity[field]
       if roles:
         printGettingAllEntityItemsForWhom(roles, groupEmail, i, count)
         page_message = getPageMessageForWhom(showTotal=False, showFirstLastItems=True)
@@ -12048,11 +12389,11 @@ def doPrintGroups():
                                      groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
         if not countsOnly:
           if members:
-            allMembers = []
+            listMembers = []
           if managers:
-            allManagers = []
+            listManagers = []
           if owners:
-            allOwners = []
+            listOwners = []
           for member in groupMembers:
             member_email = member.get(u'email', member.get(u'id', None))
             if not member_email:
@@ -12062,25 +12403,25 @@ def doPrintGroups():
             if role:
               if role == ROLE_MEMBER:
                 if members:
-                  allMembers.append(member_email)
+                  listMembers.append(member_email)
               elif role == ROLE_MANAGER:
                 if managers:
-                  allManagers.append(member_email)
+                  listManagers.append(member_email)
               elif role == ROLE_OWNER:
                 if owners:
-                  allOwners.append(member_email)
+                  listOwners.append(member_email)
               elif members:
-                allMembers.append(member_email)
+                listMembers.append(member_email)
             elif members:
-              allMembers.append(member_email)
+              listMembers.append(member_email)
           if members:
-            group[u'Members'] = memberDelimiter.join(allMembers)
+            row[u'Members'] = memberDelimiter.join(listMembers)
           if managers:
-            group[u'Managers'] = memberDelimiter.join(allManagers)
+            row[u'Managers'] = memberDelimiter.join(listManagers)
           if owners:
-            group[u'Owners'] = memberDelimiter.join(allOwners)
+            row[u'Owners'] = memberDelimiter.join(listOwners)
         else:
-          allMembers = allManagers = allOwners = 0
+          countMembers = countManagers = countOwners = 0
           for member in groupMembers:
             member_email = member.get(u'email', member.get(u'id', None))
             if not member_email:
@@ -12089,21 +12430,21 @@ def doPrintGroups():
             role = member.get(u'role', None)
             if role:
               if role == ROLE_MEMBER:
-                allMembers += 1
+                countMembers += 1
               elif role == ROLE_MANAGER:
-                allManagers += 1
+                countManagers += 1
               elif role == ROLE_OWNER:
-                allOwners += 1
+                countOwners += 1
               else:
-                allMembers += 1
+                countMembers += 1
             else:
-              allMembers += 1
+              countMembers += 1
           if members:
-            group[u'Members'] = allMembers
+            row[u'Members'] = countMembers
           if managers:
-            group[u'Managers'] = allManagers
+            row[u'Managers'] = countManagers
           if owners:
-            group[u'Owners'] = allOwners
+            row[u'Owners'] = countOwners
       if getSettings:
         printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
         gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
@@ -12115,15 +12456,15 @@ def doPrintGroups():
           if key in [u'kind', u'etag', u'email', u'name', u'description']:
             continue
           setting_value = settings[key]
-          if setting_value == None:
+          if setting_value is None:
             setting_value = u''
           if key not in titles[u'set']:
             addTitleToCSVfile(key, titles)
           if key != u'customFooterText' or not convertFooterNL:
-            group[key] = setting_value
+            row[key] = setting_value
           else:
-            group[key] = setting_value.replace(u'\n', u'\\n')
-      csvRows.append(group)
+            row[key] = setting_value.replace(u'\n', u'\\n')
+      csvRows.append(row)
     except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
       entityUnknownWarning(EN_GROUP, groupEmail, i, count)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
@@ -12232,7 +12573,7 @@ def doPrintGroupMembers():
       recursive = True
     else:
       unknownArgumentExit()
-  if entityList == None:
+  if entityList is None:
     printGettingAccountEntitiesInfo(EN_GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
     try:
@@ -12243,14 +12584,14 @@ def doPrintGroupMembers():
                                  fields=u'nextPageToken,groups(email)')
     except GAPI_invalidMember:
       badRequestWarning(EN_GROUP, EN_MEMBER, usemember)
-      entityList = []
+      entityList = collections.deque()
     except GAPI_domainNotFound:
       badRequestWarning(EN_GROUP, EN_DOMAIN, domain)
-      entityList = []
+      entityList = collections.deque()
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       if domain:
         badRequestWarning(EN_GROUP, EN_DOMAIN, domain)
-        entityList = []
+        entityList = collections.deque()
       else:
         accessErrorExit(cd)
   if not fieldsList:
@@ -12371,14 +12712,14 @@ def doPrintLicenses(return_list=False, skus=None):
         pass
   while feed:
     u_license = feed.popleft()
-    a_license = {}
+    row = {}
     for title in u_license:
       if title in [u'kind', u'etags', u'selfLink']:
         continue
-      a_license[title] = u_license[title]
+      row[title] = u_license[title]
       if title not in titles[u'set']:
         addTitleToCSVfile(title, titles)
-    csvRows.append(a_license)
+    csvRows.append(row)
   if return_list:
     return csvRows
   writeCSVfile(csvRows, titles, u'Licenses', todrive)
@@ -12495,7 +12836,7 @@ def doInfoNotifications():
     incrementIndentLevel()
     printKeyValueList([u'From', notification[u'fromAddress']])
     printKeyValueList([u'Subject', notification[u'subject']])
-    printKeyValueList([u'Date', [NEVER, notification[u'sendTime']][notification[u'sendTime'] != NEVER_TIME]])
+    printKeyValueList([u'Date', formatLocalTime(notification[u'sendTime'])])
     printKeyValueList([u'Read Status', [u'READ', u'UNREAD'][notification[u'isUnread']]])
     decrementIndentLevel()
     printBlankLine()
@@ -12661,10 +13002,10 @@ def doPrintResourceCalendars():
                               throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                               customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,items({0})'.format(u','.join(set(fieldsList))))
     for resource in resources:
-      resUnit = {}
+      row = {}
       for field in fieldsList:
-        resUnit[fieldsTitles[field]] = resource.get(field, u'')
-      csvRows.append(resUnit)
+        row[fieldsTitles[field]] = resource.get(field, u'')
+      csvRows.append(row)
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Resources', todrive)
@@ -13739,7 +14080,7 @@ def clearBodyList(body, itemName):
   body.setdefault(itemName, None)
 
 def appendItemToBodyList(body, itemName, itemValue):
-  if (itemName in body) and (body[itemName] == None):
+  if (itemName in body) and (body[itemName] is None):
     del body[itemName]
   body.setdefault(itemName, [])
   body[itemName].append(itemValue)
@@ -13748,7 +14089,20 @@ def gen_sha512_hash(password):
   from passlib.handlers.sha2_crypt import sha512_crypt
   return sha512_crypt.encrypt(password, rounds=5000)
 
-def getUserAttributes(updateCmd=False, noUid=False):
+def getUserAttributes(cd, updateCmd=False, noUid=False):
+  def _splitSchemaNameDotFieldName(sn_fn, fnRequired=True):
+    if sn_fn.find(u'.') != -1:
+      schemaName, fieldName = sn_fn.split(u'.', 1)
+      schemaName = schemaName.strip()
+      fieldName = fieldName.strip()
+      if schemaName and fieldName:
+        return (schemaName, fieldName)
+    elif not fnRequired:
+      schemaName = sn_fn.strip()
+      if schemaName:
+        return (schemaName, None)
+    invalidArgumentExit(OB_SCHEMA_NAME_FIELD_NAME)
+
   if updateCmd:
     body = {}
     need_password = False
@@ -13914,11 +14268,27 @@ def getUserAttributes(updateCmd=False, noUid=False):
         website[u'value'] = getString(OB_URL)
         website[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
         appendItemToBodyList(body, up, website)
-    elif myarg.find(u'.') > 0:
-      try:
-        (schemaName, fieldName) = CL_argv[CL_argvI-1].split(u'.')
-      except ValueError:
+    elif myarg == u'clearschema':
+      if not updateCmd:
         unknownArgumentExit()
+      schemaName, fieldName = _splitSchemaNameDotFieldName(getString(OB_SCHEMA_NAME_FIELD_NAME), False)
+      up = u'customSchemas'
+      body.setdefault(up, {})
+      body[up].setdefault(schemaName, {})
+      if fieldName is None:
+        try:
+          schema = callGAPI(cd.schemas(), u'get',
+                            throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                            customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaName, fields=u'fields(fieldName)')
+          for field in schema[u'fields']:
+            body[up][schemaName][field[u'fieldName']] = None
+        except (GAPI_invalid, GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
+          entityDoesNotExistWarning(EN_USER_SCHEMA, schemaName, 0, 0)
+          unknownArgumentExit()
+      else:
+        body[up][schemaName][fieldName] = None
+    elif myarg.find(u'.') >= 0:
+      schemaName, fieldName = _splitSchemaNameDotFieldName(CL_argv[CL_argvI-1])
       up = u'customSchemas'
       body.setdefault(up, {})
       body[up].setdefault(schemaName, {})
@@ -13954,7 +14324,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
 # gam create user <EmailAddress> <UserAttributes>
 def doCreateUser():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  body, admin_body = getUserAttributes(updateCmd=False, noUid=True)
+  body, admin_body = getUserAttributes(cd, updateCmd=False, noUid=True)
   try:
     callGAPI(cd.users(), u'insert',
              throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID_SCHEMA_VALUE],
@@ -13980,7 +14350,7 @@ def doUpdateUser():
 # gam <UserTypeEntity> update user <UserAttributes>
 def updateUsers(entityList):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  body, admin_body = getUserAttributes(updateCmd=True)
+  body, admin_body = getUserAttributes(cd, updateCmd=True)
   i = 0
   count = len(entityList)
   for user in entityList:
@@ -14091,9 +14461,7 @@ def undeleteUsers(entityList):
           incrementIndentLevel()
           for attr_name in [u'creationTime', u'lastLoginTime', u'deletionTime']:
             if attr_name in matching_user:
-              if matching_user[attr_name] == NEVER_TIME:
-                matching_user[attr_name] = NEVER
-              printKeyValueList([attr_name, matching_user[attr_name]])
+              printKeyValueList([attr_name, formatLocalTime(matching_user[attr_name])])
           decrementIndentLevel()
           printBlankLine()
         decrementIndentLevel()
@@ -14233,12 +14601,13 @@ USER_ARGUMENT_TO_PROPERTY_MAP = {
   }
 
 INFO_USER_OPTIONS = [u'noaliases', u'nogroups', u'nolicenses', u'nolicences', u'noschemas', u'schemas', u'userview',]
+USER_TIME_OBJECTS = [u'creationTime', u'deletionTime', u'lastLoginTime']
 
-# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
+# gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 def doInfoUsers():
   infoUsers(getEntityToModify(defaultEntityType=CL_ENTITY_USERS)[1])
 
-# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
+# gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 # gam info user
 def doInfoUser():
   if CL_argvI < CL_argvLen:
@@ -14254,7 +14623,7 @@ def infoUsers(entityList):
   projection = u'full'
   customFieldMask = viewType = None
   fieldsList = []
-  groups = []
+  groups = collections.deque()
   licenses = []
   skus = sorted(GOOGLE_USER_SKUS)
   while CL_argvI < CL_argvLen:
@@ -14274,7 +14643,7 @@ def infoUsers(entityList):
     elif myarg == u'noschemas':
       getSchemas = False
       projection = u'basic'
-    elif myarg == u'schemas':
+    elif myarg in [u'custom', u'schemas']:
       getSchemas = True
       projection = u'custom'
       customFieldMask = getString(OB_SCHEMA_NAME_LIST)
@@ -14348,10 +14717,10 @@ def infoUsers(entityList):
             printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], user[u'name'][up]])
       for up in USER_SCALAR_PROPERTY_PRINT_ORDER:
         if up in user:
-          if USER_PROPERTIES[up][PROPERTY_CLASS] != PC_TIME:
+          if up not in USER_TIME_OBJECTS:
             printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], user[up]])
           else:
-            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], [NEVER, user[up]][user[up] != NEVER_TIME]])
+            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], formatLocalTime(user[up])])
       decrementIndentLevel()
       for up in USER_ARRAY_PROPERTY_PRINT_ORDER:
         if up not in user:
@@ -14520,13 +14889,13 @@ USERS_ORDERBY_CHOICES_MAP = {
 def doPrintUserEntity(entityList):
   if CL_argvI == CL_argvLen:
     for entity in entityList:
-      printLine(entity)
+      printLine(normalizeEmailAddressOrUID(entity))
     return
   doPrintUsers(entityList)
 
 # gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUsers>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 #	[delimiter <String>]
-#	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username]
+#	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 #	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
 #	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
 def doPrintUsers(entityList=None):
@@ -14535,7 +14904,7 @@ def doPrintUsers(entityList=None):
       userEmail = userEntity[u'primaryEmail']
       if userEmail.find(u'@') != -1:
         userEntity[u'primaryEmailLocal'], userEntity[u'primaryEmailDomain'] = splitEmailAddress(userEmail)
-    addRowTitlesToCSVfile(flattenJSON(userEntity), csvRows, titles)
+    addRowTitlesToCSVfile(flattenJSON(userEntity, time_objects=USER_TIME_OBJECTS), csvRows, titles)
 
   def _callbackPrintUser(request_id, response, exception):
     REASON_TO_MESSAGE_MAP = {GAPI_RESOURCE_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
@@ -14613,7 +14982,7 @@ def doPrintUsers(entityList=None):
       sortOrder = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ascending', mapChoice=True)
     elif myarg == u'userview':
       viewType = u'domain_public'
-    elif myarg == u'custom':
+    elif myarg in [u'custom', u'schemas']:
       if not fieldsList:
         fieldsList = [u'primaryEmail',]
       fieldsList.append(u'customSchemas')
@@ -14655,7 +15024,7 @@ def doPrintUsers(entityList=None):
       email_parts = True
     else:
       unknownArgumentExit()
-  if entityList == None:
+  if entityList is None:
     if fieldsList:
       fields = u'nextPageToken,users({0})'.format(u','.join(set(fieldsList))).replace(u'.', u'/')
     else:
@@ -14864,41 +15233,67 @@ def doInviteGuardian():
   except GAPI_alreadyExists:
     entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN, body[u'invitedEmailAddress'], PHRASE_DUPLICATE)
 
-# gam delete guardian|guardians <GuardianID>|<EmailAddress> <UserItem>
-def doDeleteGuardian():
+# gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+def doCancelGuardianInvitation():
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
-  guardianId = getString(OB_GUARDIAN_ID)
-  studentId = getEmailAddress()
+  guardianInvitationId = getString(OB_GUARDIAN_INVITATION_ID)
+  studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
   checkForExtraneousArguments()
   try:
-    callGAPI(croom.userProfiles().guardians(), u'delete',
-             throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
-             studentId=studentId, guardianId=guardianId)
-    entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, guardianId)
-  except (GAPI_notFound, GAPI_forbidden):
-    matchField = [u'invitedEmailAddress', u'invitationId'][guardianId.isdigit()]
+    result = callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
+                      throw_reasons=[GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_FAILED_PRECONDITION],
+                      studentId=studentId, invitationId=guardianInvitationId, updateMask=u'state', body={u'state': u'COMPLETE'})
+    entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, result[u'invitedEmailAddress'])
+  except GAPI_forbidden:
+    entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
+  except GAPI_notFound:
+    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, guardianInvitationId, PHRASE_NOT_FOUND)
+  except GAPI_failedPrecondition:
+    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, guardianInvitationId, PHRASE_GUARDIAN_INVITATION_STATUS_NOT_PENDING)
+
+# gam delete guardian|guardians <GuardianIitem> <StudentItem> [invitations]
+def doDeleteGuardian():
+  croom = buildGAPIObject(GAPI_CLASSROOM_API)
+  invitationsOnly = False
+  guardianId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_GUARDIAN_ITEM))
+  studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'invitations':
+      invitationsOnly = True
+    else:
+      unknownArgumentExit()
+  if not invitationsOnly:
     try:
-      results = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations',
-                              throw_reasons=[GAPI_FORBIDDEN],
-                              studentId=studentId, states=GUARDIAN_STATES)
-      for result in results:
-        if result[matchField] == guardianId:
-          if result[u'state'] != u'PENDING':
-            entityItemValueActionNotPerformedWarning(EN_STUDENT, studentId, EN_GUARDIAN, guardianId, PHRASE_NOT_A_GUARDIAN_INVITATION_NOT_PENDING)
-          else:
-            callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
-                     studentId=studentId, invitationId=result[u'invitationId'], updateMask=u'state', body={u'state': u'COMPLETE'})
-            entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, result[u'invitedEmailAddress'])
-          return
-      entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN, guardianId, PHRASE_NOT_A_GUARDIAN_OR_INVITATION)
+      callGAPI(croom.userProfiles().guardians(), u'delete',
+               throw_reasons=[GAPI_FORBIDDEN, GAPI_NOT_FOUND],
+               studentId=studentId, guardianId=guardianId)
+      entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, guardianId)
     except GAPI_forbidden:
       entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
+      return
+    except GAPI_notFound:
+      pass
+  setActionName(AC_CANCEL)
+  try:
+    result = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations',
+                           throw_reasons=[GAPI_FORBIDDEN],
+                           studentId=studentId, invitedEmailAddress=guardianId, states=[u'PENDING',])
+    if result:
+      result = callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
+                        throw_reasons=[GAPI_FORBIDDEN],
+                        studentId=studentId, invitationId=result[0][u'invitationId'], updateMask=u'state', body={u'state': u'COMPLETE'})
+      entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, result[u'invitedEmailAddress'])
+    else:
+      entityItemValueActionFailedWarning(EN_STUDENT, studentId, [EN_GUARDIAN, EN_GUARDIAN_INVITATION][invitationsOnly], guardianId, PHRASE_NOT_A_GUARDIAN_OR_INVITATION)
+  except GAPI_forbidden:
+    entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
 
-#gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+#gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 def doShowGuardians():
   printShowGuardians(False)
 
-#gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+#gam print guardian|guardians [todrive] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 def doPrintGuardians():
   printShowGuardians(True)
 
@@ -14920,13 +15315,13 @@ def printShowGuardians(csvFormat):
     elif myarg == u'invitedguardian':
       invitedEmailAddress = getEmailAddress()
     elif myarg == u'student':
-      studentIds = [getEmailAddress()]
+      studentIds = [getString(OB_STUDENT_ITEM)]
     elif myarg == u'invitations':
       service = croom.userProfiles().guardianInvitations()
       items = u'guardianInvitations'
       entityType = EN_GUARDIAN_INVITATION
       titles, csvRows = initializeTitlesCSVfile([u'studentEmail', u'studentId', u'invitedEmailAddress', u'invitationId'])
-      if states == None:
+      if states is None:
         states = GUARDIAN_STATES
     elif myarg == u'states':
       states = getString(OB_GUARDIAN_STATE_LIST).upper().split(u',')
@@ -14937,6 +15332,7 @@ def printShowGuardians(csvFormat):
   count = len(studentIds)
   for studentId in studentIds:
     i += 1
+    studentId = normalizeStudentGuardianEmailAddressOrUID(studentId)
     kwargs = {u'invitedEmailAddress': invitedEmailAddress, u'studentId': studentId}
     if items == u'guardianInvitations':
       kwargs[u'states'] = states
@@ -14956,13 +15352,13 @@ def printShowGuardians(csvFormat):
           j += 1
           printKeyValueListWithCount([u'invitedEmailAddress', guardian[u'invitedEmailAddress']], j, jcount)
           incrementIndentLevel()
-          showJSON(None, guardian, [u'invitedEmailAddress',])
+          showJSON(None, guardian, [u'invitedEmailAddress',], COURSE_TIME_OBJECTS)
           decrementIndentLevel()
         decrementIndentLevel()
       else:
         for guardian in result:
           guardian[u'studentEmail'] = studentId
-          addRowTitlesToCSVfile(flattenJSON(guardian), csvRows, titles)
+          addRowTitlesToCSVfile(flattenJSON(guardian, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
     except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
       entityUnknownWarning(EN_STUDENT, studentId, i, count)
     except GAPI_permissionDenied as e:
@@ -15073,6 +15469,8 @@ def deleteCourses(entityList):
     except GAPI_permissionDenied:
       entityActionFailedWarning(EN_COURSE, removeCourseIdScope(courseId), PHRASE_NOT_ALLOWED, i, count)
 
+COURSE_TIME_OBJECTS = [u'creationTime', u'updateTime']
+
 # gam info courses <CourseEntity>
 def doInfoCourses():
   infoCourses(getEntityList(OB_COURSE_ENTITY))
@@ -15095,7 +15493,7 @@ def infoCourses(entityList):
                         id=courseId)
       printEntityName(EN_COURSE, result[u'id'], i, count)
       incrementIndentLevel()
-      showJSON(None, result)
+      showJSON(None, result, time_objects=COURSE_TIME_OBJECTS)
       try:
         aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
                                 throw_reasons=[GAPI_NOT_IMPLEMENTED],
@@ -15180,9 +15578,9 @@ def doPrintCourses():
     if studentId and teacherId:
       entityOrEntityUnknownWarning(EN_TEACHER, teacherId, EN_STUDENT, studentId)
       return
-    all_courses = []
+    all_courses = collections.deque()
   for course in all_courses:
-    addRowTitlesToCSVfile(flattenJSON(course), csvRows, titles)
+    addRowTitlesToCSVfile(flattenJSON(course, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
   if get_aliases:
     addTitleToCSVfile(u'Aliases', titles)
     i = 0
@@ -15499,7 +15897,7 @@ def doPrintCourseParticipants():
         entityOrEntityUnknownWarning(EN_TEACHER, teacherId, EN_STUDENT, studentId)
       return
   else:
-    all_courses = []
+    all_courses = collections.deque()
     for course in courses:
       courseId = addCourseIdScope(course)
       try:
@@ -15719,9 +16117,9 @@ def infoPrinters(entityList):
       printEntityName(EN_PRINTER, printerId, i, count)
       incrementIndentLevel()
       printer_info = result[u'printers'][0]
-      printer_info[u'createTime'] = datetime.datetime.fromtimestamp(int(printer_info[u'createTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-      printer_info[u'accessTime'] = datetime.datetime.fromtimestamp(int(printer_info[u'accessTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-      printer_info[u'updateTime'] = datetime.datetime.fromtimestamp(int(printer_info[u'updateTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
+      printer_info[u'createTime'] = formatLocalTimestamp(printer_info[u'createTime'])
+      printer_info[u'accessTime'] = formatLocalTimestamp(printer_info[u'accessTime'])
+      printer_info[u'updateTime'] = formatLocalTimestamp(printer_info[u'updateTime'])
       printer_info[u'tags'] = u' '.join(printer_info[u'tags'])
       if not everything:
         del printer_info[u'capabilities']
@@ -15757,9 +16155,9 @@ def doPrintPrinters():
   printers = callGCP(cp.printers(), u'list',
                      q=query, type=printer_type, connection_status=connection_status, extra_fields=extra_fields)
   for printer in printers[u'printers']:
-    printer[u'createTime'] = datetime.datetime.fromtimestamp(int(printer[u'createTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-    printer[u'accessTime'] = datetime.datetime.fromtimestamp(int(printer[u'accessTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-    printer[u'updateTime'] = datetime.datetime.fromtimestamp(int(printer[u'updateTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
+    printer[u'createTime'] = formatLocalTimestamp(printer[u'createTime'])
+    printer[u'accessTime'] = formatLocalTimestamp(printer[u'accessTime'])
+    printer[u'updateTime'] = formatLocalTimestamp(printer[u'updateTime'])
     printer[u'tags'] = u' '.join(printer[u'tags'])
     addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Printers', todrive)
@@ -15817,7 +16215,7 @@ def batchAddACLsToPrinter(cp, printerId, i, count, scopeList, role):
       callGCP(cp.printers(), u'share',
               throw_messages=[GCP_UNKNOWN_PRINTER, GCP_FAILED_TO_SHARE_THE_PRINTER, GCP_USER_IS_NOT_AUTHORIZED],
               printerid=printerId, role=roleForScope, scope=scope, public=public, skip_notification=skip_notification)
-      if scope == None:
+      if scope is None:
         scope = u'public'
         roleForScope = ROLE_USER
       entityItemValueActionPerformed(EN_PRINTER, printerId, roleForScope, scope, j, jcount)
@@ -15864,7 +16262,7 @@ def batchDeleteACLsFromPrinter(cp, printerId, i, count, scopeList, role):
       callGCP(cp.printers(), u'unshare',
               throw_messages=[GCP_UNKNOWN_PRINTER],
               printerid=printerId, scope=scope, public=public)
-      if scope == None:
+      if scope is None:
         scope = u'public'
       entityItemValueActionPerformed(EN_PRINTER, printerId, EN_SCOPE, scope, j, jcount)
     except GCP_unknownPrinter:
@@ -15919,7 +16317,7 @@ def doPrinterSyncACL(printerIdList, getEntityListArg):
     if printerScopeLists:
       scopeList = normalizeScopeList(printerScopeLists[printerId])
     currentScopeList = getPrinterScopeListsForRole(cp, printerId, i, count, role)
-    if currentScopeList != None:
+    if currentScopeList is not None:
       batchAddACLsToPrinter(cp, printerId, i, count, list(set(scopeList) - set(currentScopeList)), role)
       batchDeleteACLsFromPrinter(cp, printerId, i, count, list(set(currentScopeList) - set(scopeList)), role)
 
@@ -15934,7 +16332,7 @@ def doPrinterWipeACL(printerIdList, getEntityListArg):
   for printerId in printerIdList:
     i += 1
     currentScopeList = getPrinterScopeListsForRole(cp, printerId, i, count, role)
-    if currentScopeList != None:
+    if currentScopeList is not None:
       batchDeleteACLsFromPrinter(cp, printerId, i, count, currentScopeList, role)
 
 # gam printers <PrinterIDEntity> showacl [csv] [todrive]
@@ -16156,7 +16554,7 @@ def doPrintJobFetch(printerIdList):
     jobCount += newJobs
     offset += newJobs
     for job in result[u'jobs']:
-      createTime = int(job[u'createTime'])/1000
+      createTime = int(job[u'createTime'])
       if parameters[u'older_or_newer'] > 0:
         if createTime > parameters[u'age']:
           continue
@@ -16221,16 +16619,15 @@ def doPrintPrintJobs():
     jobCount += newJobs
     offset += newJobs
     for job in result[u'jobs']:
-      createTime = int(job[u'createTime'])/1000
+      createTime = int(job[u'createTime'])
       if parameters[u'older_or_newer'] > 0:
         if createTime > parameters[u'age']:
           continue
       elif parameters[u'older_or_newer'] < 0:
         if createTime < parameters[u'age']:
           continue
-      updateTime = int(job[u'updateTime'])/1000
-      job[u'createTime'] = datetime.datetime.fromtimestamp(createTime).strftime(u'%Y-%m-%d %H:%M:%S')
-      job[u'updateTime'] = datetime.datetime.fromtimestamp(updateTime).strftime(u'%Y-%m-%d %H:%M:%S')
+      job[u'createTime'] = formatLocalTimestamp(job[u'createTime'])
+      job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
       job[u'tags'] = u' '.join(job[u'tags'])
       addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive)
@@ -16260,7 +16657,7 @@ def doPrintJobSubmit(printerIdList):
     filepath = content
     content = os.path.basename(content)
     mimetype = mimetypes.guess_type(filepath)[0]
-    if mimetype == None:
+    if mimetype is None:
       mimetype = u'application/octet-stream'
     filecontent = readFile(filepath)
     form_files[u'content'] = {u'filename': content, u'content': filecontent, u'mimetype': mimetype}
@@ -16290,11 +16687,11 @@ def _showASPs(user, asps, i=0, count=0):
     if asp[u'creationTime'] == u'0':
       created_date = u'Unknown'
     else:
-      created_date = datetime.datetime.fromtimestamp(int(asp[u'creationTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
+      created_date = formatLocalTimestamp(asp[u'creationTime'])
     if asp[u'lastTimeUsed'] == u'0':
       used_date = NEVER
     else:
-      used_date = datetime.datetime.fromtimestamp(int(asp[u'lastTimeUsed'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
+      used_date = formatLocalTimestamp(asp[u'lastTimeUsed'])
     printKeyValueList([u'ID', asp[u'codeId']])
     incrementIndentLevel()
     printKeyValueList([u'Name', asp[u'name']])
@@ -16835,53 +17232,48 @@ def updateCalendarAttendees(users):
     printEntityKVList(EN_USER, user, [PHRASE_CHECKING, u''], i, count)
     incrementIndentLevel()
     try:
-      page_token = None
-      while True:
-        events_page = callGAPIpages(cal.events(), u'list', u'items',
-                                    throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-                                    calendarId=user, pageToken=page_token, timeMin=start_date, timeMax=end_date, showDeleted=False, showHiddenInvitations=False)
-        jcount = len(events_page)
-        if jcount == 0:
-          break
-        printKeyValueList([u'Got {0} items'.format(jcount)])
-        for event in events_page:
-          if event[u'status'] == u'cancelled':
-            #printLine(u' skipping cancelled event')
+      events_page = callGAPIpages(cal.events(), u'list', u'items',
+                                  throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                                  calendarId=user, timeMin=start_date, timeMax=end_date, showDeleted=False, showHiddenInvitations=False)
+      jcount = len(events_page)
+      if jcount == 0:
+        break
+      printKeyValueList([u'Got {0} items'.format(jcount)])
+      for event in events_page:
+        if event[u'status'] == u'cancelled':
+          #printLine(u' skipping cancelled event')
+          continue
+        if u'summary' in event:
+          event_summary = convertUTF8(event[u'summary'])
+        else:
+          event_summary = event[u'id']
+        try:
+          if not allevents and event[u'organizer'][u'email'].lower() != user:
+            #printLine(u' skipping not-my-event {0}'.format(event_summary))
             continue
-          if u'summary' in event:
-            event_summary = convertUTF8(event[u'summary'])
+        except KeyError:
+          pass # no email for organizer
+        needs_update = False
+        for attendee in event.get(u'attendees', []):
+          if u'email' in attendee:
+            old_email = attendee[u'email'].lower()
+            if old_email in attendee_map:
+              new_email = attendee_map[old_email]
+              printKeyValueList([u'SWITCHING attendee {0} to {1} for {2}'.format(old_email, new_email, event_summary)])
+              event[u'attendees'].remove(attendee)
+              event[u'attendees'].append({u'email': new_email})
+              needs_update = True
+        if needs_update:
+          body = {}
+          body[u'attendees'] = event[u'attendees']
+          printKeyValueList([u'UPDATING {0}'.format(event_summary)])
+          if do_it:
+            callGAPI(cal.events(), u'patch',
+                     calendarId=user, eventId=event[u'id'], sendNotifications=False, body=body)
           else:
-            event_summary = event[u'id']
-          try:
-            if not allevents and event[u'organizer'][u'email'].lower() != user:
-              #printLine(u' skipping not-my-event {0}'.format(event_summary))
-              continue
-          except KeyError:
-            pass # no email for organizer
-          needs_update = False
-          for attendee in event.get(u'attendees', []):
-            if u'email' in attendee:
-              old_email = attendee[u'email'].lower()
-              if old_email in attendee_map:
-                new_email = attendee_map[old_email]
-                printKeyValueList([u'SWITCHING attendee {0} to {1} for {2}'.format(old_email, new_email, event_summary)])
-                event[u'attendees'].remove(attendee)
-                event[u'attendees'].append({u'email': new_email})
-                needs_update = True
-          if needs_update:
-            body = {}
-            body[u'attendees'] = event[u'attendees']
-            printKeyValueList([u'UPDATING {0}'.format(event_summary)])
-            if do_it:
-              callGAPI(cal.events(), u'patch',
-                       calendarId=user, eventId=event[u'id'], sendNotifications=False, body=body)
-            else:
-              printKeyValueList([u'Dry run, not pulling the trigger.'])
-          #else:
-          #  printLine(u' no update needed for {}'.format(event_summary))
-        page_token = events_page.get(u'nextPageToken')
-        if not page_token:
-          break
+            printKeyValueList([u'Dry run, not pulling the trigger.'])
+        #else:
+        #  printLine(u' no update needed for {}'.format(event_summary))
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
       break
@@ -17041,7 +17433,7 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, dr
     user = convertUserUIDtoEmailAddress(user)
   if parameters[DFA_PARENTQUERY]:
     more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY])
-    if more_parents == None:
+    if more_parents is None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
     body.setdefault(u'parents', [])
@@ -17049,7 +17441,7 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, dr
       body[u'parents'].append({u'id': a_parent})
   if fileIdSelection[u'query']:
     fileIdSelection[u'fileIds'] = doDriveSearch(drive, user, i, count, query=fileIdSelection[u'query'])
-    if fileIdSelection[u'fileIds'] == None:
+    if fileIdSelection[u'fileIds'] is None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
   elif fileIdSelection[u'root']:
@@ -17116,7 +17508,7 @@ def getDriveFileAttribute(body, parameters, myarg, update):
     parameters[DFA_LOCALFILENAME] = os.path.basename(parameters[DFA_LOCALFILEPATH])
     body.setdefault(DRIVE_FILE_NAME, parameters[DFA_LOCALFILENAME])
     body[u'mimeType'] = mimetypes.guess_type(parameters[DFA_LOCALFILEPATH])[0]
-    if body[u'mimeType'] == None:
+    if body[u'mimeType'] is None:
       body[u'mimeType'] = u'application/octet-stream'
     parameters[DFA_LOCALMIMETYPE] = body[u'mimeType']
   elif myarg == u'convert':
@@ -17183,7 +17575,9 @@ def printDriveActivity(users):
                            drive_ancestorId=drive_ancestorId, groupingStrategy=u'none',
                            drive_fileId=drive_fileId, pageSize=GC_Values[GC_ACTIVITY_MAX_RESULTS])
       while feed:
-        addRowTitlesToCSVfile(flattenJSON(feed.popleft()[u'combinedEvent']), csvRows, titles)
+        event = feed.popleft()[u'combinedEvent']
+        event[u'eventTime'] = formatLocalTimestamp(event[u'eventTimeMillis'])
+        addRowTitlesToCSVfile(flattenJSON(event), csvRows, titles)
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
@@ -17305,6 +17699,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'lastviewedbymedate': u'lastViewedByMeDate',
   u'lastviewedbymetime': u'lastViewedByMeDate',
   u'lastviewedbyuser': u'lastViewedByMeDate',
+  u'markedviewedbymedate': u'markedViewedByMeDate',
   u'md5': u'md5Checksum',
   u'md5checksum': u'md5Checksum',
   u'md5sum': u'md5Checksum',
@@ -17343,6 +17738,8 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'webviewlink': DRIVE_FILE_VIEW_LINK,
   u'writerscanshare': u'writersCanShare',
   }
+
+DRIVEFILE_TIME_OBJECTS = [u'createdDate', u'lastViewedByMeDate', u'markedViewedByMeDate', u'modifiedByMeDate', u'modifiedDate', u'sharedWithMeDate', 'expirationDate']
 
 FILEINFO_FIELDS_TITLES = [DRIVE_FILE_NAME, u'mimeType']
 FILEPATH_TITLES = [DRIVE_FILE_NAME, u'mimeType', u'parents']
@@ -17410,7 +17807,7 @@ def showDriveFileInfo(users):
           for path in paths:
             printKeyValueList([u'path', path])
           decrementIndentLevel()
-        showJSON(None, result, skip_objects)
+        showJSON(None, result, skip_objects, DRIVEFILE_TIME_OBJECTS)
         decrementIndentLevel()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -17447,7 +17844,7 @@ def showDriveFileRevisions(users):
         for revision in result[DRIVE_REVISIONS_LIST]:
           printEntityName(EN_REVISION_ID, revision[u'id'])
           incrementIndentLevel()
-          showJSON(None, revision, [u'id',])
+          showJSON(None, revision, [u'id',], DRIVEFILE_TIME_OBJECTS)
           decrementIndentLevel()
         decrementIndentLevel()
       except GAPI_fileNotFound:
@@ -17458,6 +17855,15 @@ def showDriveFileRevisions(users):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
     decrementIndentLevel()
+
+def _stripMeInOwners(query):
+  if not query:
+    return query
+  if query == ME_IN_OWNERS:
+    return None
+  if query.startswith(ME_IN_OWNERS_AND):
+    return query[len(ME_IN_OWNERS_AND):]
+  return query
 
 DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'createddate': u'createdDate',
@@ -17490,15 +17896,6 @@ FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 # gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>]) [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def printDriveFileList(users):
-  def _stripMeInOwners(query):
-    if not query:
-      return query
-    if query == ME_IN_OWNERS:
-      return None
-    if query.startswith(ME_IN_OWNERS_AND):
-      return query[len(ME_IN_OWNERS_AND):]
-    return query
-
   def _setSelectionFields():
     if fileIdSelection:
       skip_objects.extend([field for field in FILELIST_TITLES if field not in fieldsList])
@@ -17511,17 +17908,17 @@ def printDriveFileList(users):
     if f_file.get(u'printed'):
       return
     f_file[u'printed'] = True
-    a_file = {u'Owner': user}
+    row = {u'Owner': user}
     if filepath:
       _, paths = getFilePaths(drive, f_file, filePathInfo)
       kcount = len(paths)
-      a_file[u'paths'] = kcount
+      row[u'paths'] = kcount
       k = 0
       for path in paths:
         key = u'path.{0}'.format(k)
         if key not in titles[u'set']:
           addTitleToCSVfile(key, titles)
-        a_file[key] = path
+        row[key] = path
         k += 1
     for attrib in f_file:
       if attrib in skip_objects:
@@ -17532,26 +17929,29 @@ def printDriveFileList(users):
             if attrib not in titles[u'set']:
               addTitleToCSVfile(attrib, titles)
             if isinstance(f_file[attrib][0], (str, unicode, int, bool)):
-              a_file[attrib] = u' '.join(f_file[attrib])
+              row[attrib] = u' '.join(f_file[attrib])
             else:
-              a_file[attrib] = len(f_file[attrib])
+              row[attrib] = len(f_file[attrib])
               for j, l_attrib in enumerate(f_file[attrib]):
                 for list_attrib in l_attrib:
                   if list_attrib in [u'kind', u'etag', u'selfLink']:
                     continue
                   x_attrib = u'{0}.{1}.{2}'.format(attrib, j, list_attrib)
-                  a_file[x_attrib] = l_attrib[list_attrib]
+                  row[x_attrib] = l_attrib[list_attrib]
                   if x_attrib not in titles[u'set']:
                     addTitleToCSVfile(x_attrib, titles)
         elif isinstance(f_file[attrib], (str, unicode, int, bool)):
-          a_file[attrib] = f_file[attrib]
+          if attrib not in DRIVEFILE_TIME_OBJECTS:
+            row[attrib] = f_file[attrib]
+          else:
+            row[attrib] = formatLocalTime(f_file[attrib])
           if attrib not in titles[u'set']:
             addTitleToCSVfile(attrib, titles)
         else:
           sys.stderr.write(u'{0}: {1}, Attribute: {2}, Unknown type: {3}\n'.format(singularEntityName(EN_DRIVE_FILE_ID), f_file[u'id'], attrib, type(f_file[attrib])))
       elif attrib == u'labels':
         for dict_attrib in f_file[attrib]:
-          a_file[dict_attrib] = f_file[attrib][dict_attrib]
+          row[dict_attrib] = f_file[attrib][dict_attrib]
           if dict_attrib not in titles[u'set']:
             addTitleToCSVfile(dict_attrib, titles)
       else:
@@ -17559,10 +17959,10 @@ def printDriveFileList(users):
           if dict_attrib in [u'kind', u'etag']:
             continue
           x_attrib = u'{0}.{1}'.format(attrib, dict_attrib)
-          a_file[x_attrib] = f_file[attrib][dict_attrib]
+          row[x_attrib] = f_file[attrib][dict_attrib]
           if x_attrib not in titles[u'set']:
             addTitleToCSVfile(x_attrib, titles)
-    csvRows.append(a_file)
+    csvRows.append(row)
 
   def _printDriveFolderContents(folderId, depth):
     for f_file in feed:
@@ -17637,14 +18037,16 @@ def printDriveFileList(users):
     orderBy = u','.join(orderByList)
   else:
     orderBy = None
+  if anyowner:
+    query = _stripMeInOwners(query)
+    if fileIdSelection:
+      fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
   if filepath:
     addTitlesToCSVfile([u'paths',], titles)
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if anyowner:
-      query = _stripMeInOwners(query)
     origUser = user
     user, drive = buildDriveGAPIObject(user)
     if not drive:
@@ -17658,12 +18060,10 @@ def printDriveFileList(users):
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
                            q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
-      if fileIdSelection == None:
+      if fileIdSelection is None:
         while feed:
           _printFileInfo(feed.popleft())
       else:
-        if anyowner:
-          fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
         user, drive, _ = validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive)
         for fileId in fileIdSelection[u'fileIds']:
           _printDriveFolderContents(fileId, 0)
@@ -17721,7 +18121,7 @@ def showDriveFilePath(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> show filetree [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
 def showDriveFileTree(users):
   def _showDriveFolderContents(folderId):
     for f_file in feed:
@@ -17734,12 +18134,16 @@ def showDriveFileTree(users):
             decrementIndentLevel()
           break
 
+  anyowner = False
+  query = ME_IN_OWNERS
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
   orderByList = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'select':
+    if myarg == u'anyowner':
+      anyowner = True
+    elif myarg == u'select':
       fileIdSelection = getDriveFileEntity(True)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
@@ -17756,6 +18160,8 @@ def showDriveFileTree(users):
     orderBy = u','.join(orderByList)
   else:
     orderBy = None
+  if anyowner:
+    query = _stripMeInOwners(query)
   i = 0
   count = len(users)
   for user in users:
@@ -17772,7 +18178,7 @@ def showDriveFileTree(users):
       feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                           orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
       j = 0
       for fileId in fileIdSelection[u'fileIds']:
         j += 1
@@ -18236,8 +18642,8 @@ def transferDriveFiles(users):
                                  body={DRIVE_FILE_NAME: u'{0} old files'.format(user), u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')
         target_top_folder = create_folder[u'id']
       transferred_files = []
-      counter = 0
-      total_count = len(source_drive_files)
+      j = 0
+      jcount = len(source_drive_files)
       while True: # we loop thru, skipping files until all of their parents are done
         skipped_files = False
         for drive_file in source_drive_files:
@@ -18255,16 +18661,15 @@ def transferDriveFiles(users):
               break
           if skip_file_for_now:
             continue
-          else:
-            transferred_files.append(drive_file[u'id'])
-          counter += 1
+          transferred_files.append(drive_file[u'id'])
+          j += 1
           body = {u'role': u'owner', u'type': u'user', u'value': target_user}
           callGAPI(source_drive.permissions(), DRIVE_CREATE_PERMISSIONS,
                    soft_errors=True,
                    fileId=file_id, sendNotificationEmails=False, body=body)
           printEntityKVList(EN_USER, user,
                             [singularEntityName(EN_DRIVE_FILE_OR_FOLDER_ID), drive_file[u'id'], u'Changed Owner to', target_user],
-                            counter, total_count)
+                            j, jcount)
           target_parents = []
           for parent in source_parents:
             if u'isRoot' in parent:
@@ -18608,6 +19013,8 @@ def emptyDriveTrash(users):
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
 
+DRIVEFILE_ACL_TIME_OBJECTS = [u'expirationDate',]
+
 # Utilities for DriveFileACL commands
 def _showPermission(permission):
   if DRIVE_PERMISSIONS_NAME in permission:
@@ -18622,7 +19029,10 @@ def _showPermission(permission):
   incrementIndentLevel()
   for key in permission:
     if key not in [u'kind', u'etag', u'selfLink', DRIVE_PERMISSIONS_NAME]:
-      printKeyValueList([key, permission[key]])
+      if key not in DRIVEFILE_ACL_TIME_OBJECTS:
+        printKeyValueList([key, permission[key]])
+      else:
+        printKeyValueList([key, formatLocalTime(permission[key])])
   decrementIndentLevel()
 #
 DRIVEFILE_ACL_ROLES_MAP = {
@@ -18637,7 +19047,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
 DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',]
 
 # gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [sendmail] [emailmessage <String>] [showtitles]
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
 def addDriveFileACL(users):
   sendNotificationEmails = showTitles = False
   emailMessage = None
@@ -18663,6 +19073,8 @@ def addDriveFileACL(users):
       if body[u'role'] == u'commenter':
         body[u'role'] = u'reader'
         body[u'additionalRoles'] = [u'commenter',]
+    elif myarg == u'expiration':
+      body[DRIVE_PERMISSIONS_EXPIRATION] = getFullTime()
     elif myarg == u'sendemail':
       sendNotificationEmails = True
     elif myarg == u'emailmessage':
@@ -18700,21 +19112,21 @@ def addDriveFileACL(users):
             entityType = EN_DRIVE_FILE_OR_FOLDER
             fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         permission = callGAPI(drive.permissions(), DRIVE_CREATE_PERMISSIONS,
-                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_SHARING_REQUEST, GAPI_FILE_NOT_FOUND],
+                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_INVALID_SHARING_REQUEST, GAPI_FORBIDDEN],
                               fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
         entityItemValueItemValueActionPerformed(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
         _showPermission(permission)
-      except GAPI_invalidSharingRequest as e:
-        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except (GAPI_invalidSharingRequest, GAPI_forbidden) as e:
+        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, entityTypeNameMessage(EN_PERMISSION_ID, permissionId, e.message), j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
     decrementIndentLevel()
 
 # gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
-#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 def updateDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
@@ -18731,6 +19143,8 @@ def updateDriveFileACL(users):
       if body[u'role'] == u'commenter':
         body[u'role'] = u'reader'
         body[u'additionalRoles'] = [u'commenter',]
+    elif myarg == u'expiration':
+      body[DRIVE_PERMISSIONS_EXPIRATION] = getFullTime()
     elif myarg == u'removeexpiration':
       removeExpiration = getBoolean()
     elif myarg == u'transferownership':
@@ -18739,7 +19153,7 @@ def updateDriveFileACL(users):
       showTitles = True
     else:
       unknownArgumentExit()
-  if removeExpiration == None and u'role' not in body:
+  if removeExpiration is None and u'role' not in body:
     missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
   if isEmail:
     permissionId = validateUserGetPermissionId(permissionId)
@@ -18770,14 +19184,16 @@ def updateDriveFileACL(users):
             entityType = EN_DRIVE_FILE_OR_FOLDER
             fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         permission = callGAPI(drive.permissions(), DRIVE_PATCH_PERMISSIONS,
-                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
+                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
                               fileId=fileId, permissionId=permissionId, removeExpiration=removeExpiration, transferOwnership=transferOwnership, body=body)
         entityItemValueItemValueActionPerformed(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
         _showPermission(permission)
-      except GAPI_permissionNotFound:
-        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GAPI_permissionNotFound:
+        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
+      except (GAPI_badRequest, GAPI_forbidden) as e:
+        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, e.message, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
@@ -18819,13 +19235,15 @@ def deleteDriveFileACL(users):
             entityType = EN_DRIVE_FILE_OR_FOLDER
             fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         callGAPI(drive.permissions(), u'delete',
-                 throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND],
+                 throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
                  fileId=fileId, permissionId=permissionId)
         entityItemValueItemValueActionPerformed(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
-      except GAPI_permissionNotFound:
-        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GAPI_permissionNotFound:
+        entityDoesNotHaveItemValueSubitemValueWarning(EN_USER, user, entityType, fileName, EN_PERMISSION_ID, permissionId, j, jcount)
+      except (GAPI_badRequest, GAPI_forbidden) as e:
+        entityItemValueActionFailedWarning(EN_USER, user, entityType, fileName, e.message, j, jcount)
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(EN_USER, user, i, count)
         break
@@ -18923,7 +19341,7 @@ def checkUserExists(cd, user, i=0, count=0):
     entityUnknownWarning(EN_USER, user, i, count)
     return None
 
-# gam <UserTypeEntity> add group|groups [owner|manager|member] <GroupEntity>
+# gam <UserTypeEntity> add group|groups [member|manager|owner] <GroupEntity>
 def addUserToGroups(users):
   def _callbackAddUserToGroups(request_id, response, exception):
     REASON_TO_MESSAGE_MAP = {GAPI_DUPLICATE: PHRASE_DUPLICATE, GAPI_MEMBER_NOT_FOUND: PHRASE_DOES_NOT_EXIST,
@@ -18986,7 +19404,7 @@ def addUserToGroups(users):
     decrementIndentLevel()
 
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  role = getChoice(UPDATE_GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
+  role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
   groupKeys = getEntityList(OB_GROUP_ENTITY)
   userGroupLists = groupKeys if isinstance(groupKeys, dict) else None
   checkForExtraneousArguments()
@@ -19069,7 +19487,7 @@ def deleteUserFromGroups(users):
   count = len(users)
   for user in users:
     i += 1
-    if groupKeys == None:
+    if groupKeys is None:
       user = checkUserExists(cd, user, i, count)
       if user:
         result = callGAPIpages(cd.groups(), u'list', u'groups',
@@ -19183,7 +19601,7 @@ def updatePhoto(users):
         continue
     else:
       image_data = readFile(filename, continueOnError=True, displayError=True)
-      if image_data == None:
+      if image_data is None:
         entityItemValueActionFailedWarning(EN_USER, user, EN_PHOTO, filename, e.strerror, i, count)
         continue
     body = {u'photoData': base64.urlsafe_b64encode(image_data)}
@@ -19551,10 +19969,10 @@ PROFILE_ARRAY_PROPERTY_PRINT_ORDER = {
 
 def _showGplusProfile(user, i, count, result):
   def _showProfileObject(object_name, object_value, object_order=None, level=0):
-    if object_name != None:
+    if object_name is not None:
       printJSONKey(object_name)
     if isinstance(object_value, list):
-      if object_name != None:
+      if object_name is not None:
         printBlankLine()
         incrementIndentLevel()
       for sub_value in object_value:
@@ -19562,23 +19980,23 @@ def _showGplusProfile(user, i, count, result):
           printKeyValueList([sub_value])
         else:
           _showProfileObject(None, sub_value, object_order=PROFILE_ARRAY_PROPERTY_PRINT_ORDER[object_name], level=level+1)
-      if object_name != None:
+      if object_name is not None:
         decrementIndentLevel()
     elif isinstance(object_value, dict):
       indentAfterFirst = unindentAfterLast = False
-      if object_name != None:
+      if object_name is not None:
         printBlankLine()
         incrementIndentLevel()
       elif level > 0:
         indentAfterFirst = unindentAfterLast = True
       for sub_object in object_order or PROFILE_ARRAY_PROPERTY_PRINT_ORDER[object_name]:
         value = object_value.get(sub_object)
-        if value != None:
+        if value is not None:
           _showProfileObject(sub_object, value, level=level+1)
           if indentAfterFirst:
             incrementIndentLevel()
             indentAfterFirst = False
-      if object_name != None or unindentAfterLast:
+      if object_name is not None or unindentAfterLast:
         decrementIndentLevel()
     else:
       if object_name in [u'aboutMe',]:
@@ -19592,7 +20010,7 @@ def _showGplusProfile(user, i, count, result):
   printKeyValueList([u'isPlusUser', enabled])
   for item in PROFILE_PROPERTY_PRINT_ORDER:
     value = result.get(item)
-    if value != None:
+    if value is not None:
       _showProfileObject(item, value)
   decrementIndentLevel()
 
@@ -19774,7 +20192,7 @@ def updateLabels(users):
         if label[u'type'] == LABEL_TYPE_SYSTEM:
           continue
         match_result = pattern.search(label[u'name'])
-        if match_result != None:
+        if match_result is not None:
           labelMatches += 1
           newLabelName = replace % match_result.groups()
           newLabelNameLower = newLabelName.lower()
@@ -20114,7 +20532,7 @@ def processMessagesThreads(users, entityType):
   if query:
     if labelGroupOpen:
       query += u')'
-  elif messageIds == None:
+  elif messageIds is None:
     missingArgumentExit(u'query|matchlabel|ids')
   listType = [u'threads', u'messages'][entityType == EN_MESSAGE]
   userMessageLists = messageIds if isinstance(messageIds, dict) else None
@@ -20125,7 +20543,7 @@ def processMessagesThreads(users, entityType):
     i += 1
     if userMessageLists:
       messageIds = userMessageLists[user]
-    if messageIds != None:
+    if messageIds is not None:
       listResult = [{u'id': messageId} for messageId in messageIds]
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
@@ -20139,7 +20557,7 @@ def processMessagesThreads(users, entityType):
         labelNameMap = _initLabelNameMap()
         addLabelIds = _convertLabelNamesToIds(addLabelNames, labelNameMap, True)
         removeLabelIds = _convertLabelNamesToIds(removeLabelNames, labelNameMap, False)
-      if messageIds == None:
+      if messageIds is None:
         printGettingAllEntityItemsForWhom(EN_MESSAGE, user, i, count)
         page_message = getPageMessage()
         listResult = callGAPIpages(service, u'list', listType,
@@ -20156,7 +20574,7 @@ def processMessagesThreads(users, entityType):
         entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_NO_ENTITIES_MATCHED.format(pluralEntityName(entityType)), i, count)
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
-      if messageIds == None:
+      if messageIds is None:
         if maxToProcess and jcount > maxToProcess:
           entityNumEntitiesActionNotPerformedWarning(EN_USER, user, entityType, jcount, PHRASE_COUNT_N_EXCEEDS_MAX_TO_PROCESS_M.format(jcount, GM_Globals[GM_ACTION_TO_PERFORM], maxToProcess), i, count)
           continue
@@ -20523,7 +20941,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     i += 1
     if userMessageLists:
       messageIds = userMessageLists[user]
-    if messageIds != None:
+    if messageIds is not None:
       listResult = [{u'id': messageId} for messageId in messageIds]
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
@@ -20534,7 +20952,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
         labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
         if not labels:
           continue
-      if messageIds == None:
+      if messageIds is None:
         printGettingAllEntityItemsForWhom(entityType, user, i, count)
         page_message = getPageMessage()
         listResult = callGAPIpages(service, u'list', listType,
@@ -20557,7 +20975,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
           entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
         else:
           entityPerformActionNumItemsModifier(EN_USER, user, maxToProcess, entityType, u'of {0} Total {1}'.format(jcount, pluralEntityName(entityType)), i, count)
-      if messageIds == None and maxToProcess and (jcount > maxToProcess):
+      if messageIds is None and maxToProcess and (jcount > maxToProcess):
         jcount = maxToProcess
       if not csvFormat:
         incrementIndentLevel()
@@ -20809,7 +21227,7 @@ def printShowDelegates(users, csvFormat):
       printGettingAllEntityItemsForWhom(EN_DELEGATE, delegatorEmail, i, count)
     result = _processEmailSettings(user, i, count, emailSettings, u'GetDelegates',
                                    delegator=delegatorName)
-    if result != None:
+    if result is not None:
       jcount = len(result) if (result) else 0
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
@@ -21682,7 +22100,7 @@ def addUpdateSendAs(users, addCmd):
         signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
-  if signature != None:
+  if signature is not None:
     if signature and tagReplacements:
       body[u'signature'] = _processTags(tagReplacements, signature)
     else:
@@ -21815,7 +22233,7 @@ def setShortCuts(users):
     if result:
       printEntityItemValue(EN_USER, user, EN_KEYBOARD_SHORTCUTS_ENABLED, result[u'shortcuts'], i, count)
 
-# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [name <String>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 def setSignature(users):
   tagReplacements = {}
   if checkArgumentPresent(FILE_ARGUMENT):
@@ -21825,9 +22243,13 @@ def setSignature(users):
   else:
     signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
   body = {}
+  primary = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    getSendAsAttributes(myarg, body, tagReplacements)
+    if myarg == u'primary':
+      primary = True
+    else:
+      getSendAsAttributes(myarg, body, tagReplacements)
   if signature and tagReplacements:
     body[u'signature'] = _processTags(tagReplacements, signature)
   else:
@@ -21839,24 +22261,29 @@ def setSignature(users):
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
-    try:
-      result = callGAPI(gmail.users().settings().sendAs(), u'list',
-                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                        userId=u'me')
-      for sendas in result[u'sendAs']:
-        if sendas.get(u'isPrimary', False):
-          emailAddress = sendas[u'sendAsEmail']
-          _processSendAs(user, i, count, EN_SIGNATURE, emailAddress, i, count, gmail, u'patch', False, body=body, sendAsEmail=emailAddress)
-          break
-    except (GAPI_serviceNotAvailable, GAPI_badRequest):
-      entityServiceNotApplicableWarning(EN_USER, user, i, count)
+    if primary:
+      try:
+        result = callGAPI(gmail.users().settings().sendAs(), u'list',
+                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                          userId=u'me')
+        for sendas in result[u'sendAs']:
+          if sendas.get(u'isPrimary', False):
+            emailAddress = sendas[u'sendAsEmail']
+            _processSendAs(user, i, count, EN_SIGNATURE, emailAddress, i, count, gmail, u'patch', False, body=body, sendAsEmail=emailAddress)
+            break
+      except (GAPI_serviceNotAvailable, GAPI_badRequest):
+        entityServiceNotApplicableWarning(EN_USER, user, i, count)
+    else:
+      _processSendAs(user, i, count, EN_SIGNATURE, user, i, count, gmail, u'patch', False, body=body, sendAsEmail=user)
 
-# gam <UserTypeEntity> show signature|sig [format]
+# gam <UserTypeEntity> show signature|sig [format] [primary]
 def showSignature(users):
-  formatSig = False
+  formatSig = primary = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'format':
+    if myarg == u'primary':
+      primary = True
+    elif myarg == u'format':
       formatSig = True
     else:
       unknownArgumentExit()
@@ -21867,19 +22294,22 @@ def showSignature(users):
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
-    try:
-      result = callGAPI(gmail.users().settings().sendAs(), u'list',
-                        throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                        userId=u'me')
-      printEntityItemValue(EN_USER, user, EN_SIGNATURE, u'', i, count)
-      incrementIndentLevel()
-      for sendas in result[u'sendAs']:
-        if sendas.get(u'isPrimary', False):
-          _showSendAs(sendas, 0, 0, formatSig)
-          break
-      decrementIndentLevel()
-    except (GAPI_serviceNotAvailable, GAPI_badRequest):
-      entityServiceNotApplicableWarning(EN_USER, user, i, count)
+    if primary:
+      try:
+        result = callGAPI(gmail.users().settings().sendAs(), u'list',
+                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                          userId=u'me')
+        printEntityItemValue(EN_USER, user, EN_SIGNATURE, u'', i, count)
+        incrementIndentLevel()
+        for sendas in result[u'sendAs']:
+          if sendas.get(u'isPrimary', False):
+            _showSendAs(sendas, 0, 0, formatSig)
+            break
+        decrementIndentLevel()
+      except (GAPI_serviceNotAvailable, GAPI_badRequest):
+        entityServiceNotApplicableWarning(EN_USER, user, i, count)
+    else:
+      _processSendAs(user, i, count, EN_SIGNATURE, user, i, count, gmail, u'get', formatSig, sendAsEmail=user)
 
 # gam <UserTypeEntity> snippets <Boolean>
 def setSnippets(users):
@@ -21920,11 +22350,11 @@ def _showVacation(user, i, count, result, formatReply):
     printKeyValueList([u'Contacts Only', result[u'restrictToContacts']])
     printKeyValueList([u'Domain Only', result[u'restrictToDomain']])
     if u'startTime' in result:
-      printKeyValueList([u'Start Date', datetime.datetime.fromtimestamp(int(result[u'startTime'])/1000).strftime('%Y-%m-%d')])
+      printKeyValueList([u'Start Date', datetime.datetime.fromtimestamp(int(result[u'startTime'])/1000, GC_Values[GC_TIMEZONE]).strftime('%Y-%m-%d')])
     else:
       printKeyValueList([u'Start Date', u'Started'])
     if u'endTime' in result:
-      printKeyValueList([u'End Date', datetime.datetime.fromtimestamp(int(result[u'endTime'])/1000).strftime('%Y-%m-%d')])
+      printKeyValueList([u'End Date', datetime.datetime.fromtimestamp(int(result[u'endTime'])/1000, GC_Values[GC_TIMEZONE]).strftime('%Y-%m-%d')])
     else:
       printKeyValueList([u'End Date', u'Not specified'])
     printKeyValueList([u'Subject', result.get(u'responseSubject', u'None')])
@@ -22071,6 +22501,15 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_SITEACL:	CL_OB_SITEACLS,
+       },
+    },
+  u'cancel':
+    {CMD_ACTION: AC_CANCEL,
+     CMD_FUNCTION:
+       {CL_OB_GUARDIAN_INVITATION: doCancelGuardianInvitation,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_GUARDIAN_INVITATIONS:	CL_OB_GUARDIAN_INVITATION,
        },
     },
   u'create':
@@ -22248,6 +22687,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'transfers':		CL_OB_DATA_TRANSFERS,
         u'classparticipants':	CL_OB_COURSE_PARTICIPANTS,
         u'class-participants':	CL_OB_COURSE_PARTICIPANTS,
+        u'courseparticipants':	CL_OB_COURSE_PARTICIPANTS,
         CL_OB_DOMAIN_ALIAS:	CL_OB_DOMAIN_ALIASES,
         u'groupmembers':	CL_OB_GROUP_MEMBERS,
         u'groupsmembers':	CL_OB_GROUP_MEMBERS,
@@ -23028,7 +23468,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
       sys.exit(GM_Globals[GM_SYSEXITRC])
     GM_Globals[GM_ENTITY_CL_INDEX] = CL_argvI
     entityType, entityList = getEntityToModify(crosAllowed=True, returnOnError=True)
-    if entityType == None:
+    if entityType is None:
       usageErrorExit(PHRASE_UNKNOWN_COMMAND_SELECTOR)
     if entityType == CL_ENTITY_USERS:
       CL_command = getChoice(USER_COMMANDS.keys()+USER_COMMANDS_WITH_OBJECTS.keys(), choiceAliases=USER_COMMANDS_ALIASES)
@@ -23124,7 +23564,8 @@ def win32_unicode_argv():
   argv = CommandLineToArgvW(cmd, byref(argc))
   if argc.value > 0:
     # Remove Python executable and commands if present
-    sys.argv = argv[argc.value-len(sys.argv):argc.value]
+    argc_value = int(argc.value)
+    sys.argv = argv[argc_value-len(sys.argv):argc_value]
 
 # Run from command line
 if __name__ == "__main__":

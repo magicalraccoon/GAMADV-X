@@ -21,7 +21,7 @@
  "auth": {
   "oauth2": {
    "scopes": {
-    "https://www.google.com/m8/feeds/contacts": {
+    "https://www.google.com/m8/feeds": {
      "description": "Manage Contacts"
     }
    }

@@ -164,6 +164,10 @@ show_gettings
 	Enable/disable "Getting ... " messages
 	Default: True
 	Environment variable: GAM_SHOW_GETTINGS
+timezone
+	Specify time conversion
+	Default: utc
+	Environment variable: GAM_TIMEZONE
 user_max_results
 	When retrieving lists of Users from API, how many should be retrieved in each chunk
 	Default: 500
@@ -198,6 +202,7 @@ Section: DEFAULT
   section =
   show_counts_min = 1
   show_gettings = true
+  timezone = utc
   user_max_results = 500
 
 If you (the administrator) run GAM and have multiple other users that also run GAM, you will make a gam.cfg for each user.
@@ -300,6 +305,7 @@ oauth2service_json = oauth2service.json
 section =
 show_counts_min = 1
 show_gettings = true
+timezone = utc
 user_max_results = 500
 
 [foo]

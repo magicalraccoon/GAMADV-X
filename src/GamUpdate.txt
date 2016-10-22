@@ -1,3 +1,43 @@
+4.27.00
+Note!!! Functionality change.
+Changed command gam show filetree to show only files owned by the user by default; this makes it consistent with gam show filelist.
+To get the prior behavior, add the anyowner argument.
+    gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+
+Added a new method of selecting a list of users to <UserTypeEntity>.
+    group_users <GroupList> [members] [managers] [owners] [primarydomain] [domains <DomainNameList>] [recursive] end
+From the list of groups in <GroupList>, users with the specified roles are selected. If no roles are specified, all users are selected.
+If recursive is specified, users within nested groups are included. If primarydomain or domains <DomainNameList> are specified, only users from those domains are selected.
+The end argument terminates the group_users selection.
+To verify the selection, do: gam group_users <GroupList> [members] [managers] [owners] [primarydomain] [domains <DomainNameList>] [recursive] print
+Example: gam group_users sales,marketing members recursive primarydomain print
+Example: gam info users group_users sales,marketing members recursive primarydomain nogroups nolicenses noaliases name ou
+
+Added a new column to the CSV file produced by print|show driveactivity. Currently, there is a column labelled eventTimeMillis which gives the time of the event
+in milliseconds since the start of the current epoch. The new column is eventTime which show eventTimeMillis in the format yyyy-mm-ddThh:mm:ssZ.
+
+Added timezone variable to gam.cfg. Google provides most times in UTC, this variable can be used to convert those times to local time.
+The possible values are: utc, local and +|-hh:mm. The default value is utc.
+timezone = utc - Time values are not converted.
+timezone = local - Time values are converted to local time.
+timezone = +|-hh:mm - Time values are converted to the specified offset from UTC.
+
+Added invitations argument to gam delete guardian so that only a pending invitation for a guardian is cancelled.
+    gam delete guardian|guardians <GuardianItem> <StudentItem> [invitations]
+
+Added a command to cancel guardian invitations by invitation ID.
+    gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+
+Added arguments to gam update user to enable clearing entire schemas or schema fields.
+    gam update user <UserItem> <UserAttributes>+ [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+See 4.23.03 for note about updating multi-valued schema fields.
+
+Note!!! Functionality change.
+Starting in Gam 4.18.00, gam signature and gam show signature were operating on the primary signature of a user, regardless of the user name passed on the command line.
+Now, the commands work on the signature of the user specified on the command line. To get the previous behavior, user the primary argument.
+    gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
+    gam <UserTypeEntity> show signature|sig [format] [primary]
+
 4.26.01
 
 In order to use the gam info/print/show gal commands you must update your list of authorized scopes; you want to change the scope: https://www.google.com/m8/feeds/contacts to https://www.google.com/m8/feeds
@@ -115,8 +155,9 @@ Added showbody argument to print/show messages/threads to allow display of plain
 
 4.23.03
 
-Custom schema fields can be single-valued or multi-valued. Gam has always supported both but has not supported the
-type characteristic within a multi-valued schema field. In gam create/update user, schema fields are now specified as:
+Added support for specifying type in multi-valued schemas. Custom schema fields can be single-valued or multi-valued;
+Gam has always supported both but has not supported the type characteristic within a multi-valued schema field.
+In gam create/update user, schema fields are now specified as:
     <SchemaName>.<FieldName> [multivalued [type work|home|other|(custom <CustomType>)]] <String>
 Examples:
 TestSchema.SVField <String> - value is <String>
@@ -203,7 +244,7 @@ Handle cache_discovery_only when discovery is read from file.
 
 4.22.00
 
-Added cache_discovery_only to gam.cfg.
+Added cache_discovery_only variable to gam.cfg.
 If no_cache = True, no GAM API calls are cached.
 If no_cache = False and cache_discovery_only = False, all GAM API calls are cached.
 If no_cache = False and cache_discovery_only = True, only GAM discovery API calls are cached.
@@ -626,8 +667,8 @@ Added argument to gam <UserTypeEntity> signature and gam <UserTypeEntity> vacati
     gam <UserTypeEntity> signature <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
     gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
 	[startdate <Date>] [enddate <Date>] (replace <Tag> <String>)*
-Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Text}...{/RT} will be eliminated
-if there was no <Tag> specified that matches Text or if a <Tag> matching Text was specified but the matching <String> is empty.
+Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Tag}...{/RT} will be eliminated
+if there was no <Tag> specified that matches Tag or if a <Tag> matching Tag was specified but the matching <String> is empty.
 This is especially useful with CSV files.
 gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 'User' '~User' replace 'Title' '~Title'
 
