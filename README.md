@@ -8,7 +8,7 @@ You can download the current GAMADV-X release from the [GitHub Releases] page.
 
 Documentation
 ------------------
-The GAMADV-X documentation is hosted in the [GitHub Wiki]
+General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is in Gam*.txt files.
 
 Mailing List / Discussion group
 -------------------------------
