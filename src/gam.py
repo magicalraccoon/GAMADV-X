@@ -3796,7 +3796,7 @@ def doGAMCheckForUpdates(forceCheck=False):
       printKeyValueList([u'Version Check'])
       incrementIndentLevel()
       printKeyValueList([u'Current', current_version])
-      printKeyValueList([u'Latest ', latest_version])
+      printKeyValueList([u' Latest', latest_version])
       decrementIndentLevel()
     if latest_version <= current_version:
       writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
