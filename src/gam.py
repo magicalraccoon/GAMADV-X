@@ -3793,7 +3793,7 @@ def doGAMCheckForUpdates(forceCheck=False):
     if latest_version[0].lower() == u'v':
       latest_version = latest_version[1:]
     if forceCheck or (latest_version > current_version):
-      printKeyValueList([u'Version Check'])
+      printKeyValueList([u'Version Check', u''])
       incrementIndentLevel()
       printKeyValueList([u'Current', current_version])
       printKeyValueList([u' Latest', latest_version])
