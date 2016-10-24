@@ -2185,16 +2185,10 @@ def normalizeEmailAddressOrUID(emailAddressOrUID, noUid=False):
       emailAddressOrUID = u'{0}{1}'.format(emailAddressOrUID, GC_Values[GC_DOMAIN])
   return emailAddressOrUID.lower()
 
-#
 # Normalize student/guardian email address/uid
-# uid:12345678 -> 12345678
 # 12345678 -> 12345678
 # - -> -
-# foo -> foo@domain
-# foo@ -> foo@domain
-# foo@bar.com -> foo@bar.com
-# @domain -> domain
-#
+# Otherwise, same results as normalizeEmailAddressOrUID
 def normalizeStudentGuardianEmailAddressOrUID(emailAddressOrUID):
   if emailAddressOrUID.isdigit() or emailAddressOrUID == u'-':
     return emailAddressOrUID
@@ -15231,11 +15225,11 @@ def doInfoSiteVerification():
 
 GUARDIAN_STATES = [u'COMPLETE', u'PENDING', u'GUARDIAN_INVITATION_STATE_UNSPECIFIED']
 
-# gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
+# gam create guardian|guardianinvite|inviteguardian <EmailAddress> <StudentItem>
 def doInviteGuardian():
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
   body = {u'invitedEmailAddress': getEmailAddress()}
-  studentId = getEmailAddress()
+  studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
   checkForExtraneousArguments()
   try:
     result = callGAPI(croom.userProfiles().guardianInvitations(), u'create',
@@ -15247,23 +15241,27 @@ def doInviteGuardian():
   except GAPI_alreadyExists:
     entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN, body[u'invitedEmailAddress'], PHRASE_DUPLICATE)
 
-# gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
-def doCancelGuardianInvitation():
-  croom = buildGAPIObject(GAPI_CLASSROOM_API)
-  guardianInvitationId = getString(OB_GUARDIAN_INVITATION_ID)
-  studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
-  checkForExtraneousArguments()
+def _cancelGuardianInvitation(croom, studentId, invitationId):
   try:
     result = callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
                       throw_reasons=[GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_FAILED_PRECONDITION],
-                      studentId=studentId, invitationId=guardianInvitationId, updateMask=u'state', body={u'state': u'COMPLETE'})
+                      studentId=studentId, invitationId=invitationId, updateMask=u'state', body={u'state': u'COMPLETE'})
     entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, result[u'invitedEmailAddress'])
   except GAPI_forbidden:
     entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
+    systemErrorExit(GM_Globals[GM_SYSEXITRC], None)
   except GAPI_notFound:
-    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, guardianInvitationId, PHRASE_NOT_FOUND)
+    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, invitationId, PHRASE_NOT_FOUND)
   except GAPI_failedPrecondition:
-    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, guardianInvitationId, PHRASE_GUARDIAN_INVITATION_STATUS_NOT_PENDING)
+    entityItemValueActionFailedWarning(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, invitationId, PHRASE_GUARDIAN_INVITATION_STATUS_NOT_PENDING)
+
+# gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+def doCancelGuardianInvitation():
+  croom = buildGAPIObject(GAPI_CLASSROOM_API)
+  invitationId = getString(OB_GUARDIAN_INVITATION_ID)
+  studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
+  checkForExtraneousArguments()
+  _cancelGuardianInvitation(croom, studentId, invitationId)
 
 # gam delete guardian|guardians <GuardianIitem> <StudentItem> [invitations]
 def doDeleteGuardian():
@@ -15273,7 +15271,7 @@ def doDeleteGuardian():
   studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'invitations':
+    if myarg in [u'invitation', u'invitations']:
       invitationsOnly = True
     else:
       unknownArgumentExit()
@@ -15285,19 +15283,17 @@ def doDeleteGuardian():
       entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, guardianId)
     except GAPI_forbidden:
       entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
-      return
+      systemErrorExit(GM_Globals[GM_SYSEXITRC], None)
     except GAPI_notFound:
       pass
   setActionName(AC_CANCEL)
   try:
-    result = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations',
-                           throw_reasons=[GAPI_FORBIDDEN],
-                           studentId=studentId, invitedEmailAddress=guardianId, states=[u'PENDING',])
-    if result:
-      result = callGAPI(croom.userProfiles().guardianInvitations(), u'patch',
-                        throw_reasons=[GAPI_FORBIDDEN],
-                        studentId=studentId, invitationId=result[0][u'invitationId'], updateMask=u'state', body={u'state': u'COMPLETE'})
-      entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN_INVITATION, result[u'invitedEmailAddress'])
+    results = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations',
+                            throw_reasons=[GAPI_FORBIDDEN],
+                            studentId=studentId, invitedEmailAddress=guardianId, states=[u'PENDING',])
+    if len(results) > 0:
+      for result in results:
+        _cancelGuardianInvitation(croom, studentId, result[u'invitationId'])
     else:
       entityItemValueActionFailedWarning(EN_STUDENT, studentId, [EN_GUARDIAN, EN_GUARDIAN_INVITATION][invitationsOnly], guardianId, PHRASE_NOT_A_GUARDIAN_OR_INVITATION)
   except GAPI_forbidden:
