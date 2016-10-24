@@ -15281,6 +15281,7 @@ def doDeleteGuardian():
                throw_reasons=[GAPI_FORBIDDEN, GAPI_NOT_FOUND],
                studentId=studentId, guardianId=guardianId)
       entityItemValueActionPerformed(EN_STUDENT, studentId, EN_GUARDIAN, guardianId)
+      return
     except GAPI_forbidden:
       entityUnknownWarning(EN_STUDENT, studentId, 0, 0)
       systemErrorExit(GM_Globals[GM_SYSEXITRC], None)
