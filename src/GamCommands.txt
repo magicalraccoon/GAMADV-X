@@ -470,7 +470,10 @@ If an item contains spaces, it should be surrounded by " or '.
 <CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CrOSEntity> ::= <CrOSItem>|<CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 <DomainNameEntity> ::= <DomainNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>)|(drivefilename(:| )<DriveFileName>)|(query(:| )<QueryDriveFile>)|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
+<DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
+<DriveFileNameEntity> ::= (drivefilename <DriveFileName>)|(drivefilename:<DriveFileName>)|(anydrivefilename <DriveFileName>)|(anydrivefilename:<DriveFileName>)
+<DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
+<DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
 <EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <FilterIDEntity> ::= <FilterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
@@ -1073,7 +1076,7 @@ gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriv
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
-gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
 gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] <DriveFileAddAttributes>*

@@ -1,3 +1,21 @@
+GAM 4.27.02
+
+Added depth <Number> argument to show filetree
+    gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
+If depth equals -1 (the default), all files and folders below the selected folder are listed. The root folder is selected by default.
+If depth is 0, files or folders within a selected folder are listed.
+If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
+
+Added anydrivefilename argument to allow specification of drive file names for files you don't own but can access, i.e., files shared with you.
+    <DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
+    <DriveFileNameEntity> ::= (drivefilename <DriveFileName>)|(drivefilename:<DriveFileName>)|(anydrivefilename <DriveFileName>)|(anydrivefilename:<DriveFileName>)
+    <DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
+    <DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
+
+GAM 4.27.01
+
+Cleaned up processing of guardian invitation cancellations.
+
 4.27.00
 Note!!! Functionality change.
 Changed command gam show filetree to show only files owned by the user by default; this makes it consistent with gam show filelist.

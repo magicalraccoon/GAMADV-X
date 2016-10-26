@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.27.01'
+__version__ = u'4.27.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -17399,7 +17399,7 @@ def cleanFileIDsList(fileIdSelection, fileIds):
 def initDriveFileEntity():
   return {u'fileIds': [], u'query': None, u'dict': None, u'root': []}
 
-def getDriveFileEntity(anyowner=False):
+def getDriveFileEntity():
   fileIdSelection = initDriveFileEntity()
   entitySelector = getEntitySelector()
   if entitySelector:
@@ -17413,20 +17413,24 @@ def getDriveFileEntity(anyowner=False):
     mycmd = myarg.lower()
     if mycmd == u'id':
       cleanFileIDsList(fileIdSelection, getStringReturnInList(OB_DRIVE_FILE_ID))
+    elif mycmd[:3] == u'id:':
+      cleanFileIDsList(fileIdSelection, [myarg[3:]])
     elif mycmd == u'ids':
-      entityList = getEntityList(OB_DRIVE_FILE_ENTITY)
-      if isinstance(entityList, dict):
-        fileIdSelection[u'dict'] = entityList
-      else:
-        cleanFileIDsList(fileIdSelection, entityList)
+      cleanFileIDsList(fileIdSelection, getString(OB_DRIVE_FILE_ID).replace(u',', u' ').split())
+    elif mycmd[:4] == u'ids:':
+      cleanFileIDsList(fileIdSelection, myarg[4:].replace(u',', u' ').split())
     elif mycmd == u'query':
       fileIdSelection[u'query'] = getString(OB_QUERY)
     elif mycmd[:6] == u'query:':
       fileIdSelection[u'query'] = myarg[6:]
     elif mycmd == u'drivefilename':
-      fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+      fileIdSelection[u'query'] = ME_IN_OWNERS_AND+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
     elif mycmd[:14] == u'drivefilename:':
-      fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+      fileIdSelection[u'query'] = ME_IN_OWNERS_AND+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+    elif mycmd == u'anydrivefilename':
+      fileIdSelection[u'query'] = u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+    elif mycmd[:17] == u'anydrivefilename:':
+      fileIdSelection[u'query'] = u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[17:])
     elif mycmd == u'root':
       cleanFileIDsList(fileIdSelection, [mycmd,])
     else:
@@ -17980,7 +17984,7 @@ def printDriveFileList(users):
       for parent in f_file.get(u'parents', []):
         if folderId == parent[u'id']:
           _printFileInfo(f_file)
-          if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
             _printDriveFolderContents(f_file[u'id'], depth+1)
           break
 
@@ -18132,20 +18136,21 @@ def showDriveFilePath(users):
         break
     decrementIndentLevel()
 
-# gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
 def showDriveFileTree(users):
-  def _showDriveFolderContents(folderId):
+  def _showDriveFolderContents(folderId, depth):
     for f_file in feed:
       for parent in f_file.get(u'parents', []):
         if folderId == parent[u'id']:
           printKeyValueList([f_file[DRIVE_FILE_NAME]])
-          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
             incrementIndentLevel()
-            _showDriveFolderContents(f_file[u'id'])
+            _showDriveFolderContents(f_file[u'id'], depth+1)
             decrementIndentLevel()
           break
 
   anyowner = False
+  maxdepth = -1
   query = ME_IN_OWNERS
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
@@ -18155,7 +18160,9 @@ def showDriveFileTree(users):
     if myarg == u'anyowner':
       anyowner = True
     elif myarg == u'select':
-      fileIdSelection = getDriveFileEntity(True)
+      fileIdSelection = getDriveFileEntity()
+    elif myarg == u'depth':
+      maxdepth = getInteger(minVal=-1)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
@@ -18199,7 +18206,7 @@ def showDriveFileTree(users):
                             fileId=fileId, fields=DRIVE_FILE_NAME)
           printEntityName(EN_DRIVE_FILE_OR_FOLDER, result[DRIVE_FILE_NAME], j, jcount)
           incrementIndentLevel()
-          _showDriveFolderContents(fileId)
+          _showDriveFolderContents(fileId, 0)
           decrementIndentLevel()
         except GAPI_fileNotFound:
           entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER_ID, fileId, PHRASE_DOES_NOT_EXIST, j, jcount)
