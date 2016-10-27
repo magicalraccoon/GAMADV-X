@@ -1,3 +1,7 @@
+GAM 4.27.03
+
+Handle newlines in CrOS notes field.
+
 GAM 4.27.02
 
 Added depth <Number> argument to show filetree
