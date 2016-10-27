@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.27.03'
+__version__ = u'4.27.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6078,7 +6078,7 @@ OAUTH2_SCOPES = [
    u'subscopes': [],
    u'scopes': u'https://apps-apis.google.com/a/feeds/compliance/audit/'},
   {u'name': u'Email Settings API - Users',
-   u'types': [OAUTH2_GDATA_SCOPES],
+   u'types': [OAUTH2_GAPI_SCOPES, OAUTH2_GDATA_SCOPES],
    u'subscopes': [],
    u'scopes': u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/'},
   {u'name': u'Group Settings API',
@@ -19834,7 +19834,7 @@ def printShowTokens(entityType, users, csvFormat):
           continue
         for token in results:
           row = {u'user': user, u'scopes': u' '.join(token.get(u'scopes', []))}
-          for item in [u'displayText', u'anonymous', u'nativeApp', u'userKey']:
+          for item in [u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey']:
             row[item] = token.get(item, u'')
           csvRows.append(row)
     except (GAPI_notFound, GAPI_resourceNotFound):
