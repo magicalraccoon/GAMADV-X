@@ -11298,14 +11298,12 @@ def doPrintCrOSEntity(entityList):
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 def doPrintCrOSDevices(entityList=None):
   def _printCrOS(cros):
+    if u'notes' in cros:
+      cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
     if (not noLists) and (not selectActiveTimeRanges) and (not selectRecentUsers):
-      if u'notes' in cros:
-        cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
       addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit, time_objects=CROS_TIME_OBJECTS), csvRows, titles)
       return
     row = {}
-    if u'notes' in cros:
-      cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
     for attrib in cros:
       if attrib in [u'kind', u'etag', u'recentUsers', u'activeTimeRanges']:
         continue
