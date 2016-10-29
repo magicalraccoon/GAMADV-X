@@ -1,18 +1,89 @@
-GAM 4.27.04
+4.28.00
+
+The internal processing of claim/transfer ownership, show filetree and print/show filelist with a select has been rewritten to improve performance.
+Previously, the code used an order N-squared process to identify a folder and its descendents; this got unwieldly with large N, say 100000.
+The new method uses an order 2N process; print/show filelist without a select is unchanged, it was an order N process.
+
+Added showownedby argument to print/show filelist to allow specification of file ownership.
+Added orphans option to select argument in print/show filelist to allow identifying those files that are not on a path from the root folder.
+This often occurs with files/folders that are shared with you.
+    gam <UserTypeEntity> print|show filelist [todrive] [anyowner|(showownedby any|me|others)] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
+	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+By default, print/show filelist starts with a query of "'me' in owners".
+If you specify query "xxx", "and xxx" is appended to the current query; you can repeat the query argument to build up a longer query.
+If you specify fullquery "xxx", the query is set to "xxx" eliminating the initial "'me' in owners".
+If you specify showownedby any or anyowner, all files accessible by the user are listed.
+If you specify showownedby me, all files owned by the user are listed; this is the default.
+If you specify showownedby others, only files not owned by the user are listed.
+The depth <Number> argument controls whether files or folders within a selected folder are listed.
+If <Number> equals -1 (the default), all files and folders in the selected folder and below are listed.
+If <Number> is 0, files or folders within a selected folder are listed, no descendents are listed.
+If <Number> is greater than 0, the files and folders within the selected folder and those files and folders <Number> levels below the selected folder are listed.
+
+When the select argument is not used, the list of files that match the query are listed.
+Example, list all files/folders owned by the user:
+    gam user testuser print filelist
+Example, list all files/folders owned by the user that begin with the word 'Test':
+    gam user testuser print filelist query "title contains 'Test'"
+Example, list all files/folders owned by any user that are starred and have been modified since a given date.
+    gam user testuser print filelist full query "starred = true and modifiedDate >= '2016-10-15T00:00:00Z'"
+
+The select argument specifies a starting point for output; all files that match the query and are descendents of the starting folder are listed.
+
+Example, get a list of files/folders without a parent, owned by anyone, do not show their descendents:
+    gam user testuser print filelist select orphans showownedby any depth 0
+Example, get a list of files/folders and their descendents, owned by the user,  in the folder 'Top Folder' owned by the user:
+    gam user testuser print filelist select drivefilename 'Top Folder' showownedby me
+
+Added showownedby argument to show filetree to allow specification of file ownership.
+Added orphans option to select argument to show filetree to allow identifying those files that are not on a path from the root folder.
+This often occurs with files/folders that are shared with you.
+    gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)] [select <DriveFileEntity>|orphans] [depth <Number>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+By default, show filetree displays all files owned by the user.
+If you specify showownedby any or anyowner, all files accessible by the user are displayed.
+If you specify showownedby me, all files owned by the user are displayed; this is the default.
+If you specify showownedby others, all files not owned by the user are displayed.
+The depth <Number> argument controls whether files or folders within a selected folder are displayed.
+If <Number> equals -1 (the default), all files and folders in the selected folder and below are displayed.
+If <Number> is 0, files or folders within a selected folder are displayed, no descendents are displayed.
+If <Number> is greater than 0, the files and folders within the selected folder and those files and folders <Number> levels below the selected folder are displayed.
+
+When the select argument is not used, the root folder is selected.
+The select argument specifies an alternate starting point for output.
+Example, display the tree of files/folders owned by the user:
+    gam user testuser show filetree
+Example, display the tree of files/folders owned by anyone to a depth of 2:
+    gam user testuser show filetree showownedby any depth 2
+
+Emample, display the tree of files/folders without a parent, owned by anyone, and their descendents:
+    gam user testuser show filetree select orphans showownedby any
+Example, display the tree of  files/folders, owned by the user, in a folder owned by another user:
+    gam user testuser show filetree select anydrivefilename 'Other User Folder' showownedby me
+
+Added preview, filepath and todrive arguments to claim/transfer ownership.
+preview specifies that a CSV file showing the ownership changes be produced without actually performing the changes.
+filepath is used with preview to show the file path for files.
+    gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])* [preview] [filepath] todrive]
+    gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare] [preview] [filepath] todrive]
+For transfer ownership, the headers of the CSV file are: OldOwner,NewOwner,type,id,title
+For claim ownership, the headers of the CSV file are: NewOwner,OldOwner,type,id,title
+If filepath is specified, a paths header is added that show the total number of paths to the file; a header path.<N> is added for each path.
+
+4.27.04
 
 Fixed gam print tokens to show clientId.
 
-GAM 4.27.03
+4.27.03
 
 Handle newlines in CrOS notes field.
 
-GAM 4.27.02
+4.27.02
 
 Added depth <Number> argument to show filetree
     gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
-If depth equals -1 (the default), all files and folders below the selected folder are listed. The root folder is selected by default.
-If depth is 0, files or folders within a selected folder are listed.
-If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
+If <Number> equals -1 (the default), all files and folders below the selected folder are listed. The root folder is selected by default.
+If <Number> is 0, files or folders within a selected folder are listed.
+If <Number> is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
 
 Added anydrivefilename argument to allow specification of drive file names for files you don't own but can access, i.e., files shared with you.
     <DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
@@ -20,7 +91,7 @@ Added anydrivefilename argument to allow specification of drive file names for f
     <DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
     <DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
 
-GAM 4.27.01
+4.27.01
 
 Cleaned up processing of guardian invitation cancellations.
 
@@ -118,10 +189,10 @@ Added anyowner argument to allowing listing of all files in users' drive rather 
 If none of query, fullquery and select are specified, all of the users' files and folders starting at the root folder are listed.
 If query or fullquery is specified, all of the users' files and folders matching the query are listed.
 If select is specified, each file or folder selected by <DriveFileEntity> is listed.
-The argument depth controls whether files or folders within a selected folder are listed when the select argument is specified.
-If depth equals -1 (the default), all files and folders below the selected folder are listed.
-If depth is 0, no files or folders within a selected folder are listed.
-If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
+The depth <Number> argument controls whether files or folders within a selected folder are listed when the select argument is specified.
+If <Number> equals -1 (the default), all files and folders below the selected folder are listed.
+If <Number> is 0, no files or folders within a selected folder are listed.
+If <Number> is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
 When anyowner or fullquery are specified, the Owner column should be interpreted as the User column as some files shown may not owned by the user.
 
 4.24.05
