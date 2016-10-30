@@ -6092,7 +6092,7 @@ OAUTH2_SCOPES = [
    u'types': [OAUTH2_GAPI_SCOPES, OAUTH2_GDATA_SCOPES],
    u'subscopes': [],
    u'scopes': u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/'},
-  {u'name': u'Group Settings API',
+  {u'name': u'Groups Settings API',
    u'types': [OAUTH2_GAPI_SCOPES],
    u'subscopes': [],
    u'scopes': u'https://www.googleapis.com/auth/apps.groups.settings'},
@@ -6110,6 +6110,7 @@ OAUTH2_SCOPES = [
    u'scopes': u'https://www.googleapis.com/auth/admin.reports.usage.readonly'},
   {u'name': u'Site Verification API',
    u'types': [OAUTH2_GAPI_SCOPES],
+   u'offByDefault': True,
    u'subscopes': [],
    u'scopes': u'https://www.googleapis.com/auth/siteverification'},
   {u'name': u'Sites API',
@@ -6174,25 +6175,28 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       for a_scope in OAUTH2_SCOPES:
         if oauth2Scope in a_scope[u'types']:
           selected_scopes[i] = u' '
-          possibleScope = OAUTH2_SCOPES[i][u'scopes']
+          possibleScope = a_scope[u'scopes']
           for currentScope in currentScopes:
             if currentScope == possibleScope:
               selected_scopes[i] = u'*'
               break
-            if u'readonly' in OAUTH2_SCOPES[i][u'subscopes']:
+            if u'readonly' in a_scope[u'subscopes']:
               if currentScope == possibleScope+u'.readonly':
                 selected_scopes[i] = u'R'
                 break
-            if u'action' in OAUTH2_SCOPES[i][u'subscopes']:
+            if u'action' in a_scope[u'subscopes']:
               if currentScope == possibleScope+u'.action':
                 selected_scopes[i] = u'A'
                 break
-      i += 1
+        i += 1
     else:
       i = 0
       for a_scope in OAUTH2_SCOPES:
         if oauth2Scope in a_scope[u'types']:
-          selected_scopes[i] = u'*'
+          if a_scope.get(u'offByDefault', False):
+            selected_scopes[i] = u' '
+          else:
+            selected_scopes[i] = u'*'
         i += 1
   prompt = u'Please enter 0-{0}[a|r] or {1}: '.format(num_scopes-1, u'|'.join(OAUTH2_CMDS))
   while True:

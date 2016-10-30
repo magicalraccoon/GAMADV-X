@@ -1,3 +1,7 @@
+4.28.01
+
+Correct initialization of scopes list in gam oauth create.
+
 4.28.00
 
 The internal processing of claim/transfer ownership, show filetree and print/show filelist with a select has been rewritten to improve performance.
