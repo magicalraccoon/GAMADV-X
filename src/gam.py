@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.29.00'
+__version__ = u'4.29.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -9718,9 +9718,10 @@ class ContactsManager(object):
         item[u'label'] = getString(OB_STRING)
       return item
 
-    def AppendItemToFieldsList(fieldName, fieldValue):
+    def AppendItemToFieldsList(fieldName, fieldValue, checkBlankField=None):
       fields.setdefault(fieldName, [])
-      fields[fieldName].append(fieldValue)
+      if not checkBlankField or fieldValue[checkBlankField]:
+        fields[fieldName].append(fieldValue)
 
     while CL_argvI < CL_argvLen:
       fieldName = getChoice(ContactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP, mapChoice=True)
@@ -9760,60 +9761,60 @@ class ContactsManager(object):
           ClearFieldsList(fieldName)
           continue
         calendarLink = InitArrayItem(ContactsManager.CALENDAR_TYPE_ARGUMENT_TO_REL)
-        calendarLink[u'value'] = getString(OB_STRING)
+        calendarLink[u'value'] = getString(OB_STRING, emptyOK=True)
         calendarLink[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, calendarLink)
+        AppendItemToFieldsList(fieldName, calendarLink, u'value')
       elif fieldName == CONTACT_EMAILS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         email = InitArrayItem(ContactsManager.EMAIL_TYPE_ARGUMENT_TO_REL)
-        email[u'value'] = getEmailAddress(noUid=True)
+        email[u'value'] = getEmailAddress(noUid=True, emptyOK=True)
         email[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, email)
+        AppendItemToFieldsList(fieldName, email, u'value')
       elif fieldName == CONTACT_EVENTS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         event = InitArrayItem(ContactsManager.EVENT_TYPE_ARGUMENT_TO_REL)
-        event[u'value'] = getYYYYMMDD()
-        AppendItemToFieldsList(fieldName, event)
+        event[u'value'] = getYYYYMMDD(emptyOK=True)
+        AppendItemToFieldsList(fieldName, event, u'value')
       elif fieldName == CONTACT_EXTERNALIDS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         externalid = InitArrayItem(ContactsManager.EXTERNALID_TYPE_ARGUMENT_TO_REL)
-        externalid[u'value'] = getString(OB_STRING)
-        AppendItemToFieldsList(fieldName, externalid)
+        externalid[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, externalid, u'value')
       elif fieldName == CONTACT_HOBBIES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        hobby = {u'value': getString(OB_STRING)}
-        AppendItemToFieldsList(fieldName, hobby)
+        hobby = {u'value': getString(OB_STRING, emptyOK=True)}
+        AppendItemToFieldsList(fieldName, hobby, u'value')
       elif fieldName == CONTACT_IMS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         im = InitArrayItem(ContactsManager.IM_TYPE_ARGUMENT_TO_REL)
         im[u'protocol'] = getChoice(ContactsManager.IM_PROTOCOL_TO_REL_MAP, mapChoice=True)
-        im[u'value'] = getString(OB_STRING)
+        im[u'value'] = getString(OB_STRING, emptyOK=True)
         im[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, im)
+        AppendItemToFieldsList(fieldName, im, u'value')
       elif fieldName == CONTACT_JOTS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         jot = {u'rel': getChoice(ContactsManager.JOT_TYPE_ARGUMENT_TO_REL, mapChoice=True)}
-        jot[u'value'] = getString(OB_STRING)
-        AppendItemToFieldsList(fieldName, jot)
+        jot[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, jot, u'value')
       elif fieldName == CONTACT_ORGANIZATIONS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         organization = InitArrayItem(ContactsManager.ORGANIZATION_TYPE_ARGUMENT_TO_REL)
         organization[u'primary'] = u'false'
-        organization[u'value'] = getString(OB_STRING)
+        organization[u'value'] = getString(OB_STRING, emptyOK=True)
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
@@ -9823,36 +9824,36 @@ class ContactsManager(object):
             break
           else:
             unknownArgumentExit()
-        AppendItemToFieldsList(fieldName, organization)
+        AppendItemToFieldsList(fieldName, organization, u'value')
       elif fieldName == CONTACT_PHONES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         phone = InitArrayItem(ContactsManager.PHONE_TYPE_ARGUMENT_TO_REL)
-        phone[u'value'] = getString(OB_STRING)
+        phone[u'value'] = getString(OB_STRING, emptyOK=True)
         phone[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, phone)
+        AppendItemToFieldsList(fieldName, phone, u'value')
       elif fieldName == CONTACT_RELATIONS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         relation = InitArrayItem(ContactsManager.RELATION_TYPE_ARGUMENT_TO_REL)
-        relation[u'value'] = getString(OB_STRING)
-        AppendItemToFieldsList(fieldName, relation)
+        relation[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, relation, u'value')
       elif fieldName == CONTACT_USER_DEFINED_FIELDS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         userdefinedfield = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING, emptyOK=True)}
-        AppendItemToFieldsList(fieldName, userdefinedfield)
+        AppendItemToFieldsList(fieldName, userdefinedfield, u'value')
       elif fieldName == CONTACT_WEBSITES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
         website = InitArrayItem(ContactsManager.WEBSITE_TYPE_ARGUMENT_TO_REL)
-        website[u'value'] = getString(OB_STRING)
+        website[u'value'] = getString(OB_STRING, emptyOK=True)
         website[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, website)
+        AppendItemToFieldsList(fieldName, website, u'value')
       elif fieldName == CONTACT_GROUPS:
         if entityType != EN_USER:
           putArgumentBack()
@@ -14177,22 +14178,22 @@ ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
   u'title': u'title',
   }
 
-def clearBodyList(body, itemName):
-  if itemName in body:
-    del body[itemName]
-  body.setdefault(itemName, None)
-
-def appendItemToBodyList(body, itemName, itemValue):
-  if (itemName in body) and (body[itemName] is None):
-    del body[itemName]
-  body.setdefault(itemName, [])
-  body[itemName].append(itemValue)
-
-def gen_sha512_hash(password):
-  from passlib.handlers.sha2_crypt import sha512_crypt
-  return sha512_crypt.encrypt(password, rounds=5000)
-
 def getUserAttributes(cd, updateCmd=False, noUid=False):
+  def clearBodyList(body, itemName):
+    if itemName in body:
+      del body[itemName]
+    body.setdefault(itemName, None)
+
+  def appendItemToBodyList(body, itemName, itemValue):
+    if (itemName in body) and (body[itemName] is None):
+      del body[itemName]
+    body.setdefault(itemName, [])
+    body[itemName].append(itemValue)
+
+  def gen_sha512_hash(password):
+    from passlib.handlers.sha2_crypt import sha512_crypt
+    return sha512_crypt.encrypt(password, rounds=5000)
+
   def _splitSchemaNameDotFieldName(sn_fn, fnRequired=True):
     if sn_fn.find(u'.') != -1:
       schemaName, fieldName = sn_fn.split(u'.', 1)

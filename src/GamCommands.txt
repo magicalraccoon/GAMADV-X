@@ -508,7 +508,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	(contactgroup clear|<ContactGroupItem>)|
 	(directoryserver <String>)|
 	(email clear|(work|home|other|<String> <EmailAddress> notprimary|primary))|
-	(event clear|anniversary|other|<String> <yyyy-mm-dd>))|
+	(event clear|(anniversary|other|<String> <yyyy-mm-dd>))|
 	(externalid clear|(account|customer|network|organization|<String> <String>))|
 	(familyname|lastname <String>)|
 	(gender female|male)|
