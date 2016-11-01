@@ -1,3 +1,28 @@
+4.29.00
+
+Note!!! oauth2.txt has been reorganized to circumvent a Google limitation and you must reauthorize your Client ID.
+If you have customized the list of authorized scopes in a prior version, do 'gam create oauth' in that version, note the settings and then enter e to exit.
+After installing this version, you must immediately perform a 'gam oauth create' and enter the settings noted above.
+This version and prior versions can share the new oauth2.txt file.
+After you've determined that you won't be using a prior version any longer, you can issue the following command to delete the authorizations for the previous version of gam.
+    gam oauth delete previous
+
+Added command to archive messages to a group.
+    gam <UserTypeEntity> archive messages <GroupItem> (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_archive <Number>])|(ids <MessageIDEntity>)
+To use this command you must add the following scope to the list of authorized scopes for your Client ID:
+    https://www.googleapis.com/auth/apps.groups.migration
+
+Thanks to Mattias Bystedt for the following enhancement.
+Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you direct the uploaded file to a particular location and add a timestamp to the file title.
+    <ToDriveAttributes> ::=
+	(tdparentid <DriveFileID>)|(tdparentname <DriveFileName>)|(tdtimestamp [tddaysoffset <Number>] [tdhoursoffset <Number])
+tdparentid <DriveFileID> and tdparentname <DriveFileName> must specifiy an existing Drive folder owned by the administrator named in oauth2.txt.
+The tdtimestamp argument adds a timestamp (of the time the file is uploaded to Google) to the title of the uploaded file. The tddaysoffset and tdhoursoffset let you specify values that
+subtract time from the the timestamp, possibly as documentation to reflect the end of the time period that the uploaded report covers.
+If these arguments are not specified, the functionaality is as before, the file is uploaded to your root folder with no tiemstamp added to the title.
+Example, generate a list of users, upload to the 'GAM Reports' folder, add a timestamp to the title.
+    gam print users todrive tdparentname 'GAM Reports' tdtimestamp id name
+
 4.28.01
 
 Correct initialization of scopes list in gam oauth create.

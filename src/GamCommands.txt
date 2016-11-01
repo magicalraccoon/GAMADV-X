@@ -616,6 +616,9 @@ If an item contains spaces, it should be surrounded by " or '.
 <SiteAttributes> ::=
 	(name <String>)|(summary <String>)|(theme <String>)|(categories <String>)|(sourcelink <URI>])
 
+<ToDriveAttributes> ::=
+	(tdparentid <DriveFileID>)|(tdparentname <DriveFileName>)|(tdtimestamp [tddaysoffset <Number>] [tdhoursoffset <Number])
+
 <UserAttributes> ::=
 	(address|addresses clear|(type work|home|other|(custom <String>) [unstructured|formatted <String>] [pobox <String>] [extendedaddress <String>] [streetaddress <String>]
 		[locality <String>] [region <String>] [postalcode <String>] [country <String>] [countrycode <String>] notprimary|primary))|
@@ -673,8 +676,8 @@ gam loop <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <
 # Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
 # Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
 
-gam list [todrive] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
-gam <CrOSTypeEntity>|<UserTypeEntity> list [todrive] [data <EntityList> [delimiter <String>]]
+gam list [todrive [<ToDriveAttributes>]] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
+gam <CrOSTypeEntity>|<UserTypeEntity> list [todrive [<ToDriveAttributes>]] [data <EntityList> [delimiter <String>]]
 
 gam oauth|oauth2 create|request
 gam oauth|oauth2 delete|revoke
@@ -682,28 +685,28 @@ gam oauth|oauth2 info|verify [<AccessToken>]
 
 gam whatis <EmailItem> [noinfo]
 
-gam report users|user [todrive] [nodatechange] [maxresults <Number>]
+gam report users|user [todrive [<ToDriveAttributes>]] [nodatechange] [maxresults <Number>]
 	[date <Date>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [filter|filters <String>] [fields|parameters <String>]
-gam report customers|customer|domain [todrive] [nodatechange]
+gam report customers|customer|domain [todrive [<ToDriveAttributes>]] [nodatechange]
 	[date <Date>] [fields|parameters <String>]
-gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive] [maxresults <Number>]
+gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive [<ToDriveAttributes>]] [maxresults <Number>]
 	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>]
 
 gam create admin <UserItem> <RoleItem> customer|(org_unit <OrgUnitItem>)
 gam delete admin <RoleAssignmentId>
-gam print admins [todrive] [user <UserItem>] [role <RoleItem>]
-gam print adminroles|roles [todrive]
+gam print admins [todrive [<ToDriveAttributes>]] [user <UserItem>] [role <RoleItem>]
+gam print adminroles|roles [todrive [<ToDriveAttributes>]]
 
 gam create domain <DomainName>
 gam update domain <DomainName> primary
 gam delete domain <DomainName>
 gam info domain [<DomainName>]
-gam print domains [todrive]
+gam print domains [todrive [<ToDriveAttributes>]]
 
 gam create domainalias|aliasdomain <DomainAlias> <DomainName>
 gam delete domainalias|aliasdomain <DomainAlias>
 gam info domainalias|aliasdomain <DomainAlias>
-gam print domainaliases|aliasdomains [todrive]
+gam print domainaliases|aliasdomains [todrive [<ToDriveAttributes>]]
 
 
 gam info customer
@@ -714,7 +717,7 @@ gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <
 
 gam create datatransfer|transfer <OldOwnerID> <DataTransferService> <NewOwnerID> (<ParameterKey> <ParameterValue>)*
 gam info datatransfer|transfer <TransferID>
-gam print datatransfers|transfers [todrive] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
+gam print datatransfers|transfers [todrive [<ToDriveAttributes>]] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
 
 gam print transferapps
 
@@ -728,7 +731,7 @@ gam update org|ou <OrgUnitPath> [name <Name>] [description <String>] [parent <Or
 gam update org|ou <OrgUnitPath> add|move <CrOSTypeEntity>|<UserTypeEntity>
 gam delete org|ou <OrgUnitPath>
 gam info org|ou <OrgUnitPath> [nousers] [children|child]
-gam print orgs|ous [todrive] [toplevelonly] [from_parent <OrgUnitPath>] [allfields|<OrgUnitFieldName>*]
+gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitPath>] [allfields|<OrgUnitFieldName>*]
 
 gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
 gam update orgs|ous <OrgUnitEntity> add|move <CrOSTypeEntity>|<UserTypeEntity>
@@ -739,7 +742,7 @@ gam create alias|nickname <EmailAddress> user|group|target <UniqueID>|<EmailAddr
 gam update alias|nickname <EmailAddress> user|group|target <UniqueID>|<EmailAddress>
 gam delete alias|nickname [user|group|target] <UniqueID>|<EmailAddress>
 gam info alias|nickname <EmailAddress>
-gam print aliases|nicknames [todrive]
+gam print aliases|nicknames [todrive [<ToDriveAttributes>]]
 
 gam create aliases|nicknames <EmailAddressEntity> user|group|target <UniqueID>|<EmailAddress>
 gam update aliases|nicknames <EmailAddressEntity> user|group|target <UniqueID>|<EmailAddress>
@@ -788,7 +791,7 @@ gam calendars <CalendarEntity> info event <EventIDEntity>
 gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
 	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
-gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+gam calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
 	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 gam calendars <CalendarEntity> wipe events
@@ -799,7 +802,7 @@ gam delete contacts <ContactEntity>|([query <QueryContact>] [emailmatchpattern <
 gam info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
 gam show contacts [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
-gam print contacts [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam print contacts [todrive [<ToDriveAttributes>]] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 gam <UserTypeEntity> create contact [contactgroup <ContactGroupItem>] <ContactAttributes>+
@@ -808,7 +811,7 @@ gam <UserTypeEntity> delete contacts <ContactEntity>|([query <QueryContact>] [co
 gam <UserTypeEntity> info contacts <ContactEntity> [basic|full] [showgroups] [fields <ContactFieldNameList>]
 gam <UserTypeEntity> show contacts [query <QueryContact>] [contactgroup <ContactGroupItem>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
-gam <UserTypeEntity> print contacts [todrive] [query <QueryContact>] [contactgroup <ContactGroupItem>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> print contacts [todrive [<ToDriveAttributes>]] [query <QueryContact>] [contactgroup <ContactGroupItem>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
@@ -817,13 +820,13 @@ gam <UserTypeEntity> delete contactgroups <ContactGroupEntity>
 gam <UserTypeEntity> info contactgroups <ContactGroupEntity>
 gam <UserTypeEntity> show contactgroups [updated_min yyyy-mm-dd]
 	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
-gam <UserTypeEntity> print contactgroups [todrive] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> print contactgroups [todrive [<ToDriveAttributes>]] [updated_min yyyy-mm-dd]
 	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 
 gam <UserTypeEntity> info gal <ContactEntity> [basic|full] [fields <ContactFieldNameList>]
 gam <UserTypeEntity> show gal [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
-gam <UserTypeEntity> print gal [todrive] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
+gam <UserTypeEntity> print gal [todrive [<ToDriveAttributes>]] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min yyyy-mm-dd]
 	[basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 
@@ -834,7 +837,7 @@ gam info cros <CrosEntity> [nolists] [listlimit <Number>]
 gam <CrOSTypeEntity> info [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
-gam [<CrOSTypeEntity>] print cros [todrive] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
+gam [<CrOSTypeEntity>] print cros [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
 	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 gam <CrOSTypeEntity> print
@@ -864,7 +867,7 @@ If timeranges is specified as a field, each  pair of values for activeTimeRanges
 gam update mobile <MobileEntity> <MobileAttributes>+
 gam delete mobile <MobileEntity>
 gam info mobile <MobileEntity>
-gam print mobile [todrive] [query <QueryMobile>] [basic|full] [orderby <MobileOrderByFieldName> [ascending|descending]]
+gam print mobile [todrive [<ToDriveAttributes>]] [query <QueryMobile>] [basic|full] [orderby <MobileOrderByFieldName> [ascending|descending]]
 
 gam create group <EmailAddress> <GroupAttributes>*
 gam update group <GroupItem> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*
@@ -885,14 +888,14 @@ gam update groups <GroupEntity> clear [member] [manager] [owner]
 gam delete groups <GroupEntity>
 gam info groups <GroupEntity> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 
-gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
 	[members] [managers] [owners] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
 
-gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
 
-gam print licenses [todrive] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
+gam print licenses [todrive [<ToDriveAttributes>]] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 
 gam update notification|notifications [(id all)|(id <NotificationID>)*] unread|read|unreadonly
 gam delete notification|notifications [(id all)|(id <NotificationID>)*] [unreadonly|unread|read]
@@ -902,7 +905,7 @@ gam create resource <ResourceID> <Name> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
 gam delete resource <ResourceID>
 gam info resource <ResourceID>
-gam print resources [todrive] [allfields] [id] [name] [description] [email] [type]
+gam print resources [todrive [<ToDriveAttributes>]] [allfields] [id] [name] [description] [email] [type]
 
 gam update resources <ResourceEntity> [name <Name>] [description <String>] [type <String>]
 gam delete resources <ResourceEntity>
@@ -916,15 +919,15 @@ gam delete schemas <SchemaEntity>
 gam info schema <SchemaName>
 gam info schemas <SchemaEntity>
 gam show schema|schemas
-gam print schema|schemas [todrive]
+gam print schema|schemas [todrive [<ToDriveAttributes>]]
 
 gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
 gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [role|roles all|<SiteACLRoleList>]
 gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>]
-gam [<UserTypeEntity>] print sites [todrive] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+gam [<UserTypeEntity>] print sites [todrive [<ToDriveAttributes>]] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
 
-gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
+gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive [<ToDriveAttributes>]] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 
 gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
 gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
@@ -943,7 +946,7 @@ gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
-gam [<UserTypeEntity>] print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+gam [<UserTypeEntity>] print users [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
 	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
@@ -971,7 +974,7 @@ gam create course id|alias <CourseAlias> [teacher <UserItem>] <CourseAttributes>
 gam update course <CourseID> <CourseAttributes>+
 gam delete course <CourseID>
 gam info course <CourseID>
-gam print courses [todrive] [teacher] [student] [alias|aliases] [delimiter <String>]
+gam print courses [todrive [<ToDriveAttributes>]] [teacher] [student] [alias|aliases] [delimiter <String>]
 
 gam update courses <CourseEntity> <CourseAttributes>+
 gam delete courses <CourseEntity>
@@ -982,7 +985,7 @@ gam course <CourseID> delete alias <CourseAlias>
 gam course <CourseID> add teachers|students <UserItem>
 gam course <CourseID> delete|remove teachers|students <UserItem>
 gam course <CourseID> sync teachers|students <UserTypeEntity>
-gam print course-participants [todrive] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
+gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
 
 gam courses <CourseEntity> add alias <CourseAliasEntity>
 gam courses <CourseEntity> delete alias <CourseAliasEntity>
@@ -993,14 +996,14 @@ gam courses <CourseEntity> sync teachers|students <UserTypeEntity>
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <StudentItem>
 gam delete guardian|guardians <GuardianItem> <StudentItem> [invitation]
 gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
-gam print guardian|guardians [todrive] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations [states <GuardianStateList>]] [<UserTypeEntity>]
+gam print guardian|guardians [todrive [<ToDriveAttributes>]] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations [states <GuardianStateList>]] [<UserTypeEntity>]
 gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
 
 gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
 gam delete printer <PrinterID>
 gam info printer <PrinterID> [everything]
-gam print printers [todrive] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>]
+gam print printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>]
 
 gam update printers <PrinterIDEntity> <PrinterAttributes>+
 gam delete printers <PrinterIDEntity>
@@ -1008,13 +1011,13 @@ gam info printers <PrinterIDEntity> [everything]
 
 gam printer <PrinterID> add user|manager|owner <EmailAddress>|[domain:]<DomainName>|public
 gam printer <PrinterID> delete <EmailAddress>|[domain:]<DomainName>|public
-gam printer <PrinterID> showacl [csv] [todrive]
+gam printer <PrinterID> showacl [csv] [todrive [<ToDriveAttributes>]]
 gam printer <PrinterID> sync user|manager|owner <UserTypeEntity>|[domain:]<DomainName>|public
 gam printer <PrinterID> wipe user|manager|owner
 
 gam printers <PrinterIDEntity> add user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
 gam printers <PrinterIDEntity> delete <UserTypeEntity>|domain:<DomainName>|public
-gam printers <PrinterIDEntity> showacl [csv] [todrive]
+gam printers <PrinterIDEntity> showacl [csv] [todrive [<ToDriveAttributes>]]
 gam printers <PrinterIDEntity> sync user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
 gam printers <PrinterIDEntity> wipe user|manager|owner
 
@@ -1033,7 +1036,7 @@ gam printjob|printjobs <PrinterID>|any fetch
 	[owner|user <EmailAddress>]
 	[limit <Number>] [drivedir|(targetfolder <FilePath>)]
 gam printjob|printjobs <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
-gam print printjobs [todrive] [printer|printerid <PrinterID>]
+gam print printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterID>]
 	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
 	[status <PrintJobStatus>]
 	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
@@ -1052,7 +1055,7 @@ gam <UserTypeEntity> update calendar <CalendarItem>|primary <CalendarAttributes>
 gam <UserTypeEntity> delete|del calendar <CalendarItem>
 gam <UserTypeEntity> show calendars
 gam <UserTypeEntity> info calendar <CalendarItem>|primary
-gam <UserTypeEntity> print calendars [todrive]
+gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
 gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
@@ -1069,9 +1072,9 @@ gam <UserTypeEntity> remove calendar <CalendarItem>
 gam <UserTypeEntity> modify calendars <CalendarEntity>|primary <CalendarSettings>
 gam <UserTypeEntity> remove calendars <CalendarEntity>
 
-gam <UserTypeEntity> print|show driveactivity [todrive] [fileid <DriveFileID>] [folderid <DriveFolderID>]
-gam <UserTypeEntity> print|show drivesettings [todrive]
-gam <UserTypeEntity> print|show filelist [todrive] [anyowner|(showownedby any|me|others)] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
+gam <UserTypeEntity> print|show driveactivity [todrive [<ToDriveAttributes>]] [fileid <DriveFileID>] [folderid <DriveFolderID>]
+gam <UserTypeEntity> print|show drivesettings [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
 	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
@@ -1088,8 +1091,8 @@ gam <UserTypeEntity> trash drivefile <DriveFileEntity>
 gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
-gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])* [preview] [filepath] [todrive]
-gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare] [preview] [filepath] [todrive]
+gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])* [preview] [filepath] [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
@@ -1118,8 +1121,8 @@ gam <UserTypeEntity> show profile
 
 gam <UserTypeEntity> delete|del token|tokens clientid <ClientID>
 gam <UserTypeEntity> show tokens|token [clientid <ClientID>]
-gam <UserTypeEntity> print tokens|token [todrive] [clientid <ClientID>]
-gam print tokens|token [todrive] [clientid <ClientID>] [<UserTypeEntity>]
+gam <UserTypeEntity> print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>]
+gam print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>] [<UserTypeEntity>]
 
 gam <UserTypeEntity> update user <UserAttrubutes>
 
@@ -1133,6 +1136,7 @@ gam <UserTypeEntity> update label|labels [search <RegularExpression>] [replace <
 gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<RegularExpression>|--ALL_LABELS--
 gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
 
+gam <UserTypeEntity> archive messages <GroupItem> (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_archive <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> delete messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_delete|max_to_process <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> modify messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_modify|max_to_process <Number>])|(ids <MessageIDEntity>) (addlabel <LabelName>)* (removelabel <LabelName>)*
 gam <UserTypeEntity> spam messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_spam|max_to_process <Number>])|(ids <MessageIDEntity>)
@@ -1141,39 +1145,39 @@ gam <UserTypeEntity> untrash messages|threads (((query <QueryGmail>) (matchlabel
 gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
 gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-	[headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive]
+	[headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive [<ToDriveAttributes>]]
 #
 # Update user Gmail settings
 #
 
 gam <UserTypeEntity> show gmailprofile
-gam <UserTypeEntity> print gplusprofile [todrive]
+gam <UserTypeEntity> print gplusprofile [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> show gplusprofile
-gam <UserTypeEntity> print gplusprofile [todrive]
+gam <UserTypeEntity> print gplusprofile [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> add delegate|delegates <UserEntity>
 gam <UserTypeEntity> delegate|delegates to <UserEntity>
 gam <UserTypeEntity> delete|del delegate|delegates <UserEntity>
 gam <UserTypeEntity> show delegates|delegate [csv]
-gam <UserTypeEntity> print delegates [todrive]
+gam <UserTypeEntity> print delegates [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> [add] filter [from <EmailAddress>] [to <EmailAddress>] [subject <String>] [haswords|query <List>] [nowords|negatedquery <List>] [musthaveattachment|hasattachment] [excludechats] [size larger|smaller <ByteCount>]
 	[label <LabelID>] [important|notimportant] [star] [trash] [markread] [archive] [neverspam] [forward <EmailAddress>]
 gam <UserTypeEntity> delete filters <FilterIDEntity>
 gam <UserTypeEntity> show filters
 gam <UserTypeEntity> info filters <FilterIDEntity>
-gam <UserTypeEntity> print filters [todrive]
+gam <UserTypeEntity> print filters [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> forward <FalseValues>
 gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
 gam <UserTypeEntity> show forward
-gam <UserTypeEntity> print forward [todrive]
+gam <UserTypeEntity> print forward [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> add forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> delete forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> show forwardingaddress|forwardingaddresses
 gam <UserTypeEntity> info forwardingaddress|forwardingaddresses <EmailAddressEntity>
-gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive]
+gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> imap|imap4 <Boolean> [noautoexpunge] [expungebehavior archive|deleteforever|trash] [maxfoldersize 0|1000|2000|5000|10000]
 gam <UserTypeEntity> show imap|imap4
@@ -1186,7 +1190,7 @@ gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <
 gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
-gam <UserTypeEntity> print sendas [todrive]
+gam <UserTypeEntity> print sendas [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 gam <UserTypeEntity> show signature|sig [format] [primary]
