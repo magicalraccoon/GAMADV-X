@@ -1,6 +1,13 @@
+4.29.02
+
+Allow empty values in user attribute fields.
+
+Added todrive_conversion variable to gam.cfg. When a command specifies todrive, Gam attempts to convert the CSV file to a Google Sheet when uploading the file.
+When todrive_conversion is False, no conversion will be performed.
+
 4.29.01
 
-Allow blank values in Contact fields. The blank value will be accepted and the entry will be cleared.
+Allow empty values in Contact fields. The blank value will be accepted and the entry will be cleared.
 
 4.29.00
 

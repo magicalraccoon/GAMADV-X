@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.29.01'
+__version__ = u'4.29.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -308,6 +308,8 @@ GC_SHOW_COUNTS_MIN = u'show_counts_min'
 GC_SHOW_GETTINGS = u'show_gettings'
 # Time Zone
 GC_TIMEZONE = u'timezone'
+# Enable conversion to Google Sheets when uploading todrive files
+GC_TODRIVE_CONVERSION = u'todrive_conversion'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 GC_USER_MAX_RESULTS = u'user_max_results'
 
@@ -340,6 +342,7 @@ GC_Defaults = {
   GC_SHOW_COUNTS_MIN: 1,
   GC_SHOW_GETTINGS: TRUE,
   GC_TIMEZONE: u'utc',
+  GC_TODRIVE_CONVERSION: TRUE,
   GC_USER_MAX_RESULTS: 500,
   }
 
@@ -390,6 +393,7 @@ GC_VAR_INFO = {
   GC_SHOW_COUNTS_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_SHOW_COUNTS_MIN', GC_VAR_LIMITS: (0, None)},
   GC_SHOW_GETTINGS: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_SHOW_GETTINGS'},
   GC_TIMEZONE: {GC_VAR_TYPE: GC_TYPE_TIMEZONE, GC_VAR_ENVVAR: u'GAM_TIMEZONE'},
+  GC_TODRIVE_CONVERSION: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_TODRIVE_CONVERSION'},
   GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
   }
 
@@ -412,6 +416,7 @@ GC_SETTABLE_VARS = [
   GC_SHOW_COUNTS_MIN,
   GC_SHOW_GETTINGS,
   GC_TIMEZONE,
+  GC_TODRIVE_CONVERSION,
   GC_USER_MAX_RESULTS,
   ]
 
@@ -5499,7 +5504,7 @@ def getTodriveParameters():
     putArgumentBack()
     usageErrorExit(PHRASE_INVALID_ENTITY_MESSAGE.format(singularEntityName(entityType), message))
 
-  todrive = {u'parentid': u'root', u'timestamp': False, u'daysoffset': 0, u'hoursoffset': 0}
+  todrive = {u'parentId': u'root', u'timestamp': False, u'daysoffset': 0, u'hoursoffset': 0}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'tdparentid':
@@ -5641,14 +5646,17 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   if todrive:
-    columns = len(titles[u'list'])
-    rows = len(csvRows)
-    cell_count = rows * columns
-    if cell_count > 500000 or columns > 256:
-      printKeyValueList([WARNING, MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
-      convert = False
+    if GC_Values[GC_TODRIVE_CONVERSION]:
+      columns = len(titles[u'list'])
+      rows = len(csvRows)
+      cell_count = rows * columns
+      if cell_count > 500000 or columns > 256:
+        printKeyValueList([WARNING, MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
+        convert = False
+      else:
+        convert = True
     else:
-      convert = True
+      convert = False
     title = u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
     if todrive[u'timestamp']:
       timestamp = datetime.datetime.now(GC_Values[GC_TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
@@ -9720,7 +9728,7 @@ class ContactsManager(object):
 
     def AppendItemToFieldsList(fieldName, fieldValue, checkBlankField=None):
       fields.setdefault(fieldName, [])
-      if not checkBlankField or fieldValue[checkBlankField]:
+      if checkBlankField is None or fieldValue[checkBlankField]:
         fields[fieldName].append(fieldValue)
 
     while CL_argvI < CL_argvLen:
@@ -9744,116 +9752,120 @@ class ContactsManager(object):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        address = InitArrayItem(ContactsManager.ADDRESS_TYPE_ARGUMENT_TO_REL)
-        address[u'primary'] = u'false'
+        entry = InitArrayItem(ContactsManager.ADDRESS_TYPE_ARGUMENT_TO_REL)
+        entry[u'primary'] = u'false'
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP:
-            address[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING, emptyOK=True)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument in ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP:
-            address[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
+            entry[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
             break
           else:
             unknownArgumentExit()
-        AppendItemToFieldsList(fieldName, address)
+        AppendItemToFieldsList(fieldName, entry)
       elif fieldName == CONTACT_CALENDARS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        calendarLink = InitArrayItem(ContactsManager.CALENDAR_TYPE_ARGUMENT_TO_REL)
-        calendarLink[u'value'] = getString(OB_STRING, emptyOK=True)
-        calendarLink[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, calendarLink, u'value')
+        entry = InitArrayItem(ContactsManager.CALENDAR_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_EMAILS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        email = InitArrayItem(ContactsManager.EMAIL_TYPE_ARGUMENT_TO_REL)
-        email[u'value'] = getEmailAddress(noUid=True, emptyOK=True)
-        email[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, email, u'value')
+        entry = InitArrayItem(ContactsManager.EMAIL_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getEmailAddress(noUid=True, emptyOK=True)
+        entry[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_EVENTS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        event = InitArrayItem(ContactsManager.EVENT_TYPE_ARGUMENT_TO_REL)
-        event[u'value'] = getYYYYMMDD(emptyOK=True)
-        AppendItemToFieldsList(fieldName, event, u'value')
+        entry = InitArrayItem(ContactsManager.EVENT_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getYYYYMMDD(emptyOK=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_EXTERNALIDS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        externalid = InitArrayItem(ContactsManager.EXTERNALID_TYPE_ARGUMENT_TO_REL)
-        externalid[u'value'] = getString(OB_STRING, emptyOK=True)
-        AppendItemToFieldsList(fieldName, externalid, u'value')
+        entry = InitArrayItem(ContactsManager.EXTERNALID_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_HOBBIES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        hobby = {u'value': getString(OB_STRING, emptyOK=True)}
-        AppendItemToFieldsList(fieldName, hobby, u'value')
+        entry = {u'value': getString(OB_STRING, emptyOK=True)}
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_IMS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        im = InitArrayItem(ContactsManager.IM_TYPE_ARGUMENT_TO_REL)
-        im[u'protocol'] = getChoice(ContactsManager.IM_PROTOCOL_TO_REL_MAP, mapChoice=True)
-        im[u'value'] = getString(OB_STRING, emptyOK=True)
-        im[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, im, u'value')
+        entry = InitArrayItem(ContactsManager.IM_TYPE_ARGUMENT_TO_REL)
+        entry[u'protocol'] = getChoice(ContactsManager.IM_PROTOCOL_TO_REL_MAP, mapChoice=True)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_JOTS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        jot = {u'rel': getChoice(ContactsManager.JOT_TYPE_ARGUMENT_TO_REL, mapChoice=True)}
-        jot[u'value'] = getString(OB_STRING, emptyOK=True)
-        AppendItemToFieldsList(fieldName, jot, u'value')
+        entry = {u'rel': getChoice(ContactsManager.JOT_TYPE_ARGUMENT_TO_REL, mapChoice=True)}
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_ORGANIZATIONS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        organization = InitArrayItem(ContactsManager.ORGANIZATION_TYPE_ARGUMENT_TO_REL)
-        organization[u'primary'] = u'false'
-        organization[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry = InitArrayItem(ContactsManager.ORGANIZATION_TYPE_ARGUMENT_TO_REL)
+        entry[u'primary'] = u'false'
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
-            organization[ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING, emptyOK=True)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ContactsManager.ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument in ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP:
-            organization[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
+            entry[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
             break
           else:
             unknownArgumentExit()
-        AppendItemToFieldsList(fieldName, organization, u'value')
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_PHONES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        phone = InitArrayItem(ContactsManager.PHONE_TYPE_ARGUMENT_TO_REL)
-        phone[u'value'] = getString(OB_STRING, emptyOK=True)
-        phone[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, phone, u'value')
+        entry = InitArrayItem(ContactsManager.PHONE_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_RELATIONS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        relation = InitArrayItem(ContactsManager.RELATION_TYPE_ARGUMENT_TO_REL)
-        relation[u'value'] = getString(OB_STRING, emptyOK=True)
-        AppendItemToFieldsList(fieldName, relation, u'value')
+        entry = InitArrayItem(ContactsManager.RELATION_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_USER_DEFINED_FIELDS:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        userdefinedfield = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING, emptyOK=True)}
-        AppendItemToFieldsList(fieldName, userdefinedfield, u'value')
+        entry = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING, emptyOK=True)}
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_WEBSITES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        website = InitArrayItem(ContactsManager.WEBSITE_TYPE_ARGUMENT_TO_REL)
-        website[u'value'] = getString(OB_STRING, emptyOK=True)
-        website[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
-        AppendItemToFieldsList(fieldName, website, u'value')
+        entry = InitArrayItem(ContactsManager.WEBSITE_TYPE_ARGUMENT_TO_REL)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP, mapChoice=True)
+        AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_GROUPS:
         if entityType != EN_USER:
           putArgumentBack()
@@ -14184,11 +14196,12 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       del body[itemName]
     body.setdefault(itemName, None)
 
-  def appendItemToBodyList(body, itemName, itemValue):
+  def appendItemToBodyList(body, itemName, itemValue, checkBlankField=None):
     if (itemName in body) and (body[itemName] is None):
       del body[itemName]
     body.setdefault(itemName, [])
-    body[itemName].append(itemValue)
+    if checkBlankField is None or itemValue[checkBlankField]:
+      body[itemName].append(itemValue)
 
   def gen_sha512_hash(password):
     from passlib.handlers.sha2_crypt import sha512_crypt
@@ -14231,10 +14244,10 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         clTypeKeyword = typeKeywords[PTKW_CL_TYPE_KEYWORD]
       if up == u'givenName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING)
+        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
       elif up == u'familyName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING)
+        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
       elif up == u'password':
         need_password = False
         body[up] = getString(OB_STRING)
@@ -14255,123 +14268,127 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        address = {}
+        entry = {}
         getChoice([clTypeKeyword,])
-        getKeywordAttribute(typeKeywords, address)
+        getKeywordAttribute(typeKeywords, entry)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
-          address[u'sourceIsStructured'] = False
-          address[u'formatted'] = getString(OB_STRING)
+          entry[u'sourceIsStructured'] = False
+          entry[u'formatted'] = getString(OB_STRING, emptyOK=True)
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ADDRESS_ARGUMENT_TO_FIELD_MAP:
-            address[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            address[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, address)
+        appendItemToBodyList(body, up, entry)
       elif up == u'ims':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        im = {}
+        entry = {}
         getChoice([clTypeKeyword,])
-        getKeywordAttribute(typeKeywords, im)
+        getKeywordAttribute(typeKeywords, entry)
         getChoice([IM_PROTOCOLS[PTKW_CL_TYPE_KEYWORD],])
-        getKeywordAttribute(IM_PROTOCOLS, im)
+        getKeywordAttribute(IM_PROTOCOLS, entry)
         # Backwards compatability: notprimary|primary on either side of IM address
-        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
-        im[u'im'] = getString(OB_STRING)
-        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=im[u'primary'], mapChoice=True)
-        appendItemToBodyList(body, up, im)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        entry[u'im'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=entry[u'primary'], mapChoice=True)
+        appendItemToBodyList(body, up, entry, u'im')
       elif up == u'notes':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        note = {}
-        getKeywordAttribute(typeKeywords, note, defaultChoice=u'text_plain')
+        entry = {}
+        getKeywordAttribute(typeKeywords, entry, defaultChoice=u'text_plain')
         if checkArgumentPresent(FILE_ARGUMENT):
-          note[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
+          entry[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
         else:
-          note[u'value'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
-        body[up] = note
+          entry[u'value'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+        body[up] = entry
       elif up == u'organizations':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        organization = {}
+        entry = {}
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(typeKeywords, organization)
+            getKeywordAttribute(typeKeywords, entry)
           elif argument == typeKeywords[PTKW_CL_CUSTOMTYPE_KEYWORD]:
-#            organization[typeKeywords[PTKW_ATTR_TYPE_KEYWORD]] = typeKeywords[PTKW_ATTR_TYPE_CUSTOM_VALUE]
-            organization[typeKeywords[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(OB_STRING)
+#            entry[typeKeywords[PTKW_ATTR_TYPE_KEYWORD]] = typeKeywords[PTKW_ATTR_TYPE_CUSTOM_VALUE]
+            entry[typeKeywords[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(OB_STRING)
           elif argument in ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
-            organization[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            organization[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, organization)
+        appendItemToBodyList(body, up, entry)
       elif up == u'phones':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        phone = {}
+        entry = {}
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(typeKeywords, phone)
+            getKeywordAttribute(typeKeywords, entry)
           elif argument == u'value':
-            phone[u'value'] = getString(OB_STRING)
+            entry[u'value'] = getString(OB_STRING, emptyOK=True)
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            phone[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, phone)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'relations':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        relation = {}
-        getKeywordAttribute(typeKeywords, relation)
-        relation[u'value'] = getString(OB_STRING)
-        appendItemToBodyList(body, up, relation)
+        entry = {}
+        getKeywordAttribute(typeKeywords, entry)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'emails':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        an_email = {}
-        getKeywordAttribute(typeKeywords, an_email)
-        an_email[u'address'] = getEmailAddress(noUid=True)
-        appendItemToBodyList(body, up, an_email)
+        entry = {}
+        getKeywordAttribute(typeKeywords, entry)
+        entry[u'address'] = getEmailAddress(noUid=True, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'address')
       elif up == u'externalIds':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        externalid = {}
-        getKeywordAttribute(typeKeywords, externalid)
-        externalid[u'value'] = getString(OB_STRING)
-        appendItemToBodyList(body, up, externalid)
+        entry = {}
+        getKeywordAttribute(typeKeywords, entry)
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'websites':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        website = {}
-        getKeywordAttribute(typeKeywords, website)
-        website[u'value'] = getString(OB_URL)
-        website[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
-        appendItemToBodyList(body, up, website)
+        entry = {}
+        getKeywordAttribute(typeKeywords, entry)
+        entry[u'value'] = getString(OB_URL, emptyOK=True)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        appendItemToBodyList(body, up, entry, u'value')
     elif myarg == u'clearschema':
       if not updateCmd:
         unknownArgumentExit()
