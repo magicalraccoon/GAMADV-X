@@ -1,3 +1,7 @@
+4.29.01
+
+Allow blank values in Contact fields. The blank value will be accepted and the entry will be cleared.
+
 4.29.00
 
 Note!!! oauth2.txt has been reorganized to circumvent a Google limitation and you must reauthorize your Client ID.
