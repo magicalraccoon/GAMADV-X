@@ -5636,11 +5636,11 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
   if todrive:
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE_DELIMITER])
+                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE_DELIMITER]))
   else:
     csvFile = openFile(GM_Globals[GM_CSVFILE], GM_Globals[GM_CSVFILE_MODE])
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                               dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE_DELIMITER])
+                               dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE_DELIMITER]))
   try:
     if GM_Globals[GM_CSVFILE_WRITE_HEADER]:
       writer.writerow(dict((item, item) for item in writer.fieldnames))
