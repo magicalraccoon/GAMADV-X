@@ -662,7 +662,7 @@ For redirect csv, the optional arguments must appear in the order shown.
 # GAM meta arguments, these must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
 gam [<Select>] [<Config>] [<Redirect>] ...
 
-gam version [check]
+gam version [check] [simple]
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
