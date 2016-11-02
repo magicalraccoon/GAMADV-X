@@ -158,11 +158,12 @@ GM_PARSER = u'pars'
 # gam.cfg file
 GM_GAM_CFG_PATH = u'gcpa'
 GM_GAM_CFG_FILE = u'gcfi'
-# Where will CSV files be written, encoding, mode
+# Where will CSV files be written, encoding, mode, delimiter
 GM_CSVFILE = u'csfi'
 GM_CSVFILE_ENCODING = u'csen'
 GM_CSVFILE_MODE = u'csmo'
 GM_CSVFILE_WRITE_HEADER = u'cswh'
+GM_CSVFILE_DELIMITER = u'csdl'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
 # Disable GAM update check
@@ -224,6 +225,7 @@ GM_Globals = {
   GM_CSVFILE_ENCODING: DEFAULT_CHARSET,
   GM_CSVFILE_MODE: u'w',
   GM_CSVFILE_WRITE_HEADER: True,
+  GM_CSVFILE_DELIMITER: u',',
   GM_CSV_DATA_DICT: {},
   GM_CSV_KEY_FIELD: None,
   GM_CSV_DATA_FIELD: None,
@@ -3750,7 +3752,7 @@ def SetGlobalVariables():
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
     GM_Globals[GM_OAUTH2_CLIENT_ID] = None
-# redirect [csv <FileName> [append] [charset <CharSet>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
+# redirect [csv <FileName> [append] [charset <CharSet>] [delimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
   if checkArgumentPresent([REDIRECT_CMD,]):
     while CL_argvI < CL_argvLen:
       myarg = getChoice([u'csv', u'stdout', u'stderr'], defaultChoice=None)
@@ -3760,6 +3762,8 @@ def SetGlobalVariables():
       if myarg == u'csv':
         mode = [u'wb', u'ab'][checkArgumentPresent([u'append',])]
         encoding = getCharSet()
+        if checkArgumentPresent([u'delimiter',]):
+          GM_Globals[GM_CSVFILE_DELIMITER] = getString(OB_STRING)[0:1]
         _setCSVFile(filename, mode, encoding)
       elif myarg == u'stdout':
         sys.stdout = _setSTDFile(filename, [u'w', u'a'][checkArgumentPresent([u'append',])])
@@ -5632,11 +5636,11 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
   if todrive:
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL)
+                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE_DELIMITER])
   else:
     csvFile = openFile(GM_Globals[GM_CSVFILE], GM_Globals[GM_CSVFILE_MODE])
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                               dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL)
+                               dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE_DELIMITER])
   try:
     if GM_Globals[GM_CSVFILE_WRITE_HEADER]:
       writer.writerow(dict((item, item) for item in writer.fieldnames))

@@ -9,6 +9,7 @@ If an item contains spaces, it should be surrounded by " or '.
 | separates alternative items
 
 # Primatives
+<Character> ::= a single character
 <Digit> ::= 0|1|2|3|4|5|6|7|8|9
 <Number> ::= <Digit>+
 <Hex> ::= <Digit>|a|b|c|d|e|f|A|B|C|D|E|F
@@ -654,8 +655,9 @@ If an item contains spaces, it should be surrounded by " or '.
 <Config> ::=
 	config (<VariableName> <Value)* [save] [verify]
 # Specify file redirection. If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
+For redirect csv, the optional arguments must appear in the order shown.
 <Redirect> ::=
-	redirect [csv <FileName> [append] [charset <Charset>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
+	redirect [csv <FileName> [append] [charset <Charset>] [delimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
 
 # GAM meta arguments, these must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
 gam [<Select>] [<Config>] [<Redirect>] ...

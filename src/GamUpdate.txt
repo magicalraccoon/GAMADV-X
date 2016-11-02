@@ -1,3 +1,10 @@
+4.29.04
+
+Add ability to specify an alternate CSV field delimiter in redirect csv.
+For redirect csv, the optional arguments must appear in the order shown.
+    <Redirect> ::=
+	redirect [csv <FileName> [append] [charset <Charset>] [delimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
+
 4.29.03
 
 Fixed bug in archive messages.
