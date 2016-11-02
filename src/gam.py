@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.29.02'
+__version__ = u'4.29.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20766,8 +20766,9 @@ def archiveMessages(users):
       entityPerformActionNumItems(EN_USER, user, jcount, entityType, i, count)
       incrementIndentLevel()
       j = 0
-      for messageId in messageIds:
+      for message in listResult:
         j += 1
+        messageId = message[u'id']
         try:
           message = callGAPI(gmail.users().messages(), u'get',
                              throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT],
