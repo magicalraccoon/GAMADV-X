@@ -1,3 +1,26 @@
+4.29.06
+
+Added todrive_parent and todrive_timestamp variables to gam.cfg.
+todrive_parent specifies the parent folder for CSV files when todrive is specified; can be id:<DriveFolderID> or <DriveFolderName>; default is root.
+It must specify an existing Drive folder owned by the user named in oauth2.txt.
+todrive_timestamp enables/disables adding a timestamp to the title of CSV files when todrive is specified; default is false.
+
+Note!!! Syntax changed.
+Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you direct the uploaded file to a particular location and add a timestamp to the file title.
+    <ToDriveAttributes> ::=
+	(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
+The tdparent argument specifies the parent folder for the uploaded file; it must specify an existing Drive folder owned by the user named in oauth2.txt.
+The tdtimestamp argument specifies whether a timestamp (of the time the file is uploaded to Google) will be added to the title of the uploaded file.
+tdparent and tdtimestamp default to the values specified in gam.cfg.
+The tddaysoffset and tdhoursoffset arguments let you specify values that subtract time from the timestamp, possibly as documentation to reflect the end of the time period that the uploaded report covers.
+Example, generate a list of users, upload to the 'GAM Reports' folder, add a timestamp to the title.
+    gam print users todrive tdparent 'GAM Reports' tdtimestamp true id name
+To make these values be the default, add the following two lines to gam.cfg.
+    todrive_parent = 'GAM Reports'
+    todrive_timestamp = true
+To override these values, change them on the command line.
+    gam print users todrive tdparent 'root tdtimestamp false id name
+
 4.29.05
 
 Added simple argument to gam version for use by scripts.
@@ -28,8 +51,9 @@ Allow empty values in Contact fields. The blank value will be accepted and the e
 4.29.00
 
 Note!!! oauth2.txt has been reorganized to circumvent a Google limitation and you must reauthorize your Client ID.
-If you have customized the list of authorized scopes in a prior version, do 'gam create oauth' in that version, note the settings and then enter e to exit.
+If you have customized the list of authorized scopes in a prior version, do 'gam oauth create' in that version, note the settings and then enter e to exit.
 After installing this version, you must immediately perform a 'gam oauth create' and enter the settings noted above.
+If you haven't customized the list of authorized scopes in a prior version, just do 'gam oauth create' in this version and proceed.
 This version and prior versions can share the new oauth2.txt file.
 After you've determined that you won't be using a prior version any longer, you can issue the following command to delete the authorizations for the previous version of gam.
     gam oauth delete previous
@@ -42,10 +66,10 @@ To use this command you must add the following scope to the list of authorized s
 Thanks to Mattias Bystedt for the following enhancement.
 Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you direct the uploaded file to a particular location and add a timestamp to the file title.
     <ToDriveAttributes> ::=
-	(tdparentid <DriveFileID>)|(tdparentname <DriveFileName>)|(tdtimestamp [tddaysoffset <Number>] [tdhoursoffset <Number])
-tdparentid <DriveFileID> and tdparentname <DriveFileName> must specifiy an existing Drive folder owned by the administrator named in oauth2.txt.
+	(tdparentid <DriveFolderID>)|(tdparentname <DriveFolderName>)|(tdtimestamp [tddaysoffset <Number>] [tdhoursoffset <Number])
+The tdparentid/tdparentname arguments specify the parent folder for the uploaded file; they must specify an existing Drive folder owned by the user named in oauth2.txt.
 The tdtimestamp argument adds a timestamp (of the time the file is uploaded to Google) to the title of the uploaded file. The tddaysoffset and tdhoursoffset let you specify values that
-subtract time from the the timestamp, possibly as documentation to reflect the end of the time period that the uploaded report covers.
+subtract time from the timestamp, possibly as documentation to reflect the end of the time period that the uploaded report covers.
 If these arguments are not specified, the functionaality is as before, the file is uploaded to your root folder with no tiemstamp added to the title.
 Example, generate a list of users, upload to the 'GAM Reports' folder, add a timestamp to the title.
     gam print users todrive tdparentname 'GAM Reports' tdtimestamp id name

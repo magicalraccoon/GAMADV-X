@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.29.05'
+__version__ = u'4.29.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -312,6 +312,10 @@ GC_SHOW_GETTINGS = u'show_gettings'
 GC_TIMEZONE = u'timezone'
 # Enable conversion to Google Sheets when uploading todrive files
 GC_TODRIVE_CONVERSION = u'todrive_conversion'
+# ID/Name of parent folder for todrive files
+GC_TODRIVE_PARENT = u'todrive_parent'
+# Append timestamp to todrive file name
+GC_TODRIVE_TIMESTAMP = u'todrive_timestamp'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 GC_USER_MAX_RESULTS = u'user_max_results'
 
@@ -345,6 +349,8 @@ GC_Defaults = {
   GC_SHOW_GETTINGS: TRUE,
   GC_TIMEZONE: u'utc',
   GC_TODRIVE_CONVERSION: TRUE,
+  GC_TODRIVE_PARENT: u'root',
+  GC_TODRIVE_TIMESTAMP: FALSE,
   GC_USER_MAX_RESULTS: 500,
   }
 
@@ -396,6 +402,8 @@ GC_VAR_INFO = {
   GC_SHOW_GETTINGS: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_SHOW_GETTINGS'},
   GC_TIMEZONE: {GC_VAR_TYPE: GC_TYPE_TIMEZONE, GC_VAR_ENVVAR: u'GAM_TIMEZONE'},
   GC_TODRIVE_CONVERSION: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_TODRIVE_CONVERSION'},
+  GC_TODRIVE_PARENT: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_TODRIVE_PARENT'},
+  GC_TODRIVE_TIMESTAMP: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_TODRIVE_TIMESTAMP'},
   GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
   }
 
@@ -419,6 +427,8 @@ GC_SETTABLE_VARS = [
   GC_SHOW_GETTINGS,
   GC_TIMEZONE,
   GC_TODRIVE_CONVERSION,
+  GC_TODRIVE_PARENT,
+  GC_TODRIVE_TIMESTAMP,
   GC_USER_MAX_RESULTS,
   ]
 
@@ -819,6 +829,7 @@ EN_DRIVE_FILE_OR_FOLDER_ACL = u'fiac'
 EN_DRIVE_FILE_OR_FOLDER_ID = u'fifi'
 EN_DRIVE_FOLDER = u'fold'
 EN_DRIVE_FOLDER_ID = u'foli'
+EN_DRIVE_FOLDER_NAME = u'foln'
 EN_DRIVE_PATH = u'drvp'
 EN_DRIVE_SETTINGS = u'drvs'
 EN_DRIVE_TRASH = u'drvt'
@@ -946,6 +957,7 @@ ENTITY_NAMES = {
   EN_DRIVE_FILE_OR_FOLDER_ID: [u'Drive File/Folder IDs', u'Drive File/Folder ID'],
   EN_DRIVE_FOLDER: [u'Drive Folders', u'Drive Folder'],
   EN_DRIVE_FOLDER_ID: [u'Drive Folder IDs', u'Drive Folder ID'],
+  EN_DRIVE_FOLDER_NAME: [u'Drive Folder Names', u'Drive Folder Name'],
   EN_DRIVE_PATH: [u'Drive Paths', u'Drive Path'],
   EN_DRIVE_SETTINGS: [u'Drive Settings', u'Drive Settings'],
   EN_DRIVE_TRASH: [u'Drive Trash', u'Drive Trash'],
@@ -2048,6 +2060,11 @@ def initializeArguments(args):
   CL_argv = args[:]
   CL_argvI = 1
   CL_argvLen = len(CL_argv)
+
+# Set to previous argument
+def setPrevArgument(CL_argvIprev):
+  global CL_argvI
+  CL_argvI = CL_argvIprev
 
 # Put back last argument
 def putArgumentBack():
@@ -3490,7 +3507,7 @@ def SetGlobalVariables():
                                          u''))
 
   def _getCfgBoolean(sectionName, itemName):
-    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower()
     if value in TRUE_VALUES:
       return True
     if value in FALSE_VALUES:
@@ -3522,11 +3539,16 @@ def SetGlobalVariables():
     status[u'errors'] = True
     return ConfigParser.DEFAULTSECT
 
+  def _stripStringQuotes(value):
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+      return value[1:-1]
+    return value
+
   def _getCfgString(sectionName, itemName):
-    return GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+    return _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
 
   def _getCfgTimezone(sectionName, itemName):
-    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower()
+    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower())
     if value == u'utc':
       return None
     if value == u'local':
@@ -5505,39 +5527,29 @@ def getEntityList(item, listOptional=False, shlexSplit=False):
 
 def getTodriveParameters():
   def invalidTodriveDestExit(entityType, message):
-    putArgumentBack()
-    usageErrorExit(PHRASE_INVALID_ENTITY_MESSAGE.format(singularEntityName(entityType), message))
+    setPrevArgument(CL_argvIprev-1)
+    if not localParent:
+      usageErrorExit(PHRASE_INVALID_ENTITY_MESSAGE.format(singularEntityName(entityType),
+                                                          formatKeyValueList(u'',
+                                                                             [singularEntityName(EN_CONFIG_FILE), GM_Globals[GM_GAM_CFG_FILE],
+                                                                              singularEntityName(EN_ITEM), GC_TODRIVE_PARENT,
+                                                                              singularEntityName(EN_VALUE), todrive[u'parent'],
+                                                                              message],
+                                                                             u'')))
+    else:
+      usageErrorExit(PHRASE_INVALID_ENTITY_MESSAGE.format(singularEntityName(entityType), message))
 
-  todrive = {u'parentId': u'root', u'timestamp': False, u'daysoffset': 0, u'hoursoffset': 0}
+  localParent = False
+  CL_argvIprev = CL_argvI
+  todrive = {u'parent': GC_Values[GC_TODRIVE_PARENT], u'timestamp': GC_Values[GC_TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'tdparentid':
-      todrive[u'parentId'] = getString(OB_DRIVE_FILE_ID)
-      drive = buildGAPIObject(DRIVE_API)
-      try:
-        result = callGAPI(drive.files(), u'get',
-                          throw_reasons=[GAPI_FILE_NOT_FOUND],
-                          fileId=todrive[u'parentId'], fields=u'mimeType')
-        if result[u'mimeType'] != MIMETYPE_GA_FOLDER:
-          invalidTodriveDestExit(EN_DRIVE_FILE_ID, PHRASE_NOT_AN_ENTITY.format(singularEntityName(EN_DRIVE_FOLDER)))
-      except GAPI_fileNotFound as e:
-        invalidTodriveDestExit(EN_DRIVE_FILE_ID, e.message)
-    elif myarg == u'tdparentname':
-      name = getString(OB_DRIVE_FILE_NAME)
-      drive = buildGAPIObject(DRIVE_API)
-      try:
-        results = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
-                                throw_reasons=[GAPI_INVALID_QUERY],
-                                q=u"{0} = '{1}'".format(DRIVE_FILE_NAME, name), fields=u'nextPageToken,{0}(id,mimeType)'.format(DRIVE_FILES_LIST), maxResults=1)
-        if not results:
-          invalidTodriveDestExit(EN_DRIVE_FILE_NAME, PHRASE_NOT_FOUND)
-        if results[0][u'mimeType'] != MIMETYPE_GA_FOLDER:
-          invalidTodriveDestExit(EN_DRIVE_FILE_NAME, PHRASE_NOT_AN_ENTITY.format(singularEntityName(EN_DRIVE_FOLDER)))
-        todrive[u'parentId'] = results[0][u'id']
-      except (GAPI_invalidQuery) as e:
-        invalidTodriveDestExit(EN_DRIVE_FILE_NAME, e.message)
+    if myarg == u'tdparent':
+      todrive[u'parent'] = getString(OB_DRIVE_FOLDER_NAME)
+      localParent = True
+      CL_argvIprev = CL_argvI
     elif myarg == u'tdtimestamp':
-      todrive[u'timestamp'] = True
+      todrive[u'timestamp'] = getBoolean()
     elif myarg == u'tddaysoffset':
       todrive[u'daysoffset'] = getInteger(minVal=0)
     elif myarg == u'tdhoursoffset':
@@ -5545,6 +5557,32 @@ def getTodriveParameters():
     else:
       putArgumentBack()
       break
+  if todrive[u'parent'] == u'root':
+    todrive[u'parentId'] = u'root'
+  else:
+    drive = buildGAPIObject(DRIVE_API)
+    if todrive[u'parent'].startswith(u'id:'):
+      try:
+        result = callGAPI(drive.files(), u'get',
+                          throw_reasons=[GAPI_FILE_NOT_FOUND],
+                          fileId=todrive[u'parent'][3:], fields=u'id,mimeType')
+        if result[u'mimeType'] != MIMETYPE_GA_FOLDER:
+          invalidTodriveDestExit(EN_DRIVE_FOLDER_ID, PHRASE_NOT_AN_ENTITY.format(singularEntityName(EN_DRIVE_FOLDER)))
+        todrive[u'parentId'] = result[u'id']
+      except GAPI_fileNotFound:
+        invalidTodriveDestExit(EN_DRIVE_FOLDER_ID, PHRASE_NOT_FOUND)
+    else:
+      try:
+        results = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                                throw_reasons=[GAPI_INVALID_QUERY],
+                                q=u"{0} = '{1}'".format(DRIVE_FILE_NAME, todrive[u'parent']), fields=u'nextPageToken,{0}(id,mimeType)'.format(DRIVE_FILES_LIST), maxResults=1)
+        if not results:
+          invalidTodriveDestExit(EN_DRIVE_FOLDER_NAME, PHRASE_NOT_FOUND)
+        if results[0][u'mimeType'] != MIMETYPE_GA_FOLDER:
+          invalidTodriveDestExit(EN_DRIVE_FOLDER_NAME, PHRASE_NOT_AN_ENTITY.format(singularEntityName(EN_DRIVE_FOLDER)))
+        todrive[u'parentId'] = results[0][u'id']
+      except GAPI_invalidQuery:
+        invalidTodriveDestExit(EN_DRIVE_FOLDER_NAME, PHRASE_NOT_FOUND)
   return todrive
 
 # Send an email
@@ -6528,7 +6566,8 @@ def doReport():
   if customerId == MY_CUSTOMER:
     customerId = None
   maxResults = try_date = filters = parameters = actorIpAddress = startTime = endTime = startDateTime = endDateTime = eventName = None
-  exitUserLoop = noDateChange = normalizeUsers = select = to_drive = False
+  exitUserLoop = noDateChange = normalizeUsers = select = False
+  todrive = {}
   userKey = u'all'
   filtersUserValid = report != u'customer'
   usageReports = report in [u'customer', u'user']
@@ -6536,7 +6575,7 @@ def doReport():
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
-      to_drive = True
+      todrive = getTodriveParameters()
     elif usageReports and myarg == u'date':
       try_date = getYYYYMMDD()
     elif usageReports and myarg == u'nodatechange':
@@ -6633,7 +6672,7 @@ def doReport():
           accessErrorExit(None)
       if exitUserLoop:
         break
-    writeCSVfile(csvRows, titles, u'User Reports - {0}'.format(try_date), to_drive)
+    writeCSVfile(csvRows, titles, u'User Reports - {0}'.format(try_date), todrive)
   elif report == u'customer':
     titles, csvRows = initializeTitlesCSVfile([u'name', u'value', u'client_id'])
     auth_apps = []
@@ -6673,7 +6712,7 @@ def doReport():
           return
       except GAPI_forbidden:
         accessErrorExit(None)
-    writeCSVfile(csvRows, titles, u'Customer Report - {0}'.format(try_date), to_drive)
+    writeCSVfile(csvRows, titles, u'Customer Report - {0}'.format(try_date), todrive)
   else:     # admin, calendar, drive, groups, login, mobile, token
     if select:
       page_message = None
@@ -6723,7 +6762,7 @@ def doReport():
       except GAPI_authError:
         accessErrorExit(None)
     sortCSVTitles([u'name',], titles)
-    writeCSVfile(csvRows, titles, u'{0} Activity Report'.format(report.capitalize()), to_drive)
+    writeCSVfile(csvRows, titles, u'{0} Activity Report'.format(report.capitalize()), todrive)
 
 # gam create domainalias|aliasdomain <DomainAlias> <DomainName>
 def doCreateDomainAlias():

@@ -168,6 +168,18 @@ timezone
 	Specify time conversion
 	Default: utc
 	Environment variable: GAM_TIMEZONE
+todrive_conversion
+	Enable/disable conversion of CSV files to Google Sheets when todrive is specified
+	Default: True
+	Environment variable: GAM_TODRIVE_CONVERSION
+todrive_parent
+	Parent folder for CSV files when todrive is specified; can be id:<DriveFolderID> or <DriveFolderName>
+	Default: root
+	Environment variable: GAM_TODRIVE_PARENT
+todrive_timestamp
+	Enable/disable adding a timestamp to the title of CSV files when todrive is specified
+	Default: False
+	Environment variable: GAM_TODRIVE_TIMESTAMP
 user_max_results
 	When retrieving lists of Users from API, how many should be retrieved in each chunk
 	Default: 500
@@ -203,6 +215,9 @@ Section: DEFAULT
   show_counts_min = 1
   show_gettings = true
   timezone = utc
+  todrive_conversion = true
+  todrive_parent = root
+  todrive_timestamp = false
   user_max_results = 500
 
 If you (the administrator) run GAM and have multiple other users that also run GAM, you will make a gam.cfg for each user.
@@ -306,6 +321,9 @@ section =
 show_counts_min = 1
 show_gettings = true
 timezone = utc
+todrive_conversion = true
+todrive_parent = root
+todrive_timestamp = false
 user_max_results = 500
 
 [foo]
