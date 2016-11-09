@@ -1,3 +1,98 @@
+4.30.00
+
+Thanks to Jay for the following.
+Added command to delete calendar events by ID or query from a single calendar.
+    gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
+The id argument may be repeated to specify multiple IDs.
+A calendar query is a free text search of all of the words in <QueryCalendar>, it is an "and" query.
+To perform an "or" query, enter multiple query arguments.
+Example, delete all events with "Bob" and "Carol" or "Ted and Alice" in them.
+    gam calendar testcal delete event query "Bob Carol" query "Ted Alice" doit
+The doit argument is required to actually perform the deletions.
+
+Added notifyattendees argument to gam calendars delete/move event.
+    gam calendars <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
+    gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
+
+Added support for newline characters in the unstructured field of a user's address.
+$ gam update user testuser address type home unstructured "123 Main Street\nAnytown, CA 12345\nUSA" primary
+User: testuser@domain.com, Updated (1/1)
+$ gam info user testuser nogroups nolicenses name address
+User: testuser@domain.com (1/1)
+  Settings:
+    First Name: Test
+    Last Name: User
+    Full Name: Test User
+  Addresses:
+    type: home
+      sourceIsStructured: False
+      formatted: 123 Main Street\nAnytown, CA 12345\nUSA
+
+Added optional <EmailAddress> to gam oauth create; if not specified, you will be prompted to enter an email address.
+This email address will be used to direct your browser to login at accounts.google.com with the specified address for scope authorization.
+The intent is to help prevent using some other currently open session in your browser from doing the scope authorization.
+    gam oauth|oauth2 create|request [<EmailAddress>]
+
+Added command to verify Service Account scope authorization. For each Service Account used by GAM, a test is performed to verify that the
+scope is authorized. Typically, this command would be executed for a single user.
+    gam <UserTypeEntity> check serviceaccount
+
+$ gam user testuser check serviceaccount
+User: testuser@domain.com, Check 12 Scopes (1/1)
+  Scope: https://mail.google.com/                                    , Checked: PASS (1/12)
+  Scope: https://sites.google.com/feeds                              , Checked: PASS (2/12)
+  Scope: https://www.google.com/m8/feeds                             , Checked: PASS (3/12)
+  Scope: https://www.googleapis.com/auth/activity                    , Checked: PASS (4/12)
+  Scope: https://www.googleapis.com/auth/calendar                    , Checked: PASS (5/12)
+  Scope: https://www.googleapis.com/auth/drive                       , Checked: PASS (6/12)
+  Scope: https://www.googleapis.com/auth/gmail.settings.basic        , Checked: PASS (7/12)
+  Scope: https://www.googleapis.com/auth/gmail.settings.sharing      , Checked: PASS (8/12)
+  Scope: https://www.googleapis.com/auth/plus.login                  , Checked: PASS (9/12)
+  Scope: https://www.googleapis.com/auth/plus.me                     , Checked: PASS (10/12)
+  Scope: https://www.googleapis.com/auth/userinfo.email              , Checked: PASS (11/12)
+  Scope: https://www.googleapis.com/auth/userinfo.profile            , Checked: PASS (12/12)
+
+All scopes passed!
+Service Account Client name <Redacted>.apps.googleusercontent.com is fully authorized.
+
+$ gam user testuser check serviceaccount
+User: testuser@domain.com, Check 12 Scopes (1/1)
+  Scope: https://mail.google.com/                                    , Checked: PASS (1/12)
+  Scope: https://sites.google.com/feeds                              , Checked: FAIL (2/12)
+  Scope: https://www.google.com/m8/feeds                             , Checked: PASS (3/12)
+  Scope: https://www.googleapis.com/auth/activity                    , Checked: PASS (4/12)
+  Scope: https://www.googleapis.com/auth/calendar                    , Checked: FAIL (5/12)
+  Scope: https://www.googleapis.com/auth/drive                       , Checked: PASS (6/12)
+  Scope: https://www.googleapis.com/auth/gmail.settings.basic        , Checked: PASS (7/12)
+  Scope: https://www.googleapis.com/auth/gmail.settings.sharing      , Checked: PASS (8/12)
+  Scope: https://www.googleapis.com/auth/plus.login                  , Checked: PASS (9/12)
+  Scope: https://www.googleapis.com/auth/plus.me                     , Checked: PASS (10/12)
+  Scope: https://www.googleapis.com/auth/userinfo.email              , Checked: PASS (11/12)
+  Scope: https://www.googleapis.com/auth/userinfo.profile            , Checked: PASS (12/12)
+
+ERROR: Some scopes failed! Please go to:
+
+https://admin.google.com/domain.com/AdminHome?#OGX:ManageOauthClients
+
+and grant Service Account Client name:
+
+<Redacted>.apps.googleusercontent.com
+
+Access to scopes:
+
+https://mail.google.com/,
+https://sites.google.com/feeds,
+https://www.google.com/m8/feeds,
+https://www.googleapis.com/auth/activity,
+https://www.googleapis.com/auth/calendar,
+https://www.googleapis.com/auth/drive,
+https://www.googleapis.com/auth/gmail.settings.basic,
+https://www.googleapis.com/auth/gmail.settings.sharing,
+https://www.googleapis.com/auth/plus.login,
+https://www.googleapis.com/auth/plus.me,
+https://www.googleapis.com/auth/userinfo.email,
+https://www.googleapis.com/auth/userinfo.profile
+
 4.29.06
 
 Added todrive_parent and todrive_timestamp variables to gam.cfg.

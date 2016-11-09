@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.29.06'
+__version__ = u'4.30.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -684,6 +684,8 @@ DRIVE_PATCH_PERMISSIONS = u'patch'
 #
 DRIVE_REVISIONS_LIST = u'items'
 #
+DRIVE_PARENTS_ID = u'parents(id)'
+#
 OAUTH2_FAM1_SCOPES = u'fam1'
 OAUTH2_FAM2_SCOPES = u'fam2'
 OAUTH2_FAM_LIST = [OAUTH2_FAM1_SCOPES, OAUTH2_FAM2_SCOPES]
@@ -721,6 +723,7 @@ OB_EMAIL_ADDRESS_ENTITY = u'EmailAddressEntity'
 OB_EMAIL_ADDRESS_OR_UID = u'EmailAaddress|UniqueID'
 OB_ENTITY = u'Entity'
 OB_ENTITY_TYPE = u'EntityType'
+OB_EVENT_ID = u'EventID'
 OB_EVENT_ID_ENTITY = u'EventIDEntity'
 OB_FIELD_NAME = u'FieldName'
 OB_FIELD_NAME_LIST = "FieldNameList"
@@ -804,6 +807,7 @@ EN_AUDIT_MONITOR_REQUEST = u'audm'
 EN_BACKUP_VERIFICATION_CODE = u'buvc'
 EN_CALENDAR = u'cale'
 EN_CALENDAR_SETTINGS = u'cset'
+EN_CLIENT_SECRETS_JSON_FILE = u'clis'
 EN_CONFIG_FILE = u'conf'
 EN_CONTACT = u'cont'
 EN_CONTACT_GROUP = u'cogr'
@@ -819,6 +823,7 @@ EN_DEFAULT_LANGUAGE = u'dfla'
 EN_DELEGATE = u'dele'
 EN_DELEGATOR = u'delo'
 EN_DELETED_USER = u'delu'
+EN_DISCOVERY_JSON_FILE = u'disc'
 EN_DOMAIN = u'doma'
 EN_DOMAIN_ALIAS = u'doal'
 EN_DRIVE_FILE = u'file'
@@ -864,6 +869,7 @@ EN_MESSAGE = u'mesg'
 EN_MOBILE_DEVICE = u'mobi'
 EN_NOTIFICATION = u'noti'
 EN_OAUTH2_TXT_FILE = u'oaut'
+EN_OAUTH2SERVICE_JSON_FILE = u'oau2'
 EN_ORGANIZATIONAL_UNIT = u'orgu'
 EN_PAGE_SIZE = u'page'
 EN_PARENT_ORGANIZATIONAL_UNIT = u'porg'
@@ -932,6 +938,7 @@ ENTITY_NAMES = {
   EN_BACKUP_VERIFICATION_CODE: [u'Backup Verification Codes', u'Backup Verification Code'],
   EN_CALENDAR: [u'Calendars', u'Calendar'],
   EN_CALENDAR_SETTINGS: [u'Calendar Settings', u'Calendar Settings'],
+  EN_CLIENT_SECRETS_JSON_FILE: [u'Client Secrets File', u'Client Secrets File'],
   EN_CONFIG_FILE: [u'Config File', u'Config File'],
   EN_CONTACT: [u'Contacts', u'Contact'],
   EN_CONTACT_GROUP: [u'Contact Groups', u'Contact Group'],
@@ -947,6 +954,7 @@ ENTITY_NAMES = {
   EN_DELEGATE: [u'Delegates', u'Delegate'],
   EN_DELEGATOR: [u'Delegators', u'Delegator'],
   EN_DELETED_USER: [u'Deleted Users', u'Deleted User'],
+  EN_DISCOVERY_JSON_FILE: [u'Discovery File', u'Discovery File'],
   EN_DOMAIN: [u'Domains', u'Domain'],
   EN_DOMAIN_ALIAS: [u'Domain Aliases', u'Domain Alias'],
   EN_DRIVE_FILE: [u'Drive Files', u'Drive File'],
@@ -992,6 +1000,7 @@ ENTITY_NAMES = {
   EN_MOBILE_DEVICE: [u'Mobile Devices', u'Mobile Device'],
   EN_NOTIFICATION: [u'Notifications', u'Notification'],
   EN_OAUTH2_TXT_FILE: [u'Client OAuth2 File', u'Client OAuth2 File'],
+  EN_OAUTH2SERVICE_JSON_FILE: [u'Service Account OAuth2 File', u'Service Account OAuth2 File'],
   EN_ORGANIZATIONAL_UNIT: [u'Organizational Units', u'Organizational Unit'],
   EN_PAGE_SIZE: [u'Page Size', u'Page Size'],
   EN_PARENT_ORGANIZATIONAL_UNIT: [u'Parent Organizational Units', u'Parent Organizational Unit'],
@@ -1279,6 +1288,7 @@ CL_OB_SCHEMA = u'schema'
 CL_OB_SCHEMAS = u'schemas'
 CL_OB_SECCALS = u'seccals'
 CL_OB_SENDAS = u'sendas'
+CL_OB_SERVICEACCOUNT = u'serviceaccount'
 CL_OB_SIGNATURE = u'signature'
 CL_OB_SITE = u'site'
 CL_OB_SITES = u'sites'
@@ -1318,6 +1328,7 @@ MOVE_ADD_ARGUMENT = [u'move', u'add',]
 MULTIVALUE_ARGUMENT = [u'multivalued', u'multivalue', u'value',]
 NOINFO_ARGUMENT = [u'noinfo',]
 NORMALIZE_ARGUMENT = [u'normalize',]
+NOTIFYATTENDEES_ARGUMENT = [u'notifyattendees',]
 NOTSUSPENDED_ARGUMENT = [u'notsuspended',]
 ORG_OU_ARGUMENT = [u'org', u'ou',]
 PRIMARY_ARGUMENT = [u'primary',]
@@ -1334,6 +1345,7 @@ AC_ADD = u'add '
 AC_ARCHIVE = u'arch'
 AC_BACKUP = u'back'
 AC_CANCEL = u'canc'
+AC_CHECK = u'chek'
 AC_CLAIM = u'clai'
 AC_CLAIM_OWNERSHIP = u'clow'
 AC_COPY = u'copy'
@@ -1389,6 +1401,7 @@ ACTION_NAMES = {
   AC_ARCHIVE: [u'Archived', u'Archive'],
   AC_BACKUP: [u'Backed up', u'Backup'],
   AC_CANCEL: [u'Cancelled', u'Cancel'],
+  AC_CHECK: [u'Checked', u'Check'],
   AC_CLAIM: [u'Claimed', u'Claim'],
   AC_CLAIM_OWNERSHIP: [u'Ownership Claimed', u'Claim Ownership'],
   AC_COPY: [u'Copied', u'Copy'],
@@ -1615,7 +1628,7 @@ PHRASE_DELEGATE_ACCESS_TO = u'Delegate Access to'
 PHRASE_DENIED = u'DENIED'
 PHRASE_DIRECTLY_IN_THE = u' directly in the {0}'
 PHRASE_DOES_NOT_EXIST = u'Does not exist'
-PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'Does not exist or has invalid format'
+PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'{0}: {1}, Does not exist or has invalid format'
 PHRASE_DOES_NOT_EXIST_OR_NOT_ALLOWED = u'Does not exist or not allowed'
 PHRASE_DOMAIN_NOT_VERIFIED_SECONDARY = u'Domain is not a verified secondary domain'
 PHRASE_DO_NOT_EXIST = u'Do not exist'
@@ -1698,20 +1711,21 @@ PHRASE_WAITING_FOR_PROCESSES_TO_COMPLETE = u'Waiting for running processes to fi
 PHRASE_WITH = u'with'
 PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
 
-MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes\nSee: {1}'
+MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
+MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
+MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
+MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'\nPlease execute "gam oauth create"'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
-MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
-MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
+MESSAGE_MISSING_OAUTH2_ACCOUNTS = u'\nPlease configure OAuth 2.0\n\nTo make GAM run you will need to populate the {0} found at: {1}\n\nwith information from the APIs Console: https://console.developers.google.com\n\nSee this site for instructions: {2}\n\n'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
-MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
 MESSAGE_NO_SCOPES_FOR_API = u'There are no scopes authorized for the {0}'
 MESSAGE_NO_TRANSFER_LACK_OF_DISK_SPACE = u'Cowardly refusing to perform migration due to lack of target drive space.'
@@ -1719,9 +1733,9 @@ MESSAGE_REFUSING_TO_DEPROVISION_DEVICES = u'Refusing to deprovision {0} devices 
 MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files were returned, try requesting again'
 MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloading, current status is: {0}'
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
+MESSAGE_SCOPE_AUTHORIZATION_FAILED = u'Some scopes failed! Please go to:\n\nhttps://admin.google.com/{0}/AdminHome?#OGX:ManageOauthClients\n\nand grant Service Account Client name:\n\n{1}\n\nAccess to scopes:\n\n{2}'
+MESSAGE_SCOPE_AUTHORIZATION_PASSED = u'All scopes passed!\nService Account Client name {0} is fully authorized.'
 MESSAGE_SERVICE_NOT_APPLICABLE = u'Service not applicable for this address: {0}'
-MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
-MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please follow the instructions at this site to setup a Service account.'
 
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
 ARGUMENT_BLANK = u'blnk'
@@ -1748,6 +1762,7 @@ FILE_ERROR_RC = 6
 MEMORY_ERROR_RC = 7
 KEYBOARD_INTERRUPT_RC = 8
 HTTP_ERROR_RC = 9
+SCOPES_NOT_AUTHORIZED = 10
 NO_DISCOVERY_INFORMATION_RC = 11
 API_ACCESS_DENIED_RC = 12
 CONFIG_ERROR_RC = 13
@@ -1982,8 +1997,24 @@ def checkEntityItemValueAFDNEorAccessErrorExit(cd, entityType, entityName, itemT
     systemErrorExit(INVALID_DOMAIN_RC, message)
   entityItemValueActionFailedWarning(entityType, entityName, itemType, itemValue, PHRASE_DOES_NOT_EXIST, i, count)
 
-def invalidJSONExit(fileName):
-  systemErrorExit(INVALID_JSON_RC, MESSAGE_INVALID_JSON.format(fileName))
+def invalidClientSecretsJsonExit():
+  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON]))
+  sys.stderr.write(MESSAGE_MISSING_OAUTH2_ACCOUNTS.format(singularEntityName(EN_CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS))
+  systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, None)
+
+def invalidOauth2serviceJsonExit():
+  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON]))
+  sys.stderr.write(MESSAGE_MISSING_OAUTH2_ACCOUNTS.format(singularEntityName(EN_OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS))
+  systemErrorExit(OAUTH2SERVICE_JSON_REQUIRED_RC, None)
+
+def invalidOauth2TxtExit():
+  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]))
+  printLine(MESSAGE_EXECUTE_GAM_OAUTH_CREATE)
+  systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
+
+def invalidDiscoveryJsonExit(fileName):
+  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_DISCOVERY_JSON_FILE), fileName))
+  systemErrorExit(INVALID_JSON_RC, None)
 
 def noPythonSSLExit():
   systemErrorExit(CERTIFICATE_VALIDATION_UNSUPPORTED_RC, MESSAGE_NO_PYTHON_SSL)
@@ -3886,7 +3917,7 @@ def getCredentialsForScope(cred_family, storageOnly=False):
 def getClientCredentials(cred_family):
   credentials = getCredentialsForScope(cred_family)
   if not credentials or credentials.invalid:
-    systemErrorExit(OAUTH2_TXT_REQUIRED_RC, u'{0}: {1} {2}'.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT], PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT))
+    invalidOauth2TxtExit()
   credentials.user_agent = GAM_INFO
   return credentials
 
@@ -3895,9 +3926,7 @@ def getSvcAcctCredentials(scopes, act_as):
     if not GM_Globals[GM_OAUTH2SERVICE_JSON_DATA]:
       json_string = readFile(GC_Values[GC_OAUTH2SERVICE_JSON], continueOnError=True, displayError=True)
       if not json_string:
-        printLine(MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON)
-        printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
-        systemErrorExit(OAUTH2SERVICE_JSON_REQUIRED_RC, None)
+        invalidOauth2serviceJsonExit()
       GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = json.loads(json_string)
     credentials = oauth2client.service_account.ServiceAccountCredentials.from_json_keyfile_dict(GM_Globals[GM_OAUTH2SERVICE_JSON_DATA], scopes)
     credentials = credentials.create_delegated(act_as)
@@ -3906,10 +3935,8 @@ def getSvcAcctCredentials(scopes, act_as):
     GM_Globals[GM_ADMIN] = serialization_data[u'client_email']
     GM_Globals[GM_OAUTH2_CLIENT_ID] = serialization_data[u'client_id']
     return credentials
-  except (ValueError, KeyError):
-    printLine(MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON)
-    printLine(GAM_WIKI_CREATE_CLIENT_SECRETS)
-    invalidJSONExit(GC_Values[GC_OAUTH2SERVICE_JSON])
+  except (ValueError, IndexError, KeyError):
+    invalidOauth2serviceJsonExit()
 
 def getGDataOAuthToken(gdataObj, credentials=None):
   if not credentials:
@@ -4617,7 +4644,7 @@ API_INFO = {
   CALENDAR_API: {u'version': u'v3', u'credfam': OAUTH2_FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/calendar',]},
   CLASSROOM_API: {u'version': u'v1', u'credfam': OAUTH2_FAM2_SCOPES},
   CLOUDPRINT_API: {u'version': u'v2', u'credfam': OAUTH2_FAM2_SCOPES},
-  CONTACTS_API: {u'version': u'v3', u'credfam': OAUTH2_FAM2_SCOPES},
+  CONTACTS_API: {u'version': u'v3', u'credfam': OAUTH2_FAM2_SCOPES, u'svcacctscopes': [u'https://www.google.com/m8/feeds',]},
   DATATRANSFER_API: {u'version': u'datatransfer_v1', u'credfam': OAUTH2_FAM1_SCOPES},
   DIRECTORY_API: {u'version': u'directory_v1', u'credfam': OAUTH2_FAM1_SCOPES},
   DRIVE_API: {u'version': DRIVE_API_VERSION, u'credfam': OAUTH2_FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
@@ -4629,7 +4656,7 @@ API_INFO = {
   GROUPSSETTINGS_API: {u'version': u'v1', u'credfam': OAUTH2_FAM2_SCOPES},
   LICENSING_API: {u'version': u'v1', u'credfam': OAUTH2_FAM1_SCOPES},
   REPORTS_API: {u'version': u'reports_v1', u'credfam': OAUTH2_FAM2_SCOPES},
-  SITES_API: {u'version': u'v1', u'credfam': OAUTH2_FAM2_SCOPES},
+  SITES_API: {u'version': u'v1', u'credfam': OAUTH2_FAM2_SCOPES, u'svcacctscopes': [u'https://sites.google.com/feeds',]},
   SITEVERIFICATION_API: {u'version': u'v1', u'credfam': OAUTH2_FAM2_SCOPES},
   }
 
@@ -4648,16 +4675,18 @@ def readDiscoveryFile(api_version):
   else:
     pyinstaller_disc_file = None
   if os.path.isfile(disc_file):
-    json_string = readFile(disc_file)
+    json_string = readFile(disc_file, continueOnError=True, displayError=True)
   elif pyinstaller_disc_file:
-    json_string = readFile(pyinstaller_disc_file)
+    json_string = readFile(pyinstaller_disc_file, continueOnError=True, displayError=True)
   else:
-    systemErrorExit(NO_DISCOVERY_INFORMATION_RC, MESSAGE_NO_DISCOVERY_INFORMATION.format(disc_file))
+    json_string = None
+  if not json_string:
+    invalidDiscoveryJsonExit(disc_file)
   try:
     discovery = json.loads(json_string)
     return (disc_file, discovery)
   except ValueError:
-    invalidJSONExit(disc_file)
+    invalidDiscoveryJsonExit(disc_file)
 
 def getAPIversionHttpService(api):
   api, version, api_version, cred_family = getAPIVersion(api)
@@ -4679,7 +4708,7 @@ def getAPIversionHttpService(api):
       http.cache = None
     return (api_version, http, service, cred_family)
   except (ValueError, KeyError):
-    invalidJSONExit(disc_file)
+    invalidDiscoveryJsonExit(disc_file)
 
 def buildGAPIObject(api):
   GM_Globals[GM_CURRENT_API_USER] = None
@@ -4743,7 +4772,7 @@ def initGDataObject(gdataObj, api):
   try:
     GM_Globals[GM_CURRENT_API_SCOPES] = list(set(discovery[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
   except KeyError:
-    invalidJSONExit(disc_file)
+    invalidDiscoveryJsonExit(disc_file)
   if not GM_Globals[GM_CURRENT_API_SCOPES]:
     systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(discovery.get(u'title', api_version)))
   getGDataOAuthToken(gdataObj, credentials)
@@ -4760,7 +4789,7 @@ def getGDataUserCredentials(api, user, i=0, count=0):
   try:
     GM_Globals[GM_CURRENT_API_SCOPES] = list(set(discovery[u'auth'][u'oauth2'][u'scopes'].keys()).intersection(credentials.scopes))
   except KeyError:
-    invalidJSONExit(disc_file)
+    invalidDiscoveryJsonExit(disc_file)
   if not GM_Globals[GM_CURRENT_API_SCOPES]:
     systemErrorExit(NO_SCOPES_FOR_API_RC, MESSAGE_NO_SCOPES_FOR_API.format(discovery.get(u'title', api_version)))
   credentials = getSvcAcctCredentials(GM_Globals[GM_CURRENT_API_SCOPES], userEmail)
@@ -6244,20 +6273,36 @@ def revokeCredentials(credFamilyList):
       except oauth2client.client.TokenRevokeError as e:
         printErrorMessage(INVALID_TOKEN_RC, e.message)
 
-# gam oauth|oauth2 create|request
+def getValidateLoginHint(login_hint):
+  def validEmailAddr(addr):
+    loc = addr.find(u'@')
+    return loc > 0 and loc < len(addr)-1
+
+  if login_hint:
+    login_hint = login_hint.strip()
+    if validEmailAddr(login_hint):
+      return login_hint
+  while True:
+    login_hint = raw_input(u'\nWhat is your G Suite admin email address? ').strip()
+    if validEmailAddr(login_hint):
+      return login_hint
+    print u'Error: that is not a valid email address'
+
+# gam oauth|oauth2 create|request [<EmailAddress>]
 def doOAuthRequest():
-  MISSING_CLIENT_SECRETS_MESSAGE = u"""Please configure OAuth 2.0
+  cs_data = readFile(GC_Values[GC_CLIENT_SECRETS_JSON], mode=u'rb', continueOnError=True, displayError=True)
+  if not cs_data:
+    invalidClientSecretsJsonExit()
+  try:
+    cs_json = json.loads(cs_data)
+    client_id = cs_json[u'installed'][u'client_id']
+    client_secret = cs_json[u'installed'][u'client_secret']
+  except (ValueError, IndexError, KeyError):
+    invalidClientSecretsJsonExit()
 
-To make GAM run you will need to populate the {0} file found at:
-{1}
-with information from the APIs Console <https://console.developers.google.com>.
-
-See this site for instructions:
-{2}
-
-""".format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
-
+  login_hint = getEmailAddress(noUid=True, optional=True)
   checkForExtraneousArguments()
+  login_hint = getValidateLoginHint(login_hint)
   oauth2_menu = u'''
 Select the authorized scopes by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
@@ -6366,19 +6411,17 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
         elif selected_scopes[i] == u'A':
           scopes.append(u'{0}.action'.format(a_scope[u'scope']))
       i += 1
+    flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
+                                                   client_secret=client_secret, scope=scopes, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
+                                                   user_agent=GAM_INFO, access_type=u'offline', response_type=u'code', login_hint=login_hint)
     storage = getCredentialsForScope(cred_family, storageOnly=True)
+    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+    flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
     try:
-      FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
-    except oauth2client.client.clientsecrets.InvalidClientSecretsError:
-      systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, MISSING_CLIENT_SECRETS_MESSAGE)
-    try:
-      oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
+      oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
       time.sleep(3)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
-    except SystemExit as e:
-      entityActionFailedWarning(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT], e.message)
-      systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
   entityActionPerformed(EN_OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT])
 
 CRED_FAMILY_CHOICES_MAP = [u'current', u'previous']
@@ -6513,6 +6556,45 @@ def doWhatIs():
     return
   printKeyValueList([u'{0} Doesn\'t seem to exist!'.format(email)])
   setSysExitRC(ENTITY_IS_UKNOWN_RC)
+
+def checkServiceAccount(users):
+  checkForExtraneousArguments()
+  all_scopes_pass = True
+  all_scopes = []
+  for api in API_INFO:
+    for scope in API_INFO[api].get(u'svcacctscopes', []):
+      if scope not in all_scopes:
+        all_scopes.append(scope)
+  all_scopes.sort()
+  jcount = len(all_scopes)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user = convertUserUIDtoEmailAddress(user)
+    entityPerformActionNumItems(EN_USER, user, jcount, EN_SCOPE, i, count)
+    incrementIndentLevel()
+    j = 0
+    for scope in all_scopes:
+      j += 1
+      try:
+        credentials = getSvcAcctCredentials(scope, user)
+        credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
+        result = u'PASS'
+      except httplib2.ServerNotFoundError as e:
+        systemErrorExit(NETWORK_ERROR_RC, e)
+      except oauth2client.client.HttpAccessTokenRefreshError:
+        result = u'FAIL'
+        all_scopes_pass = False
+      entityActionPerformedMessage(EN_SCOPE, u'{0:60}'.format(scope), result, j, jcount)
+    decrementIndentLevel()
+    service_account = credentials.serialization_data[u'client_id']
+    _, _, user_domain = splitEmailAddressOrUID(user)
+  printBlankLine()
+  if all_scopes_pass:
+    printLine(MESSAGE_SCOPE_AUTHORIZATION_PASSED.format(service_account))
+  else:
+    printErrorMessage(SCOPES_NOT_AUTHORIZED, MESSAGE_SCOPE_AUTHORIZATION_FAILED.format(user_domain, service_account, ',\n'.join(all_scopes)))
 
 # Report choices
 #
@@ -9054,10 +9136,76 @@ def doCalendarUpdateEvent(cal, calendarList):
         entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
         break
 
-# gam calendars <CalendarEntity> delete event <EventIDEntity>
+# gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
 def doCalendarDeleteEvent(cal, calendarList):
+  eventIds = []
+  queries = []
+  doIt = sendNotifications = False
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'notifyattendees':
+      sendNotifications = True
+    elif myarg in [u'id', u'eventid']:
+      eventIds.append(getString(OB_EVENT_ID))
+    elif myarg in [u'q', u'query', u'eventquery']:
+      queries.append(getString(OB_QUERY))
+    elif myarg == u'doit':
+      doIt = True
+    else:
+      unknownArgumentExit()
+  i = 0
+  count = len(calendarList)
+  for calendarId in calendarList:
+    i += 1
+    calendarId, cal = buildCalendarGAPIObject(calendarId)
+    if not cal:
+      continue
+    calEventIds = []
+    if queries:
+      calError = False
+      for query in queries:
+        try:
+          events = callGAPIpages(cal.events(), u'list', items=u'items',
+                                 throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                                 calendarId=calendarId, q=query)
+          calEventIds.extend([event[u'id'] for event in events if u'id' in event and event[u'id'] not in calEventIds])
+        except (GAPI_serviceNotAvailable, GAPI_authError):
+          entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
+          calError = True
+          break
+      if calError:
+        continue
+    calEventIds.extend(eventIds)
+    jcount = len(calEventIds)
+    if jcount == 0:
+      entityNumEntitiesActionNotPerformedWarning(EN_CALENDAR, calendarId, EN_EVENT, jcount, PHRASE_NO_ENTITIES_MATCHED.format(pluralEntityName(EN_EVENT)), i, count)
+      setSysExitRC(NO_ENTITIES_FOUND)
+      continue
+    if not doIt:
+      entityNumEntitiesActionNotPerformedWarning(EN_CALENDAR, calendarId, EN_EVENT, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
+      continue
+    entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
+    incrementIndentLevel()
+    j = 0
+    for eventId in calEventIds:
+      j += 1
+      try:
+        callGAPI(cal.events(), u'delete',
+                 throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DELETED],
+                 calendarId=calendarId, eventId=eventId, sendNotifications=sendNotifications)
+        entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_EVENT, eventId, j, jcount)
+      except (GAPI_notFound, GAPI_deleted):
+        entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except (GAPI_serviceNotAvailable, GAPI_authError):
+        entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
+        break
+    decrementIndentLevel()
+
+# gam calendars <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
+def doCalendarsDeleteEvent(cal, calendarList):
   eventIds = getEntityList(OB_EVENT_ID_ENTITY)
   eventIdLists = eventIds if isinstance(eventIds, dict) else None
+  sendNotifications = checkArgumentPresent(NOTIFYATTENDEES_ARGUMENT)
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
@@ -9080,7 +9228,7 @@ def doCalendarDeleteEvent(cal, calendarList):
       try:
         callGAPI(cal.events(), u'delete',
                  throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DELETED],
-                 calendarId=calendarId, eventId=eventId)
+                 calendarId=calendarId, eventId=eventId, sendNotifications=sendNotifications)
         entityItemValueActionPerformed(EN_CALENDAR, calendarId, EN_EVENT, eventId, j, jcount)
       except (GAPI_notFound, GAPI_deleted):
         entityItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -9127,12 +9275,13 @@ def doCalendarInfoEvent(cal, calendarList):
         break
     decrementIndentLevel()
 
-# gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem>
+# gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
 def doCalendarMoveEvent(cal, calendarList):
   eventIds = getEntityList(OB_EVENT_ID_ENTITY)
   eventIdLists = eventIds if isinstance(eventIds, dict) else None
   checkArgumentPresent(TO_ARGUMENT)
   newCalendarId = convertUserUIDtoEmailAddress(getString(OB_CALENDAR_ITEM))
+  sendNotifications = checkArgumentPresent(NOTIFYATTENDEES_ARGUMENT)
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
@@ -9155,7 +9304,7 @@ def doCalendarMoveEvent(cal, calendarList):
       try:
         callGAPI(cal.events(), u'move',
                  throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
-                 calendarId=calendarId, eventId=eventId, destination=newCalendarId)
+                 calendarId=calendarId, eventId=eventId, destination=newCalendarId, sendNotifications=sendNotifications)
         entityItemValueModifierNewValueActionPerformed(EN_CALENDAR, calendarId, EN_EVENT, eventId, AC_MODIFIER_TO, u'{0}: {1}'.format(singularEntityName(EN_CALENDAR), newCalendarId), j, jcount)
       except GAPI_notFound:
         entityItemValueItemValueActionFailedWarning(EN_CALENDAR, calendarId, EN_EVENT, eventId, EN_CALENDAR, newCalendarId, entityTypeNameMessage(EN_EVENT, eventId, PHRASE_DOES_NOT_EXIST), j, jcount)
@@ -9169,6 +9318,7 @@ def doCalendarMoveEvent(cal, calendarList):
 SHOW_EVENTS_ATTRIBUTES = {
   u'alwaysincludeemail': [u'alwaysIncludeEmail', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'endtime': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
+  u'eventquery': [u'q', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'icaluid': [u'iCalUID', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'maxattendees': [u'maxAttendees', {GC_VAR_TYPE: GC_TYPE_INTEGER}],
   u'orderby': [u'orderBy', {GC_VAR_TYPE: GC_TYPE_CHOICE, u'choices': {u'starttime': u'startTime', u'updated': u'updated'}}],
@@ -9187,13 +9337,13 @@ SHOW_EVENTS_ATTRIBUTES = {
   }
 
 # gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Integer>]
+#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
 #	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 def doCalendarPrintEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, True)
 
 # gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Integer>]
+#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
 #	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 def doCalendarShowEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, False)
@@ -9202,6 +9352,7 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile(None)
+  queries = []
   kwargs = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -9217,7 +9368,10 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
       if attrType == GC_TYPE_BOOLEAN:
         kwargs[attrName] = True
       elif attrType == GC_TYPE_STRING:
-        kwargs[attrName] = getString(OB_STRING)
+        if attrName != u'q':
+          kwargs[attrName] = getString(OB_STRING)
+        else:
+          queries.append(getString(OB_QUERY))
       elif attrType == GC_TYPE_CHOICE:
         kwargs[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
       elif attrType == GC_TYPE_DATETIME:
@@ -9232,9 +9386,25 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
     if not cal:
       continue
     try:
-      events = callGAPIpages(cal.events(), u'list', u'items',
-                             throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-                             calendarId=calendarId, fields=u'nextPageToken,items', **kwargs)
+      if len(queries) <= 1:
+        if len(queries) == 1:
+          kwargs[u'q'] = queries[0]
+        events = callGAPIpages(cal.events(), u'list', u'items',
+                               throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                               calendarId=calendarId, fields=u'nextPageToken,items', **kwargs)
+      else:
+        events = collections.deque()
+        eventIds = set()
+        for query in queries:
+          kwargs[u'q'] = query
+          qevents = callGAPIpages(cal.events(), u'list', u'items',
+                                  throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                                  calendarId=calendarId, fields=u'nextPageToken,items', **kwargs)
+          while qevents:
+            event = qevents.popleft()
+            if event[u'id'] not in eventIds:
+              events.append(event)
+              eventIds.add(event[u'id'])
       jcount = len(events)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
@@ -9808,7 +9978,7 @@ class ContactsManager(object):
           if argument in ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP:
             value = getString(OB_STRING, emptyOK=True)
             if value:
-              entry[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
+              entry[ContactsManager.ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value.replace(u'\\n', u'\n')
           elif argument in ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP:
             entry[u'primary'] = ContactsManager.PRIMARY_NOTPRIMARY_CHOICE_MAP[argument]
             break
@@ -9905,7 +10075,9 @@ class ContactsManager(object):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           ClearFieldsList(fieldName)
           continue
-        entry = {u'rel': getString(OB_STRING), u'value': getString(OB_STRING, emptyOK=True)}
+        entry = {u'rel': getString(OB_STRING, emptyOK=True), u'value': getString(OB_STRING, emptyOK=True)}
+        if not entry[u'rel'] or entry[u'rel'].lower() == u'none':
+          entry[u'rel'] = None
         AppendItemToFieldsList(fieldName, entry, u'value')
       elif fieldName == CONTACT_WEBSITES:
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
@@ -10442,7 +10614,7 @@ def doUpdateContacts(users, entityType):
           break
       try:
         contact = callGData(contactsObject, u'GetContact',
-                            throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN, GDATA_NOT_IMPLEMENTED],
                             retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         fields = contactsManager.ContactToFields(contact)
@@ -10467,7 +10639,7 @@ def doUpdateContacts(users, entityType):
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_BAD_REQUEST, j, jcount)
       except GData_preconditionFailed as e:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, e.message, j, jcount)
-      except GData_forbidden:
+      except (GData_forbidden, GData_notImplemented):
         entityServiceNotApplicableWarning(entityType, user, i, count)
         break
       except GData_serviceNotApplicable:
@@ -10527,7 +10699,7 @@ def doDeleteContacts(users, entityType):
         if not contactQuery[u'query'] and not contactQuery[u'group']:
           contactId = normalizeContactId(contact)
           contact = callGData(contactsObject, u'GetContact',
-                              throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN],
+                              throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN, GDATA_NOT_IMPLEMENTED],
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId))
         else:
@@ -10541,7 +10713,9 @@ def doDeleteContacts(users, entityType):
         entityItemValueActionPerformed(entityType, user, EN_CONTACT, contactId, j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
-      except GData_forbidden:
+      except GData_badRequest:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_BAD_REQUEST, j, jcount)
+      except (GData_forbidden, GData_notImplemented):
         entityServiceNotApplicableWarning(entityType, user, i, count)
         break
       except GData_serviceNotApplicable:
@@ -10601,7 +10775,7 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
             if item[org_key]:
               printKeyValueList([contactsManager.ORGANIZATION_FIELD_TO_ARGUMENT_MAP[org_key], item[org_key]])
         elif key == CONTACT_USER_DEFINED_FIELDS:
-          printKeyValueList([item.get(u'rel', u'custom'), value])
+          printKeyValueList([item.get(u'rel') or u'None', value])
         else:
           printKeyValueList([keymap[u'infoTitle'], value])
         if keymap[u'relMap']:
@@ -10683,7 +10857,7 @@ def doInfoContacts(users, entityType, contactFeed=True):
       try:
         contactId = normalizeContactId(contact)
         contact = callGData(contactsObject, u'GetContact',
-                            throw_errors=[GDATA_NOT_FOUND, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN, GDATA_NOT_IMPLEMENTED],
+                            throw_errors=[GDATA_NOT_FOUND, GDATA_BAD_REQUEST, GDATA_SERVICE_NOT_APPLICABLE, GDATA_FORBIDDEN, GDATA_NOT_IMPLEMENTED],
                             retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId, projection=contactQuery[u'projection']))
         fields = contactsManager.ContactToFields(contact)
@@ -10692,6 +10866,8 @@ def doInfoContacts(users, entityType, contactFeed=True):
         _showContact(contactsManager, fields, displayFieldsList, [None, contactGroupIDs][showContactGroups], j, jcount)
       except GData_notFound:
         entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_DOES_NOT_EXIST, j, jcount)
+      except GData_badRequest:
+        entityItemValueActionFailedWarning(entityType, user, EN_CONTACT, contactId, PHRASE_BAD_REQUEST, j, jcount)
       except (GData_forbidden, GData_notImplemented):
         entityServiceNotApplicableWarning(entityType, user, i, count)
         break
@@ -10838,7 +11014,7 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
                   if item[org_key]:
                     contactRow[fn+contactsManager.ORGANIZATION_FIELD_TO_ARGUMENT_MAP[org_key]] = item[org_key]
               elif key == CONTACT_USER_DEFINED_FIELDS:
-                contactRow[fn+u'type'] = item.get(u'rel', u'custom')
+                contactRow[fn+u'type'] = item.get(u'rel') or u'None'
                 contactRow[fn+keymap[u'infoTitle']] = value
               else:
                 contactRow[fn+keymap[u'infoTitle']] = value
@@ -14322,7 +14498,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         getKeywordAttribute(typeKeywords, entry)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
           entry[u'sourceIsStructured'] = False
-          entry[u'formatted'] = getString(OB_STRING, emptyOK=True)
+          entry[u'formatted'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ADDRESS_ARGUMENT_TO_FIELD_MAP:
@@ -14928,7 +15104,10 @@ def infoUsers(entityList):
                 incrementIndentLevel()
                 for key in USER_ADDRESSES_PROPERTY_PRINT_ORDER:
                   if key in row:
-                    printKeyValueList([key, row[key]])
+                    if key != u'formatted':
+                      printKeyValueList([key, row[key]])
+                    else:
+                      printKeyValueList([key, row[key].replace(u'\n', u'\\n')])
                 decrementIndentLevel()
             else:
               printKeyValueList([propertyClass, propertyValue])
@@ -17822,7 +18001,7 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                          fileId=parentId, fields=u'{0},parents(id)'.format(DRIVE_FILE_NAME))
+                          fileId=parentId, fields=u'{0},{1}'.format(DRIVE_FILE_NAME, DRIVE_PARENTS_ID))
         filePathInfo[u'ids'][parentId] = result[DRIVE_FILE_NAME]
         parents = result[u'parents']
       except (GAPI_fileNotFound, GAPI_serviceNotAvailable, GAPI_authError):
@@ -18374,7 +18553,7 @@ def showDriveFilePath(users):
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                          fileId=fileId, fields=u'{0},mimeType,parents(id)'.format(DRIVE_FILE_NAME))
+                          fileId=fileId, fields=u'{0},{1},mimeType'.format(DRIVE_FILE_NAME, DRIVE_PARENTS_ID))
         entityType, paths = getFilePaths(drive, None, result, filePathInfo)
         kcount = len(paths)
         entityPerformActionNumItems(entityType, u'{0} ({1})'.format(result[DRIVE_FILE_NAME], fileId), kcount, EN_DRIVE_PATH, j, jcount)
@@ -18453,7 +18632,7 @@ def showDriveFileTree(users):
       feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},{2},mimeType)'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME, DRIVE_PARENTS_ID), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
       user, drive, jcount = validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive)
       entityPerformActionNumItems(EN_USER, user, jcount, EN_DRIVE_FOLDER, i, count)
       if jcount == 0:
@@ -19051,7 +19230,7 @@ def transferDriveFileOwnership(users):
       feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                           orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,ownedByMe,labels(trashed),parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                           orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,labels(trashed))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME, DRIVE_PARENTS_ID), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
       continue
@@ -19063,7 +19242,7 @@ def transferDriveFileOwnership(users):
       try:
         fileEntryInfo = callGAPI(drive.files(), u'get',
                                  throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                                 fileId=fileId, fields=u'id,{0},mimeType,ownedByMe,labels(trashed),parents(id)'.format(DRIVE_FILE_NAME))
+                                 fileId=fileId, fields=u'id,{0},{1},mimeType,ownedByMe,labels(trashed)'.format(DRIVE_FILE_NAME, DRIVE_PARENTS_ID))
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(EN_USER, user, EN_DRIVE_FILE_OR_FOLDER, fileId, PHRASE_NOT_FOUND, j, jcount)
         continue
@@ -19210,7 +19389,7 @@ def claimDriveFolderOwnership(users):
       feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                           fields=u'nextPageToken,{0}(id,{1},mimeType,ownedByMe,parents(id),owners(emailAddress),labels(trashed))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                           fields=u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,owners(emailAddress),labels(trashed))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME, DRIVE_PARENTS_ID), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
       continue
@@ -23330,6 +23509,7 @@ CALENDAR_SUBCOMMANDS = {
   u'update':	{CMD_ACTION: AC_UPDATE, CMD_FUNCTION: doCalendarUpdateACL},
   u'showacl':	{CMD_ACTION: AC_SHOW, CMD_FUNCTION: doCalendarShowACLs},
   u'addevent':	{CMD_ACTION: AC_ADD, CMD_FUNCTION: doCalendarAddEvent},
+  u'deleteevent':	{CMD_ACTION: AC_DELETE, CMD_FUNCTION: doCalendarDeleteEvent},
   u'wipe':	{CMD_ACTION: AC_WIPE, CMD_FUNCTION: doCalendarWipeEvents},
   }
 
@@ -23368,7 +23548,7 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {u'acl':		doCalendarDeleteACL,
         u'acls':	doCalendarDeleteACLs,
-        u'event':	doCalendarDeleteEvent,
+        u'event':	doCalendarsDeleteEvent,
        },
     },
   u'info':
@@ -23582,6 +23762,15 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_MESSAGE:	CL_OB_MESSAGES,
+       },
+    },
+  u'check':
+    {CMD_ACTION: AC_CHECK,
+     CMD_FUNCTION:
+       {CL_OB_SERVICEACCOUNT:	checkServiceAccount,
+       },
+     CMD_OBJ_ALIASES:
+       {
        },
     },
   u'claim':
