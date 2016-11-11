@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.00'
+__version__ = u'4.30.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5765,10 +5765,11 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
     else:
       flattened[((path + u'.') if path else u'') + key] = formatLocalTime(structure)
   elif isinstance(structure, list):
-    for i, item in enumerate(structure):
-      if listLimit and (i >= listLimit):
-        break
-      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
+    listLen = len(structure)
+    listLen = min(listLen, listLimit or listLen)
+    flattened[((path + u'.') if path else u'') + key] = listLen
+    for i in xrange(listLen):
+      flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
   else:
     for new_key, value in structure.items():
       if new_key in [u'kind', u'etag']:
@@ -6273,18 +6274,16 @@ def revokeCredentials(credFamilyList):
       except oauth2client.client.TokenRevokeError as e:
         printErrorMessage(INVALID_TOKEN_RC, e.message)
 
-def getValidateLoginHint(login_hint):
-  def validEmailAddr(addr):
-    loc = addr.find(u'@')
-    return loc > 0 and loc < len(addr)-1
+VALIDEMAIL_PATTERN = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 
+def getValidateLoginHint(login_hint):
   if login_hint:
     login_hint = login_hint.strip()
-    if validEmailAddr(login_hint):
+    if VALIDEMAIL_PATTERN.match(login_hint):
       return login_hint
   while True:
     login_hint = raw_input(u'\nWhat is your G Suite admin email address? ').strip()
-    if validEmailAddr(login_hint):
+    if VALIDEMAIL_PATTERN.match(login_hint):
       return login_hint
     print u'Error: that is not a valid email address'
 
@@ -9406,22 +9405,21 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
               events.append(event)
               eventIds.add(event[u'id'])
       jcount = len(events)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_CALENDAR, calendarId, jcount, EN_EVENT, i, count)
-        if jcount > 0:
-          incrementIndentLevel()
-          j = 0
-          for event in events:
-            j += 1
-            _showCalendarEvent(event, j, jcount)
-          decrementIndentLevel()
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
+        incrementIndentLevel()
+        j = 0
+        for event in events:
+          j += 1
+          _showCalendarEvent(event, j, jcount)
+        decrementIndentLevel()
       else:
-        if jcount > 0:
-          for event in events:
-            row = {u'calendarId': calendarId}
-            addRowTitlesToCSVfile(flattenJSON(event, flattened=row), csvRows, titles)
+        for event in events:
+          addRowTitlesToCSVfile(flattenJSON(event, flattened={u'calendarId': calendarId}), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_CALENDAR, calendarId, i, count)
   if csvFormat:
@@ -10943,12 +10941,12 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     contacts = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
     jcount = len(contacts) if (contacts) else 0
-    if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
     if not csvFormat:
       entityPerformActionModifierNumItems(entityType, user, PHRASE_MAXIMUM_OF, jcount, EN_CONTACT, i, count)
-      if jcount == 0:
-        continue
+    if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
+      continue
+    if not csvFormat:
       incrementIndentLevel()
       j = 0
       for contact in contacts:
@@ -10961,8 +10959,6 @@ def printShowContacts(users, entityType, csvFormat, contactFeed=True):
         _showContact(contactsManager, fields, displayFieldsList, [None, contactGroupIDs][showContactGroups], j, jcount)
       decrementIndentLevel()
     else:
-      if jcount == 0:
-        continue
       for contact in contacts:
         fields = contactsManager.ContactToFields(contact)
         if contactQuery[u'emailMatchPattern'] and not contactEmailAddressMatches(contactsManager, contactQuery, fields):
@@ -11290,12 +11286,12 @@ def printShowContactGroups(users, entityType, csvFormat):
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               uri=uri, url_params=url_params)
       jcount = len(groups)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_CONTACT_GROUP, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for group in groups:
@@ -11303,8 +11299,6 @@ def printShowContactGroups(users, entityType, csvFormat):
           _showContactGroup(contactsManager, group, j, jcount)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for group in groups:
           fields = contactsManager.ContactGroupToFields(group)
           groupRow = {singularEntityName(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
@@ -11571,7 +11565,7 @@ def infoCrOSDevices(entityList, cd=None):
         if lenATR:
           printKeyValueList([u'activeTimeRanges'])
           incrementIndentLevel()
-          for i in xrange(min(listLimit, lenATR) if listLimit else lenATR):
+          for i in xrange(min(lenATR, listLimit or lenATR)):
             printKeyValueList([u'date', activeTimeRanges[i][u'date']])
             incrementIndentLevel()
             printKeyValueList([u'activeTime', str(activeTimeRanges[i][u'activeTime'])])
@@ -11583,7 +11577,7 @@ def infoCrOSDevices(entityList, cd=None):
         if lenRU:
           printKeyValueList([u'recentUsers'])
           incrementIndentLevel()
-          for i in xrange(min(listLimit, lenRU) if listLimit else lenRU):
+          for i in xrange(min(lenRU, listLimit or lenRU)):
             printKeyValueList([u'type', recentUsers[i][u'type']])
             incrementIndentLevel()
             printKeyValueList([u'email', recentUsers[i].get(u'email', u'')])
@@ -11639,7 +11633,7 @@ def doPrintCrOSDevices(entityList=None):
       return
     lenATR = len(activeTimeRanges)
     lenRU = len(recentUsers)
-    for i in xrange(min(listLimit, max(lenATR, lenRU)) if listLimit else max(lenATR, lenRU)):
+    for i in xrange(min(max(lenATR, lenRU), listLimit or max(lenATR, lenRU))):
       new_row = row.copy()
       if i < lenATR:
         new_row[u'activeTimeRanges.activeTime'] = str(activeTimeRanges[i][u'activeTime'])
@@ -13542,22 +13536,21 @@ def printShowUserSchemas(csvFormat):
                       throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                       customerId=GC_Values[GC_CUSTOMER_ID])
     jcount = len(result.get(u'schemas', [])) if (result) else 0
-    if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
     if not csvFormat:
       performActionNumItems(jcount, EN_USER_SCHEMA)
-      if jcount > 0:
-        incrementIndentLevel()
-        j = 0
-        for schema in result[u'schemas']:
-          j += 1
-          _showSchema(schema, j, jcount)
-        decrementIndentLevel()
+    if jcount == 0:
+      setSysExitRC(NO_ENTITIES_FOUND)
+      continue
+    if not csvFormat:
+      incrementIndentLevel()
+      j = 0
+      for schema in result[u'schemas']:
+        j += 1
+        _showSchema(schema, j, jcount)
+      decrementIndentLevel()
     else:
-      if jcount > 0:
-        for schema in result[u'schemas']:
-          row = {u'fields.Count': len(schema[u'fields'])}
-          addRowTitlesToCSVfile(flattenJSON(schema, flattened=row), csvRows, titles)
+      for schema in result[u'schemas']:
+        addRowTitlesToCSVfile(flattenJSON(schema), csvRows, titles)
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   if csvFormat:
@@ -16714,12 +16707,12 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
         jcount = len(result[u'printers'][0][u'access'])
       except KeyError:
         jcount = 0
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_PRINTER, printerId, jcount, EN_ACL, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         for acl in result[u'printers'][0][u'access']:
           if u'key' in acl:
@@ -16727,12 +16720,11 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
           showJSON(None, acl)
           printBlankLine()
         decrementIndentLevel()
-      elif jcount > 0:
+      else:
         for acl in result[u'printers'][0][u'access']:
-          printer = {u'id': printerId}
           if u'key' in acl:
             acl[u'accessURL'] = CLOUDPRINT_ACCESS_URL.format(printerId, acl[u'key'])
-          addRowTitlesToCSVfile(flattenJSON(acl, flattened=printer), csvRows, titles)
+          addRowTitlesToCSVfile(flattenJSON(acl, flattened={u'id': printerId}), csvRows, titles)
     except GCP_unknownPrinter:
       entityActionFailedWarning(EN_PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
   if csvFormat:
@@ -17399,12 +17391,12 @@ def printShowCalendars(users, csvFormat):
       result = callGAPIpages(cal.calendarList(), u'list', u'items',
                              throw_reasons=GAPI_CALENDAR_THROW_REASONS)
       jcount = len(result)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_CALENDAR, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for userCalendar in result:
@@ -17412,11 +17404,8 @@ def printShowCalendars(users, csvFormat):
           _showCalendar(userCalendar, j, jcount)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for userCalendar in result:
-          row = {u'primaryEmail': user}
-          addRowTitlesToCSVfile(flattenJSON(userCalendar, flattened=row), csvRows, titles)
+          addRowTitlesToCSVfile(flattenJSON(userCalendar, flattened={u'primaryEmail': user}), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
@@ -20329,12 +20318,12 @@ def printShowTokens(entityType, users, csvFormat):
                                 throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                                 userKey=user, fields=u'items({0})'.format(fields))
       jcount = len(results)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_ACCESS_TOKEN, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for token in results:
@@ -20342,8 +20331,6 @@ def printShowTokens(entityType, users, csvFormat):
           _showToken(token, j, jcount)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for token in results:
           row = {u'user': user, u'scopes': u' '.join(token.get(u'scopes', []))}
           for item in token:
@@ -20585,8 +20572,7 @@ def printShowGplusProfile(users, csvFormat):
       if not csvFormat:
         _showGplusProfile(user, i, count, results)
       else:
-        row = {u'emailAddress': user}
-        addRowTitlesToCSVfile(flattenJSON(results, flattened=row), csvRows, titles)
+        addRowTitlesToCSVfile(flattenJSON(results, flattened={u'emailAddress': user}), csvRows, titles)
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
@@ -21895,13 +21881,13 @@ def printShowDelegates(users, csvFormat):
                                    delegator=delegatorName)
     if result is not None:
       jcount = len(result) if (result) else 0
+      if not csvFormat and not csvStyle:
+        entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
+        continue
       if not csvFormat:
         if not csvStyle:
-          entityPerformActionNumItems(EN_DELEGATOR, delegatorEmail, jcount, EN_DELEGATE, i, count)
-          if jcount == 0:
-            continue
           incrementIndentLevel()
           j = 0
           for delegate in result:
@@ -21914,14 +21900,11 @@ def printShowDelegates(users, csvFormat):
             decrementIndentLevel()
           decrementIndentLevel()
         else:
-          if jcount > 0:
-            for delegate in result:
-              printKeyValueList([u'{0},{1},{2}'.format(delegatorEmail, delegate[u'address'], delegate[u'status'])])
-      else:
-        if jcount > 0:
           for delegate in result:
-            row = {u'Delegator': delegatorEmail, u'Delegate': delegate[u'delegate'], u'Delegate Email': delegate[u'address'], u'Delegate ID': delegate[u'delegationId'], u'Status': delegate[u'status']}
-            csvRows.append(row)
+            printKeyValueList([u'{0},{1},{2}'.format(delegatorEmail, delegate[u'address'], delegate[u'status'])])
+      else:
+        for delegate in result:
+          csvRows.append({u'Delegator': delegatorEmail, u'Delegate': delegate[u'delegate'], u'Delegate Email': delegate[u'address'], u'Delegate ID': delegate[u'delegationId'], u'Status': delegate[u'status']})
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Delegates', todrive)
 
@@ -22167,12 +22150,12 @@ def printShowFilters(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'filter', [])) if (result) else 0
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_FILTER, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for userFilter in result[u'filter']:
@@ -22180,8 +22163,6 @@ def printShowFilters(users, csvFormat):
           _showFilter(userFilter, j, jcount, labels)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for userFilter in result[u'filter']:
           addRowTitlesToCSVfile(_printFilter(user, userFilter, labels), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
@@ -22471,12 +22452,12 @@ def printShowForwardingAddresses(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'forwardingAddresses', [])) if (result) else 0
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_FORWARDING_ADDRESS, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for forward in result[u'forwardingAddresses']:
@@ -22484,11 +22465,8 @@ def printShowForwardingAddresses(users, csvFormat):
           _showForwardingAddress(j, jcount, forward)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for forward in result[u'forwardingAddresses']:
-          row = {u'User': user, u'forwardingEmail': forward[u'forwardingEmail'], u'verificationStatus': forward[u'verificationStatus']}
-          csvRows.append(row)
+          csvRows.append({u'User': user, u'forwardingEmail': forward[u'forwardingEmail'], u'verificationStatus': forward[u'verificationStatus']})
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(EN_USER, user, i, count)
   if csvFormat:
@@ -22859,12 +22837,12 @@ def printShowSendAs(users, csvFormat):
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,
                         userId=u'me')
       jcount = len(result.get(u'sendAs', [])) if (result) else 0
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
       if not csvFormat:
         entityPerformActionNumItems(EN_USER, user, jcount, EN_SENDAS_ADDRESS, i, count)
-        if jcount == 0:
-          continue
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
         incrementIndentLevel()
         j = 0
         for sendas in result[u'sendAs']:
@@ -22872,8 +22850,6 @@ def printShowSendAs(users, csvFormat):
           _showSendAs(sendas, j, jcount, formatSig)
         decrementIndentLevel()
       else:
-        if jcount == 0:
-          continue
         for sendas in result[u'sendAs']:
           row = {u'User': user, u'isPrimary': False}
           for item in sendas:
