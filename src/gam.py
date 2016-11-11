@@ -13540,17 +13540,17 @@ def printShowUserSchemas(csvFormat):
       performActionNumItems(jcount, EN_USER_SCHEMA)
     if jcount == 0:
       setSysExitRC(NO_ENTITIES_FOUND)
-      continue
-    if not csvFormat:
-      incrementIndentLevel()
-      j = 0
-      for schema in result[u'schemas']:
-        j += 1
-        _showSchema(schema, j, jcount)
-      decrementIndentLevel()
     else:
-      for schema in result[u'schemas']:
-        addRowTitlesToCSVfile(flattenJSON(schema), csvRows, titles)
+      if not csvFormat:
+        incrementIndentLevel()
+        j = 0
+        for schema in result[u'schemas']:
+          j += 1
+          _showSchema(schema, j, jcount)
+        decrementIndentLevel()
+      else:
+        for schema in result[u'schemas']:
+          addRowTitlesToCSVfile(flattenJSON(schema), csvRows, titles)
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   if csvFormat:
