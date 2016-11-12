@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.01'
+__version__ = u'4.30.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -799,6 +799,7 @@ EN_ACTIVITY = u'actv'
 EN_ALIAS = u'alia'
 EN_ALIAS_EMAIL = u'alie'
 EN_ALIAS_TARGET = u'alit'
+EN_API = u'api '
 EN_APPLICATION_SPECIFIC_PASSWORD = u'aspa'
 EN_ARROWS_ENABLED = u'arro'
 EN_AUDIT_ACTIVITY_REQUEST = u'auda'
@@ -883,6 +884,7 @@ EN_PRINTER = u'prin'
 EN_PRINTJOB = u'prjo'
 EN_PRODUCT = u'prod'
 EN_PROFILE_SHARING_ENABLED = u'prof'
+EN_PROJECT = u'proj'
 EN_QUERY = u'quer'
 EN_REQUEST_ID = u'reqi'
 EN_RESOURCE_CALENDAR = u'resc'
@@ -930,6 +932,7 @@ ENTITY_NAMES = {
   EN_ALIAS: [u'Aliases', u'Alias'],
   EN_ALIAS_EMAIL: [u'Alias Emails', u'Alias Email'],
   EN_ALIAS_TARGET: [u'Alias Targets', u'Alias Target'],
+  EN_API: [u'APIs', u'API'],
   EN_APPLICATION_SPECIFIC_PASSWORD: [u'Application Specific Passwords', u'Application Specific Password'],
   EN_ARROWS_ENABLED: [u'Personal Indicator Arrows Enabled', u'Personal Indicator Arrows Enabled'],
   EN_AUDIT_ACTIVITY_REQUEST: [u'Audit Activity Requests', u'Audit Activity Request'],
@@ -1014,6 +1017,7 @@ ENTITY_NAMES = {
   EN_PRINTJOB: [u'Print Jobs', u'Print Job'],
   EN_PRODUCT: [u'Products', u'Product'],
   EN_PROFILE_SHARING_ENABLED: [u'Profile Sharing Enabled', u'Profile Sharing Enabled'],
+  EN_PROJECT: [u'Projects', u'Project'],
   EN_QUERY: [u'Queries', u'Query'],
   EN_REQUEST_ID: [u'Request IDs', u'Request ID'],
   EN_RESOURCE_CALENDAR: [u'Resource Calendars', u'Resource Calendar'],
@@ -1282,6 +1286,8 @@ CL_OB_PRINTER = u'printer'
 CL_OB_PRINTERS = u'printers'
 CL_OB_PRINTJOBS = u'printjobs'
 CL_OB_PROFILE = u'profile'
+CL_OB_PROJECT = u'project'
+CL_OB_PROJECTS = u'projects'
 CL_OB_RESOURCE = u'resource'
 CL_OB_RESOURCES = u'resources'
 CL_OB_SCHEMA = u'schema'
@@ -1356,6 +1362,7 @@ AC_DEPROVISION = u'depr'
 AC_DISABLE = u'disa'
 AC_DOWNLOAD = u'down'
 AC_EMPTY = u'empt'
+AC_ENABLE = u'enbl'
 AC_FETCH = u'fetc'
 AC_FORWARD = u'forw'
 AC_INFO = u'info'
@@ -1412,6 +1419,7 @@ ACTION_NAMES = {
   AC_DISABLE: [u'Disabled', u'Disable'],
   AC_DOWNLOAD: [u'Downloaded', u'Download'],
   AC_EMPTY: [u'Emptied', u'Empty'],
+  AC_ENABLE: [u'Enabled', u'Enable'],
   AC_FORWARD: [u'Forwarded', u'Forward'],
   AC_INFO: [u'Shown', u'Show Info'],
   AC_INITIALIZE: [u'Initialized', u'Initialize'],
@@ -6504,6 +6512,218 @@ def doOAuthInfo():
         _printCredentials(fam1Credentials)
         _printCredentials(fam2Credentials)
 
+def checkServiceAccount(users):
+  checkForExtraneousArguments()
+  all_scopes_pass = True
+  all_scopes = []
+  for api in API_INFO:
+    for scope in API_INFO[api].get(u'svcacctscopes', []):
+      if scope not in all_scopes:
+        all_scopes.append(scope)
+  all_scopes.sort()
+  jcount = len(all_scopes)
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    user = convertUserUIDtoEmailAddress(user)
+    entityPerformActionNumItems(EN_USER, user, jcount, EN_SCOPE, i, count)
+    incrementIndentLevel()
+    j = 0
+    for scope in all_scopes:
+      j += 1
+      try:
+        credentials = getSvcAcctCredentials(scope, user)
+        credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
+        result = u'PASS'
+      except httplib2.ServerNotFoundError as e:
+        systemErrorExit(NETWORK_ERROR_RC, e)
+      except oauth2client.client.HttpAccessTokenRefreshError:
+        result = u'FAIL'
+        all_scopes_pass = False
+      entityActionPerformedMessage(EN_SCOPE, u'{0:60}'.format(scope), result, j, jcount)
+    decrementIndentLevel()
+    service_account = credentials.serialization_data[u'client_id']
+    _, _, user_domain = splitEmailAddressOrUID(user)
+  printBlankLine()
+  if all_scopes_pass:
+    printLine(MESSAGE_SCOPE_AUTHORIZATION_PASSED.format(service_account))
+  else:
+    printErrorMessage(SCOPES_NOT_AUTHORIZED, MESSAGE_SCOPE_AUTHORIZATION_FAILED.format(user_domain, service_account, ',\n'.join(all_scopes)))
+
+def getCRMService(login_hint):
+  from oauth2client.contrib.dictionary_storage import DictionaryStorage
+  login_hint = getValidateLoginHint(login_hint)
+  scope = u'https://www.googleapis.com/auth/cloud-platform'
+  client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
+  client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
+  flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
+                                                 client_secret=client_secret, scope=scope, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
+                                                 user_agent=GAM_INFO, access_type=u'online', response_type=u'code', login_hint=login_hint)
+  storage_dict = {}
+  storage = DictionaryStorage(storage_dict, u'credentials')
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+  try:
+    credentials = oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
+  except httplib2.CertificateValidationUnsupported:
+    noPythonSSLExit()
+  credentials.user_agent = GAM_INFO
+  http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
+                                             cache=GC_Values[GC_CACHE_DIR]))
+  return (googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False), http)
+
+def doCreateProject():
+  login_hint = getEmailAddress(noUid=True, optional=True)
+  checkForExtraneousArguments()
+  crm, http = getCRMService(login_hint)
+  project_id = u'gam-project'
+  for i in range(3):
+    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
+  project_name = u'project:%s' % project_id
+  body = {u'projectId': project_id, u'name': u'GAM Project'}
+  while True:
+    create_again = False
+    print u'Creating project "%s"...' % body[u'name']
+    create_operation = callGAPI(crm.projects(), u'create', body=body)
+    operation_name = create_operation[u'name']
+    time.sleep(5) # Google recommends always waiting at least 5 seconds
+    for i in range(1, 5):
+      print u'Checking project status...'
+      status = callGAPI(crm.operations(), u'get', name=operation_name)
+      if u'error' in status:
+        if u'message' in status[u'error'] and status[u'error'][u'message'].find(u'Callers must accept ToS') != -1:
+          print u'''Please go to:
+
+https://console.developers.google.com
+
+and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup, you can return here and press enter.'''
+          raw_input()
+          create_again = True
+          break
+        else:
+          print status
+          sys.exit(1)
+      if u'done' in status and status[u'done']:
+        break
+      sleep_time = i ** 2
+      print u'Project still being created. Sleeping %s seconds' % sleep_time
+      time.sleep(sleep_time)
+    if create_again:
+      continue
+    if not u'done' in status or not status[u'done']:
+      print u'Failed to create project: %s' % status
+      sys.exit(1)
+    elif u'error' in status:
+      print status[u'error']
+      sys.exit(2)
+    break
+
+  serveman = googleapiclient.discovery.build(u'servicemanagement', u'v1', http=http, cache_discovery=False)
+  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com', u'audit-json.googleapis.com',
+          u'calendar-json.googleapis.com', u'classroom.googleapis.com', u'contacts-json.googleapis.com',
+          u'drive', u'gmail-json.googleapis.com', u'groupsmigration-json.googleapis.com',
+          u'groupssettings-json.googleapis.com', u'licensing-json.googleapis.com', u'plus-json.googleapis.com',
+          u'siteverification-json.googleapis.com']
+  setActionName(AC_ENABLE)
+  count = len(apis)
+  performActionNumItems(count, EN_API)
+  incrementIndentLevel()
+  i = 0
+  for api in apis:
+    i += 1
+    while True:
+      try:
+        callGAPI(serveman.services(), u'enable',
+                 throw_reasons=[GAPI_FAILED_PRECONDITION],
+                 serviceName=api, body={u'consumerId': project_name})
+        entityActionPerformed(EN_API, api, i, count)
+        break
+      except GAPI_failedPrecondition as e:
+        entityActionFailedWarning(EN_API, api, e.message, i, count)
+        sys.stderr.write(u'\nPlease resolve error as described above\n\n')
+        raw_input(u'Press enter once resolved and we will try enabling the API again.')
+  decrementIndentLevel()
+  iam = googleapiclient.discovery.build(u'iam', u'v1', http=http, cache_discovery=False)
+  print u'Creating Service Account'
+  service_account = callGAPI(iam.projects().serviceAccounts(), u'create',
+                             name=u'projects/%s' % project_id,
+                             body={u'accountId': project_id, u'serviceAccount': {u'displayName': u'GAM Project'}})
+  body = {u'privateKeyType': u'TYPE_GOOGLE_CREDENTIALS_FILE', u'keyAlgorithm': u'KEY_ALG_RSA_4096'}
+  key = callGAPI(iam.projects().serviceAccounts().keys(), u'create',
+                 name=service_account[u'name'], body=body)
+  oauth2service_data = base64.b64decode(key[u'privateKeyData'])
+  service_account_file = GC_Values[GC_OAUTH2SERVICE_JSON]
+  if os.path.isfile(service_account_file):
+    service_account_file = u'%s-%s' % (service_account_file, project_id)
+  writeFile(service_account_file, oauth2service_data, continueOnError=False)
+  console_credentials_url = u'https://console.developers.google.com/apis/credentials?project=%s' % project_id
+  print u'''Please go to:
+
+%s
+
+1. Click the blue "Create credentials" button. Choose "OAuth client ID".
+2. Click the blue "Configure consent screen" button. Enter "GAM" for "Product name to show to users".
+3. Leave other fields blank. Click "Save" button.
+3. Choose "Other" and click the blue "Create" button.
+4. Copy your "client ID" value.
+
+''' % console_credentials_url
+  client_id = raw_input(u'Enter your Client ID: ')
+  print u'\nNow go back to your browser and copy your client secret.'
+  client_secret = raw_input(u'Enter your Client Secret: ')
+  cs_data = u'''{
+    "installed": {
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "client_id": "%s",
+        "client_secret": "%s",
+        "project_id": "%s",
+        "redirect_uris": [
+            "urn:ietf:wg:oauth:2.0:oob",
+            "http://localhost"
+        ],
+        "token_uri": "https://accounts.google.com/o/oauth2/token"
+    }
+}''' % (client_id, client_secret, project_id)
+  client_secrets_file = GC_Values[GC_CLIENT_SECRETS_JSON]
+  if os.path.isfile(client_secrets_file):
+    client_secrets_file = u'%s-%s' % (client_secrets_file, project_id)
+  writeFile(client_secrets_file, cs_data, continueOnError=False)
+  print u'''Almost there! Now please switch back to your browser and:
+
+1. Click OK to close "OAuth client" popup if it's still open.
+2. Click "Manage service accounts" on the right of the screen.
+3. Click the 3 dots to the right of your service account.
+4. Choose Edit.
+5. Check the "Enable G Suite Domain-wide Delegation" box and click Save.
+'''
+  raw_input(u'Press Enter when done...')
+  print u'That\'s it! Your GAM Project is created and ready to use.'
+
+def doDeleteProjects():
+  # Leave undocumented. Most users should never need.
+  # Deletes all projects with ID gam-project-*
+  login_hint = getEmailAddress(noUid=True, optional=True)
+  checkForExtraneousArguments()
+  crm, _ = getCRMService(login_hint)
+  projects = callGAPIpages(crm.projects(), u'list', items=u'projects')
+  gam_pids = [project[u'projectId'] for project in projects if project[u'projectId'].startswith(u'gam-project-')]
+  count = len(gam_pids)
+  performActionNumItems(count, EN_PROJECT)
+  incrementIndentLevel()
+  i = 0
+  for pid in gam_pids:
+    i += 1
+    try:
+      callGAPI(crm.projects(), u'delete',
+               throw_reasons=[GAPI_FORBIDDEN],
+               projectId=pid)
+      entityActionPerformed(EN_PROJECT, pid, i, count)
+    except GAPI_forbidden as e:
+      entityActionFailedWarning(EN_PROJECT, pid, e.message, i, count)
+  decrementIndentLevel()
+
 # gam whatis <EmailItem> [noinfo]
 def doWhatIs():
   cd = buildGAPIObject(DIRECTORY_API)
@@ -6555,45 +6775,6 @@ def doWhatIs():
     return
   printKeyValueList([u'{0} Doesn\'t seem to exist!'.format(email)])
   setSysExitRC(ENTITY_IS_UKNOWN_RC)
-
-def checkServiceAccount(users):
-  checkForExtraneousArguments()
-  all_scopes_pass = True
-  all_scopes = []
-  for api in API_INFO:
-    for scope in API_INFO[api].get(u'svcacctscopes', []):
-      if scope not in all_scopes:
-        all_scopes.append(scope)
-  all_scopes.sort()
-  jcount = len(all_scopes)
-  i = 0
-  count = len(users)
-  for user in users:
-    i += 1
-    user = convertUserUIDtoEmailAddress(user)
-    entityPerformActionNumItems(EN_USER, user, jcount, EN_SCOPE, i, count)
-    incrementIndentLevel()
-    j = 0
-    for scope in all_scopes:
-      j += 1
-      try:
-        credentials = getSvcAcctCredentials(scope, user)
-        credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
-        result = u'PASS'
-      except httplib2.ServerNotFoundError as e:
-        systemErrorExit(NETWORK_ERROR_RC, e)
-      except oauth2client.client.HttpAccessTokenRefreshError:
-        result = u'FAIL'
-        all_scopes_pass = False
-      entityActionPerformedMessage(EN_SCOPE, u'{0:60}'.format(scope), result, j, jcount)
-    decrementIndentLevel()
-    service_account = credentials.serialization_data[u'client_id']
-    _, _, user_domain = splitEmailAddressOrUID(user)
-  printBlankLine()
-  if all_scopes_pass:
-    printLine(MESSAGE_SCOPE_AUTHORIZATION_PASSED.format(service_account))
-  else:
-    printErrorMessage(SCOPES_NOT_AUTHORIZED, MESSAGE_SCOPE_AUTHORIZATION_FAILED.format(user_domain, service_account, ',\n'.join(all_scopes)))
 
 # Report choices
 #
@@ -23168,6 +23349,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_GROUP:	doCreateGroup,
         CL_OB_GUARDIAN: doInviteGuardian,
         CL_OB_ORG:	doCreateOrg,
+        CL_OB_PROJECT:	doCreateProject,
         CL_OB_RESOURCE:	doCreateResourceCalendar,
         CL_OB_SCHEMA:	doCreateUserSchema,
         CL_OB_SITE:	doCreateDomainSite,
@@ -23177,6 +23359,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_OBJ_ALIASES:
        {u'aliasdomain':	CL_OB_DOMAIN_ALIAS,
         u'aliasdomains':	CL_OB_DOMAIN_ALIAS,
+        u'apiproject':	CL_OB_PROJECT,
         u'class':	CL_OB_COURSE,
         CL_OB_CONTACTS:	CL_OB_CONTACT,
         CL_OB_DOMAIN_ALIASES:	CL_OB_DOMAIN_ALIAS,
@@ -23212,6 +23395,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         CL_OB_ORGS:	doDeleteOrgs,
         CL_OB_PRINTER:	doDeletePrinter,
         CL_OB_PRINTERS:	doDeletePrinters,
+        CL_OB_PROJECTS:	doDeleteProjects,
         CL_OB_RESOURCE:	doDeleteResourceCalendar,
         CL_OB_RESOURCES:doDeleteResourceCalendars,
         CL_OB_SCHEMA:	doDeleteUserSchema,
@@ -23232,6 +23416,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'nicknames':	CL_OB_ALIASES,
         u'ou':		CL_OB_ORG,
         u'ous':		CL_OB_ORGS,
+        CL_OB_PROJECT:	CL_OB_PROJECTS,
         u'print':	CL_OB_PRINTER,
         u'notifications':	CL_OB_NOTIFICATION,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
