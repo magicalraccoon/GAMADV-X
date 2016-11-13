@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.03'
+__version__ = u'4.30.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22899,11 +22899,11 @@ def getSendAsAttributes(myarg, body, tagReplacements):
   else:
     unknownArgumentExit()
 
-# gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+# gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 def addSendAs(users):
   addUpdateSendAs(users, True)
 
-# gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+# gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 def updateSendAs(users):
   addUpdateSendAs(users, False)
 
@@ -22915,6 +22915,7 @@ def addUpdateSendAs(users, addCmd):
     body = {}
   signature = None
   tagReplacements = {}
+  html = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg in [u'signature', u'sig']:
@@ -22924,13 +22925,17 @@ def addUpdateSendAs(users, addCmd):
         signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
       else:
         signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
+    elif myarg == u'html':
+      html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature is not None:
-    if signature and tagReplacements:
-      body[u'signature'] = _processTags(tagReplacements, signature)
-    else:
-      body[u'signature'] = signature
+    if signature:
+      if tagReplacements:
+        signature = _processTags(tagReplacements, signature)
+      if not html:
+        signature = signature.replace(u'\n', u'<br/>')
+    body[u'signature'] = signature
   kwargs = {u'body': body}
   if not addCmd:
     kwargs[u'sendAsEmail'] = emailAddress
@@ -23057,7 +23062,7 @@ def setShortCuts(users):
     if result:
       printEntityItemValue(EN_USER, user, EN_KEYBOARD_SHORTCUTS_ENABLED, result[u'shortcuts'], i, count)
 
-# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
+# gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [html] [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 def setSignature(users):
   tagReplacements = {}
   if checkArgumentPresent(FILE_ARGUMENT):
@@ -23067,17 +23072,21 @@ def setSignature(users):
   else:
     signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
   body = {}
-  primary = False
+  html = primary = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'primary':
       primary = True
+    elif myarg == u'html':
+      html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
-  if signature and tagReplacements:
-    body[u'signature'] = _processTags(tagReplacements, signature)
-  else:
-    body[u'signature'] = signature
+  if signature:
+    if tagReplacements:
+      signature = _processTags(tagReplacements, signature)
+    if not html:
+      signature = signature.replace(u'\n', u'<br/>')
+  body[u'signature'] = signature
   i = 0
   count = len(users)
   for user in users:
