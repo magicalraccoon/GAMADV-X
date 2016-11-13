@@ -126,7 +126,7 @@ To make these values be the default, add the following two lines to gam.cfg.
     todrive_parent = 'GAM Reports'
     todrive_timestamp = true
 To override these values, change them on the command line.
-    gam print users todrive tdparent 'root tdtimestamp false id name
+    gam print users todrive tdparent root tdtimestamp false id name
 
 4.29.05
 
@@ -951,7 +951,7 @@ Added argument to gam <UserTypeEntity> signature and gam <UserTypeEntity> vacati
     gam <UserTypeEntity> signature <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
     gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) [contactsonly] [domainonly]
 	[startdate <Date>] [enddate <Date>] (replace <Tag> <String>)*
-Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Tag}...{/RT} will be eliminated
+Every instance of {Tag} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Tag}...{/RT} will be eliminated
 if there was no <Tag> specified that matches Tag or if a <Tag> matching Tag was specified but the matching <String> is empty.
 This is especially useful with CSV files.
 gam csv Users.csv gam user '~User' signature file SignatureTemplate.txt replace 'User' '~User' replace 'Title' '~Title'
