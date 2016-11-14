@@ -1,3 +1,7 @@
+4.30.05
+
+Strip carriage returns from signature and vacation message.
+
 4.30.04
 
 Added html argument to gam add sendas/update sendas/signature to control newline (\n) processing when signature is read from a file.

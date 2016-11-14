@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.04'
+__version__ = u'4.30.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22859,6 +22859,15 @@ def _processTags(tagReplacements, message):
     message = re.sub(match.group(0), tagReplacements.get(match.group(1), u''), message)
   return message
 
+def _processSignature(tagReplacements, signature, html):
+  if signature:
+    signature = signature.replace(u'\r', u'').replace(u'\\n', u'<br/>')
+    if tagReplacements:
+      signature = _processTags(tagReplacements, signature)
+    if not html:
+      signature = signature.replace(u'\n', u'<br/>')
+  return signature
+
 # Process SendAs functions
 def _processSendAs(user, i, count, entityType, emailAddress, j, jcount, gmail, function, formatSig, **kwargs):
   userDefined = True
@@ -22922,20 +22931,15 @@ def addUpdateSendAs(users, addCmd):
       if checkArgumentPresent(FILE_ARGUMENT):
         filename = getString(OB_FILE_NAME)
         encoding = getCharSet()
-        signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
+        signature = readFile(filename, encoding=encoding)
       else:
-        signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
+        signature = getString(OB_STRING, emptyOK=True)
     elif myarg == u'html':
       html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature is not None:
-    if signature:
-      if tagReplacements:
-        signature = _processTags(tagReplacements, signature)
-      if not html:
-        signature = signature.replace(u'\n', u'<br/>')
-    body[u'signature'] = signature
+    body[u'signature'] = _processSignature(tagReplacements, signature, html)
   kwargs = {u'body': body}
   if not addCmd:
     kwargs[u'sendAsEmail'] = emailAddress
@@ -23068,9 +23072,9 @@ def setSignature(users):
   if checkArgumentPresent(FILE_ARGUMENT):
     filename = getString(OB_FILE_NAME)
     encoding = getCharSet()
-    signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
+    signature = readFile(filename, encoding=encoding)
   else:
-    signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
+    signature = getString(OB_STRING, emptyOK=True)
   body = {}
   html = primary = False
   while CL_argvI < CL_argvLen:
@@ -23081,12 +23085,7 @@ def setSignature(users):
       html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
-  if signature:
-    if tagReplacements:
-      signature = _processTags(tagReplacements, signature)
-    if not html:
-      signature = signature.replace(u'\n', u'<br/>')
-  body[u'signature'] = signature
+  body[u'signature'] = _processSignature(tagReplacements, signature, html)
   i = 0
   count = len(users)
   for user in users:
@@ -23243,9 +23242,9 @@ def setVacation(users):
         unknownArgumentExit()
     if message:
       if responseBodyType == u'responseBodyHtml':
-        message = message.replace(u'\\n', u'<br/>')
+        message = message.replace(u'\r', u'').replace(u'\\n', u'<br/>')
       else:
-        message = message.replace(u'\\n', u'\n')
+        message = message.replace(u'\r', u'').replace(u'\\n', u'\n')
       if tagReplacements:
         message = _processTags(tagReplacements, message)
       body[responseBodyType] = message
