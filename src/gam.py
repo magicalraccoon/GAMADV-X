@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.05'
+__version__ = u'4.30.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12468,6 +12468,8 @@ def updateGroups(entityList):
         body[u'adminCreated'] = getBoolean()
       else:
         getGroupAttrValue(myarg, gs_body)
+    if gs_body:
+      gs = buildGAPIObject(GROUPSSETTINGS_API)
     setActionName(AC_UPDATE)
     i = 0
     count = len(entityList)
@@ -12485,7 +12487,6 @@ def updateGroups(entityList):
           entityUnknownWarning(EN_GROUP, group, i, count)
           continue
       if gs_body:
-        gs = buildGAPIObject(GROUPSSETTINGS_API)
         try:
           callGAPI(gs.groups(), u'patch',
                    throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND,
@@ -12626,7 +12627,6 @@ def doInfoGroup():
 
 def infoGroups(entityList):
   cd = buildGAPIObject(DIRECTORY_API)
-  gs = buildGAPIObject(GROUPSSETTINGS_API)
   getAliases = getUsers = True
   getGroups = getSettings = False
   formatJSON = False
@@ -12679,6 +12679,8 @@ def infoGroups(entityList):
   elif len(gsfieldsList) > 0:
     getSettings = True
     gsfieldsList = u','.join(set(gsfieldsList))
+  if getSettings:
+    gs = buildGAPIObject(GROUPSSETTINGS_API)
   i = 0
   count = len(entityList)
   for group in entityList:
@@ -12854,6 +12856,8 @@ def doPrintGroups():
     gsfields = u','.join(set(gsfieldsList))
   elif getSettings:
     gsfields = None
+  if getSettings:
+    gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(roles)))
   if entityList is None:
     printGettingAccountEntitiesInfo(EN_GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
@@ -12962,7 +12966,6 @@ def doPrintGroups():
             row[u'Owners'] = countOwners
       if getSettings:
         printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
-        gs = buildGAPIObject(GROUPSSETTINGS_API)
         settings = callGAPI(gs.groups(), u'get',
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                             retry_reasons=[GAPI_SERVICE_LIMIT],
