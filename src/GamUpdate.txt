@@ -1,3 +1,7 @@
+4.30.07
+
+Handle additional API errors when dealing with groups.
+
 4.30.06
 
 Improve gam print groups settings performance.

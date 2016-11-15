@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.06'
+__version__ = u'4.30.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12599,10 +12599,10 @@ def deleteGroups(entityList):
     group = normalizeEmailAddressOrUID(group)
     try:
       callGAPI(cd.groups(), u'delete',
-               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                groupKey=group)
       entityActionPerformed(EN_GROUP, group, i, count)
-    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
       entityUnknownWarning(EN_GROUP, group, i, count)
 #
 # CL argument: [API field name, CSV field title]
@@ -12688,21 +12688,21 @@ def infoGroups(entityList):
     group = normalizeEmailAddressOrUID(group)
     try:
       basic_info = callGAPI(cd.groups(), u'get',
-                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                             groupKey=group, fields=cdfieldsList)
       group = basic_info[u'email']
       if getSettings:
         settings = callGAPI(gs.groups(), u'get',
-                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                             retry_reasons=[GAPI_SERVICE_LIMIT],
                             groupUniqueId=group, fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
-                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                userKey=group, fields=u'nextPageToken,groups(name,email)')
       if getUsers:
         members = callGAPIpages(cd.members(), u'list', u'members',
-                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                 groupKey=group)
       if formatJSON:
         basic_info.update(settings)
@@ -12764,7 +12764,7 @@ def infoGroups(entityList):
         decrementIndentLevel()
         printKeyValueList([u'Total users in group', len(members)])
       decrementIndentLevel()
-    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
       entityUnknownWarning(EN_GROUP, group, i, count)
 
 def groupQuery(domain, usemember):
@@ -12889,7 +12889,7 @@ def doPrintGroups():
       if not isinstance(groupEntity, dict):
         groupEmail = normalizeEmailAddressOrUID(groupEntity)
         groupEntity = callGAPI(cd.groups(), u'get',
-                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                groupKey=groupEmail, fields=cdfields)
       groupEmail = groupEntity[u'email']
       row = {}
@@ -12904,7 +12904,7 @@ def doPrintGroups():
         page_message = getPageMessageForWhom(showTotal=False, showFirstLastItems=True)
         groupMembers = callGAPIpages(cd.members(), u'list', u'members',
                                      page_message=page_message, message_attribute=u'email',
-                                     throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                     throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                      groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
         if not countsOnly:
           if members:
@@ -12967,7 +12967,7 @@ def doPrintGroups():
       if getSettings:
         printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
         settings = callGAPI(gs.groups(), u'get',
-                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                             retry_reasons=[GAPI_SERVICE_LIMIT],
                             groupUniqueId=groupEmail, fields=gsfields)
         for key in settings:
@@ -12983,7 +12983,7 @@ def doPrintGroups():
           else:
             row[key] = setting_value.replace(u'\n', u'\\n')
       csvRows.append(row)
-    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+    except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
       entityUnknownWarning(EN_GROUP, groupEmail, i, count)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
 
@@ -12992,7 +12992,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
     printGettingAllEntityItemsForWhom(EN_MEMBER, groupEmail, i, count)
     groupMembers = callGAPIpages(cd.members(), u'list', u'members',
                                  message_attribute=u'email',
-                                 throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                 throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                  groupKey=groupEmail)
     if not recursive:
       if noduplicates:
@@ -13015,7 +13015,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
           membersList.append(member)
         else:
           getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
-  except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+  except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(EN_GROUP, groupEmail, i, count)
 
 GROUPMEMBERS_FIELD_NAMES_MAP = {
