@@ -6755,7 +6755,7 @@ def doWhatIs():
     return
   try:
     result = callGAPI(cd.groups(), u'get',
-                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                       groupKey=email, fields=u'email,id')
     if (result[u'email'].lower() == email) or (result[u'id'] == email):
       printKeyValueList([u'{0} is a {1}'.format(email, singularEntityName(EN_GROUP))])
@@ -6770,7 +6770,7 @@ def doWhatIs():
     return
   except (GAPI_groupNotFound, GAPI_badRequest):
     pass
-  except (GAPI_domainNotFound, GAPI_forbidden):
+  except (GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(EN_USER, email)
     setSysExitRC(ENTITY_IS_UKNOWN_RC)
     return
@@ -11545,7 +11545,7 @@ CROS_ACTION_CHOICES_MAP = {
   }
 
 CROS_ACTION_NAME_MAP = {
-  u'deprovIsion': AC_DEPROVISION,
+  u'deprovision': AC_DEPROVISION,
   u'disable': AC_DISABLE,
   u'reenable': AC_REENABLE,
   }
@@ -12258,7 +12258,7 @@ def doCreateGroup():
   body.setdefault(u'name', body[u'email'])
   try:
     callGAPI(cd.groups(), u'insert',
-             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
              body=body, fields=u'email')
     entityActionPerformed(EN_GROUP, body[u'email'])
     if gs_body:
@@ -12267,17 +12267,17 @@ def doCreateGroup():
                groupUniqueId=body[u'email'], body=gs_body)
   except GAPI_duplicate:
     entityDuplicateWarning(EN_GROUP, body[u'email'])
-  except (GAPI_domainNotFound, GAPI_forbidden):
+  except (GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(EN_GROUP, body[u'email'])
 
 def checkGroupExists(cd, group, i=0, count=0):
   group = normalizeEmailAddressOrUID(group)
   try:
     result = callGAPI(cd.groups(), u'get',
-                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN],
+                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN, GAPI_INVALID],
                       groupKey=group, fields=u'email')
     return result[u'email']
-  except (GAPI_groupNotFound, GAPI_badRequest, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden):
+  except (GAPI_groupNotFound, GAPI_badRequest, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(EN_GROUP, group, i, count)
     return None
 
@@ -12480,20 +12480,20 @@ def updateGroups(entityList):
         try:
           cd_result = callGAPI(cd.groups(), u'patch',
                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND,
-                                              GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN],
+                                              GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN, GAPI_INVALID],
                                groupKey=group, body=body, fields=u'email')
           group = cd_result[u'email']
-        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden):
+        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid):
           entityUnknownWarning(EN_GROUP, group, i, count)
           continue
       if gs_body:
         try:
           callGAPI(gs.groups(), u'patch',
                    throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND,
-                                  GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN],
+                                  GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN, GAPI_INVALID],
                    retry_reasons=[GAPI_SERVICE_LIMIT],
                    groupUniqueId=group, body=gs_body)
-        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden):
+        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid):
           entityUnknownWarning(EN_GROUP, group, i, count)
           continue
       entityActionPerformed(EN_GROUP, group, i, count)
@@ -13173,10 +13173,10 @@ def doPrintGroupMembers():
           if membernames and memberType == u'GROUP':
             try:
               mbinfo = callGAPI(cd.groups(), u'get',
-                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                                 groupKey=member[u'id'], fields=u'name')
               row[u'name'] = mbinfo[u'name']
-            except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+            except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
               pass
           csvRows.append(row)
       else:
@@ -21089,10 +21089,10 @@ def archiveMessages(users):
   group = getEmailAddress()
   try:
     result = callGAPI(cd.groups(), u'get',
-                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN],
+                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_DOMAIN_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN, GAPI_INVALID],
                       groupKey=group, fields=u'email')
     group = result[u'email']
-  except (GAPI_groupNotFound, GAPI_badRequest, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden) as e:
+  except (GAPI_groupNotFound, GAPI_badRequest, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid) as e:
     putArgumentBack()
     usageErrorExit(u'{0}: {1}'.format(PHRASE_INVALID_GROUP, e.message))
   while CL_argvI < CL_argvLen:
