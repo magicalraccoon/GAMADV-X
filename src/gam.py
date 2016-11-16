@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.07'
+__version__ = u'4.30.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12242,6 +12242,9 @@ def getGroupAttrValue(argument, gs_body):
     else:
       gs_body[attrName] = getInteger()
 
+def GroupIsAbuseOrPostmaster(emailAddr):
+  return emailAddr.startswith(u'abuse@') or emailAddr.startswith(u'postmaster@')
+
 # gam create group <EmailAddress> <GroupAttributes>
 def doCreateGroup():
   cd = buildGAPIObject(DIRECTORY_API)
@@ -12260,11 +12263,13 @@ def doCreateGroup():
     callGAPI(cd.groups(), u'insert',
              throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
              body=body, fields=u'email')
-    entityActionPerformed(EN_GROUP, body[u'email'])
-    if gs_body:
+    if gs_body and not GroupIsAbuseOrPostmaster(body[u'email']):
       gs = buildGAPIObject(GROUPSSETTINGS_API)
-      callGAPI(gs.groups(), u'patch', retry_reasons=[GAPI_SERVICE_LIMIT],
+      callGAPI(gs.groups(), u'patch',
+               throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
+               retry_reasons=[GAPI_SERVICE_LIMIT],
                groupUniqueId=body[u'email'], body=gs_body)
+    entityActionPerformed(EN_GROUP, body[u'email'])
   except GAPI_duplicate:
     entityDuplicateWarning(EN_GROUP, body[u'email'])
   except (GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
@@ -12486,7 +12491,7 @@ def updateGroups(entityList):
         except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid):
           entityUnknownWarning(EN_GROUP, group, i, count)
           continue
-      if gs_body:
+      if gs_body and not GroupIsAbuseOrPostmaster(group):
         try:
           callGAPI(gs.groups(), u'patch',
                    throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND,
@@ -12691,7 +12696,7 @@ def infoGroups(entityList):
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                             groupKey=group, fields=cdfieldsList)
       group = basic_info[u'email']
-      if getSettings:
+      if getSettings and not GroupIsAbuseOrPostmaster(group):
         settings = callGAPI(gs.groups(), u'get',
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
                             retry_reasons=[GAPI_SERVICE_LIMIT],
@@ -12964,7 +12969,7 @@ def doPrintGroups():
             row[u'Managers'] = countManagers
           if owners:
             row[u'Owners'] = countOwners
-      if getSettings:
+      if getSettings and not GroupIsAbuseOrPostmaster(groupEmail):
         printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
         settings = callGAPI(gs.groups(), u'get',
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],

@@ -1,3 +1,7 @@
+4.30.08
+
+Do not get/set settings for special groups abuse and postmaster.
+
 4.30.07
 
 Handle additional API errors when dealing with groups.
