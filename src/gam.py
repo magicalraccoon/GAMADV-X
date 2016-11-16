@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.08'
+__version__ = u'4.30.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -93,7 +93,6 @@ GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__
                                                                               platform.platform(), platform.machine())
 GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
 GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
-GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile'
 GAM_ALL_RELEASES = u'https://api.github.com/repos/taers232c/'+GAM+u'/releases'
 GAM_LATEST_RELEASE = GAM_ALL_RELEASES+u'/latest'
 
@@ -449,14 +448,14 @@ GOOGLE_NAMESERVERS = [u'8.8.8.8', u'8.8.4.4']
 NEVER_TIME = u'1970-01-01T00:00:00.000Z'
 NEVER_START_DATE = u'1970-01-01'
 NEVER_END_DATE = u'1969-12-31'
-ROLE_MEMBER = u'MEMBER'
 ROLE_MANAGER = u'MANAGER'
+ROLE_MEMBER = u'MEMBER'
 ROLE_OWNER = u'OWNER'
 ROLE_USER = u'USER'
-ROLE_MEMBER_MANAGER = u','.join([ROLE_MEMBER, ROLE_MANAGER])
-ROLE_MEMBER_OWNER = u','.join([ROLE_MEMBER, ROLE_OWNER])
-ROLE_MEMBER_MANAGER_OWNER = u','.join([ROLE_MEMBER, ROLE_MANAGER, ROLE_OWNER])
+ROLE_MANAGER_MEMBER = u','.join([ROLE_MANAGER, ROLE_MEMBER])
 ROLE_MANAGER_OWNER = u','.join([ROLE_MANAGER, ROLE_OWNER])
+ROLE_MEMBER_OWNER = u','.join([ROLE_MEMBER, ROLE_OWNER])
+ROLE_MANAGER_MEMBER_OWNER = u','.join([ROLE_MANAGER, ROLE_MEMBER, ROLE_OWNER])
 PROJECTION_CHOICES_MAP = {u'basic': u'BASIC', u'full': u'FULL',}
 SORTORDER_CHOICES_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
 ME_IN_OWNERS = u"'me' in owners"
@@ -1053,14 +1052,14 @@ ENTITY_NAMES = {
   EN_VACATION_ENABLED: [u'Vacation Enabled', u'Vacation Enabled'],
   EN_VALUE: [u'Values', u'Value'],
   EN_WEBCLIPS_ENABLED: [u'Web Clips Enabled', u'Web Clips Enabled'],
-  ROLE_MEMBER: [u'Members', u'Member'],
   ROLE_MANAGER: [u'Managers', u'Manager'],
+  ROLE_MEMBER: [u'Members', u'Member'],
   ROLE_OWNER: [u'Owners', u'Owner'],
   ROLE_USER: [u'Users', u'User'],
-  ROLE_MEMBER_MANAGER: [u'Members, Managers', u'Member, Manager'],
-  ROLE_MEMBER_OWNER: [u'Members, Owners', u'Member, Owner'],
-  ROLE_MEMBER_MANAGER_OWNER: [u'Members, Managers, Owners', u'Member, Manager, Owner'],
+  ROLE_MANAGER_MEMBER: [u'Members, Managers', u'Member, Manager'],
   ROLE_MANAGER_OWNER: [u'Managers, Owners', u'Manager, Owner'],
+  ROLE_MEMBER_OWNER: [u'Members, Owners', u'Member, Owner'],
+  ROLE_MANAGER_MEMBER_OWNER: [u'Members, Managers, Owners', u'Member, Manager, Owner'],
   }
 # GAM entity types as specified on the command line
 CL_ENTITY_COURSEPARTICIPANTS = u'courseparticipants'
@@ -1710,6 +1709,7 @@ PHRASE_STARTING_THREAD = u'Starting thread'
 PHRASE_THAT_MATCHED_QUERY = u'that matched query'
 PHRASE_THAT_MATCH_QUERY = u'that match query'
 PHRASE_TO = u'To'
+PHRASE_UNAVAILABLE = u'Unavailable'
 PHRASE_UNKNOWN = u'Unknown'
 PHRASE_UNKNOWN_COMMAND_SELECTOR = u'Unknown command or selector'
 PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION = u'Use the "doit" argument to perform action'
@@ -1719,19 +1719,16 @@ PHRASE_WAITING_FOR_PROCESSES_TO_COMPLETE = u'Waiting for running processes to fi
 PHRASE_WITH = u'with'
 PHRASE_WOULD_MAKE_MEMBERSHIP_CYCLE = u'Would make membership cycle'
 
-MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes\nSee: {1}'
 MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by setting debug_level = 0 in gam.cfg'
 MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
 MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
-MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'\nPlease execute "gam oauth create"'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
-MESSAGE_MISSING_OAUTH2_ACCOUNTS = u'\nPlease configure OAuth 2.0\n\nTo make GAM run you will need to populate the {0} found at: {1}\n\nwith information from the APIs Console: https://console.developers.google.com\n\nSee this site for instructions: {2}\n\n'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
@@ -1741,10 +1738,16 @@ MESSAGE_REFUSING_TO_DEPROVISION_DEVICES = u'Refusing to deprovision {0} devices 
 MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files were returned, try requesting again'
 MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloading, current status is: {0}'
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
+#
+MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes {1}'
+MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'Please run\n\ngam oauth create\n\nto authorize a CLient account.\n'
+MESSAGE_INSTRUCTIONS_CHECK_AUTHORIZATIONS = u'Please run\n\ngam oauth info\ngam user <user> check serviceaccount\n\nto verify authorizations.\n'
+MESSAGE_INSTRUCTIONS_CLIENT_SECRETS_JSON = u'Please run\n\ngam create project\ngam oauth create\n\nto create and authorize a Client account.\n'
+MESSAGE_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please run\n\ngam create project\ngam user <user> check serviceaccount\n\nto create and authorizee a Service account.\n'
 MESSAGE_SCOPE_AUTHORIZATION_FAILED = u'Some scopes failed! Please go to:\n\nhttps://admin.google.com/{0}/AdminHome?#OGX:ManageOauthClients\n\nand grant Service Account Client name:\n\n{1}\n\nAccess to scopes:\n\n{2}'
 MESSAGE_SCOPE_AUTHORIZATION_PASSED = u'All scopes passed!\nService Account Client name {0} is fully authorized.'
 MESSAGE_SERVICE_NOT_APPLICABLE = u'Service not applicable for this address: {0}'
-
+#
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
 ARGUMENT_BLANK = u'blnk'
 ARGUMENT_EMPTY = u'empt'
@@ -1983,9 +1986,9 @@ def accessErrorExit(cd):
   systemErrorExit(INVALID_DOMAIN_RC, accessErrorMessage(cd or buildGAPIObject(DIRECTORY_API)))
 
 def APIAccessDeniedExit():
-#  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID],
-#                                                                         u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
-  systemErrorExit(API_ACCESS_DENIED_RC, MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID], GAM_WIKI_CREATE_CLIENT_SECRETS))
+  stderrErrorMsg(MESSAGE_API_ACCESS_DENIED.format(GM_Globals[GM_OAUTH2_CLIENT_ID], u','.join(GM_Globals[GM_CURRENT_API_SCOPES])))
+  sys.stderr.write(MESSAGE_INSTRUCTIONS_CHECK_AUTHORIZATIONS)
+  systemErrorExit(API_ACCESS_DENIED_RC, None)
 
 def checkEntityDNEorAccessErrorExit(cd, entityType, entityName, i=0, count=0):
   message = accessErrorMessage(cd)
@@ -2007,17 +2010,17 @@ def checkEntityItemValueAFDNEorAccessErrorExit(cd, entityType, entityName, itemT
 
 def invalidClientSecretsJsonExit():
   stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON]))
-  sys.stderr.write(MESSAGE_MISSING_OAUTH2_ACCOUNTS.format(singularEntityName(EN_CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS))
+  sys.stderr.write(MESSAGE_INSTRUCTIONS_CLIENT_SECRETS_JSON)
   systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, None)
 
 def invalidOauth2serviceJsonExit():
   stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON]))
-  sys.stderr.write(MESSAGE_MISSING_OAUTH2_ACCOUNTS.format(singularEntityName(EN_OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS))
+  sys.stderr.write(MESSAGE_INSTRUCTIONS_OAUTH2SERVICE_JSON)
   systemErrorExit(OAUTH2SERVICE_JSON_REQUIRED_RC, None)
 
 def invalidOauth2TxtExit():
   stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(singularEntityName(EN_OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]))
-  printLine(MESSAGE_EXECUTE_GAM_OAUTH_CREATE)
+  sys.stderr.write(MESSAGE_EXECUTE_GAM_OAUTH_CREATE)
   systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
 
 def invalidDiscoveryJsonExit(fileName):
@@ -3109,12 +3112,12 @@ def printGettingAccountEntitiesDoneInfo(count, qualifier=u''):
   if GC_Values[GC_SHOW_GETTINGS]:
     sys.stderr.write(u'{0} {1} {2}{3}\n'.format(PHRASE_GOT, count, GM_Globals[GM_GETTING_ENTITY_ITEM][[0, 1][count == 1]], qualifier))
 
-def setGettingEntityItem(entityItem):
-  GM_Globals[GM_GETTING_ENTITY_ITEM] = ENTITY_NAMES.get(entityItem, [entityItem, entityItem])
+def setGettingEntity(entityItem):
+  GM_Globals[GM_GETTING_ENTITY_ITEM] = ENTITY_NAMES[entityItem]
 
 def printGettingEntityItemsInfo(entityType, entityItem):
   if GC_Values[GC_SHOW_GETTINGS]:
-    setGettingEntityItem(entityItem)
+    setGettingEntity(entityItem)
     sys.stderr.write(u'{0} {1}{2}\n'.format(PHRASE_GETTING_ALL, GM_Globals[GM_GETTING_ENTITY_ITEM][0], mayTakeTime(entityType)))
 
 def printGettingEntityItemsDoneInfo(count, qualifier=u''):
@@ -3123,13 +3126,13 @@ def printGettingEntityItemsDoneInfo(count, qualifier=u''):
 
 def printGettingEntityItemForWhom(entityItem, forWhom, i=0, count=0):
   if GC_Values[GC_SHOW_GETTINGS]:
-    setGettingEntityItem(entityItem)
+    setGettingEntity(entityItem)
     GM_Globals[GM_GETTING_FOR_WHOM] = forWhom
     sys.stderr.write(u'{0} {1} {2} {3}{4}'.format(PHRASE_GETTING, GM_Globals[GM_GETTING_ENTITY_ITEM][0], PHRASE_FOR, forWhom, currentCountNL(i, count)))
 
 def printGettingAllEntityItemsForWhom(entityItem, forWhom, i=0, count=0, qualifier=u'', entityType=None):
   if GC_Values[GC_SHOW_GETTINGS]:
-    setGettingEntityItem(entityItem)
+    setGettingEntity(entityItem)
     GM_Globals[GM_GETTING_FOR_WHOM] = forWhom
     sys.stderr.write(u'{0} {1}{2} {3} {4}{5}{6}'.format(PHRASE_GETTING_ALL, GM_Globals[GM_GETTING_ENTITY_ITEM][0], qualifier, PHRASE_FOR, forWhom, mayTakeTime(entityType), currentCountNL(i, count)))
 
@@ -3920,6 +3923,8 @@ def getCredentialsForScope(cred_family, storageOnly=False):
     if storageOnly:
       return storage
     return storage.get()
+  except (KeyError, ValueError):
+    return None
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
 
@@ -5020,7 +5025,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
   def _addGroupMembersToUsers(group, domains, recursive):
     doNotExist = 0
     try:
-      printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER_MANAGER_OWNER, group, entityType=EN_GROUP)
+      printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MANAGER_MEMBER_OWNER, group, entityType=EN_GROUP)
       page_message = getPageMessageForWhom(noNL=True)
       result = callGAPIpages(cd.members(), u'list', u'members',
                              page_message=page_message,
@@ -5084,7 +5089,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       if validateEmailAddressOrUID(group):
         try:
           group = normalizeEmailAddressOrUID(group)
-          printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MEMBER_MANAGER_OWNER, group, entityType=EN_GROUP)
+          printGettingAllEntityItemsForWhom(memberRole if memberRole else ROLE_MANAGER_MEMBER_OWNER, group, entityType=EN_GROUP)
           page_message = getPageMessageForWhom(noNL=True)
           result = callGAPIpages(cd.members(), u'list', u'members',
                                  page_message=page_message,
@@ -6512,6 +6517,8 @@ def doOAuthInfo():
       else:
         _printCredentials(fam1Credentials)
         _printCredentials(fam2Credentials)
+    else:
+      invalidOauth2TxtExit()
 
 def checkServiceAccount(users):
   checkForExtraneousArguments()
@@ -6885,7 +6892,7 @@ def doReport():
       page_message = getPageMessage(showTotal=False)
       users = [u'all']
     else:
-      setGettingEntityItem(EN_USER)
+      setGettingEntity(EN_USER)
       page_message = getPageMessage(showTotal=False)
       users = [normalizeEmailAddressOrUID(userKey)]
     titles, csvRows = initializeTitlesCSVfile([u'email', u'date'])
@@ -6985,7 +6992,7 @@ def doReport():
       page_message = getPageMessage(showTotal=False)
       users = [u'all']
     else:
-      setGettingEntityItem(EN_ACTIVITY)
+      setGettingEntity(EN_ACTIVITY)
       page_message = getPageMessage(showTotal=False)
       users = [normalizeEmailAddressOrUID(userKey)]
     titles, csvRows = initializeTitlesCSVfile(None)
@@ -8095,7 +8102,7 @@ def infoOrgs(entityList):
         printKeyValueList([key, value])
       if getUsers:
         orgUnitPath = result[u'orgUnitPath']
-        setGettingEntityItem(EN_USER)
+        setGettingEntity(EN_USER)
         page_message = getPageMessage(showFirstLastItems=True)
         users = callGAPIpages(cd.users(), u'list', u'users',
                               page_message=page_message, message_attribute=u'primaryEmail',
@@ -12905,88 +12912,94 @@ def doPrintGroups():
           else:
             row[fieldsTitles[field]] = groupEntity[field]
       if roles:
-        printGettingAllEntityItemsForWhom(roles, groupEmail, i, count)
+        printGettingEntityItemForWhom(roles, groupEmail, i, count)
         page_message = getPageMessageForWhom(showTotal=False, showFirstLastItems=True)
-        groupMembers = callGAPIpages(cd.members(), u'list', u'members',
-                                     page_message=page_message, message_attribute=u'email',
-                                     throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                                     groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
-        if not countsOnly:
-          if members:
-            listMembers = []
-          if managers:
-            listManagers = []
-          if owners:
-            listOwners = []
-          for member in groupMembers:
-            member_email = member.get(u'email', member.get(u'id', None))
-            if not member_email:
-              sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
-              continue
-            role = member.get(u'role', None)
-            if role:
-              if role == ROLE_MEMBER:
-                if members:
+        try:
+          groupMembers = callGAPIpages(cd.members(), u'list', u'members',
+                                       page_message=page_message, message_attribute=u'email',
+                                       throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
+                                       groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
+          if not countsOnly:
+            if members:
+              listMembers = []
+            if managers:
+              listManagers = []
+            if owners:
+              listOwners = []
+            for member in groupMembers:
+              member_email = member.get(u'email', member.get(u'id', None))
+              if not member_email:
+                sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
+                continue
+              role = member.get(u'role', None)
+              if role:
+                if role == ROLE_MEMBER:
+                  if members:
+                    listMembers.append(member_email)
+                elif role == ROLE_MANAGER:
+                  if managers:
+                    listManagers.append(member_email)
+                elif role == ROLE_OWNER:
+                  if owners:
+                    listOwners.append(member_email)
+                elif members:
                   listMembers.append(member_email)
-              elif role == ROLE_MANAGER:
-                if managers:
-                  listManagers.append(member_email)
-              elif role == ROLE_OWNER:
-                if owners:
-                  listOwners.append(member_email)
               elif members:
                 listMembers.append(member_email)
-            elif members:
-              listMembers.append(member_email)
-          if members:
-            row[u'Members'] = memberDelimiter.join(listMembers)
-          if managers:
-            row[u'Managers'] = memberDelimiter.join(listManagers)
-          if owners:
-            row[u'Owners'] = memberDelimiter.join(listOwners)
-        else:
-          countMembers = countManagers = countOwners = 0
-          for member in groupMembers:
-            member_email = member.get(u'email', member.get(u'id', None))
-            if not member_email:
-              sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
-              continue
-            role = member.get(u'role', None)
-            if role:
-              if role == ROLE_MEMBER:
-                countMembers += 1
-              elif role == ROLE_MANAGER:
-                countManagers += 1
-              elif role == ROLE_OWNER:
-                countOwners += 1
+            if members:
+              row[u'Members'] = memberDelimiter.join(listMembers)
+            if managers:
+              row[u'Managers'] = memberDelimiter.join(listManagers)
+            if owners:
+              row[u'Owners'] = memberDelimiter.join(listOwners)
+          else:
+            countMembers = countManagers = countOwners = 0
+            for member in groupMembers:
+              member_email = member.get(u'email', member.get(u'id', None))
+              if not member_email:
+                sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
+                continue
+              role = member.get(u'role', None)
+              if role:
+                if role == ROLE_MEMBER:
+                  countMembers += 1
+                elif role == ROLE_MANAGER:
+                  countManagers += 1
+                elif role == ROLE_OWNER:
+                  countOwners += 1
+                else:
+                  countMembers += 1
               else:
                 countMembers += 1
-            else:
-              countMembers += 1
-          if members:
-            row[u'Members'] = countMembers
-          if managers:
-            row[u'Managers'] = countManagers
-          if owners:
-            row[u'Owners'] = countOwners
+            if members:
+              row[u'Members'] = countMembers
+            if managers:
+              row[u'Managers'] = countManagers
+            if owners:
+              row[u'Owners'] = countOwners
+        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
+          entityItemValueActionFailedWarning(EN_GROUP, groupEmail, roles, None, PHRASE_UNAVAILABLE, i, count)
       if getSettings and not GroupIsAbuseOrPostmaster(groupEmail):
-        printGettingAllEntityItemsForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
-        settings = callGAPI(gs.groups(), u'get',
-                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                            retry_reasons=[GAPI_SERVICE_LIMIT],
-                            groupUniqueId=groupEmail, fields=gsfields)
-        for key in settings:
-          if key in [u'kind', u'etag', u'email', u'name', u'description']:
-            continue
-          setting_value = settings[key]
-          if setting_value is None:
-            setting_value = u''
-          if key not in titles[u'set']:
-            addTitleToCSVfile(key, titles)
-          if key != u'customFooterText' or not convertFooterNL:
-            row[key] = setting_value
-          else:
-            row[key] = setting_value.replace(u'\n', u'\\n')
+        printGettingEntityItemForWhom(EN_GROUP_SETTINGS, groupEmail, i, count)
+        try:
+          settings = callGAPI(gs.groups(), u'get',
+                              throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
+                              retry_reasons=[GAPI_SERVICE_LIMIT],
+                              groupUniqueId=groupEmail, fields=gsfields)
+          for key in settings:
+            if key in [u'kind', u'etag', u'email', u'name', u'description']:
+              continue
+            setting_value = settings[key]
+            if setting_value is None:
+              setting_value = u''
+            if key not in titles[u'set']:
+              addTitleToCSVfile(key, titles)
+            if key != u'customFooterText' or not convertFooterNL:
+              row[key] = setting_value
+            else:
+              row[key] = setting_value.replace(u'\n', u'\\n')
+        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
+          entityItemValueActionFailedWarning(EN_GROUP, groupEmail, EN_GROUP_SETTINGS, None, PHRASE_UNAVAILABLE, i, count)
       csvRows.append(row)
     except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
       entityUnknownWarning(EN_GROUP, groupEmail, i, count)
@@ -13214,7 +13227,7 @@ def doPrintLicenses(return_list=False, skus=None):
         unknownArgumentExit()
   if skus:
     for skuId in skus:
-      setGettingEntityItem(EN_LICENSE)
+      setGettingEntity(EN_LICENSE)
       page_message = getPageMessageForWhom(forWhom=skuId)
       try:
         feed += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items',
@@ -13225,7 +13238,7 @@ def doPrintLicenses(return_list=False, skus=None):
         pass
   else:
     for productId in products:
-      setGettingEntityItem(EN_LICENSE)
+      setGettingEntity(EN_LICENSE)
       page_message = getPageMessageForWhom(forWhom=productId)
       try:
         feed += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items',
@@ -16453,14 +16466,14 @@ def doPrintCourseParticipants():
                                          noNL=True)
     try:
       if showMembers != u'students':
-        setGettingEntityItem(EN_TEACHER)
+        setGettingEntity(EN_TEACHER)
         results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
                                 page_message=page_message,
                                 throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                 courseId=courseId)
         _saveParticipants(results, u'TEACHER')
       if showMembers != u'teachers':
-        setGettingEntityItem(EN_STUDENT)
+        setGettingEntity(EN_STUDENT)
         results = callGAPIpages(croom.courses().students(), u'list', u'students',
                                 page_message=page_message,
                                 throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
