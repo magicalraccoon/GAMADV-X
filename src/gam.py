@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.30.09'
+__version__ = u'4.31.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20798,7 +20798,7 @@ def _getLabelId(labels, labelName):
   for label in labels[u'labels']:
     if label[u'id'] == labelName or label[u'name'] == labelName:
       return label[u'id']
-  return labelName
+  return None
 
 def _getLabelName(labels, labelId):
   for label in labels[u'labels']:
@@ -22274,7 +22274,13 @@ def addFilter(users):
       if addLabelName:
         if not addLabelIds:
           body[u'action'][u'addLabelIds'] = []
-        body[u'action'][u'addLabelIds'].append(_getLabelId(labels, addLabelName))
+        addLabelId = _getLabelId(labels, addLabelName)
+        if not addLabelId:
+          result = callGAPI(gmail.users().labels(), u'create',
+                            throw_reasons=GAPI_GMAIL_THROW_REASONS,
+                            userId=u'me', body={u'name': addLabelName}, fields=u'id')
+          addLabelId = result[u'id']
+        body[u'action'][u'addLabelIds'].append(addLabelId)
       result = callGAPI(gmail.users().settings().filters(), u'create',
                         throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_INVALID_ARGUMENT, GAPI_FAILED_PRECONDITION],
                         userId=u'me', body=body)
