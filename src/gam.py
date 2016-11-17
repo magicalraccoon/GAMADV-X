@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.31.00'
+__version__ = u'4.31.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12719,9 +12719,9 @@ def infoGroups(entityList):
       if formatJSON:
         basic_info.update(settings)
         if getGroups:
-          basic_info[u'groups'] = groups
+          basic_info[u'groups'] = list(groups)
         if getUsers:
-          basic_info[u'members'] = members
+          basic_info[u'members'] = list(members)
         printLine(json.dumps(basic_info, ensure_ascii=False, sort_keys=True))
         continue
       printEntityName(EN_GROUP, group, i, count)
@@ -15244,7 +15244,7 @@ def infoUsers(entityList):
             continue
       if formatJSON:
         if getGroups:
-          user[u'groups'] = groups
+          user[u'groups'] = list(groups)
         if getLicenses:
           user[u'licenses'] = licenses
         printLine(json.dumps(user, ensure_ascii=False, sort_keys=True))

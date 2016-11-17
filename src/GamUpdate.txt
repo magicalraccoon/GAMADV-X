@@ -1,3 +1,7 @@
+4.31.01
+
+Fixed error when formatjson argument was used with gam info group/user.
+
 4.31.00
 
 The Email Settings API, used by versions of Gam prior to 4.18.00, would automatically create a label if a you added a filter that specified a label that didn't exist.
