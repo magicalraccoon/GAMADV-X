@@ -1,3 +1,14 @@
+4.32.00
+
+Added member_max_results variable to gam.cfg. When retrieving lists of Google Group members from API, this variable controls how many should be retrieved in each chunk.
+The default value is 200; larger numbers should speed up processing with groups with large numbers of members.
+
+gam print groups has been rewritten to improve performance when members|owners|managers|settings are specified. Previously, the list of groups was retrieved with one API call,
+then additional API calls were used per group to get the member and settings data; with N groups, there were 1, 1+N or 1+2N total API calls made based on the arguments given.
+Now, the additional API calls are batched (based on batch_size in gam.cfg) to reduce the total number of calls; with N groups, there are 1 or 1+N/batch_size total API calls.
+Even if batch_size is one, the members and settings API calls are combined.
+Additionally, more checking has been added to handle the case where Google mis-reports that a group does not exist.
+
 4.31.01
 
 Fixed error when formatjson argument was used with gam info group/user.

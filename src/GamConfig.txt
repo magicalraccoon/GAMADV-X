@@ -127,6 +127,10 @@ extra_args
 	Path to extra_args.txt
 	Default: Blank
 	Data file: extra_args.txt
+member_max_results
+	When retrieving lists of Google Group members from API, how many should be retrieved in each chunk
+	Default: 200
+	Environment variable: GAM_MEMBER_MAX_RESULTS
 no_browser
 	If no_browser is True, GAM won't open a browser if todrive is set when creating CSV files
 	and GAM prints a link and waits for the verification code when oauth2.txt is being created
@@ -196,6 +200,7 @@ Section: DEFAULT
   charset = utf-8
   client_secrets_json = client_secrets.json ; /Users/admin/.gam/client_secrets.json
   config_dir = /Users/admin/.gam
+  contact_max_results = 100
   customer_id =
   debug_level = 0
   device_max_results = 500
@@ -204,6 +209,7 @@ Section: DEFAULT
   drive_max_results = 1000
   email_batch_size = 100
   extra_args =
+  member_max_results = 200
   no_browser = false
   no_cache = false
   no_update_check = false
@@ -249,8 +255,9 @@ config [<VariableName> <Value>]* [save] [verify]
     <VariableName> <Value>
         Set <VariableName> = <Value> in the current section
 	The following <VariableNames> are allowed:
-	  activity_max_results, auto_batch_min, batch_size, charset, contact_max_results, debug_level, device_max_results, drive_max_results,
-	  no_browser, no_cache, no_update_check, no_verify_ssl, num_threads, show_counts_min, show_gettings, user_max_results
+	  activity_max_results, auto_batch_min, batch_size, cache_discovery_only, charset, contact_max_results, debug_level, device_max_results, drive_max_results,
+	  email_batch_size, member_max_results, no_browser, no_cache, no_update_check, no_verify_ssl, num_threads, show_counts_min, show_gettings, timezone,
+	  todrive_conversion, todrive_parent, todrive_timestamp, user_max_results
     save
 	Write configuration data to gam.cfg
     verify
@@ -302,6 +309,7 @@ cache_discovery_only = false
 charset = utf-8
 client_secrets_json = client_secrets.json
 config_dir = /Users/admin/.gam
+contact_max_results = 100
 customer_id = 0000000000
 debug_level = 0
 device_max_results = 500
@@ -310,6 +318,7 @@ drive_dir = /Users/admin/Downloads
 drive_max_results = 1000
 email_batch_size = 100
 extra_args =
+member_max_results = 200
 no_browser = false
 no_cache = false
 no_update_check = false
@@ -440,7 +449,6 @@ In shell number 1, do:
 In shell number 2, do:
 	gam csv NewGooUsers.csv gam select goo create user ~Email firstname ~FirstName lastname ~LastName password ~Password
 
-
 The gam loop command and the select and redirect arguments can be combined to perform powerful operations in a single command line.
 
 gam loop (-|<FileName>) [charset <CharSet>] [matchfield <FieldName> <PythonRegularExpression>] gam <GAM argument list>
@@ -469,4 +477,3 @@ redirected to a file before the loop command.
 In the second case, you want the output for each domain administrator in a separate file so csv output is redirected after
 the loop command.
 	gam loop InfoDomains.csv select ~Section redirect csv Files-~~Domain~~-Admin.csv user '~AdminUser' show filelist id
-
