@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.32.00'
+__version__ = u'4.32.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11780,6 +11780,8 @@ GROUP_ATTRIBUTES = {
                                                                    u'allmanagerscanview': u'ALL_MANAGERS_CAN_VIEW',}}],
   }
 
+GROUP_FIELDS_WITH_NLS = [u'customFooterText', u'defaultMessageDenyNotificationText', u'description']
+
 def getGroupAttrValue(argument, gs_body):
   attrProperties = GROUP_ATTRIBUTES.get(argument)
   if not attrProperties:
@@ -11790,10 +11792,10 @@ def getGroupAttrValue(argument, gs_body):
   if attrType == GC_TYPE_BOOLEAN:
     gs_body[attrName] = getBoolean()
   elif attrType == GC_TYPE_STRING:
-    if attrName != u'customFooterText':
-      gs_body[attrName] = getString(OB_STRING, emptyOK=True)
-    else:
+    if attrName in GROUP_FIELDS_WITH_NLS:
       gs_body[attrName] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+    else:
+      gs_body[attrName] = getString(OB_STRING, emptyOK=True)
   elif attrType == GC_TYPE_CHOICE:
     gs_body[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
   elif attrType == GC_TYPE_EMAIL:
@@ -12294,13 +12296,15 @@ def infoGroups(entityList):
             printKeyValueList([val])
           gi.decIndent()
         else:
+          if key in GROUP_FIELDS_WITH_NLS:
+            value = value.replace(u'\n', u'\\n')
           printKeyValueList([key, value])
       for key, value in settings.items():
         if key in [u'kind', u'etag', u'email', u'name', u'description']:
           continue
         if key == u'maxMessageBytes':
           value = formatMaxMessageBytes(value)
-        elif key == u'customFooterText':
+        elif key in GROUP_FIELDS_WITH_NLS:
           value = value.replace(u'\n', u'\\n')
         printKeyValueList([key, value])
       gi.decIndent()
@@ -12345,15 +12349,18 @@ def groupQuery(domain, usemember):
   return u''
 
 # gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
-#	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
+#	[maxresults <Number>] [delimiter <String>] [converttextnl] [countsonly]
 #	[members] [managers] [owners] <GroupFieldName>* [fields <GroupFieldNameList>] [settings]
 def doPrintGroups():
+
   def _printGroupRow(groupEntity, groupMembers, groupSettings):
     row = {}
     for field in cdfieldsList:
       if field in groupEntity:
         if isinstance(groupEntity[field], list):
           row[fieldsTitles[field]] = aliasDelimiter.join(groupEntity[field])
+        elif convertTextNL and field in GROUP_FIELDS_WITH_NLS:
+          row[fieldsTitles[field]] = groupEntity[field].replace(u'\n', u'\\n')
         else:
           row[fieldsTitles[field]] = groupEntity[field]
     if groupMembers:
@@ -12424,10 +12431,10 @@ def doPrintGroups():
           setting_value = u''
         if key not in titles[u'set']:
           addTitleToCSVfile(key, titles)
-        if key != u'customFooterText' or not convertFooterNL:
-          row[key] = setting_value
-        else:
+        if convertTextNL and key in GROUP_FIELDS_WITH_NLS:
           row[key] = setting_value.replace(u'\n', u'\\n')
+        else:
+          row[key] = setting_value
     csvRows.append(row)
 
   def _callbackProcessGroupMembers(request_id, response, exception):
@@ -12502,7 +12509,7 @@ def doPrintGroups():
   domain = usemember = None
   aliasDelimiter = u' '
   memberDelimiter = u'\n'
-  convertFooterNL = countsOnly = False
+  convertTextNL = countsOnly = False
   todrive = {}
   maxResults = None
   cdfieldsList = []
@@ -12530,8 +12537,8 @@ def doPrintGroups():
       maxResults = getInteger(minVal=1)
     elif myarg == u'delimiter':
       aliasDelimiter = memberDelimiter = getString(OB_STRING)
-    elif myarg == u'convertfooternl':
-      convertFooterNL = True
+    elif myarg == u'converttextnl':
+      convertTextNL = True
     elif myarg == u'countsonly':
       countsOnly = True
     elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:

@@ -1,3 +1,11 @@
+4.32.01
+
+Converted convertfooternl argument to converttextnl in gam print groups, it causes \n to be converted to \\n in customFooterText, defaultMessageDenyNotificationText and description,
+otherwise \n is not changed in those fields.
+    gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+	[maxresults <Number>] [delimiter <String>] [converttextnl] [countsonly]
+	[members] [managers] [owners] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
+
 4.32.00
 
 Added member_max_results variable to gam.cfg. When retrieving lists of Google Group members from API, this variable controls how many should be retrieved in each chunk.
@@ -411,7 +419,7 @@ Use collections.deque() to reduce memory usage on some gam print operations.
 
 4.25.01
 
-Added convertfooternl argument ot gam print groups, it  causes \n to be converted to \\n in customFooterText, otherwise \n is not changed.
+Added convertfooternl argument to gam print groups, it causes \n to be converted to \\n in customFooterText, otherwise \n is not changed.
 Added countsonly argument to gam print groups, it causes the number of members/owners/managers to be shown, not the list of email addresses.
     gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [delimiter <String>] [convertfooternl] [countsonly]
