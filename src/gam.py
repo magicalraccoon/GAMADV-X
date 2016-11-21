@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.33.00'
+__version__ = u'4.33.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5108,10 +5108,12 @@ def getTodriveParameters():
 
   localParent = False
   CL_argvIprev = CL_argvI
-  todrive = {u'parent': GC_Values[GC_TODRIVE_PARENT], u'timestamp': GC_Values[GC_TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0}
+  todrive = {u'title': None, u'parent': GC_Values[GC_TODRIVE_PARENT], u'timestamp': GC_Values[GC_TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'tdparent':
+    if myarg == u'tdtitle':
+      todrive[u'title'] = getString(OB_STRING)
+    elif myarg == u'tdparent':
       todrive[u'parent'] = getString(OB_DRIVE_FOLDER_NAME)
       localParent = True
       CL_argvIprev = CL_argvI
@@ -5266,7 +5268,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
         convert = True
     else:
       convert = False
-    title = u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
+    title = todrive[u'title'] or u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type)
     if todrive[u'timestamp']:
       timestamp = datetime.datetime.now(GC_Values[GC_TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
       title += u' - '+timestamp.isoformat()

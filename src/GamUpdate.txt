@@ -1,3 +1,21 @@
+4.33.01
+
+Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you title the file,  direct the uploaded file to a particular location and add a timestamp to the file title.
+    <ToDriveAttributes> ::=
+	(tdtitle <String>)|(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
+The tdtitle argument specifies the title for the uploaded file, if not specified, the Gam default title is used.
+The tdparent argument specifies the parent folder for the uploaded file; it must specify an existing Drive folder owned by the user named in oauth2.txt.
+The tdtimestamp argument specifies whether a timestamp (of the time the file is uploaded to Google) will be added to the title of the uploaded file.
+tdparent and tdtimestamp default to the values specified in gam.cfg.
+The tddaysoffset and tdhoursoffset arguments let you specify values that subtract time from the timestamp, possibly as documentation to reflect the end of the time period that the uploaded report covers.
+Example, generate a list of users, upload to the 'GAM Reports' folder, add a timestamp to the title.
+    gam print users todrive tdparent 'GAM Reports' tdtimestamp true id name
+To make these values be the default, add the following two lines to gam.cfg.
+    todrive_parent = 'GAM Reports'
+    todrive_timestamp = true
+To override these values, change them on the command line.
+    gam print users todrive tdparent root tdtimestamp false id name
+
 4.33.00
 
 Thanks to Jay, multithreading was changed to multiprocessing for gam batch and gam csv; this should increase performance.

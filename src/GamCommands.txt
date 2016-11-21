@@ -619,7 +619,7 @@ Item attributes
 	(name <String>)|(summary <String>)|(theme <String>)|(categories <String>)|(sourcelink <URI>])
 
 <ToDriveAttributes> ::=
-	(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
+	(tdtitle <String>)|(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
 
 <UserAttributes> ::=
 	(address|addresses clear|(type work|home|other|(custom <String>) [unstructured|formatted <String>] [pobox <String>] [extendedaddress <String>] [streetaddress <String>]
