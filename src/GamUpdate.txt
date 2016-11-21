@@ -1,3 +1,7 @@
+4.33.00
+
+Thanks to Jay, multithreading was changed to multiprocessing for gam batch and gam csv; this should increase performance.
+
 4.32.01
 
 Converted convertfooternl argument to converttextnl in gam print groups, it causes \n to be converted to \\n in customFooterText, defaultMessageDenyNotificationText and description,

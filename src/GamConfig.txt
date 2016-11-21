@@ -86,7 +86,7 @@ charset
 client_secrets_json
 	Path to client_secrets.json
 	Default: GamConfigDir/client_secrets.json
-	Environment variable: CLIENTSECRETSFILE
+	Environment variable: CLIENTSECRETS
 config_dir
 	GAM config directory containing client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
 	Default: ~/.gam
@@ -254,10 +254,7 @@ The config argument is used to set selected variables in gam.cfg via the command
 config [<VariableName> <Value>]* [save] [verify]
     <VariableName> <Value>
         Set <VariableName> = <Value> in the current section
-	The following <VariableNames> are allowed:
-	  activity_max_results, auto_batch_min, batch_size, cache_discovery_only, charset, contact_max_results, debug_level, device_max_results, drive_max_results,
-	  email_batch_size, member_max_results, no_browser, no_cache, no_update_check, no_verify_ssl, num_threads, show_counts_min, show_gettings, timezone,
-	  todrive_conversion, todrive_parent, todrive_timestamp, user_max_results
+	All <VariableNames> except section are allowed.
     save
 	Write configuration data to gam.cfg
     verify
@@ -287,7 +284,7 @@ Clients main, foo and goo have distinct oauth2service.json and client_secrets.js
 Clients shared1 and shared2 have shared oauth2service.json and client_secrets.json files.
 All clients have distinct oauth2.txt files.
 The files for foo, goo, shared1 and shared2 have prefixes to indicate the client; the main files do not have prefixes.
-All files are in OldGamPath. You have been using the environment variables CLIENTSECRETSFILE, OAUTHFILE and OAUTHSERVICEFILE
+All files are in OldGamPath. You have been using the environment variables CLIENTSECRETS, OAUTHFILE and OAUTHSERVICEFILE
 to specify the client on which to operate. You have:
     client_secrets.json, oauth2.txt, oauth2service.json
     foo_client_secrets.json, foo_oauth2.txt, foo_oauth2service.json

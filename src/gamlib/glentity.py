@@ -167,7 +167,7 @@ class GamEntity(object):
   # These values can be translated into other languages
   _NAMES = {
     ACCESS_TOKEN: [u'Access Tokens', u'Access Token'],
-    ACCOUNT: [u'Accounts', u'Account'],
+    ACCOUNT: [u'G Suite Accounts', u'G Suite Account'],
     ACL: [u'ACLs', u'ACL'],
     ACTION: [u'Actions', u'Action'],
     ACTIVITY: [u'Activities', u'Activity'],

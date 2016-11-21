@@ -8,7 +8,7 @@ If an item contains spaces, it should be surrounded by " or '.
 + item may appear one or more times
 | separates alternative items
 
-# Primatives
+Primatives
 <Character> ::= a single character
 <Digit> ::= 0|1|2|3|4|5|6|7|8|9
 <Number> ::= <Digit>+
@@ -41,7 +41,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <FileFormat> ::= csv|html|txt|tsv|jpeg|jpg|png|svg|pdf|rtf|pptx|xlsx|docx|odt|ods|openoffice|ms|microsoft|micro$oft
 <Language> ::= ar|bn|bg|ca|zh-CN|zh-TW|hr|cs|da|nl|en|en-GB|et|fi|fr|de|el|gu|iw|is|in|it|ja|kn|ko|lv|lt|ms|ml|mr|no|or|fa|pl|pt-BR|pt-PT|ro|ru|sr|sk|sl|es|sv|tl|ta|te|th|tr|uk|ur|vi
 
-# Basic items built from primatives
+Basic items built from primatives
 <Boolean> ::= <TrueValues>|<FalseValues>
 <ByteCount> ::= <Number>[m|k|b]
 <CIDRnetmask> ::= <Number>.<Number>.<Number>.<Number>/<Number>
@@ -63,7 +63,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <Tag> ::= <String>
 <UniqueID> ::= uid:<String>
 
-# Named items
+Named items
 <AccessToken> ::= <String>
 <ACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
@@ -364,12 +364,12 @@ If an item contains spaces, it should be surrounded by " or '.
 <UserOrderByFieldName> ::=
 	familyname|lastname|givenname|firstname|email
 
-# Named Lists
-# Lists can be in the following formats
-# Items, separated by commas, without spaces or commas in the items themselves: item(,item)*
-# Items, separated by spaces, without spaces or commas in the items themselves: "item( item)*"
-# Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
-# Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
+Named Lists
+Lists can be in the following formats
+Items, separated by commas, without spaces or commas in the items themselves: item(,item)*
+Items, separated by spaces, without spaces or commas in the items themselves: "item( item)*"
+Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
+Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
 
 <ACLList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
@@ -406,7 +406,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <UserFieldNameList> ::= '<UserFieldName>(,<UserFieldName>)*'
 <UserList> ::= '<UserItem>(,<UserItem>)*'
 
-# Specify a collection of ChromeOS devices by directly specifying them
+Specify a collection of ChromeOS devices by directly specifying them
 <CrOSTypeEntity> ::=
 		(all cros)|
 		(cros <CrOSList>)|
@@ -425,7 +425,7 @@ If an item contains spaces, it should be surrounded by " or '.
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvcros <FieldName>(:<FieldName>*))
 
-# Specify a collection of Users by directly specifying them or by specifiying items that will yield a list of users
+Specify a collection of Users by directly specifying them or by specifiying items that will yield a list of users
 <UserTypeEntity> ::=
 		(all users)|
 		(user <UserItem>)|
@@ -455,7 +455,7 @@ If an item contains spaces, it should be surrounded by " or '.
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvdata <FieldName>(:<FieldName>*))
 
-# Specify a collection of items by directly specifying them; the item type is determined by context.
+Specify a collection of items by directly specifying them; the item type is determined by context.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
 <CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [fields <FieldNameList>]
 			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
@@ -491,7 +491,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ThreadIDEntity> ::= <ThreadIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <UserEntity> ::= <UserList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 
-# Item attributes
+Item attributes
 <CalendarAttributes> ::=
 	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
 	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
@@ -649,19 +649,29 @@ If an item contains spaces, it should be surrounded by " or '.
 	(website|websites clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> [notprimary|primary]))|
 	(<SchemaName>.<FieldName> [multivalued|multivalue|value [type work|home|other|(custom <String>)]] <String>)
 
-# Select a section from gam.cfg and process a GAM command using values from that section
+See GamConfig.txt for documentation of gam.cfg.
+
+Select a section from gam.cfg and process a GAM command using values from that section
 <Select> ::=
 	select <Section> [save] [verify]
-# Set variables in gam.cfg
+The save argument causes Gam to update gam.cfg.
+The verify argument causes Gam to print all variable values.
+
+Set variables in gam.cfg.
 <Config> ::=
 	config (<VariableName> <Value)* [save] [verify]
-# Specify file redirection. If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
+The save argument causes Gam to update gam.cfg.
+The verify argument causes Gam to print all variable values.
+
+Specify file redirection. If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 For redirect csv, the optional arguments must appear in the order shown.
 <Redirect> ::=
 	redirect [csv <FileName> [append] [charset <Charset>] [delimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
 
-# GAM meta arguments, these must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
+[<Select>] [<Config>] [<Redirect>] must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
 gam [<Select>] [<Config>] [<Redirect>] ...
+
+[<Select>] [<Config>] [<Redirect>] will not be shown in the following command descriptions but can be used with any Gam command.
 
 gam version [check] [simple]
 gam help
@@ -671,13 +681,13 @@ gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <F
 
 gam loop <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-# You can make substitutions in <GAMArgumentList> with values from the CSV file.
-# An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
-# An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
-# An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
+You can make substitutions in <GAMArgumentList> with values from the CSV file.
+An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
+An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
+An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
 
-# Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
-# Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
+Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
+Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
 
 gam list [todrive [<ToDriveAttributes>]] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
 gam <CrOSTypeEntity>|<UserTypeEntity> list [todrive [<ToDriveAttributes>]] [data <EntityList> [delimiter <String>]]
@@ -1135,9 +1145,7 @@ gam print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>] [<U
 gam <UserTypeEntity> update user <UserAttrubutes>
 
 gam <UserTypeEntity> deprovision|deprov
-#
-# Update user Gmail mailbox
-#
+
 gam <UserTypeEntity> [add] label|labels <Name> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 gam <UserTypeEntity> update labelsettings <LabelName> [name <Name>] [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 gam <UserTypeEntity> update label|labels [search <RegularExpression>] [replace <LabelReplacement>] [merge]
@@ -1154,9 +1162,6 @@ gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <L
 	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
 gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 	[headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive [<ToDriveAttributes>]]
-#
-# Update user Gmail settings
-#
 
 gam <UserTypeEntity> show gmailprofile
 gam <UserTypeEntity> print gplusprofile [todrive [<ToDriveAttributes>]]
