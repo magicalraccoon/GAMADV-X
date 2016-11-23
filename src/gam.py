@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.33.01'
+__version__ = u'4.33.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3346,17 +3346,17 @@ def SetGlobalVariables():
         break
       filename = re.sub(r'{{Section}}', sectionName, getString(OB_FILE_NAME))
       if myarg == u'csv':
-        mode = [u'wb', u'ab'][checkArgumentPresent([u'append',])]
+        mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
         encoding = getCharSet()
         if checkArgumentPresent([u'delimiter',]):
           GM_Globals[GM_CSVFILE_DELIMITER] = getString(OB_STRING)[0:1]
         _setCSVFile(filename, mode, encoding)
       elif myarg == u'stdout':
-        sys.stdout = _setSTDFile(filename, [u'w', u'a'][checkArgumentPresent([u'append',])])
+        sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
         if GM_Globals[GM_CSVFILE] == u'-':
           GM_Globals[GM_CSVFILE] = None
       else:
-        sys.stderr = _setSTDFile(filename, [u'w', u'a'][checkArgumentPresent([u'append',])])
+        sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
   if not GM_Globals[GM_CSVFILE]:
     _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET])
   if not GM_Globals[GM_NO_UPDATE_CHECK]:
