@@ -3214,7 +3214,7 @@ def SetGlobalVariables():
                                                PHRASE_NOT_FOUND],
                                               u'\n'))
 
-  def _setCSVFile(filename, mode, encoding):
+  def _setCSVFile(filename, mode, encoding, writeHeader):
     if filename != u'-':
       if filename.startswith(u'./') or filename.startswith(u'.\\'):
         filename = os.path.join(os.getcwd(), filename[2:])
@@ -3225,7 +3225,7 @@ def SetGlobalVariables():
     GM_Globals[GM_CSVFILE] = filename
     GM_Globals[GM_CSVFILE_MODE] = mode
     GM_Globals[GM_CSVFILE_ENCODING] = encoding
-    GM_Globals[GM_CSVFILE_WRITE_HEADER] = True
+    GM_Globals[GM_CSVFILE_WRITE_HEADER] = writeHeader
 
   def _setSTDFile(filename, mode):
     filename = os.path.expanduser(filename)
@@ -3338,7 +3338,7 @@ def SetGlobalVariables():
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
     GM_Globals[GM_OAUTH2_CLIENT_ID] = None
-# redirect [csv <FileName> [append] [charset <CharSet>] [delimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
+# redirect [csv <FileName> [append] [noheader] [charset <CharSet>] [delimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
   if checkArgumentPresent([REDIRECT_CMD,]):
     while CL_argvI < CL_argvLen:
       myarg = getChoice([u'csv', u'stdout', u'stderr'], defaultChoice=None)
@@ -3347,10 +3347,11 @@ def SetGlobalVariables():
       filename = re.sub(r'{{Section}}', sectionName, getString(OB_FILE_NAME))
       if myarg == u'csv':
         mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
+        writeHeader = False if checkArgumentPresent([u'noheader',]) else True
         encoding = getCharSet()
         if checkArgumentPresent([u'delimiter',]):
           GM_Globals[GM_CSVFILE_DELIMITER] = getString(OB_STRING)[0:1]
-        _setCSVFile(filename, mode, encoding)
+        _setCSVFile(filename, mode, encoding, writeHeader)
       elif myarg == u'stdout':
         sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
         if GM_Globals[GM_CSVFILE] == u'-':
@@ -3358,7 +3359,7 @@ def SetGlobalVariables():
       else:
         sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
   if not GM_Globals[GM_CSVFILE]:
-    _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET])
+    _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET], True)
   if not GM_Globals[GM_NO_UPDATE_CHECK]:
     doGAMCheckForUpdates()
 # If no select/options commands were executed or some were and there are more arguments on the command line,
