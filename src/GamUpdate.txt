@@ -1,3 +1,9 @@
+4.33.02
+Added noheader argument to gam redirect csv to suppress witing column headers to CSV file.
+For redirect csv, the optional arguments must appear in the order shown.
+    <Redirect> ::=
+	redirect [csv <FileName> [append] [noheader] [charset <Charset>] [delimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
+
 4.33.01
 
 Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you title the file,  direct the uploaded file to a particular location and add a timestamp to the file title.
