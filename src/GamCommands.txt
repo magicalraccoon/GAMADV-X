@@ -923,7 +923,7 @@ gam create resource <ResourceID> <Name> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
 gam delete resource <ResourceID>
 gam info resource <ResourceID>
-gam print resources [todrive [<ToDriveAttributes>]] [allfields] [id] [name] [description] [email] [type]
+gam print resources [todrive [<ToDriveAttributes>]] [allfields] [id] [name] [description] [email] [type] [convertcrnl]
 
 gam update resources <ResourceEntity> [name <Name>] [description <String>] [type <String>]
 gam delete resources <ResourceEntity>

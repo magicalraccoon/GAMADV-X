@@ -11750,7 +11750,7 @@ GROUP_ATTRIBUTES = {
                                                                    u'allmanagerscanview': u'ALL_MANAGERS_CAN_VIEW',}}],
   }
 
-GROUP_FIELDS_WITH_NLS = [u'customFooterText', u'defaultMessageDenyNotificationText', u'description']
+GROUP_FIELDS_WITH_CRS_NLS = [u'customFooterText', u'defaultMessageDenyNotificationText', u'description']
 
 def getGroupAttrValue(argument, gs_body):
   attrProperties = GROUP_ATTRIBUTES.get(argument)
@@ -11762,7 +11762,7 @@ def getGroupAttrValue(argument, gs_body):
   if attrType == GC_TYPE_BOOLEAN:
     gs_body[attrName] = getBoolean()
   elif attrType == GC_TYPE_STRING:
-    if attrName in GROUP_FIELDS_WITH_NLS:
+    if attrName in GROUP_FIELDS_WITH_CRS_NLS:
       gs_body[attrName] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     else:
       gs_body[attrName] = getString(OB_STRING, minLen=0)
@@ -12266,7 +12266,7 @@ def infoGroups(entityList):
             printKeyValueList([val])
           Indent.Decrement()
         else:
-          if key in GROUP_FIELDS_WITH_NLS:
+          if key in GROUP_FIELDS_WITH_CRS_NLS:
             value = convertCRsNLs(value)
           printKeyValueList([key, value])
       for key, value in settings.items():
@@ -12274,7 +12274,7 @@ def infoGroups(entityList):
           continue
         if key == u'maxMessageBytes':
           value = formatMaxMessageBytes(value)
-        elif key in GROUP_FIELDS_WITH_NLS:
+        elif key in GROUP_FIELDS_WITH_CRS_NLS:
           value = convertCRsNLs(value)
         printKeyValueList([key, value])
       Indent.Decrement()
@@ -12329,7 +12329,7 @@ def doPrintGroups():
       if field in groupEntity:
         if isinstance(groupEntity[field], list):
           row[fieldsTitles[field]] = delimiter.join(groupEntity[field])
-        elif convertCRNL and field in GROUP_FIELDS_WITH_NLS:
+        elif convertCRNL and field in GROUP_FIELDS_WITH_CRS_NLS:
           row[fieldsTitles[field]] = convertCRsNLs(groupEntity[field])
         else:
           row[fieldsTitles[field]] = groupEntity[field]
@@ -12401,7 +12401,7 @@ def doPrintGroups():
           setting_value = u''
         if key not in titles[u'set']:
           addTitleToCSVfile(key, titles)
-        if convertCRNL and key in GROUP_FIELDS_WITH_NLS:
+        if convertCRNL and key in GROUP_FIELDS_WITH_CRS_NLS:
           row[key] = convertCRsNLs(setting_value)
         else:
           row[key] = setting_value
@@ -13119,9 +13119,12 @@ RESCAL_ARGUMENT_TO_PROPERTY_MAP = {
   u'type': [u'resourceType'],
   }
 
-# gam print resources [todrive] [allfields] [id] [name] [description] [email] [type]
+RESOURCE_FIELDS_WITH_CRS_NLS = [u'resourceDescription']
+
+# gam print resources [todrive] [allfields] [id] [name] [description] [email] [type] [convertcrnl]
 def doPrintResourceCalendars():
   cd = buildGAPIObject(DIRECTORY_API)
+  convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
   todrive = {}
   fieldsList = []
   fieldsTitles = {}
@@ -13138,6 +13141,8 @@ def doPrintResourceCalendars():
         addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in RESCAL_ARGUMENT_TO_PROPERTY_MAP:
       addFieldToCSVfile(myarg, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
+    elif myarg in [u'convertcrnl', u'converttextnl']:
+      convertCRNL = True
     else:
       unknownArgumentExit()
   if not fieldsList:
@@ -13153,7 +13158,10 @@ def doPrintResourceCalendars():
     for resource in resources:
       row = {}
       for field in fieldsList:
-        row[fieldsTitles[field]] = resource.get(field, u'')
+        if convertCRNL and field in RESOURCE_FIELDS_WITH_CRS_NLS:
+          row[fieldsTitles[field]] = convertCRsNLs(resource.get(field, u''))
+        else:
+          row[fieldsTitles[field]] = resource.get(field, u'')
       csvRows.append(row)
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
