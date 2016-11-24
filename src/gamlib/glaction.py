@@ -140,10 +140,10 @@ class GamAction(object):
   PREFIX_NOT = u'Not'
   SUFFIX_FAILED = u'Failed'
 
-  def setAction(self, action):
+  def Set(self, action):
     self.action = action
 
-  def Action(self):
+  def Get(self):
     return self.action
 
   def ToPerform(self):

@@ -16,8 +16,6 @@ In the following discussion, these names will be used to refer to directories:
 In versions of GAM before 4.00, the following locations are used:
     GamCfgDir:
 	Not used
-    GamSiteDir:
-	GamPath
     GamConfigDir:
 	GamPath
     GamCacheDir:
@@ -35,8 +33,6 @@ These are the default values that GAM uses.
         ~/.gam/gamcache
     GamDriveDir:
         ~/Downloads
-    GamSiteDir:
-	GamPath
 
 If you are an existing GAM user and don't like the suggested locations or you already have some other scheme in use,
 set GAMCFGDIR to the desired path for gam.cfg. In gam.cfg, specify the desired values for the other locations.
@@ -95,6 +91,27 @@ contact_max_results
 	When retrieving lists of Google Contacts from API, how many should be retrieved in each chunk
 	Default: 100
 	Environment variable: GAM_CONTACT_MAX_RESULTS
+csv_input_column_delimiter
+	Column delimiter used when reading CSV files; this must be a single character
+	Default: ','
+	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
+csv_output_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
+	The commands gam print groups|sites|messages|threads and gam show sites|messages|threads have
+	an argument, converttextnl, that can set this value to true.
+	Default: False
+	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
+csv_output_column_delimiter
+	Column delimiter used when writing CSV files; this must be a single character
+	The redirect csv <FileName> [append] [charset <CharSet>] [delimiter <Character>] can override this value.
+	Default: ','
+	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
+csv_output_field_delimiter
+	Field list delimiter used when writing CSV output files; this must be a single character
+	With the default value of an empty string:
+	Each of the gam print courses|groups|users  commands has a delimiter <String> argument that can override this value.
+	Default: ' '
+	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
 customer_id
 	Google Custmer ID
 	Default: Blank
@@ -160,6 +177,10 @@ section
 	Default section of gam.cfg.
 	Default: DEFAULT
 	Environment variable: GAM_SECTION
+show_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when showing data
+	Default: False
+	Environment variable: GAM_SHOW_CONVERT_CR_NL
 show_counts_min
 	Add (n/m) to end of messages if number of items to be processed exceeds this number
 	Default: 1
@@ -201,6 +222,10 @@ Section: DEFAULT
   client_secrets_json = client_secrets.json ; /Users/admin/.gam/client_secrets.json
   config_dir = /Users/admin/.gam
   contact_max_results = 100
+  csv_input_column_delimiter = ,
+  csv_output_convert_cr_nl = false
+  csv_output_column_delimiter = ,
+  csv_output_field_delimiter = ' '
   customer_id =
   debug_level = 0
   device_max_results = 500
@@ -218,6 +243,7 @@ Section: DEFAULT
   oauth2_txt = oauth2.txt ; /Users/admin/.gam/oauth2.txt
   oauth2service_json = oauth2service.json ; /Users/admin/.gam/oauth2service.json
   section =
+  show_convert_cr_nl = false
   show_counts_min = 1
   show_gettings = true
   timezone = utc
@@ -307,6 +333,10 @@ charset = utf-8
 client_secrets_json = client_secrets.json
 config_dir = /Users/admin/.gam
 contact_max_results = 100
+csv_input_column_delimiter = ,
+csv_output_convert_cr_nl = false
+csv_output_column_delimiter = ,
+csv_output_field_delimiter = ' '
 customer_id = 0000000000
 debug_level = 0
 device_max_results = 500
@@ -324,6 +354,7 @@ num_threads = 5
 oauth2_txt = oauth2.txt
 oauth2service_json = oauth2service.json
 section =
+show_convert_cr_nl = false
 show_counts_min = 1
 show_gettings = true
 timezone = utc

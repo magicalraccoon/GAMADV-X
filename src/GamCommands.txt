@@ -20,9 +20,9 @@ Primatives
 <DataTransferService> ::= googledrive|gdrive|drive|"drive and docs"
 <ProductID> ::= Google-Apps|Google-Drive-storage|Google-Vault|Google-Coordinate
 <SKUID> ::=
-	apps|gafb|gafw|Google-Apps-For-Business|
+	apps|gafb|gafw|gsbasic|Google-Apps-For-Business|
 	gams|Google-Apps-For-Postini|
-	gau|unlimited|d4w|dfw|Google-Apps-Unlimited|
+	gau|unlimited|d4w|dfw|gsbusiness|Google-Apps-Unlimited|
 	lite|Google-Apps-Lite|
 	drive-20gb|drive20gb|20gb|Google-Drive-storage-20GB|
 	drive-50gb|drive50gb|50gb|Google-Drive-storage-50GB|
@@ -734,7 +734,7 @@ gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <
 
 gam create datatransfer|transfer <OldOwnerID> <DataTransferService> <NewOwnerID> (<ParameterKey> <ParameterValue>)*
 gam info datatransfer|transfer <TransferID>
-gam print datatransfers|transfers [todrive [<ToDriveAttributes>]] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
+gam print datatransfers|transfers [todrive [<ToDriveAttributes>]] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>] [delimiter <String>]
 
 gam print transferapps
 
@@ -907,7 +907,7 @@ gam delete groups <GroupEntity>
 gam info groups <GroupEntity> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 
 gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
-	[maxresults <Number>] [delimiter <String>] [converttextnl] [countsonly]
+	[maxresults <Number>] [convertcrnl] [delimiter <String>] [countsonly]
 	[members] [managers] [owners] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
 
 gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
@@ -943,7 +943,7 @@ gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
 gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [role|roles all|<SiteACLRoleList>]
 gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>]
-gam [<UserTypeEntity>] print sites [todrive [<ToDriveAttributes>]] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertsummarynl]
+gam [<UserTypeEntity>] print sites [todrive [<ToDriveAttributes>]] [domain|domains <DomainNameEntity>] [includeallsites] [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl] [delimiter <String>]
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive [<ToDriveAttributes>]] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 
@@ -965,9 +965,9 @@ gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
 gam [<UserTypeEntity>] print users [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
-	[delimiter <String>] [groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
+	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
-	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
+	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>] [delimiter <String>] 
 gam <UserTypeEntity> print
 
 Summary of printing:
@@ -1021,7 +1021,7 @@ gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
 gam delete printer <PrinterID>
 gam info printer <PrinterID> [everything]
-gam print printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>]
+gam print printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>] [delimiter <String>]
 
 gam update printers <PrinterIDEntity> <PrinterAttributes>+
 gam delete printers <PrinterIDEntity>
@@ -1059,7 +1059,7 @@ gam print printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterI
 	[status <PrintJobStatus>]
 	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 	[owner|user <EmailAddress>]
-	[limit <Number>]
+	[limit <Number>] [delimiter <String>]
 
 gam <UserTypeEntity> delete|del asp|asps|applicationspecificpasswords <AspID>
 gam <UserTypeEntity> show asps|asp|applicationspecificpasswords
@@ -1093,7 +1093,7 @@ gam <UserTypeEntity> remove calendars <CalendarEntity>
 gam <UserTypeEntity> print|show driveactivity [todrive [<ToDriveAttributes>]] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> print|show drivesettings [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
-	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])* [delimiter <String>]
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
@@ -1139,8 +1139,8 @@ gam <UserTypeEntity> show profile
 
 gam <UserTypeEntity> delete|del token|tokens clientid <ClientID>
 gam <UserTypeEntity> show tokens|token [clientid <ClientID>]
-gam <UserTypeEntity> print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>]
-gam print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>] [<UserTypeEntity>]
+gam <UserTypeEntity> print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>] [delimiter <String>]
+gam print tokens|token [todrive [<ToDriveAttributes>]] [clientid <ClientID>] [delimiter <String>] [<UserTypeEntity>]
 
 gam <UserTypeEntity> update user <UserAttrubutes>
 
@@ -1159,9 +1159,9 @@ gam <UserTypeEntity> spam messages|threads (((query <QueryGmail>) (matchlabel <L
 gam <UserTypeEntity> trash messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_trash|max_to_process <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> untrash messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_untrash|max_to_process <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet]
+	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl]
 gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-	[headers <String>] [showlabels] [showbody] [convertbodynl] [showsize] [showsnippet] [todrive [<ToDriveAttributes>]]
+	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> show gmailprofile
 gam <UserTypeEntity> print gplusprofile [todrive [<ToDriveAttributes>]]

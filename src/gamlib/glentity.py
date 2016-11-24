@@ -306,38 +306,38 @@ class GamEntity(object):
     ROLE_MANAGER_MEMBER_OWNER: [u'Members, Managers, Owners', u'Member, Manager, Owner'],
     }
 
-  def setGettingEntity(self, entityType):
+  def SetGetting(self, entityType):
     self.entityType = entityType
     
-  def GettingEntity(self):
+  def Getting(self):
     return self.entityType
 
-  def setGettingForWhom(self, forWhom):
+  def SetGettingForWhom(self, forWhom):
     self.forWhom = forWhom
     
   def GettingForWhom(self):
     return self.forWhom
      
-  def setGettingShowTotal(self, showTotal):
+  def SetGettingShowTotal(self, showTotal):
     self.showTotal = showTotal
     
   def GettingShowTotal(self):
     return self.showTotal
     
-  def chooseEntity(self, entityType, count):
+  def Choose(self, entityType, count):
     return self._NAMES[entityType][[0, 1][count == 1]]
 
-  def chooseGettingEntity(self, count):
+  def ChooseGetting(self, count):
     return self._NAMES[self.entityType][[0, 1][count == 1]]
 
-  def pluralEntity(self, entityType):
+  def Plural(self, entityType):
     return self._NAMES[entityType][0]
 
-  def pluralGettingEntity(self):
+  def PluralGetting(self):
     return self._NAMES[self.entityType][0]
 
-  def singularEntity(self, entityType):
+  def Singular(self, entityType):
     return self._NAMES[entityType][1]
 
-  def singularGettingEntity(self):
+  def SingularGetting(self):
     return self._NAMES[self.entityType][1]

@@ -27,18 +27,18 @@ class GamIndent(object):
   def __init__(self):
     self.indent = 0
 
-  def resetIndent(self):
+  def Reset(self):
     self.indent = 0
 
-  def incIndent(self):
+  def Increment(self):
     self.indent += 1
 
-  def decIndent(self):
+  def Decrement(self):
     self.indent -= 1
 
-  def indentSpaces(self):
+  def Spaces(self):
     return self.INDENT_SPACES_PER_LEVEL*self.indent
 
-  def indentMultiLineText(self, message, n=0):
+  def MultiLineText(self, message, n=0):
     return message.replace(u'\n', u'\n{0}'.format(self.INDENT_SPACES_PER_LEVEL*(self.indent+n))).rstrip()
   
