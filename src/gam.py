@@ -317,7 +317,7 @@ GC_Defaults = {
   GC_CSV_INPUT_COLUMN_DELIMITER: u',',
   GC_CSV_OUTPUT_CONVERT_CR_NL: FALSE,
   GC_CSV_OUTPUT_COLUMN_DELIMITER: u',',
-  GC_CSV_OUTPUT_FIELD_DELIMITER: u' ',
+  GC_CSV_OUTPUT_FIELD_DELIMITER: u"' '",
   GC_CUSTOMER_ID: MY_CUSTOMER,
   GC_DEBUG_LEVEL: 0,
   GC_DEVICE_MAX_RESULTS: 500,
@@ -2997,6 +2997,23 @@ def openCSVFileReader(filename):
 # Return True if there are additional commands on the command line
 def SetGlobalVariables():
 
+  def _stringInQuotes(value):
+    return (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'"))
+
+  def _stripStringQuotes(value):
+    if _stringInQuotes(value):
+      return value[1:-1]
+    return value
+
+  def _quoteStringIfLeadingTrailingBlanks(value):
+    if not value:
+      return u"''"
+    if _stringInQuotes(value):
+      return value
+    if (value[0] != u' ') and (value[-1] != u' '):
+      return value
+    return u"'{0}'".format(value)
+
   def _getDefault(itemName, itemEntry, oldGamPath):
     if GC_VAR_SIGFILE in itemEntry:
       GC_Defaults[itemName] = itemEntry[GC_VAR_SFFT][os.path.isfile(os.path.join(oldGamPath, itemEntry[GC_VAR_SIGFILE]))]
@@ -3013,6 +3030,8 @@ def SetGlobalVariables():
         except ValueError:
           number = GC_Defaults[itemName]
         value = str(number)
+      elif itemEntry[GC_VAR_TYPE] == GC_TYPE_SRTRING:
+        value = _quoteStringIfLeadingTrailingBlanks(value)
       GC_Defaults[itemName] = value
 
   def _selectSection():
@@ -3088,23 +3107,6 @@ def SetGlobalVariables():
     _printValueError(sectionName, itemName, value, PHRASE_NOT_FOUND)
     status[u'errors'] = True
     return ConfigParser.DEFAULTSECT
-
-  def _stringInQuotes(value):
-    return (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'"))
-
-  def _stripStringQuotes(value):
-    if _stringInQuotes(value):
-      return value[1:-1]
-    return value
-
-  def _quoteStringIfLeadingTrailingBlanks(value):
-    if not value:
-      return u"''"
-    if _stringInQuotes(value):
-      return value
-    if (value[0] != u' ') and (value[-1] != u' '):
-      return value
-    return u"'{0}'".format(value)
 
   def _getCfgString(sectionName, itemName):
     value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))

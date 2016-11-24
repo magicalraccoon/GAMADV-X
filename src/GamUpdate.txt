@@ -8,6 +8,7 @@ Added csv_input_column_delimiter, csv_output_convert_text_nl, csv_output_column_
 	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
 	The commands gam print groups|sites|messages|threads and gam show sites|messages|threads have
 	an argument, convertcrnl, that can set this value to true.
+	For backwards compatability the default is False, True is probably the preferred value.
 	Default: False
     csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
