@@ -11799,19 +11799,21 @@ def doCreateGroup():
   body.setdefault(u'name', body[u'email'])
   try:
     callGAPI(cd.groups(), u'insert',
-             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
+             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID, GAPI_INVALID_INPUT],
              body=body, fields=u'email')
     if gs_body and not GroupIsAbuseOrPostmaster(body[u'email']):
       gs = buildGAPIObject(GROUPSSETTINGS_API)
       callGAPI(gs.groups(), u'patch',
-               throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-               retry_reasons=[GAPI_SERVICE_LIMIT],
+               throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+               retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
                groupUniqueId=body[u'email'], body=gs_body)
     entityActionPerformed(Entity.GROUP, body[u'email'])
   except GAPI_duplicate:
     entityDuplicateWarning(Entity.GROUP, body[u'email'])
   except (GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(Entity.GROUP, body[u'email'])
+  except GAPI_invalidInput as e:
+    entityActionFailedWarning(Entity.GROUP, body[u'email'], e.message)
 
 def checkGroupExists(cd, group, i=0, count=0):
   group = normalizeEmailAddressOrUID(group)
@@ -12032,10 +12034,10 @@ def updateGroups(entityList):
         try:
           callGAPI(gs.groups(), u'patch',
                    throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND,
-                                  GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN, GAPI_INVALID],
-                   retry_reasons=[GAPI_SERVICE_LIMIT],
+                                  GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR, GAPI_FORBIDDEN],
+                   retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
                    groupUniqueId=group, body=gs_body)
-        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden, GAPI_invalid):
+        except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_backendError, GAPI_systemError, GAPI_forbidden):
           entityUnknownWarning(Entity.GROUP, group, i, count)
           continue
       entityActionPerformed(Entity.GROUP, group, i, count)
@@ -12235,8 +12237,8 @@ def infoGroups(entityList):
       group = basic_info[u'email']
       if getSettings and not GroupIsAbuseOrPostmaster(group):
         settings = callGAPI(gs.groups(), u'get',
-                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                            retry_reasons=[GAPI_SERVICE_LIMIT],
+                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                            retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
                             groupUniqueId=group, fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
