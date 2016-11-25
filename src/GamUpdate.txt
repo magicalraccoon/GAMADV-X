@@ -1,3 +1,7 @@
+4.34.01
+
+Additional error checking for group settings operations.
+
 4.34.00
 
 Added csv_input_column_delimiter, csv_output_convert_text_nl, csv_output_column_delimiter and csv_output_field_delimiter to gam.cfg.
