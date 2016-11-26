@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.34.01'
+__version__ = u'4.34.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11257,9 +11257,9 @@ def infoCrOSDevices(entityList, cd=None):
     else:
       unknownArgumentExit()
   if fieldsList:
-    fieldsList = u','.join(set(fieldsList)).replace(u'.', u'/')
+    fields = u','.join(set(fieldsList)).replace(u'.', u'/')
   else:
-    fieldsList = None
+    fields = None
   i = 0
   count = len(entityList)
   for deviceId in entityList:
@@ -11267,7 +11267,7 @@ def infoCrOSDevices(entityList, cd=None):
     try:
       cros = callGAPI(cd.chromeosdevices(), u'get',
                       throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                      customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, projection=projection, fields=fieldsList)
+                      customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, projection=projection, fields=fields)
       printEntity(Entity.CROS_DEVICE, deviceId, i, count)
       Indent.Increment()
       if u'notes' in cros:
@@ -12115,12 +12115,12 @@ def updateGroups(entityList):
       if group:
         _batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
   else: #clear
-    roles = []
+    rolesList = []
     while CLArgs.ArgumentsRemaining():
-      roles.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
+      rolesList.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
     Action.Set(Action.REMOVE)
-    if roles:
-      roles = u','.join(sorted(set(roles)))
+    if rolesList:
+      roles = u','.join(sorted(set(rolesList)))
     else:
       roles = Entity.ROLE_MEMBER
     i = 0
@@ -12223,12 +12223,17 @@ def infoGroups(entityList):
     else:
       unknownArgumentExit()
   if cdfieldsList:
-    cdfieldsList = u','.join(set(cdfieldsList))
+    cdfields = u','.join(set(cdfieldsList))
+  else:
+    cdfields = None
   if gsfieldsList is None:
     getSettings = True
-  elif len(gsfieldsList) > 0:
+    gsfields = None
+  elif gsfieldsList:
     getSettings = True
-    gsfieldsList = u','.join(set(gsfieldsList))
+    gsfields = u','.join(set(gsfieldsList))
+  else:
+    gsfields = None
   if getSettings:
     gs = buildGAPIObject(GROUPSSETTINGS_API)
   i = 0
@@ -12239,7 +12244,7 @@ def infoGroups(entityList):
     try:
       basic_info = callGAPI(cd.groups(), u'get',
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                            groupKey=group, fields=cdfieldsList)
+                            groupKey=group, fields=cdfields)
       group = basic_info[u'email']
       settings = {}
       if getSettings and not GroupIsAbuseOrPostmaster(group):
@@ -12247,7 +12252,7 @@ def infoGroups(entityList):
                             soft_errors=True,
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                             retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
-                            groupUniqueId=group, fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
+                            groupUniqueId=group, fields=gsfields) # Use email address retrieved from cd since GS API doesn't support uid
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
@@ -12333,7 +12338,7 @@ def groupQuery(domain, usemember):
 
 # gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 #	[maxresults <Number>] [convertcrnl] [delimiter <String>] [countsonly]
-#	[members] [managers] [owners] <GroupFieldName>* [fields <GroupFieldNameList>] [settings]
+#	[members] [managers] [owners] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
 def doPrintGroups():
 
   def _printGroupRow(groupEntity, groupMembers, groupSettings):
@@ -12488,7 +12493,7 @@ def doPrintGroups():
     _writeRowIfComplete(i)
 
   cd = buildGAPIObject(DIRECTORY_API)
-  members = owners = managers = False
+  getSettings = members = owners = managers = sortHeaders = False
   customer = GC_Values[GC_CUSTOMER_ID]
   domain = usemember = None
   convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
@@ -12501,8 +12506,7 @@ def doPrintGroups():
   fieldsTitles = {}
   titles, csvRows = initializeTitlesCSVfile(None)
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
-  roles = []
-  getSettings = False
+  rolesList = []
   entityList = None
   groupData = {}
   while CLArgs.ArgumentsRemaining():
@@ -12525,6 +12529,13 @@ def doPrintGroups():
       delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     elif myarg == u'countsonly':
       countsOnly = True
+    elif myarg == u'allfields':
+      getSettings = sortHeaders = True
+      cdfieldsList = []
+      gsfieldsList = []
+      fieldsTitles = {}
+      for field in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
+        addFieldTitleToCSVfile(field, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
     elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
       addFieldTitleToCSVfile(myarg, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
     elif myarg in GROUP_ATTRIBUTES:
@@ -12540,33 +12551,36 @@ def doPrintGroups():
           CLArgs.Backup()
           invalidChoiceExit(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP.keys()+GROUP_ATTRIBUTES.keys())
     elif myarg == u'members':
-      if myarg not in roles:
-        roles.append(Entity.ROLE_MEMBER)
+      if myarg not in rolesList:
+        rolesList.append(Entity.ROLE_MEMBER)
         addTitleToCSVfile(u'Members', titles)
         members = True
     elif myarg == u'owners':
-      if myarg not in roles:
-        roles.append(Entity.ROLE_OWNER)
+      if myarg not in rolesList:
+        rolesList.append(Entity.ROLE_OWNER)
         addTitleToCSVfile(u'Owners', titles)
         owners = True
     elif myarg == u'managers':
-      if myarg not in roles:
-        roles.append(Entity.ROLE_MANAGER)
+      if myarg not in rolesList:
+        rolesList.append(Entity.ROLE_MANAGER)
         addTitleToCSVfile(u'Managers', titles)
         managers = True
     elif myarg == u'settings':
       getSettings = True
     else:
       unknownArgumentExit()
-  cdfields = u','.join(set(cdfieldsList))
-  if len(gsfieldsList) > 0:
+  if cdfieldsList:
+    cdfields = u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList)))
+  else:
+    cdfields = None
+  if gsfieldsList:
     getSettings = True
     gsfields = u','.join(set(gsfieldsList))
-  elif getSettings:
+  else:
     gsfields = None
   if getSettings:
     gs = buildGAPIObject(GROUPSSETTINGS_API)
-  roles = u','.join(sorted(set(roles)))
+  roles = u','.join(sorted(set(rolesList)))
   if entityList is None:
     printGettingAccountEntitiesInfo(Entity.GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
@@ -12575,8 +12589,7 @@ def doPrintGroups():
                                  page_message=page_message, message_attribute=u'email',
                                  throw_reasons=[GAPI_INVALID_MEMBER, GAPI_DOMAIN_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                                  customer=customer, domain=domain, userKey=usemember,
-                                 fields=u'nextPageToken,groups({0})'.format(cdfields),
-                                 maxResults=maxResults)
+                                 fields=cdfields, maxResults=maxResults)
     except GAPI_invalidMember:
       badRequestWarning(Entity.GROUP, Entity.MEMBER, usemember)
       entityList = collections.deque()
@@ -12630,6 +12643,8 @@ def doPrintGroups():
       bcount = 0
   if bcount > 0:
     dbatch.execute()
+  if sortHeaders:
+    sortCSVTitles([u'Email',], titles)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
 
 def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level):
@@ -12776,7 +12791,9 @@ def doPrintGroupMembers():
     addTitlesToCSVfile([u'name'], titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
   if userFieldsList:
-    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
+    userFields = u','.join(set(userFieldsList)).replace(u'.', u'/')
+  else:
+    userFields = None
   membersSet = set()
   level = 0
   i = 0
@@ -12806,7 +12823,7 @@ def doPrintGroupMembers():
           try:
             mbinfo = callGAPI(cd.users(), u'get',
                               throw_reasons=GAPI_USER_GET_THROW_REASONS,
-                              userKey=member[u'id'], fields=userFieldsList)
+                              userKey=member[u'id'], fields=userFields)
             if membernames:
               row[u'name'] = mbinfo[u'name'][u'fullName']
               del mbinfo[u'name'][u'fullName']
@@ -14851,9 +14868,9 @@ def infoUsers(entityList):
     else:
       unknownArgumentExit()
   if fieldsList:
-    fieldsList = u','.join(set(fieldsList)).replace(u'.', u'/')
+    fields = u','.join(set(fieldsList)).replace(u'.', u'/')
   else:
-    fieldsList = None
+    fields = None
   if getLicenses:
     lic = buildGAPIObject(LICENSING_API)
   i = 0
@@ -14864,7 +14881,7 @@ def infoUsers(entityList):
     try:
       user = callGAPI(cd.users(), u'get',
                       throw_reasons=GAPI_USER_GET_THROW_REASONS,
-                      userKey=userEmail, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fieldsList)
+                      userKey=userEmail, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fields)
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
                                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],

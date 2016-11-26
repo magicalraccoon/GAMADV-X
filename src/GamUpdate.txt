@@ -1,3 +1,10 @@
+4.34.02
+
+Added allfields argument to gam print groups; this selects all of the basic group settings and all of the extended groups settings.
+    gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+	[maxresults <Number>] [convertcrnl] [delimiter <String>] [countsonly]
+	[members] [managers] [owners] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
+
 4.34.01
 
 Additional error checking for group settings operations.
