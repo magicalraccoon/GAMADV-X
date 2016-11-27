@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.34.02'
+__version__ = u'4.34.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12336,9 +12336,9 @@ def groupQuery(domain, usemember):
     return u'{0}={1}'.format(Entity.Singular(Entity.MEMBER), usemember)
   return u''
 
-# gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
-#	[maxresults <Number>] [convertcrnl] [delimiter <String>] [countsonly]
-#	[members] [managers] [owners] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
+# gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+#         [maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])] [convertcrnl] [delimiter <String>]
+#         [members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
 def doPrintGroups():
 
   def _printGroupRow(groupEntity, groupMembers, groupSettings):
@@ -12351,65 +12351,52 @@ def doPrintGroups():
           row[fieldsTitles[field]] = convertCRsNLs(groupEntity[field])
         else:
           row[fieldsTitles[field]] = groupEntity[field]
-    if groupMembers:
-      if not countsOnly:
-        if members:
-          listMembers = []
-        if managers:
-          listManagers = []
-        if owners:
-          listOwners = []
-        for member in groupMembers:
-          member_email = member.get(u'email', member.get(u'id', None))
-          if not member_email:
-            sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
-            continue
-          role = member.get(u'role', None)
-          if role:
-            if role == Entity.ROLE_MEMBER:
-              if members:
-                listMembers.append(member_email)
-            elif role == Entity.ROLE_MANAGER:
-              if managers:
-                listManagers.append(member_email)
-            elif role == Entity.ROLE_OWNER:
-              if owners:
-                listOwners.append(member_email)
-            elif members:
-              listMembers.append(member_email)
+    if groupMembers is not None:
+      if members:
+        membersList = []
+        membersCount = 0
+      if managers:
+        managersList = []
+        managersCount = 0
+      if owners:
+        ownersList = []
+        ownersCount = 0
+      for member in groupMembers:
+        member_email = member.get(u'email', member.get(u'id', None))
+        if not member_email:
+          sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
+          continue
+        role = member.get(u'role', None)
+        if role:
+          if role == Entity.ROLE_MEMBER:
+            if members:
+              membersCount += 1
+              if not membersCountOnly:
+                membersList.append(member_email)
+          elif role == Entity.ROLE_MANAGER:
+            if managers:
+              managersCount += 1
+              if not managersCountOnly:
+                managersList.append(member_email)
+          elif role == Entity.ROLE_OWNER:
+            if owners:
+              ownersCount += 1
+              if not ownersCountOnly:
+                ownersList.append(member_email)
           elif members:
-            listMembers.append(member_email)
-        if members:
-          row[u'Members'] = delimiter.join(listMembers)
-        if managers:
-          row[u'Managers'] = delimiter.join(listManagers)
-        if owners:
-          row[u'Owners'] = delimiter.join(listOwners)
-      else:
-        countMembers = countManagers = countOwners = 0
-        for member in groupMembers:
-          member_email = member.get(u'email', member.get(u'id', None))
-          if not member_email:
-            sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
-            continue
-          role = member.get(u'role', None)
-          if role:
-            if role == Entity.ROLE_MEMBER:
-              countMembers += 1
-            elif role == Entity.ROLE_MANAGER:
-              countManagers += 1
-            elif role == Entity.ROLE_OWNER:
-              countOwners += 1
-            else:
-              countMembers += 1
-          else:
-            countMembers += 1
-        if members:
-          row[u'Members'] = countMembers
-        if managers:
-          row[u'Managers'] = countManagers
-        if owners:
-          row[u'Owners'] = countOwners
+            membersCount += 1
+            if not membersCountOnly:
+              membersList.append(member_email)
+        elif members:
+          membersCount += 1
+          if not membersCountOnly:
+            membersList.append(member_email)
+      if members:
+        row[u'Members'] = membersCount if membersCountOnly else delimiter.join(membersList)
+      if managers:
+        row[u'Managers'] = managersCount if managersCountOnly else delimiter.join(managersList)
+      if owners:
+        row[u'Owners'] = ownersCount if ownersCountOnly else delimiter.join(ownersList)
     if isinstance(groupSettings, dict):
       for key in groupSettings:
         if key in [u'kind', u'etag', u'email', u'name', u'description']:
@@ -12493,12 +12480,12 @@ def doPrintGroups():
     _writeRowIfComplete(i)
 
   cd = buildGAPIObject(DIRECTORY_API)
-  getSettings = members = owners = managers = sortHeaders = False
+  getSettings = sortHeaders = False
   customer = GC_Values[GC_CUSTOMER_ID]
   domain = usemember = None
   convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
   delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
-  countsOnly = False
+  members = membersCountOnly = managers = managersCountOnly = owners = ownersCountOnly = False
   todrive = {}
   maxResults = None
   cdfieldsList = []
@@ -12527,8 +12514,6 @@ def doPrintGroups():
       convertCRNL = True
     elif myarg == u'delimiter':
       delimiter = getString(OB_STRING, minLen=1, maxLen=1)
-    elif myarg == u'countsonly':
-      countsOnly = True
     elif myarg == u'allfields':
       getSettings = sortHeaders = True
       cdfieldsList = []
@@ -12550,21 +12535,26 @@ def doPrintGroups():
         else:
           CLArgs.Backup()
           invalidChoiceExit(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP.keys()+GROUP_ATTRIBUTES.keys())
-    elif myarg == u'members':
-      if myarg not in rolesList:
-        rolesList.append(Entity.ROLE_MEMBER)
-        addTitleToCSVfile(u'Members', titles)
-        members = True
-    elif myarg == u'owners':
-      if myarg not in rolesList:
-        rolesList.append(Entity.ROLE_OWNER)
-        addTitleToCSVfile(u'Owners', titles)
-        owners = True
-    elif myarg == u'managers':
-      if myarg not in rolesList:
-        rolesList.append(Entity.ROLE_MANAGER)
-        addTitleToCSVfile(u'Managers', titles)
-        managers = True
+    elif myarg in [u'members', u'memberscount']:
+      rolesList.append(Entity.ROLE_MEMBER)
+      addTitlesToCSVfile([u'Members',], titles)
+      members = True
+      if myarg == u'memberscount':
+        membersCountOnly = True
+    elif myarg in [u'managers', u'managerscount']:
+      rolesList.append(Entity.ROLE_MANAGER)
+      addTitlesToCSVfile([u'Managers',], titles)
+      managers = True
+      if myarg == u'managerscount':
+        managersCountOnly = True
+    elif myarg in [u'owners', u'ownerscount']:
+      rolesList.append(Entity.ROLE_OWNER)
+      addTitlesToCSVfile([u'Owners',], titles)
+      owners = True
+      if myarg == u'ownerscount':
+        ownersCountOnly = True
+    elif myarg == u'countsonly':
+      membersCountOnly = managersCountOnly = ownersCountOnly = True
     elif myarg == u'settings':
       getSettings = True
     else:
@@ -12581,6 +12571,7 @@ def doPrintGroups():
   if getSettings:
     gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(rolesList)))
+  rolesOrSettings = roles or getSettings
   if entityList is None:
     printGettingAccountEntitiesInfo(Entity.GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
@@ -12606,7 +12597,6 @@ def doPrintGroups():
   bsize = GC_Values[GC_BATCH_SIZE]
   dbatch = googleapiclient.http.BatchHttpRequest()
   groupData = {}
-  rolesOrSettings = roles or getSettings
   i = 0
   count = len(entityList)
   for groupEntity in entityList:
@@ -17790,6 +17780,7 @@ def printDriveActivity(users):
         addRowTitlesToCSVfile(flattenJSON(event), csvRows, titles)
     except GAPI_serviceNotAvailable:
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
+  sortCSVTitles([u'user.name', u'user.permissionId', u'target.id', u'target.name', u'target.mimeType'], titles)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
 
 # gam <UserTypeEntity> print|show drivesettings [todrive]

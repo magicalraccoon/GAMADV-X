@@ -914,9 +914,8 @@ gam delete groups <GroupEntity>
 gam info groups <GroupEntity> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 
 gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
-	[maxresults <Number>] [convertcrnl] [delimiter <String>] [countsonly]
-	[members] [managers] [owners] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
-
+	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])] [convertcrnl] [delimiter <String>]
+	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
 gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
 
