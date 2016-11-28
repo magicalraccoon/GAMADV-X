@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.34.04'
+__version__ = u'4.34.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1319,7 +1319,7 @@ def formatKeyValueList(prefixStr, kvList, suffixStr):
       val = kvList[i]
       if (val is not None) or (i == l-1):
         msg += u':'
-        if (val is not None) and val != u'':
+        if (val is not None) and (not isinstance(val, (str, unicode)) or len(val) > 0):
           msg += u' '
           if isinstance(val, (bool, int)):
             msg += str(val)
@@ -12193,27 +12193,22 @@ def doPrintGroups():
         if not member_email:
           sys.stderr.write(u' Not sure what to do with: {0}\n'.format(member))
           continue
-        role = member.get(u'role', None)
-        if role:
-          if role == Entity.ROLE_MEMBER:
-            if members:
-              membersCount += 1
-              if not membersCountOnly:
-                membersList.append(member_email)
-          elif role == Entity.ROLE_MANAGER:
-            if managers:
-              managersCount += 1
-              if not managersCountOnly:
-                managersList.append(member_email)
-          elif role == Entity.ROLE_OWNER:
-            if owners:
-              ownersCount += 1
-              if not ownersCountOnly:
-                ownersList.append(member_email)
-          elif members:
+        role = member.get(u'role', Entity.ROLE_MEMBER)
+        if role == Entity.ROLE_MEMBER:
+          if members:
             membersCount += 1
             if not membersCountOnly:
               membersList.append(member_email)
+        elif role == Entity.ROLE_MANAGER:
+          if managers:
+            managersCount += 1
+            if not managersCountOnly:
+              managersList.append(member_email)
+        elif role == Entity.ROLE_OWNER:
+          if owners:
+            ownersCount += 1
+            if not ownersCountOnly:
+              ownersList.append(member_email)
         elif members:
           membersCount += 1
           if not membersCountOnly:
@@ -12445,12 +12440,12 @@ def doPrintGroups():
     if roles:
       printGettingEntityItemForWhom(roles, groupEmail, i, count)
       parameters = dict([(u'groupKey', groupEmail), (u'roles', roles), (u'fields', u'nextPageToken,members(email,id,role)'), (u'maxResults', GC_Values[GC_MEMBER_MAX_RESULTS])]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(cd.members().list(**parameters), _callbackProcessGroupMembers, batchRequestID(groupEmail, i, count, 0, 0, None, roles))
+      dbatch.add(cd.members().list(**parameters), callback=_callbackProcessGroupMembers, request_id=batchRequestID(groupEmail, i, count, 0, 0, None, roles))
     if getSettings:
       if not GroupIsAbuseOrPostmaster(groupEmail):
         printGettingEntityItemForWhom(Entity.GROUP_SETTINGS, groupEmail, i, count)
         parameters = dict([(u'groupUniqueId', groupEmail), (u'fields', gsfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(gs.groups().get(**parameters), _callbackProcessGroupSettings, batchRequestID(groupEmail, i, count, 0, 0, None))
+        dbatch.add(gs.groups().get(**parameters), callback=_callbackProcessGroupSettings, request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
       else:
         groupData[i][u'settings'] = False
     bcount += 1
