@@ -1,3 +1,7 @@
+4.34.05
+
+Fix error in gam print groups.
+
 4.34.04
 
 Call logging.basicConfig to handle logging messages for oauth2client.contrib.multiprocess_file_storage.
