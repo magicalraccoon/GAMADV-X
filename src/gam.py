@@ -12114,7 +12114,7 @@ def infoGroups(entityList):
             value = convertCRsNLs(value)
           printKeyValueList([key, value])
       if settings:
-        for key, value in settings.items():
+        for key, value in sorted(settings.items()):
           if key in [u'kind', u'etag', u'email', u'name', u'description']:
             continue
           if key == u'maxMessageBytes':
