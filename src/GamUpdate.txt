@@ -1,6 +1,6 @@
 4.34.04
 
-Call logging.basicConfig to handle legging messages for oauth2client.contrib.multiprocess_file_storage.
+Call logging.basicConfig to handle logging messages for oauth2client.contrib.multiprocess_file_storage.
 
 4.34.03
 
