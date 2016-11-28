@@ -80,3 +80,25 @@ class GamCLArgs(object):
 # Reset argument location
   def ResetLocation(self, offset):
     self.argvI = self.argvIsave+offset
+
+# Concatenate list members, any item containing spaces is enclosed in ''
+  def QuotedArgumentList(self, items):
+    qstr = u''
+    for item in items:
+      if item and (item.find(u' ') == -1) and (item.find(u',') == -1):
+        qstr += item
+      else:
+        qstr += u"'"+item+u"'"
+      qstr += u' '
+    return qstr[:-1] if len(qstr) > 0 else u''
+
+# Mark bad argument in command line
+  def CommandLineWithBadArgumentMarked(self, extraneous):
+    if extraneous:
+      return u'Command: {0} >>>{1}<<<\n'.format(self.QuotedArgumentList(self.argv[:self.argvI]),
+                                                self.QuotedArgumentList(self.argv[self.argvI:]))
+    if self.ArgumentsRemaining():
+      return u'Command: {0} >>>{1}<<< {2}\n'.format(self.QuotedArgumentList(self.argv[:self.argvI]),
+                                                    self.QuotedArgumentList([self.argv[self.argvI]]),
+                                                    self.QuotedArgumentList(self.argv[self.argvI+1:]))
+    return u'Command: {0} >>><<<\n'.format(self.QuotedArgumentList(self.argv))

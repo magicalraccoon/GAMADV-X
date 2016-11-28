@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.34.03'
+__version__ = u'4.34.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1037,159 +1037,6 @@ TODRIVE_ARGUMENT = [u'todrive',]
 TO_ARGUMENT = [u'to',]
 UNSTRUCTURED_FORMATTED_ARGUMENT = [u'unstructured', u'formatted',]
 
-# Keys into USER_PROPERTIES
-PROPERTY_CLASS = u'clas'
-PROPERTY_TITLE = u'titl'
-PROPERTY_TYPE_KEYWORDS = u'tykw'
-PTKW_CL_TYPE_KEYWORD = u'ctkw'
-PTKW_CL_CUSTOMTYPE_KEYWORD = u'cctk'
-PTKW_ATTR_TYPE_KEYWORD = u'atkw'
-PTKW_ATTR_TYPE_CUSTOM_VALUE = u'atcv'
-PTKW_ATTR_CUSTOMTYPE_KEYWORD = u'actk'
-PTKW_KEYWORD_LIST = u'kwli'
-#
-PC_ADDRESSES = u'addr'
-PC_ALIASES = u'alia'
-PC_ARRAY = u'arry'
-PC_BOOLEAN = u'bool'
-PC_EMAILS = u'emai'
-PC_IMS = U'ims '
-PC_NAME = u'name'
-PC_NOTES = u'note'
-PC_SCHEMAS = u'schm'
-PC_STRING = u'stri'
-PC_TIME = u'time'
-
-USER_PROPERTIES = {
-  u'primaryEmail':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'User',},
-  u'name':
-    {PROPERTY_CLASS: PC_NAME, PROPERTY_TITLE: u'Name',},
-  u'givenName':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'First Name',},
-  u'familyName':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Last Name',},
-  u'fullName':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Full Name',},
-  u'password':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Password',},
-  u'isAdmin':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Is a Super Admin',},
-  u'isDelegatedAdmin':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Is Delegated Admin',},
-  u'agreedToTerms':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Has Agreed to Terms',},
-  u'ipWhitelisted':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'IP Whitelisted',},
-  u'suspended':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Account Suspended',},
-  u'suspensionReason':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Suspension Reason',},
-  u'changePasswordAtNextLogin':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Must Change Password',},
-  u'id':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Google Unique ID',},
-  u'customerId':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Customer ID',},
-  u'isMailboxSetup':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Mailbox is setup',},
-  u'includeInGlobalAddressList':
-    {PROPERTY_CLASS: PC_BOOLEAN, PROPERTY_TITLE: u'Included in GAL',},
-  u'creationTime':
-    {PROPERTY_CLASS: PC_TIME, PROPERTY_TITLE: u'Creation Time',},
-  u'lastLoginTime':
-    {PROPERTY_CLASS: PC_TIME, PROPERTY_TITLE: u'Last login time',},
-  u'deletionTime':
-    {PROPERTY_CLASS: PC_TIME, PROPERTY_TITLE: u'Deletion Time',},
-  u'orgUnitPath':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Google Org Unit Path',},
-  u'thumbnailPhotoUrl':
-    {PROPERTY_CLASS: PC_STRING, PROPERTY_TITLE: u'Photo URL',},
-  u'addresses':
-    {PROPERTY_CLASS: PC_ADDRESSES, PROPERTY_TITLE: u'Addresses',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom',
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'other', u'work'],},},
-  u'emails':
-    {PROPERTY_CLASS: PC_EMAILS, PROPERTY_TITLE: u'Other Emails',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: None,
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'other', u'work'],},},
-  u'externalIds':
-    {PROPERTY_CLASS: PC_ARRAY, PROPERTY_TITLE: u'External IDs',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: None,
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'account', u'customer', u'network', u'organization'],},},
-  u'ims':
-    {PROPERTY_CLASS: PC_IMS, PROPERTY_TITLE: u'IMs',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom',
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'other', u'work'],},},
-  u'notes':
-    {PROPERTY_CLASS: PC_NOTES, PROPERTY_TITLE: u'Notes',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'type',
-        PTKW_ATTR_TYPE_KEYWORD: u'contentType', PTKW_ATTR_TYPE_CUSTOM_VALUE: None, PTKW_ATTR_CUSTOMTYPE_KEYWORD: None,
-        PTKW_KEYWORD_LIST: [u'text_plain', u'text_html'],},},
-  u'organizations':
-    {PROPERTY_CLASS: PC_ARRAY, PROPERTY_TITLE: u'Organizations',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'customtype',
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'domain_only', u'school', u'unknown', u'work'],},},
-  u'phones':
-    {PROPERTY_CLASS: PC_ARRAY, PROPERTY_TITLE: u'Phones',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom',
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'work', u'other',
-                            u'home_fax', u'work_fax', u'other_fax',
-                            u'mobile', u'pager',
-                            u'company_main', u'assistant',
-                            u'car', u'radio', u'isdn', u'callback',
-                            u'telex', u'tty_tdd', u'work_mobile',
-                            u'work_pager', u'main', u'grand_central'],},},
-  u'relations':
-    {PROPERTY_CLASS: PC_ARRAY, PROPERTY_TITLE: u'Relations',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: None,
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'spouse', u'child', u'mother',
-                            u'father', u'parent', u'brother',
-                            u'sister', u'friend', u'relative',
-                            u'domestic_partner', u'manager', u'assistant',
-                            u'referred_by', u'partner'],},},
-  u'websites':
-    {PROPERTY_CLASS: PC_ARRAY, PROPERTY_TITLE: u'Websites',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: None,
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'work',
-                            u'home_page', u'ftp', u'blog',
-                            u'profile', u'other', u'reservations',
-                            u'app_install_page'],},},
-  u'customSchemas':
-    {PROPERTY_CLASS: PC_SCHEMAS, PROPERTY_TITLE: u'Custom Schemas',
-     PROPERTY_TYPE_KEYWORDS:
-       {PTKW_CL_TYPE_KEYWORD: u'type', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom',
-        PTKW_ATTR_TYPE_KEYWORD: u'type', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-        PTKW_KEYWORD_LIST: [u'custom', u'home', u'other', u'work'],},},
-  u'aliases': {
-    PROPERTY_CLASS: PC_ALIASES, PROPERTY_TITLE: u'Email Aliases',},
-  u'nonEditableAliases': {
-    PROPERTY_CLASS: PC_ALIASES, PROPERTY_TITLE: u'Non-Editable Aliases',},
-  }
-#
-IM_PROTOCOLS = {
-  PTKW_CL_TYPE_KEYWORD: u'protocol', PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom_protocol',
-  PTKW_ATTR_TYPE_KEYWORD: u'protocol', PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom_protocol', PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customProtocol',
-  PTKW_KEYWORD_LIST: [u'custom_protocol', u'aim', u'gtalk', u'icq', u'jabber', u'msn', u'net_meeting', u'qq', u'skype', u'xmpp', u'yahoo']
-  }
-
 # These values can be translated into other languages
 PHRASE_ACCESS_FORBIDDEN = u'Access Forbidden'
 PHRASE_ACTION_APPLIED = u'Action Applied'
@@ -1454,17 +1301,6 @@ def dehtml(text):
     print_exc(file=sys.stderr)
     return text
 
-# Concatenate list members, any item containing spaces is enclosed in ''
-def makeQuotedList(items):
-  qstr = u''
-  for item in items:
-    if item and (item.find(u' ') == -1) and (item.find(u',') == -1):
-      qstr += item
-    else:
-      qstr += u"'"+item+u"'"
-    qstr += u' '
-  return qstr[:-1] if len(qstr) > 0 else u''
-
 # Format a key value list
 #   key, value	-> "key: value" + ", " if not last item
 #   key, ''	-> "key:" + ", " if not last item
@@ -1595,17 +1431,7 @@ def noPythonSSLExit():
   systemErrorExit(CERTIFICATE_VALIDATION_UNSUPPORTED_RC, MESSAGE_NO_PYTHON_SSL)
 
 def usageErrorExit(message, extraneous=False):
-  args = CLArgs.AllArguments()
-  loc = CLArgs.Location()
-  if extraneous:
-    sys.stderr.write(convertUTF8(u'Command: {0} >>>{1}<<<\n'.format(makeQuotedList(args[:loc]),
-                                                                    makeQuotedList(args[loc:]))))
-  elif CLArgs.ArgumentsRemaining():
-    sys.stderr.write(convertUTF8(u'Command: {0} >>>{1}<<< {2}\n'.format(makeQuotedList(args[:loc]),
-                                                                        makeQuotedList([args[loc]]),
-                                                                        makeQuotedList(args[loc+1:]))))
-  else:
-    sys.stderr.write(convertUTF8(u'Command: {0} >>><<<\n'.format(makeQuotedList(args))))
+  sys.stderr.write(convertUTF8(CLArgs.CommandLineWithBadArgumentMarked(extraneous)))
   stderrErrorMsg(message)
   sys.stderr.write(u'Help: Documentation is at {0}\n'.format(GAM_WIKI))
   sys.exit(USAGE_ERROR_RC)
@@ -2111,35 +1937,35 @@ def getInteger(minVal=None, maxVal=None):
 #    PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
 #    PTKW_KEYWORD_LIST: [u'a', u'b', u'c']
 #    }
-def getKeywordAttribute(keywords, attrdict, **opts):
+def getKeywordAttribute(UProp, keywords, attrdict, **opts):
   if CLArgs.ArgumentsRemaining():
     keyword = CLArgs.Current().strip().lower()
-    if keyword in keywords[PTKW_KEYWORD_LIST]:
+    if keyword in keywords[UProp.PTKW_KEYWORD_LIST]:
       CLArgs.Advance()
-      attrdict[keywords[PTKW_ATTR_TYPE_KEYWORD]] = keyword
-      if keyword != keywords[PTKW_CL_CUSTOMTYPE_KEYWORD]:
+      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keyword
+      if keyword != keywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
         return
       if CLArgs.ArgumentsRemaining():
         customType = CLArgs.Current().strip()
         if customType:
           CLArgs.Advance()
-          attrdict[keywords[PTKW_ATTR_TYPE_KEYWORD]] = keywords[PTKW_ATTR_TYPE_CUSTOM_VALUE]
-          attrdict[keywords[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = customType
+          attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+          attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = customType
           return
       missingArgumentExit(u'custom attribute type')
     elif DEFAULT_CHOICE in opts:
-      attrdict[keywords[PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
+      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
       return
-    elif not keywords[PTKW_CL_CUSTOMTYPE_KEYWORD]:
-      attrdict[keywords[PTKW_ATTR_TYPE_KEYWORD]] = keywords[PTKW_ATTR_TYPE_CUSTOM_VALUE]
-      attrdict[keywords[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = CLArgs.Current()
+    elif not keywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
+      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+      attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = CLArgs.Current()
       CLArgs.Advance()
       return
-    invalidChoiceExit(keywords[PTKW_KEYWORD_LIST])
+    invalidChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST])
   elif DEFAULT_CHOICE in opts:
-    attrdict[keywords[PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
+    attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
     return
-  missingChoiceExit(keywords[PTKW_KEYWORD_LIST])
+  missingChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST])
 
 def orgUnitPathQuery(path):
   return u"orgUnitPath='{0}'".format(path.replace(u"'", u"\'"))
@@ -5480,7 +5306,7 @@ def doBatch():
         elif cmd == COMMIT_BATCH_CMD:
           items.append([cmd])
         else:
-          sys.stderr.write(u'Command: >>>{0}<<< {1}\n'.format(makeQuotedList([argv[0]]), makeQuotedList(argv[1:])))
+          sys.stderr.write(u'Command: >>>{0}<<< {1}\n'.format(CLArgs.QuotedArgumentList([argv[0]]), CLArgs.QuotedArgumentList(argv[1:])))
           stderrErrorMsg(u'{0}: {1} <{2}>'.format(ARGUMENT_ERROR_NAMES[ARGUMENT_INVALID][1],
                                                   PHRASE_EXPECTED,
                                                   formatChoiceList([GAM_CMD, COMMIT_BATCH_CMD])))
@@ -6468,6 +6294,7 @@ def doReport():
           accessErrorExit(None)
       if exitUserLoop:
         break
+    sortCSVTitles([u'email', u'date'], titles)
     writeCSVfile(csvRows, titles, u'User Reports - {0}'.format(try_date), todrive)
   elif report == u'customer':
     titles, csvRows = initializeTitlesCSVfile([u'name', u'value', u'client_id'])
@@ -6493,7 +6320,7 @@ def doReport():
                   app = {}
                   for an_item in subitem:
                     if an_item == u'client_name':
-                      app[u'name'] = u'App: {0}'.format(subitem[an_item])
+                      app[u'name'] = u'App: {0}'.format(convertCRsNLs(subitem[an_item]))
                     elif an_item == u'num_users':
                       app[u'value'] = u'{0} users'.format(subitem[an_item])
                     elif an_item == u'client_id':
@@ -14256,6 +14083,8 @@ ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
   }
 
 def getUserAttributes(cd, updateCmd=False, noUid=False):
+  from gamlib import gluprop as UProp
+
   def clearBodyList(body, itemName):
     if itemName in body:
       del body[itemName]
@@ -14302,11 +14131,11 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       need_to_hash_password = False
     elif myarg in UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP:
       up = UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP[myarg]
-      userProperty = USER_PROPERTIES[up]
-      propertyClass = userProperty[PROPERTY_CLASS]
-      if PROPERTY_TYPE_KEYWORDS in userProperty:
-        typeKeywords = userProperty[PROPERTY_TYPE_KEYWORDS]
-        clTypeKeyword = typeKeywords[PTKW_CL_TYPE_KEYWORD]
+      userProperty = UProp.PROPERTIES[up]
+      propertyClass = userProperty[UProp.CLASS]
+      if UProp.TYPE_KEYWORDS in userProperty:
+        typeKeywords = userProperty[UProp.TYPE_KEYWORDS]
+        clTypeKeyword = typeKeywords[UProp.PTKW_CL_TYPE_KEYWORD]
       if up == u'givenName':
         body.setdefault(u'name', {})
         body[u'name'][up] = getString(OB_STRING, minLen=0)
@@ -14318,7 +14147,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         body[up] = getString(OB_STRING)
         if body[up].lower() == u'random':
           need_password = True
-      elif propertyClass == PC_BOOLEAN:
+      elif propertyClass == UProp.PC_BOOLEAN:
         body[up] = getBoolean()
       elif up == u'hashFunction':
         body[up] = HASH_FUNCTION_MAP[myarg]
@@ -14335,7 +14164,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword,])
-        getKeywordAttribute(typeKeywords, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
           entry[u'sourceIsStructured'] = False
           entry[u'formatted'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
@@ -14359,9 +14188,9 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword,])
-        getKeywordAttribute(typeKeywords, entry)
-        getChoice([IM_PROTOCOLS[PTKW_CL_TYPE_KEYWORD],])
-        getKeywordAttribute(IM_PROTOCOLS, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
+        getChoice([UProp.IM_PROTOCOLS[UProp.PTKW_CL_TYPE_KEYWORD],])
+        getKeywordAttribute(UProp, UProp.IM_PROTOCOLS, entry)
         # Backwards compatability: notprimary|primary on either side of IM address
         entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
         entry[u'im'] = getString(OB_STRING, minLen=0)
@@ -14372,7 +14201,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getKeywordAttribute(typeKeywords, entry, defaultChoice=u'text_plain')
+        getKeywordAttribute(UProp, typeKeywords, entry, defaultChoice=u'text_plain')
         if checkArgumentPresent(FILE_ARGUMENT):
           entry[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
         else:
@@ -14386,10 +14215,10 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         while CLArgs.ArgumentsRemaining():
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(typeKeywords, entry)
-          elif argument == typeKeywords[PTKW_CL_CUSTOMTYPE_KEYWORD]:
-#            entry[typeKeywords[PTKW_ATTR_TYPE_KEYWORD]] = typeKeywords[PTKW_ATTR_TYPE_CUSTOM_VALUE]
-            entry[typeKeywords[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(OB_STRING)
+            getKeywordAttribute(UProp, typeKeywords, entry)
+          elif argument == typeKeywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
+#            entry[typeKeywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = typeKeywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+            entry[typeKeywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(OB_STRING)
           elif argument in ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
             value = getString(OB_STRING, minLen=0)
             if value:
@@ -14410,7 +14239,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         while CLArgs.ArgumentsRemaining():
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(typeKeywords, entry)
+            getKeywordAttribute(UProp, typeKeywords, entry)
           elif argument == u'value':
             entry[u'value'] = getString(OB_STRING, minLen=0)
           elif argument == u'notprimary':
@@ -14426,7 +14255,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getKeywordAttribute(typeKeywords, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'emails':
@@ -14434,7 +14263,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getKeywordAttribute(typeKeywords, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'address'] = getEmailAddress(noUid=True, minLen=0)
         appendItemToBodyList(body, up, entry, u'address')
       elif up == u'externalIds':
@@ -14442,7 +14271,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getKeywordAttribute(typeKeywords, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'websites':
@@ -14450,7 +14279,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getKeywordAttribute(typeKeywords, entry)
+        getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(OB_URL, minLen=0)
         entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
         appendItemToBodyList(body, up, entry, u'value')
@@ -14480,11 +14309,11 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       body[up].setdefault(schemaName, {})
       if checkArgumentPresent(MULTIVALUE_ARGUMENT):
         body[up][schemaName].setdefault(fieldName, [])
-        typeKeywords = USER_PROPERTIES[up][PROPERTY_TYPE_KEYWORDS]
-        clTypeKeyword = typeKeywords[PTKW_CL_TYPE_KEYWORD]
+        typeKeywords = UProp.PROPERTIES[up][UProp.TYPE_KEYWORDS]
+        clTypeKeyword = typeKeywords[UProp.PTKW_CL_TYPE_KEYWORD]
         schemaValue = {}
         if checkArgumentPresent([clTypeKeyword,]):
-          getKeywordAttribute(typeKeywords, schemaValue)
+          getKeywordAttribute(UProp, typeKeywords, schemaValue)
         schemaValue[u'value'] = getString(OB_STRING)
         body[up][schemaName][fieldName].append(schemaValue)
       else:
@@ -14803,6 +14632,8 @@ def doInfoUser():
     infoUsers([credentials.id_token[u'email']])
 
 def infoUsers(entityList):
+  from gamlib import gluprop as UProp
+
   cd = buildGAPIObject(DIRECTORY_API)
   getSchemas = getAliases = getGroups = getLicenses = True
   formatJSON = False
@@ -14900,25 +14731,25 @@ def infoUsers(entityList):
       if u'name' in user:
         for up in USER_NAME_PROPERTY_PRINT_ORDER:
           if up in user[u'name']:
-            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], user[u'name'][up]])
+            printKeyValueList([UProp.PROPERTIES[up][UProp.TITLE], user[u'name'][up]])
       for up in USER_SCALAR_PROPERTY_PRINT_ORDER:
         if up in user:
           if up not in USER_TIME_OBJECTS:
-            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], user[up]])
+            printKeyValueList([UProp.PROPERTIES[up][UProp.TITLE], user[up]])
           else:
-            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], formatLocalTime(user[up])])
+            printKeyValueList([UProp.PROPERTIES[up][UProp.TITLE], formatLocalTime(user[up])])
       Indent.Decrement()
       for up in USER_ARRAY_PROPERTY_PRINT_ORDER:
         if up not in user:
           continue
         propertyValue = user[up]
-        userProperty = USER_PROPERTIES[up]
-        propertyClass = userProperty[PROPERTY_CLASS]
-        propertyTitle = userProperty[PROPERTY_TITLE]
-        typeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_KEYWORD]
-        typeCustomValue = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_CUSTOM_VALUE]
-        customTypeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_CUSTOMTYPE_KEYWORD]
-        if propertyClass == PC_ARRAY:
+        userProperty = UProp.PROPERTIES[up]
+        propertyClass = userProperty[UProp.CLASS]
+        propertyTitle = userProperty[UProp.TITLE]
+        typeKey = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_TYPE_KEYWORD]
+        typeCustomValue = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+        customTypeKey = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]
+        if propertyClass == UProp.PC_ARRAY:
           if len(propertyValue) > 0:
             printKeyValueList([propertyTitle, None])
             Indent.Increment()
@@ -14934,7 +14765,7 @@ def infoUsers(entityList):
             else:
               printKeyValueList([propertyClass, propertyValue])
             Indent.Decrement()
-        elif propertyClass == PC_ADDRESSES:
+        elif propertyClass == UProp.PC_ADDRESSES:
           if len(propertyValue) > 0:
             printKeyValueList([propertyTitle, None])
             Indent.Increment()
@@ -14952,7 +14783,7 @@ def infoUsers(entityList):
             else:
               printKeyValueList([propertyClass, propertyValue])
             Indent.Decrement()
-        elif propertyClass == PC_EMAILS:
+        elif propertyClass == UProp.PC_EMAILS:
           if len(propertyValue) > 0:
             needTitle = True
             if isinstance(propertyValue, list):
@@ -14977,14 +14808,14 @@ def infoUsers(entityList):
               printKeyValueList([propertyClass, propertyValue])
             if not needTitle:
               Indent.Decrement()
-        elif propertyClass == PC_IMS:
+        elif propertyClass == UProp.PC_IMS:
           if len(propertyValue) > 0:
             printKeyValueList([propertyTitle, None])
             Indent.Increment()
             if isinstance(propertyValue, list):
-              protocolKey = IM_PROTOCOLS[PTKW_ATTR_TYPE_KEYWORD]
-              protocolCustomValue = IM_PROTOCOLS[PTKW_ATTR_TYPE_CUSTOM_VALUE]
-              customProtocolKey = IM_PROTOCOLS[PTKW_ATTR_CUSTOMTYPE_KEYWORD]
+              protocolKey = UProp.IM_PROTOCOLS[UProp.PTKW_ATTR_TYPE_KEYWORD]
+              protocolCustomValue = UProp.IM_PROTOCOLS[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+              customProtocolKey = UProp.IM_PROTOCOLS[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]
               for row in propertyValue:
                 _showType(up, row, typeKey, typeCustomValue, customTypeKey)
                 Indent.Increment()
@@ -14997,7 +14828,7 @@ def infoUsers(entityList):
             else:
               printKeyValueList([propertyClass, propertyValue])
             Indent.Decrement()
-        elif propertyClass == PC_NOTES:
+        elif propertyClass == UProp.PC_NOTES:
           if len(propertyValue) > 0:
             printKeyValueList([propertyTitle, None])
             Indent.Increment()
@@ -15017,12 +14848,12 @@ def infoUsers(entityList):
         up = u'customSchemas'
         if up in user:
           propertyValue = user[up]
-          userProperty = USER_PROPERTIES[up]
-          propertyTitle = userProperty[PROPERTY_TITLE]
-          typeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_KEYWORD]
-          typeCustomValue = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_TYPE_CUSTOM_VALUE]
-          customTypeKey = userProperty[PROPERTY_TYPE_KEYWORDS][PTKW_ATTR_CUSTOMTYPE_KEYWORD]
-          printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], None])
+          userProperty = UProp.PROPERTIES[up]
+          propertyTitle = userProperty[UProp.TITLE]
+          typeKey = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_TYPE_KEYWORD]
+          typeCustomValue = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+          customTypeKey = userProperty[UProp.TYPE_KEYWORDS][UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]
+          printKeyValueList([UProp.PROPERTIES[up][UProp.TITLE], None])
           Indent.Increment()
           for schema in propertyValue:
             printKeyValueList([u'Schema', schema])
@@ -15045,7 +14876,7 @@ def infoUsers(entityList):
         for up in [u'aliases', u'nonEditableAliases',]:
           if up in user:
             propertyValue = user[up]
-            printKeyValueList([USER_PROPERTIES[up][PROPERTY_TITLE], None])
+            printKeyValueList([UProp.PROPERTIES[up][UProp.TITLE], None])
             Indent.Increment()
             for alias in propertyValue:
               printKeyValueList([alias])
@@ -24170,5 +24001,6 @@ if __name__ == "__main__":
     sys.setdefaultencoding(u'UTF-8')
   if sys.platform.startswith('win'):
     win32_unicode_argv() # cleanup sys.argv on Windows
+  logging.basicConfig()
   logging.raiseExceptions = False
   sys.exit(ProcessGAMCommand(sys.argv))

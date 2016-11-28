@@ -5,6 +5,7 @@ not the list of email addresses. If any of the members, managers or owners argum
     gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
 	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])] [convertcrnl] [delimiter <String>]
 	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
+
 4.34.02
 
 Added allfields argument to gam print groups; this selects all of the basic group settings and all of the extended groups settings.
