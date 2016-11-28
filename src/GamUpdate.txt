@@ -1,3 +1,32 @@
+4.34.06
+
+Reverted to multi-threading, multi-processing was causing errors.
+
+Added argument columndelimiter <String> to all places where a CSV file can be specified to allow specification of an alternate column delimiter.
+    <CrOSTypeEntity> ::=
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvkmd cros <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+    <UserTypeEntity> ::=
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+    <CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			    (matchfield <FieldName> <RegularExpression>)*
+			    [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+    <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
+    gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+    gam loop <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+
+Note!!! Syntax changed; delimiter was changed to columndelimiter in the redirect argument.
+    <Redirect> ::=
+	redirect [csv <FileName> [append] [noheader] [charset <Charset>] [columndelimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
+
 4.34.05
 
 Fix error in gam print groups.

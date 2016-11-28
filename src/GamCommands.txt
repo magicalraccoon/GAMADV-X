@@ -418,7 +418,7 @@ Specify a collection of ChromeOS devices by directly specifying them
 		(all cros)|
 		(cros <CrOSList>)|
 		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
-		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
 		(cros_ou|cros_org <OrgUnitPath>)|
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath>)|
@@ -426,7 +426,7 @@ Specify a collection of ChromeOS devices by directly specifying them
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList>)|
 		(args cros <Marker> <CrOSID>* <Marker>)|
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvkmd cros <FileName> [charset <Charset>] [fields <FieldNameList>]
+		(csvkmd cros <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
@@ -444,7 +444,7 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)|
 		(groups <GroupList>)|
@@ -456,7 +456,7 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(teachers <CourseIDList>)|
 		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [fields <FieldNameList>]
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
@@ -464,12 +464,12 @@ Specify a collection of Users by directly specifying them or by specifiying item
 
 Specify a collection of items by directly specifying them; the item type is determined by context.
 <ArgsSelector> ::= args <Marker> <String>* <Marker>
-<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [fields <FieldNameList>]
+<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			    (matchfield <FieldName> <RegularExpression>)*
 			    [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
 <CSVDataSelector> ::= csvdata <FieldName>
-<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>])
+<FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
 
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 <CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
@@ -673,7 +673,7 @@ The verify argument causes Gam to print all variable values.
 Specify file redirection. If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 For redirect csv, the optional arguments must appear in the order shown.
 <Redirect> ::=
-	redirect [csv <FileName> [append] [noheader] [charset <Charset>] [delimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
+	redirect [csv <FileName> [append] [noheader] [charset <Charset>] [columndelimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
 
 [<Select>] [<Config>] [<Redirect>] must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
 gam [<Select>] [<Config>] [<Redirect>] ...
@@ -684,9 +684,9 @@ gam version [check] [simple]
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
-gam loop <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam loop <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
 You can make substitutions in <GAMArgumentList> with values from the CSV file.
 An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file

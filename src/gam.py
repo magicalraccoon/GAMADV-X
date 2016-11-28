@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.34.05'
+__version__ = u'4.35.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -142,6 +142,8 @@ GM_GAM_PATH = u'gpth'
 GM_WINDOWS = u'wndo'
 # Encodings
 GM_SYS_ENCODING = u'syen'
+# Shared by batch_worker and run_batch
+GM_BATCH_QUEUE = u'batq'
 # Extra arguments to pass to GAPI functions
 GM_EXTRA_ARGS_LIST = u'exad'
 # GAM admin user
@@ -194,6 +196,7 @@ GM_Globals = {
   GM_GAM_PATH: os.path.dirname(os.path.realpath(__file__)) if not getattr(sys, u'frozen', False) else os.path.dirname(sys.executable),
   GM_WINDOWS: os.name == u'nt',
   GM_SYS_ENCODING: DEFAULT_CHARSET,
+  GM_BATCH_QUEUE: None,
   GM_EXTRA_ARGS_LIST:  [(u'prettyPrint', False)],
   GM_ADMIN: None,
   GM_CURRENT_API_USER: None,
@@ -1014,6 +1017,7 @@ GAM_META_COMMANDS = [SELECT_CMD, CONFIG_CMD, REDIRECT_CMD,]
 #
 CLEAR_NONE_ARGUMENT = [u'clear', u'none',]
 CLIENTID_ARGUMENT = [u'clientid',]
+COLUMN_DELIMITER_ARGUMENT = [u'columndelimiter',]
 DATAFIELD_ARGUMENT = [u'datafield',]
 DATA_ARGUMENT = [u'data',]
 FILE_ARGUMENT = [u'file',]
@@ -2808,15 +2812,19 @@ class UnicodeDictWriter(csv.DictWriter, object):
     super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=u'nixstdout', *args, **kwds)
     self.writer = UnicodeWriter(f, dialect, **kwds)
 
-# Open a CSV file, get optional arguments [charset <String>] [fields <FieldNameList>]
+# Open a CSV file, get optional arguments [charset <String>] [columndelimiter <String>] [fields <FieldNameList>]
 def openCSVFileReader(filename):
   encoding = getCharSet()
+  if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
+    delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+  else:
+    delimiter = GC_Values.get(GC_CSV_INPUT_COLUMN_DELIMITER, GC_Defaults[GC_CSV_INPUT_COLUMN_DELIMITER])
   if checkArgumentPresent([u'fields',]):
     fieldnames = shlexSplitList(getString(OB_FIELD_NAME_LIST))
   else:
     fieldnames = None
   f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(GC_Values[GC_CSV_INPUT_COLUMN_DELIMITER]))
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter))
   return (f, csvFile)
 
 # Set global variables from config file
@@ -3166,7 +3174,7 @@ def SetGlobalVariables():
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
     GM_Globals[GM_OAUTH2_CLIENT_ID] = None
-# redirect [csv <FileName> [append] [noheader] [charset <CharSet>] [delimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
+# redirect [csv <FileName> [append] [noheader] [charset <CharSet>] [columndelimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
   if checkArgumentPresent([REDIRECT_CMD,]):
     while CLArgs.ArgumentsRemaining():
       myarg = getChoice([u'csv', u'stdout', u'stderr'], defaultChoice=None)
@@ -3177,7 +3185,7 @@ def SetGlobalVariables():
         mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
         writeHeader = False if checkArgumentPresent([u'noheader',]) else True
         encoding = getCharSet()
-        if checkArgumentPresent([u'delimiter',]):
+        if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
           GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER] = getString(OB_STRING, minLen=1, maxLen=1)
         _setCSVFile(filename, mode, encoding, writeHeader)
       elif myarg == u'stdout':
@@ -4720,7 +4728,7 @@ def getEntitiesFromFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName>(:<FieldName>)+ [charset <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
+# <FileName>(:<FieldName>)+ [charset <String>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
 def getEntitiesFromCSVFile(shlexSplit):
   try:
     fileFieldNameList = getString(OB_FILE_NAME_FIELD_NAME).split(u':')
@@ -4748,7 +4756,7 @@ def getEntitiesFromCSVFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] [fields <FieldNameList>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
+# <FileName> [charset <String>] [columndelimiter <String>] [fields <FieldNameList>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
 def getEntitiesFromCSVbyField():
   filename = getString(OB_FILE_NAME)
   f, csvFile = openCSVFileReader(filename)
@@ -5265,22 +5273,40 @@ gam.exe update group announcements add member jsmith
 '''.format(GAM_WIKI))
 
 # Utilities for batch/csv
+def batch_worker():
+  import subprocess
+  while True:
+    item = GM_Globals[GM_BATCH_QUEUE].get()
+    subprocess.call(item, stderr=subprocess.STDOUT)
+    GM_Globals[GM_BATCH_QUEUE].task_done()
+
 def run_batch(items):
-  from multiprocessing import Pool
-  num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
-  pool = Pool(processes=num_worker_threads)
-  sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
+  import Queue
+  import threading
+
+  current_item = 0
+  total_items = len(items)
+  python_cmd = [sys.executable.lower(),]
+  if not getattr(sys, u'frozen', False): # we're not frozen
+    python_cmd.append(os.path.realpath(CLArgs.Argument(0)))
+  num_worker_threads = min(total_items, GC_Values[GC_NUM_THREADS])
+  GM_Globals[GM_BATCH_QUEUE] = Queue.Queue(maxsize=num_worker_threads) # GM_Globals[GM_BATCH_QUEUE].put() gets blocked when trying to create more items than there are workers
+  sys.stderr.write(PHRASE_STARTING_N_WORKER_THREADS.format(num_worker_threads))
+  for _ in range(num_worker_threads):
+    t = threading.Thread(target=batch_worker)
+    t.daemon = True
+    t.start()
   for item in items:
-    if item[0] == u'commit-batch':
-      sys.stderr.write(u'commit-batch - waiting for running processes to finish before proceeding...')
-      pool.close()
-      pool.join()
-      pool = Pool(processes=num_worker_threads)
-      sys.stderr.write(u'done with commit-batch\n')
+    current_item += 1
+    if not current_item % 100:
+      sys.stderr.write(u'{0} {1} / {2}\n'.format(PHRASE_STARTING_THREAD, current_item, total_items))
+    if item[0] == COMMIT_BATCH_CMD:
+      sys.stderr.write(u'{0} - {1}\n'.format(COMMIT_BATCH_CMD, PHRASE_WAITING_FOR_PROCESSES_TO_COMPLETE))
+      GM_Globals[GM_BATCH_QUEUE].join()
+      sys.stderr.write(u'{0} - {1}\n'.format(COMMIT_BATCH_CMD, PHRASE_COMPLETE))
       continue
-    pool.apply_async(ProcessGAMCommand, [item])
-  pool.close()
-  pool.join()
+    GM_Globals[GM_BATCH_QUEUE].put(python_cmd+item[1:])
+  GM_Globals[GM_BATCH_QUEUE].join()
 
 # gam batch <FileName>|- [charset <Charset>]
 def doBatch():
@@ -5400,7 +5426,7 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
-# gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
+# gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doCSV():
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -23898,7 +23924,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
     sys.stderr = savedStderr
   return GM_Globals[GM_SYSEXITRC]
 
-# gam loop <FileName>|- [charset <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
+# gam loop <FileName>|- [charset <String>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doLoop(processGamCfg=True):
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -23935,38 +23961,8 @@ def doLoop(processGamCfg=True):
       processGamCfg = nextProcessGamCfg
   closeFile(f)
 
-# From: https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
 #
 if sys.platform.startswith('win'):
-  from multiprocessing import freeze_support
-  try:
-    import multiprocessing.popen_spawn_win32 as forking
-  except ImportError:
-    import multiprocessing.forking as forking
-
-  # First define a modified version of Popen.
-  class _Popen(forking.Popen):
-    def __init__(self, *args, **kw):
-      if hasattr(sys, 'frozen'):
-        # We have to set original _MEIPASS2 value from sys._MEIPASS
-        # to get --onefile mode working.
-        os.putenv('_MEIPASS2', sys._MEIPASS)
-      try:
-        super(_Popen, self).__init__(*args, **kw)
-      finally:
-        if hasattr(sys, 'frozen'):
-          # On some platforms (e.g. AIX) 'os.unsetenv()' is not
-          # available. In those cases we cannot delete the variable
-          # but only set it to the empty string. The bootloader
-          # can handle this case.
-          if hasattr(os, 'unsetenv'):
-            os.unsetenv('_MEIPASS2')
-          else:
-            os.putenv('_MEIPASS2', '')
-
-  # Second override 'Popen' class with our modified version.
-  forking.Popen = _Popen
-
   def win32_unicode_argv():
     from ctypes import POINTER, byref, cdll, c_int, windll
     from ctypes.wintypes import LPCWSTR, LPWSTR
@@ -23989,8 +23985,6 @@ if sys.platform.startswith('win'):
 
 # Run from command line
 if __name__ == "__main__":
-  if sys.platform.startswith('win'):
-    freeze_support()
   reload(sys)
   if hasattr(sys, u'setdefaultencoding'):
     sys.setdefaultencoding(u'UTF-8')

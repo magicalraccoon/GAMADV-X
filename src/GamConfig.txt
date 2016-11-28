@@ -93,6 +93,7 @@ contact_max_results
 	Environment variable: GAM_CONTACT_MAX_RESULTS
 csv_input_column_delimiter
 	Column delimiter used when reading CSV files; this must be a single character
+	All places where an input CSV file can be specified have an argument columndelimiter <String> that can override this value.
 	Default: ','
 	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
 csv_output_convert_cr_nl
@@ -103,7 +104,7 @@ csv_output_convert_cr_nl
 	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
 csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
-	The redirect csv <FileName> [append] [charset <CharSet>] [delimiter <Character>] can override this value.
+	The argument redirect csv <FileName> [append] [charset <CharSet>] [columndelimiter <Character>] can override this value.
 	Default: ','
 	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
 csv_output_field_delimiter
