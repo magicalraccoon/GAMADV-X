@@ -12373,6 +12373,8 @@ def doPrintGroups():
       convertCRNL = True
     elif myarg == u'delimiter':
       delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    elif myarg == u'settings':
+      getSettings = sortHeaders = True
     elif myarg == u'allfields':
       getSettings = sortHeaders = True
       cdfieldsList = []
@@ -12414,8 +12416,6 @@ def doPrintGroups():
         ownersCountOnly = True
     elif myarg == u'countsonly':
       membersCountOnly = managersCountOnly = ownersCountOnly = True
-    elif myarg == u'settings':
-      getSettings = True
     else:
       unknownArgumentExit()
   if cdfieldsList:
