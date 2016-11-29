@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.35.00'
+__version__ = u'4.35.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2477,6 +2477,10 @@ def printGettingAllEntityItemsForWhom(entityItem, forWhom, i=0, count=0, qualifi
 def printGettingEntityItemsForWhomDoneInfo(count, qualifier=u''):
   if GC_Values[GC_SHOW_GETTINGS]:
     sys.stderr.write(u'{0} {1} {2}{3} {4} {5}...\n'.format(PHRASE_GOT, count, Entity.ChooseGetting(count), qualifier, PHRASE_FOR, Entity.GettingForWhom()))
+
+def printGettingEntityItem(entityType, entityItem, i=0, count=0):
+  if GC_Values[GC_SHOW_GETTINGS]:
+    sys.stderr.write(u'{0} {1} {2}{3}'.format(PHRASE_GETTING, Entity.Singular(entityType), entityItem, currentCountNL(i, count)))
 
 FIRST_ITEM_MARKER = u'%%first_item%%'
 LAST_ITEM_MARKER = u'%%last_item%%'
@@ -12260,6 +12264,13 @@ def doPrintGroups():
           row[key] = setting_value
     csvRows.append(row)
 
+  def _callbackProcessGroupBasic(request_id, response, exception):
+    ri = request_id.splitlines()
+    if exception is not None:
+      entityUnknownWarning(Entity.GROUP, ri[RI_ENTITY], int(ri[RI_I]), int(ri[RI_COUNT]))
+    else:
+      entityList.append(response)
+
   def _callbackProcessGroupMembers(request_id, response, exception):
     def _writeRowIfComplete(i):
       if groupData[i][u'settings'] is False:
@@ -12342,7 +12353,7 @@ def doPrintGroups():
   titles, csvRows = initializeTitlesCSVfile(None)
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
   rolesList = []
-  entityList = None
+  entitySelection = None
   groupData = {}
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -12355,7 +12366,7 @@ def doPrintGroups():
       usemember = getEmailAddress()
       customer = None
     elif myarg == u'select':
-      entityList = getEntityList(OB_GROUP_ENTITY)
+      entitySelection = getEntityList(OB_GROUP_ENTITY)
     elif myarg == u'maxresults':
       maxResults = getInteger(minVal=1)
     elif myarg in [u'convertcrnl', u'converttextnl', u'convertfooternl']:
@@ -12408,9 +12419,10 @@ def doPrintGroups():
     else:
       unknownArgumentExit()
   if cdfieldsList:
-    cdfields = u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList)))
+    cdfields = u','.join(set(cdfieldsList))
+    cdfieldsnp = u'nextPageToken,groups({0})'.format(cdfields)
   else:
-    cdfields = None
+    cdfields = cdfieldsnp = None
   if gsfieldsList:
     getSettings = True
     gsfields = u','.join(set(gsfieldsList))
@@ -12420,7 +12432,8 @@ def doPrintGroups():
     gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(rolesList)))
   rolesOrSettings = roles or getSettings
-  if entityList is None:
+  bsize = GC_Values[GC_BATCH_SIZE]
+  if entitySelection is None:
     printGettingAccountEntitiesInfo(Entity.GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
     try:
@@ -12428,7 +12441,7 @@ def doPrintGroups():
                                  page_message=page_message, message_attribute=u'email',
                                  throw_reasons=[GAPI_INVALID_MEMBER, GAPI_DOMAIN_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                                  customer=customer, domain=domain, userKey=usemember,
-                                 fields=cdfields, maxResults=maxResults)
+                                 fields=cdfieldsnp, maxResults=maxResults)
     except GAPI_invalidMember:
       badRequestWarning(Entity.GROUP, Entity.MEMBER, usemember)
       entityList = collections.deque()
@@ -12441,23 +12454,32 @@ def doPrintGroups():
         entityList = collections.deque()
       else:
         accessErrorExit(cd)
+  else:
+    bcount = 0
+    dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackProcessGroupBasic)
+    entityList = collections.deque()
+    i = 0
+    count = len(entitySelection)
+    for groupEntity in entitySelection:
+      i += 1
+      groupEmail = normalizeEmailAddressOrUID(groupEntity)
+      printGettingEntityItem(Entity.GROUP, groupEmail, i, count)
+      parameters = dict([(u'groupKey', groupEmail), (u'fields', cdfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])
+      dbatch.add(cd.groups().get(**parameters), request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
+      bcount += 1
+      if bcount == bsize:
+        dbatch.execute()
+        dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackProcessGroupBasic)
+        bcount = 0
+    if bcount > 0:
+      dbatch.execute()
   bcount = 0
-  bsize = GC_Values[GC_BATCH_SIZE]
   dbatch = googleapiclient.http.BatchHttpRequest()
   groupData = {}
   i = 0
   count = len(entityList)
   for groupEntity in entityList:
     i += 1
-    if not isinstance(groupEntity, dict):
-      try:
-        groupEmail = normalizeEmailAddressOrUID(groupEntity)
-        groupEntity = callGAPI(cd.groups(), u'get',
-                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                               groupKey=groupEmail, fields=cdfields)
-      except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
-        entityUnknownWarning(Entity.GROUP, groupEmail, i, count)
-        continue
     groupEmail = groupEntity[u'email']
     if not rolesOrSettings:
       _printGroupRow(groupEntity, None, None)

@@ -1,4 +1,8 @@
-4.34.06
+4.35.01
+
+Improved performance of gam print groups when select <groupEntity> is specified.
+
+4.35.00
 
 Reverted to multi-threading, multi-processing was causing errors.
 
