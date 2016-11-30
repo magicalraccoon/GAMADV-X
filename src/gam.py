@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.00'
+__version__ = u'4.36.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2835,7 +2835,7 @@ def openCSVFileReader(filename):
   else:
     fieldnames = None
   f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=delimiter)
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter))
   return (f, csvFile)
 
 # Set global variables from config file
@@ -5101,12 +5101,12 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
                             dialect=u'nixstdout',
-                            quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER])
+                            quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER]))
   else:
     csvFile = openFile(GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME], GM_Globals[GM_CSVFILE][GM_CSVFILE_MODE])
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
                                dialect=u'nixstdout', encoding=GM_Globals[GM_CSVFILE][GM_CSVFILE_ENCODING],
-                               quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER])
+                               quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER]))
   try:
     if GM_Globals[GM_CSVFILE][GM_CSVFILE_WRITE_HEADER]:
       writer.writerow(dict((item, item) for item in writer.fieldnames))
