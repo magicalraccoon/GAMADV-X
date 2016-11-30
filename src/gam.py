@@ -5468,11 +5468,15 @@ def CSVFileQueueHandler(mpQueue):
 
 def ProcessGAMCommandQueue(args, mpQueue):
   resetDefaultEncodingToUTF8()
+  logging.basicConfig()
+  logging.raiseExceptions = False
   GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = mpQueue
   ProcessGAMCommand(args)
 
 def ProcessGAMCommandNoQueue(args):
   resetDefaultEncodingToUTF8()
+  logging.basicConfig()
+  logging.raiseExceptions = False
   ProcessGAMCommand(args)
 
 # gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
