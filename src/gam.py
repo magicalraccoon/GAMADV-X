@@ -5435,9 +5435,10 @@ def resetDefaultEncodingToUTF8():
     if hasattr(sys, u'setdefaultencoding'):
       sys.setdefaultencoding(u'UTF-8')
 
-def CSVFileQueueHandler(mpQueue, csvFileInfo):
+def CSVFileQueueHandler(mpQueue, csvFileInfo, globalValues):
   resetDefaultEncodingToUTF8()
   gm_csvFile = csvFileInfo.copy()
+  gc_Values = globalValues.copy()
   titles, csvRows = initializeTitlesCSVfile(None)
   list_type = u'CSV'
   todrive = {}
@@ -5453,7 +5454,11 @@ def CSVFileQueueHandler(mpQueue, csvFileInfo):
       csvRows.extend(dataItem)
     else:
       break
-  GM_Globals[GM_CSVFILE] = gm_csvFile
+  GC_Values[GC_TODRIVE_CONVERSION] = gc_Values[GC_TODRIVE_CONVERSION]
+  GC_Values[GC_DOMAIN] = gc_Values[GC_DOMAIN]
+  GC_Values[GC_TIMEZONE] = gc_Values[GC_TIMEZONE]
+  GC_Values[GC_NO_BROWSER] = gc_Values[GC_NO_BROWSER]
+  GM_Globals[GM_CSVFILE] = gm_csvFile.copy()
   GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
   writeCSVfile(csvRows, titles, list_type, todrive)
 
@@ -5485,7 +5490,7 @@ def doCSV():
   if GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]:
     mpMgr = multiprocessing.Manager()
     mpQueue = mpMgr.Queue()
-    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue, GM_Globals[GM_CSVFILE]))
+    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue, GM_Globals[GM_CSVFILE], GC_Values))
     mpQueueHandler.start()
     for row in csvFile:
       if (not matchFields) or checkMatchFields(row, matchFields):
