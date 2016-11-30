@@ -673,7 +673,9 @@ The verify argument causes Gam to print all variable values.
 Specify file redirection. If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 For redirect csv, the optional arguments must appear in the order shown.
 <Redirect> ::=
-	redirect [csv <FileName> [append] [noheader] [charset <Charset>] [columndelimiter <Character>] [stdout <FileName> [append]] [stderr <FileName> [append]]
+	redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>] |
+	redirect stdout <FileName> [append] |
+	redirect stderr <FileName> [append]
 
 [<Select>] [<Config>] [<Redirect>] must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear
 gam [<Select>] [<Config>] [<Redirect>] ...

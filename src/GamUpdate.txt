@@ -1,3 +1,17 @@
+4.36.00
+
+Note!!! Syntax changed; the redirect argument has been changed to avoid an ambiguity. Previously, if you wanted to redirect multiple files,
+you would say: redirect csv <FileName> ... stdout <FileName> ... stderr <FileName> ...
+Now, you must put redirect before each redirected file: redirect csv <FileName> ... redirect stdout <FileName> ... redirect stderr <FileName> ...
+<Redirect> ::=
+    redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>] |
+    redirect stdout <FileName> [append] |
+    redirect stderr <FileName> [append]
+
+Added multiprocess subargument to redirect csv argument to allow the multiple processes started by gam csv to write intelligently to a single CSV file.
+    gam redirect csv UserDelegates.csv multiprocess csv Users.csv gam user ~User print delegates
+The output from each of the gam user ~User print delegates commands will be combined into the single file UserDelegates.csv.
+
 4.35.01
 
 Improved performance of gam print groups when select <groupEntity> is specified.

@@ -104,7 +104,7 @@ csv_output_convert_cr_nl
 	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
 csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
-	The argument redirect csv <FileName> [append] [charset <CharSet>] [columndelimiter <Character>] can override this value.
+	The argument redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>] can override this value.
 	Default: ','
 	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
 csv_output_field_delimiter
@@ -288,18 +288,15 @@ config [<VariableName> <Value>]* [save] [verify]
 	Print the variable values for the current section
 	Values are determined in this order: Current section, DEFAULT section, Program default
 
-The redirect argument is used to redirect output for CSV files, stdout and stderr.
-
-redirect [csv <FileName> [append] [charset <CharSet>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
-    csv <FileName> [append] [charset <CharSet>]
+redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>]
 	If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 	If <FileName> is relative, it is appended to drive_dir in the current section if defined or drive_dir in DEFAULT
 	If the GAM command writes a CSV file, it will be written to <FileName> rather than stdout
-    stdout <FileName> [append]
+redirect stdout <FileName> [append]
 	If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 	If <FileName> is relative, it is appended to drive_dir in the current section if defined or drive_dir in DEFAULT
 	GAM output to stdout will be written to <FileName>
-    stderr <FileName> [append]
+redirect stderr <FileName> [append]
 	If the pattern {{Section}} appears in <FileName>, it will be replaced with the name of the current section.
 	If <FileName> is relative, it is appended to drive_dir in the current section if defined or drive_dir in DEFAULT
 	GAM output to stderr will be written to <FileName>

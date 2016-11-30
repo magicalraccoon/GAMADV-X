@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.35.01'
+__version__ = u'4.36.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -142,8 +142,6 @@ GM_GAM_PATH = u'gpth'
 GM_WINDOWS = u'wndo'
 # Encodings
 GM_SYS_ENCODING = u'syen'
-# Shared by batch_worker and run_batch
-GM_BATCH_QUEUE = u'batq'
 # Extra arguments to pass to GAPI functions
 GM_EXTRA_ARGS_LIST = u'exad'
 # GAM admin user
@@ -160,11 +158,20 @@ GM_PARSER = u'pars'
 # gam.cfg file
 GM_GAM_CFG_PATH = u'gcpa'
 GM_GAM_CFG_FILE = u'gcfi'
-# Where will CSV files be written, encoding, mode, delimiter
-GM_CSVFILE = u'csfi'
-GM_CSVFILE_ENCODING = u'csen'
+# CSV output file: name, mode, encoding, delimiter, write header, multiproces, queue
+GM_CSVFILE = u'csvf'
+GM_CSVFILE_NAME = u'csfn'
 GM_CSVFILE_MODE = u'csmo'
+GM_CSVFILE_ENCODING = u'csen'
+GM_CSVFILE_COLUMN_DELIMITER = u'csdl'
 GM_CSVFILE_WRITE_HEADER = u'cswh'
+GM_CSVFILE_MULTIPROCESS = u'csmp'
+GM_CSVFILE_QUEUE = u'csqu'
+CSVFILE_QUEUE_NAME = u'!!name!!'
+CSVFILE_QUEUE_TODRIVE = u'!!todrive!!'
+CSVFILE_QUEUE_TITLES = u'!!titles!!'
+CSVFILE_QUEUE_ROWS = u'!!row!!'
+CSVFILE_QUEUE_EOF = u'!!eof!!'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
 # Disable GAM update check
@@ -196,7 +203,6 @@ GM_Globals = {
   GM_GAM_PATH: os.path.dirname(os.path.realpath(__file__)) if not getattr(sys, u'frozen', False) else os.path.dirname(sys.executable),
   GM_WINDOWS: os.name == u'nt',
   GM_SYS_ENCODING: DEFAULT_CHARSET,
-  GM_BATCH_QUEUE: None,
   GM_EXTRA_ARGS_LIST:  [(u'prettyPrint', False)],
   GM_ADMIN: None,
   GM_CURRENT_API_USER: None,
@@ -208,10 +214,7 @@ GM_Globals = {
   GM_PARSER: None,
   GM_GAM_CFG_PATH: u'',
   GM_GAM_CFG_FILE: u'',
-  GM_CSVFILE: None,
-  GM_CSVFILE_ENCODING: DEFAULT_CHARSET,
-  GM_CSVFILE_MODE: u'w',
-  GM_CSVFILE_WRITE_HEADER: True,
+  GM_CSVFILE: {},
   GM_CSV_DATA_DICT: {},
   GM_CSV_KEY_FIELD: None,
   GM_CSV_DATA_FIELD: None,
@@ -2175,7 +2178,7 @@ def getCalendarReminder(allowClearNone=False):
 def getCharSet():
   if checkArgumentPresent([u'charset',]):
     return getString(OB_CHAR_SET)
-  return GC_Values.get(GC_CHARSET, GM_Globals[GM_SYS_ENCODING])
+  return GC_Values[GC_CHARSET]
 
 def getDelimiter():
   if checkArgumentPresent([u'delimiter',]):
@@ -2788,17 +2791,18 @@ class UnicodeWriter(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, **kwds):
+  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', **kwds):
     # Redirect output to a queue
     import cStringIO
     self.queue = cStringIO.StringIO()
     self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
     self.stream = f
-    self.encoder = codecs.getincrementalencoder(GM_Globals[GM_CSVFILE_ENCODING])()
+    self.encoding = encoding
+    self.encoder = codecs.getincrementalencoder(self.encoding)()
 
   def writerow(self, row):
     self.writer.writerow([unicode(s).encode(u'utf-8') for s in row])
-    if GM_Globals[GM_CSVFILE_ENCODING] != u'utf-8':
+    if self.encoding != u'utf-8':
       # Fetch UTF-8 output from the queue, reencode it into the target encoding and write to the target stream
       self.stream.write(self.encoder.encode(self.queue.getvalue().decode(u'utf-8')))
     else:
@@ -2812,9 +2816,9 @@ class UnicodeWriter(object):
       self.writerow(row)
 #
 class UnicodeDictWriter(csv.DictWriter, object):
-  def __init__(self, f, fieldnames, dialect=u'nixstdout', *args, **kwds):
-    super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=u'nixstdout', *args, **kwds)
-    self.writer = UnicodeWriter(f, dialect, **kwds)
+  def __init__(self, f, fieldnames, dialect=u'nixstdout', encoding=u'utf-8', *args, **kwds):
+    super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=dialect, *args, **kwds)
+    self.writer = UnicodeWriter(f, dialect, encoding, **kwds)
 
 # Open a CSV file, get optional arguments [charset <String>] [columndelimiter <String>] [fields <FieldNameList>]
 def openCSVFileReader(filename):
@@ -2822,13 +2826,13 @@ def openCSVFileReader(filename):
   if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
     delimiter = getString(OB_STRING, minLen=1, maxLen=1)
   else:
-    delimiter = GC_Values.get(GC_CSV_INPUT_COLUMN_DELIMITER, GC_Defaults[GC_CSV_INPUT_COLUMN_DELIMITER])
+    delimiter = GC_Values[GC_CSV_INPUT_COLUMN_DELIMITER]
   if checkArgumentPresent([u'fields',]):
     fieldnames = shlexSplitList(getString(OB_FIELD_NAME_LIST))
   else:
     fieldnames = None
   f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter))
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=delimiter)
   return (f, csvFile)
 
 # Set global variables from config file
@@ -3053,7 +3057,7 @@ def SetGlobalVariables():
                                                PHRASE_NOT_FOUND],
                                               u'\n'))
 
-  def _setCSVFile(filename, mode, encoding, writeHeader):
+  def _setCSVFile(filename, mode, encoding, writeHeader, multi):
     if filename != u'-':
       if filename.startswith(u'./') or filename.startswith(u'.\\'):
         filename = os.path.join(os.getcwd(), filename[2:])
@@ -3061,10 +3065,13 @@ def SetGlobalVariables():
         filename = os.path.expanduser(filename)
       if not os.path.isabs(filename):
         filename = os.path.join(GC_Values[GC_DRIVE_DIR], filename)
-    GM_Globals[GM_CSVFILE] = filename
-    GM_Globals[GM_CSVFILE_MODE] = mode
-    GM_Globals[GM_CSVFILE_ENCODING] = encoding
-    GM_Globals[GM_CSVFILE_WRITE_HEADER] = writeHeader
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME] = filename
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_MODE] = mode
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_ENCODING] = encoding
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER] = GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER]
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_WRITE_HEADER] = writeHeader
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS] = multi
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
 
   def _setSTDFile(filename, mode):
     filename = os.path.expanduser(filename)
@@ -3178,28 +3185,28 @@ def SetGlobalVariables():
   if prevOauth2serviceJson != GC_Values[GC_OAUTH2SERVICE_JSON]:
     GM_Globals[GM_OAUTH2SERVICE_JSON_DATA] = None
     GM_Globals[GM_OAUTH2_CLIENT_ID] = None
-# redirect [csv <FileName> [append] [noheader] [charset <CharSet>] [columndelimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]]
-  if checkArgumentPresent([REDIRECT_CMD,]):
-    while CLArgs.ArgumentsRemaining():
-      myarg = getChoice([u'csv', u'stdout', u'stderr'], defaultChoice=None)
-      if not myarg:
-        break
-      filename = re.sub(r'{{Section}}', sectionName, getString(OB_FILE_NAME))
-      if myarg == u'csv':
-        mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
-        writeHeader = False if checkArgumentPresent([u'noheader',]) else True
-        encoding = getCharSet()
-        if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
-          GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER] = getString(OB_STRING, minLen=1, maxLen=1)
-        _setCSVFile(filename, mode, encoding, writeHeader)
-      elif myarg == u'stdout':
-        sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
-        if GM_Globals[GM_CSVFILE] == u'-':
-          GM_Globals[GM_CSVFILE] = None
-      else:
-        sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
+# redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]
+# redirect stdout <FileName> [append]
+# redirect stderr <FileName> [append]
+  while checkArgumentPresent([REDIRECT_CMD,]):
+    myarg = getChoice([u'csv', u'stdout', u'stderr'])
+    filename = re.sub(r'{{Section}}', sectionName, getString(OB_FILE_NAME))
+    if myarg == u'csv':
+      multi = checkArgumentPresent([u'multiprocess',])
+      mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
+      writeHeader = False if checkArgumentPresent([u'noheader',]) else True
+      encoding = getCharSet()
+      if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
+        GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER] = getString(OB_STRING, minLen=1, maxLen=1)
+      _setCSVFile(filename, mode, encoding, writeHeader, multi)
+    elif myarg == u'stdout':
+      sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
+      if GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME] == u'-':
+        GM_Globals[GM_CSVFILE] = {}
+    else:
+      sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
   if not GM_Globals[GM_CSVFILE]:
-    _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET], True)
+    _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET], True, False)
   if not GM_Globals[GM_NO_UPDATE_CHECK]:
     doGAMCheckForUpdates()
 # If no select/options commands were executed or some were and there are more arguments on the command line,
@@ -5080,20 +5087,28 @@ def sortCSVTitles(firstTitle, titles):
     titles[u'list'].insert(0, title)
 
 def writeCSVfile(csvRows, titles, list_type, todrive):
+  if GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] is not None:
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE].put((CSVFILE_QUEUE_NAME, list_type))
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE].put((CSVFILE_QUEUE_TODRIVE, todrive))
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE].put((CSVFILE_QUEUE_TITLES, titles[u'list']))
+    GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE].put((CSVFILE_QUEUE_ROWS, csvRows))
+    return
   csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   if todrive:
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER]))
+                            dialect=u'nixstdout', encoding=GM_Globals[GM_CSVFILE][GM_CSVFILE_ENCODING],
+                            quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER])
   else:
-    csvFile = openFile(GM_Globals[GM_CSVFILE], GM_Globals[GM_CSVFILE_MODE])
+    csvFile = openFile(GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME], GM_Globals[GM_CSVFILE][GM_CSVFILE_MODE])
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                               dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER]))
+                               dialect=u'nixstdout', encoding=GM_Globals[GM_CSVFILE][GM_CSVFILE_ENCODING],
+                               quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER])
   try:
-    if GM_Globals[GM_CSVFILE_WRITE_HEADER]:
+    if GM_Globals[GM_CSVFILE][GM_CSVFILE_WRITE_HEADER]:
       writer.writerow(dict((item, item) for item in writer.fieldnames))
-      if GM_Globals[GM_CSVFILE_MODE] == u'ab':
-        GM_Globals[GM_CSVFILE_WRITE_HEADER] = False
+      if GM_Globals[GM_CSVFILE][GM_CSVFILE_MODE] == u'ab':
+        GM_Globals[GM_CSVFILE][GM_CSVFILE_WRITE_HEADER] = False
     writer.writerows(csvRows)
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
@@ -5131,7 +5146,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
     except GAPI_fileNotFound:
       entityActionFailedWarning(Entity.DRIVE_FOLDER, todrive[u'parentId'], PHRASE_DOES_NOT_EXIST, 0, 0)
-  if GM_Globals[GM_CSVFILE] != u'-':
+  if GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME] != u'-':
     closeFile(csvFile)
 
 def convertCRsNLs(value):
@@ -5276,44 +5291,9 @@ gam.exe update group announcements add member jsmith
 ...
 '''.format(GAM_WIKI))
 
-# Utilities for batch/csv
-def batch_worker():
-  import subprocess
-  while True:
-    item = GM_Globals[GM_BATCH_QUEUE].get()
-    subprocess.call(item, stderr=subprocess.STDOUT)
-    GM_Globals[GM_BATCH_QUEUE].task_done()
-
-def run_batch(items):
-  import Queue
-  import threading
-
-  current_item = 0
-  total_items = len(items)
-  python_cmd = [sys.executable.lower(),]
-  if not getattr(sys, u'frozen', False): # we're not frozen
-    python_cmd.append(os.path.realpath(CLArgs.Argument(0)))
-  num_worker_threads = min(total_items, GC_Values[GC_NUM_THREADS])
-  GM_Globals[GM_BATCH_QUEUE] = Queue.Queue(maxsize=num_worker_threads) # GM_Globals[GM_BATCH_QUEUE].put() gets blocked when trying to create more items than there are workers
-  sys.stderr.write(PHRASE_STARTING_N_WORKER_THREADS.format(num_worker_threads))
-  for _ in range(num_worker_threads):
-    t = threading.Thread(target=batch_worker)
-    t.daemon = True
-    t.start()
-  for item in items:
-    current_item += 1
-    if not current_item % 100:
-      sys.stderr.write(u'{0} {1} / {2}\n'.format(PHRASE_STARTING_THREAD, current_item, total_items))
-    if item[0] == COMMIT_BATCH_CMD:
-      sys.stderr.write(u'{0} - {1}\n'.format(COMMIT_BATCH_CMD, PHRASE_WAITING_FOR_PROCESSES_TO_COMPLETE))
-      GM_Globals[GM_BATCH_QUEUE].join()
-      sys.stderr.write(u'{0} - {1}\n'.format(COMMIT_BATCH_CMD, PHRASE_COMPLETE))
-      continue
-    GM_Globals[GM_BATCH_QUEUE].put(python_cmd+item[1:])
-  GM_Globals[GM_BATCH_QUEUE].join()
-
 # gam batch <FileName>|- [charset <Charset>]
 def doBatch():
+  from multiprocessing import Pool
   import shlex
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
@@ -5343,12 +5323,31 @@ def doBatch():
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   closeFile(f)
-  run_batch(items)
+  num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
+  pool = Pool(processes=num_worker_threads)
+  sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
+  for item in items:
+    if item[0] == u'commit-batch':
+      sys.stderr.write(u'commit-batch - waiting for running processes to finish before proceeding...\n')
+      pool.close()
+      pool.join()
+      pool = Pool(processes=num_worker_threads)
+      sys.stderr.write(u'commit-batch - complete\n')
+      continue
+    pool.apply_async(ProcessGAMCommand, [item])
+  pool.close()
+  pool.join()
 
 def doAutoBatch(CL_entityType, CL_entityList, CL_command):
+  from multiprocessing import Pool
   remaining = CLArgs.Remaining()
-  items = [[GAM_CMD, CL_entityType, entity, CL_command]+remaining for entity in CL_entityList]
-  run_batch(items)
+  num_worker_threads = min(len(CL_entityList), GC_Values[GC_NUM_THREADS])
+  pool = Pool(processes=num_worker_threads)
+  sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
+  for entity in CL_entityList:
+    pool.apply_async(ProcessGAMCommand, [[GAM_CMD, CL_entityType, entity, CL_command]+remaining])
+  pool.close()
+  pool.join()
 
 # Process command line arguments, find substitutions
 # An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
@@ -5430,8 +5429,46 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
+def resetDefaultEncodingToUTF8():
+  if sys.getdefaultencoding().upper() != u'UTF-8':
+    reload(sys)
+    if hasattr(sys, u'setdefaultencoding'):
+      sys.setdefaultencoding(u'UTF-8')
+
+def CSVFileQueueHandler(mpQueue, csvFileInfo):
+  resetDefaultEncodingToUTF8()
+  gm_csvFile = csvFileInfo.copy()
+  titles, csvRows = initializeTitlesCSVfile(None)
+  list_type = u'CSV'
+  todrive = {}
+  while True:
+    dataType, dataItem = mpQueue.get()
+    if dataType == CSVFILE_QUEUE_NAME:
+      list_type = dataItem
+    elif dataType == CSVFILE_QUEUE_TODRIVE:
+      todrive = dataItem
+    elif dataType == CSVFILE_QUEUE_TITLES:
+      addTitlesToCSVfile(dataItem, titles)
+    elif dataType == CSVFILE_QUEUE_ROWS:
+      csvRows.extend(dataItem)
+    else:
+      break
+  GM_Globals[GM_CSVFILE] = gm_csvFile
+  GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
+  writeCSVfile(csvRows, titles, list_type, todrive)
+
+def ProcessGAMCommandQueue(args, mpQueue):
+  resetDefaultEncodingToUTF8()
+  GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = mpQueue
+  ProcessGAMCommand(args)
+
+def ProcessGAMCommandNoQueue(args):
+  resetDefaultEncodingToUTF8()
+  ProcessGAMCommand(args)
+
 # gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
 def doCSV():
+  import multiprocessing
   filename = getString(OB_FILE_NAME)
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
     CLArgs.Backup()
@@ -5441,13 +5478,29 @@ def doCSV():
   checkArgumentPresent([GAM_CMD,], required=True)
   if not CLArgs.ArgumentsRemaining():
     missingArgumentExit(OB_GAM_ARGUMENT_LIST)
-  GAM_argv, subFields = getSubFields([], csvFile.fieldnames)
-  items = []
-  for row in csvFile:
-    if (not matchFields) or checkMatchFields(row, matchFields):
-      items.append([GAM_CMD]+processSubFields(GAM_argv, row, subFields))
+  GAM_argv, subFields = getSubFields([GAM_CMD,], csvFile.fieldnames)
+  num_worker_threads = GC_Values[GC_NUM_THREADS]
+  pool = multiprocessing.Pool(processes=num_worker_threads)
+  sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
+  if GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]:
+    mpMgr = multiprocessing.Manager()
+    mpQueue = mpMgr.Queue()
+    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue, GM_Globals[GM_CSVFILE]))
+    mpQueueHandler.start()
+    for row in csvFile:
+      if (not matchFields) or checkMatchFields(row, matchFields):
+        pool.apply_async(ProcessGAMCommandQueue, (processSubFields(GAM_argv, row, subFields), mpQueue))
+    pool.close()
+    pool.join()
+    mpQueue.put((CSVFILE_QUEUE_EOF, None))
+    mpQueueHandler.join()
+  else:
+    for row in csvFile:
+      if (not matchFields) or checkMatchFields(row, matchFields):
+        pool.apply_async(ProcessGAMCommandNoQueue, [processSubFields(GAM_argv, row, subFields)])
+    pool.close()
+    pool.join()
   closeFile(f)
-  run_batch(items)
 
 # gam list [todrive] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
 def doListType():
@@ -23877,6 +23930,8 @@ def ProcessGAMCommand(args, processGamCfg=True):
   savedStderr = sys.stderr
   try:
     if checkArgumentPresent([LOOP_CMD,]):
+      if processGamCfg and (not SetGlobalVariables()):
+        sys.exit(GM_Globals[GM_SYSEXITRC])
       doLoop(processGamCfg=True)
       sys.exit(GM_Globals[GM_SYSEXITRC])
     if processGamCfg and (not SetGlobalVariables()):
@@ -23960,31 +24015,50 @@ def doLoop(processGamCfg=True):
   choice = CLArgs.Current().strip().lower()
   if choice == LOOP_CMD:
     usageErrorExit(PHRASE_NESTED_LOOP_CMD_NOT_ALLOWED)
-  if processGamCfg:
-    if choice in GAM_META_COMMANDS:
 # gam loop ... gam redirect|select|config ... process gam.cfg on each iteration
-      nextProcessGamCfg = True
-    else:
-# gam loop ... gam !redirect|select|config ... process gam.cfg on first iteration only
-      nextProcessGamCfg = False
-  else:
-    if choice in GAM_META_COMMANDS:
 # gam redirect|select|config ... loop ... gam redirect|select|config ... process gam.cfg on each iteration
-      nextProcessGamCfg = processGamCfg = True
-    else:
+# gam loop ... gam !redirect|select|config ... no further processing of gam.cfg
 # gam redirect|select|config ... loop ... gam !redirect|select|config ... no further processing of gam.cfg
-      nextProcessGamCfg = False
-  GAM_argv, subFields = getSubFields([CLArgs.Argument(0)], csvFile.fieldnames)
+  processGamCfg = choice in GAM_META_COMMANDS
+  GAM_argv, subFields = getSubFields([GAM_CMD,], csvFile.fieldnames)
   for row in csvFile:
     if (not matchFields) or checkMatchFields(row, matchFields):
       ProcessGAMCommand(processSubFields(GAM_argv, row, subFields), processGamCfg=processGamCfg)
       if (GM_Globals[GM_SYSEXITRC] > 0) and (GM_Globals[GM_SYSEXITRC] <= HARD_ERROR_RC):
         break
-      processGamCfg = nextProcessGamCfg
   closeFile(f)
 
 #
 if sys.platform.startswith('win'):
+  from multiprocessing import freeze_support
+  try:
+    import multiprocessing.popen_spawn_win32 as forking
+  except ImportError:
+    import multiprocessing.forking as forking
+
+  # First define a modified version of Popen.
+  class _Popen(forking.Popen):
+    def __init__(self, *args, **kw):
+      if hasattr(sys, 'frozen'):
+        # We have to set original _MEIPASS2 value from sys._MEIPASS
+        # to get --onefile mode working.
+        os.putenv('_MEIPASS2', sys._MEIPASS)
+      try:
+        super(_Popen, self).__init__(*args, **kw)
+      finally:
+        if hasattr(sys, 'frozen'):
+          # On some platforms (e.g. AIX) 'os.unsetenv()' is not
+          # available. In those cases we cannot delete the variable
+          # but only set it to the empty string. The bootloader
+          # can handle this case.
+          if hasattr(os, 'unsetenv'):
+            os.unsetenv('_MEIPASS2')
+          else:
+            os.putenv('_MEIPASS2', '')
+
+  # Second override 'Popen' class with our modified version.
+  forking.Popen = _Popen
+
   def win32_unicode_argv():
     from ctypes import POINTER, byref, cdll, c_int, windll
     from ctypes.wintypes import LPCWSTR, LPWSTR
@@ -24007,10 +24081,9 @@ if sys.platform.startswith('win'):
 
 # Run from command line
 if __name__ == "__main__":
-  reload(sys)
-  if hasattr(sys, u'setdefaultencoding'):
-    sys.setdefaultencoding(u'UTF-8')
+  resetDefaultEncodingToUTF8()
   if sys.platform.startswith('win'):
+    freeze_support()
     win32_unicode_argv() # cleanup sys.argv on Windows
   logging.basicConfig()
   logging.raiseExceptions = False
