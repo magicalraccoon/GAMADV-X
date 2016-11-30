@@ -1,3 +1,7 @@
+4.36.02
+
+Allow quotes around section name in gam.cfg to fix an initial setup error.
+
 4.36.01
 
 Fix error when passing delimiter to CSV file routines.

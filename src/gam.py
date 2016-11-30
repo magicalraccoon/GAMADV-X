@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.01'
+__version__ = u'4.36.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2945,7 +2945,7 @@ def SetGlobalVariables():
     return 0
 
   def _getCfgSection(sectionName, itemName):
-    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
     if (not value) or (value.upper() == ConfigParser.DEFAULTSECT):
       return ConfigParser.DEFAULTSECT
     if GM_Globals[GM_PARSER].has_section(value):
