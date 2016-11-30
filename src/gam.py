@@ -167,11 +167,14 @@ GM_CSVFILE_COLUMN_DELIMITER = u'csdl'
 GM_CSVFILE_WRITE_HEADER = u'cswh'
 GM_CSVFILE_MULTIPROCESS = u'csmp'
 GM_CSVFILE_QUEUE = u'csqu'
-CSVFILE_QUEUE_NAME = u'!!name!!'
-CSVFILE_QUEUE_TODRIVE = u'!!todrive!!'
-CSVFILE_QUEUE_TITLES = u'!!titles!!'
-CSVFILE_QUEUE_ROWS = u'!!row!!'
-CSVFILE_QUEUE_EOF = u'!!eof!!'
+CSVFILE_QUEUE_NAME = u'name'
+CSVFILE_QUEUE_TODRIVE = u'todrive'
+CSVFILE_QUEUE_TITLES = u'titles'
+CSVFILE_QUEUE_ROWS = u'rows'
+CSVFILE_QUEUE_ARGS = u'args'
+CSVFILE_QUEUE_GLOBALS = u'globals'
+CSVFILE_QUEUE_VALUES = u'values'
+CSVFILE_QUEUE_EOF = u'eof'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
 # Disable GAM update check
@@ -5435,10 +5438,10 @@ def resetDefaultEncodingToUTF8():
     if hasattr(sys, u'setdefaultencoding'):
       sys.setdefaultencoding(u'UTF-8')
 
-def CSVFileQueueHandler(mpQueue, csvFileInfo, globalValues):
+def CSVFileQueueHandler(mpQueue):
+  global CLArgs, GM_Globals, GC_Values
   resetDefaultEncodingToUTF8()
-  gm_csvFile = csvFileInfo.copy()
-  gc_Values = globalValues.copy()
+  CLArgs = glclargs.GamCLArgs()
   titles, csvRows = initializeTitlesCSVfile(None)
   list_type = u'CSV'
   todrive = {}
@@ -5452,13 +5455,14 @@ def CSVFileQueueHandler(mpQueue, csvFileInfo, globalValues):
       addTitlesToCSVfile(dataItem, titles)
     elif dataType == CSVFILE_QUEUE_ROWS:
       csvRows.extend(dataItem)
+    elif dataType == CSVFILE_QUEUE_ARGS:
+      CLArgs.InitializeArguments(dataItem)
+    elif dataType == CSVFILE_QUEUE_GLOBALS:
+      GM_Globals = dataItem
+    elif dataType == CSVFILE_QUEUE_VALUES:
+      GC_Values = dataItem
     else:
       break
-  GC_Values[GC_TODRIVE_CONVERSION] = gc_Values[GC_TODRIVE_CONVERSION]
-  GC_Values[GC_DOMAIN] = gc_Values[GC_DOMAIN]
-  GC_Values[GC_TIMEZONE] = gc_Values[GC_TIMEZONE]
-  GC_Values[GC_NO_BROWSER] = gc_Values[GC_NO_BROWSER]
-  GM_Globals[GM_CSVFILE] = gm_csvFile.copy()
   GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
   writeCSVfile(csvRows, titles, list_type, todrive)
 
@@ -5490,13 +5494,17 @@ def doCSV():
   if GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]:
     mpMgr = multiprocessing.Manager()
     mpQueue = mpMgr.Queue()
-    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue, GM_Globals[GM_CSVFILE], GC_Values))
+    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue,))
     mpQueueHandler.start()
     for row in csvFile:
       if (not matchFields) or checkMatchFields(row, matchFields):
         pool.apply_async(ProcessGAMCommandQueue, (processSubFields(GAM_argv, row, subFields), mpQueue))
     pool.close()
     pool.join()
+    if GM_Globals[GM_WINDOWS]:
+      mpQueue.put((CSVFILE_QUEUE_ARGS, CLArgs.AllArguments()))
+      mpQueue.put((CSVFILE_QUEUE_GLOBALS, GM_Globals))
+      mpQueue.put((CSVFILE_QUEUE_VALUES, GC_Values))
     mpQueue.put((CSVFILE_QUEUE_EOF, None))
     mpQueueHandler.join()
   else:
