@@ -2,17 +2,16 @@ GAMADV-X
 ============================
 GAMADV-X is a free, open source command line tool for Google G Suite Administrators to manage domain and user settings quickly and easily.
 
-Downloads
----------
-You can download the current GAMADV-X release from the [GitHub Releases] page.
-
 Documentation
 -------------
 General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is in Gam*.txt files.
 
-Installation - All Users
-------------------------
+Downloads
+---------
+You can download the current GAMADV-X release from the [GitHub Releases] page.
+
 Download - do a or b or c
+
 a)Single Executable - *.xz
 - Download the archive, extract the contents into some directory.
 - Start a terminal session and cd to the install directory.
