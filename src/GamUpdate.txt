@@ -1,3 +1,7 @@
+4.36.01
+
+Fix error when passing delimiter to CSV file routines.
+
 4.36.00
 
 Note!!! Syntax changed; the redirect argument has been changed to avoid an ambiguity. Previously, if you wanted to redirect multiple files,
@@ -7,6 +11,8 @@ Now, you must put redirect before each redirected file: redirect csv <FileName> 
     redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>] |
     redirect stdout <FileName> [append] |
     redirect stderr <FileName> [append]
+
+Identified multi-processing errors, switched back from multi-threading.
 
 Added multiprocess subargument to redirect csv argument to allow the multiple processes started by gam csv to write intelligently to a single CSV file.
     gam redirect csv UserDelegates.csv multiprocess csv Users.csv gam user ~User print delegates
