@@ -5097,7 +5097,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
   if todrive:
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout', encoding=GM_Globals[GM_CSVFILE][GM_CSVFILE_ENCODING],
+                            dialect=u'nixstdout',
                             quoting=csv.QUOTE_MINIMAL, delimiter=GM_Globals[GM_CSVFILE][GM_CSVFILE_COLUMN_DELIMITER])
   else:
     csvFile = openFile(GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME], GM_Globals[GM_CSVFILE][GM_CSVFILE_MODE])
