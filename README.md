@@ -12,17 +12,17 @@ You can download the current GAMADV-X release from the [GitHub Releases] page.
 
 Download - do a or b or c
 
-a) Single Executable - *.xz
+a) Single Executable, Mac OS - *.xz
 - Download the archive, extract the contents into some directory.
 - Start a terminal session and cd to the install directory.
 
-b) Source - *.zip, *.gz
-- Download the archive, extract the contents into some directory.
-- Start a terminal/Command Prompt/PowerShell session and cd to the install directory.
-
-c) Single Executable - *.msi
+b) Single Executable, Windows - *.msi
 - Download the installer and run it.
 - Start a Command Prompt/PowerShell session and cd to the install directory.
+
+c) Source, all platforms - *.zip, *.gz
+- Download the archive, extract the contents into some directory.
+- Start a terminal/Command Prompt/PowerShell session and cd to the install directory.
 
 Installation - New Users
 ------------------------
