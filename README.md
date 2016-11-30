@@ -45,6 +45,7 @@ version of GAM can run. Your existing oauth2.txt is not used, a new file will be
 Enter the following gam commands and follow instructions.
 - Build gam.cfg: ```gam config verify```
 - Authorize Gam Client: ```gam oauth create```
+- Authorize Service Account: ```gam user <admin email address> check serviceaccount```
 
 Installation - Upgrading from a prior version of GAMADV-X
 ---------------------------------------------------------
