@@ -18540,14 +18540,14 @@ def updateDriveFile(users):
             result = callGAPI(drive.files(), DRIVE_UPDATE_FILE,
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                               fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
-                              addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                              addParents=u','.join(parameters[DFA_ADD_PARENTS]), removeParents=u','.join(parameters[DFA_REMOVE_PARENTS]),
                               media_body=media_body, body=body, fields=u'id,{0},mimeType'.format(DRIVE_FILE_NAME))
             entityItemValueModifierNewValueActionPerformed(Entity.USER, user, Entity.DRIVE_FILE, result[DRIVE_FILE_NAME], Action.MODIFIER_WITH_CONTENT_FROM, parameters[DFA_LOCALFILENAME], j, jcount)
           else:
             result = callGAPI(drive.files(), DRIVE_PATCH_FILE,
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                               fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
-                              addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                              addParents=u','.join(parameters[DFA_ADD_PARENTS]), removeParents=u','.join(parameters[DFA_REMOVE_PARENTS]),
                               body=body, fields=u'id,{0},mimeType'.format(DRIVE_FILE_NAME))
             entityItemValueActionPerformed(Entity.USER, user, [Entity.DRIVE_FOLDER, Entity.DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], result[DRIVE_FILE_NAME], j, jcount)
         except GAPI_fileNotFound:
