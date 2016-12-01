@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.02'
+__version__ = u'4.36.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -128,6 +128,7 @@ FN_EXTRA_ARGS_TXT = u'extra-args.txt'
 FN_LAST_UPDATE_CHECK_TXT = u'lastupdatecheck.txt'
 FN_OAUTH2SERVICE_JSON = u'oauth2service.json'
 FN_OAUTH2_TXT = u'oauth2.txt'
+FN_GAMCOMMANDS_TXT = u'GamCommands.txt'
 MY_CUSTOMER = u'my_customer'
 
 # Global variables
@@ -660,6 +661,16 @@ DRIVE_REVISIONS_LIST = u'items'
 #
 DRIVE_PARENTS_ID = u'parents(id)'
 #
+DFA_LOCALFILEPATH = u'localFilepath'
+DFA_LOCALFILENAME = u'localFilename'
+DFA_LOCALMIMETYPE = u'localMimeType'
+DFA_CONVERT = u'convert'
+DFA_OCR = u'ocr'
+DFA_OCRLANGUAGE = u'ocrLanguage'
+DFA_PARENTQUERY = u'parentQuery'
+DFA_ADD_PARENTS = u'addParents'
+DFA_REMOVE_PARENTS = u'removeParents'
+#
 OAUTH2_FAM1_SCOPES = u'fam1'
 OAUTH2_FAM2_SCOPES = u'fam2'
 OAUTH2_FAM_LIST = [OAUTH2_FAM1_SCOPES, OAUTH2_FAM2_SCOPES]
@@ -1160,6 +1171,8 @@ MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large G Suite instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
+MESSAGE_HELP_SYNTAX = u'Help: Syntax in file {0}\n'
+MESSAGE_HELP_WIKI = u'Help: Documentation is at {0}\n'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
@@ -1443,7 +1456,8 @@ def noPythonSSLExit():
 def usageErrorExit(message, extraneous=False):
   sys.stderr.write(convertUTF8(CLArgs.CommandLineWithBadArgumentMarked(extraneous)))
   stderrErrorMsg(message)
-  sys.stderr.write(u'Help: Documentation is at {0}\n'.format(GAM_WIKI))
+  sys.stderr.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
+  sys.stderr.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
   sys.exit(USAGE_ERROR_RC)
 
 def badEntitiesExit(entityType, count, phraseList, backupArg=False):
@@ -2922,7 +2936,7 @@ def SetGlobalVariables():
                                          u''))
 
   def _getCfgBoolean(sectionName, itemName):
-    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower()
+    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower())
     if value in TRUE_VALUES:
       return True
     if value in FALSE_VALUES:
@@ -2932,7 +2946,7 @@ def SetGlobalVariables():
     return False
 
   def _getCfgInteger(sectionName, itemName):
-    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
     minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
     try:
       number = int(value)
@@ -2978,16 +2992,16 @@ def SetGlobalVariables():
     return u''
 
   def _getCfgDirectory(sectionName, itemName):
-    dirPath = os.path.expanduser(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
+    dirPath = os.path.expanduser(_stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)))
     if (not dirPath) or (not os.path.isabs(dirPath)):
       if (sectionName != ConfigParser.DEFAULTSECT) and (GM_Globals[GM_PARSER].has_option(sectionName, itemName)):
-        dirPath = os.path.join(os.path.expanduser(GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, itemName, raw=True)), dirPath)
+        dirPath = os.path.join(os.path.expanduser(_stripStringQuotes(GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, itemName, raw=True))), dirPath)
       if not os.path.isabs(dirPath):
         dirPath = os.path.join(GM_Globals[GM_GAM_CFG_PATH], dirPath)
     return dirPath
 
   def _getCfgFile(sectionName, itemName):
-    value = os.path.expanduser(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
+    value = os.path.expanduser(_stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)))
     if value and not os.path.isabs(value):
       value = os.path.expanduser(os.path.join(_getCfgDirectory(sectionName, GC_CONFIG_DIR), value))
     return value
@@ -3018,7 +3032,7 @@ def SetGlobalVariables():
     printKeyValueList([Entity.Singular(Entity.SECTION), sectionName])
     Indent.Increment()
     for itemName in sorted(GC_VAR_INFO):
-      cfgValue = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+      cfgValue = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
       if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
         expdValue = _getCfgFile(sectionName, itemName)
         if cfgValue != expdValue:
@@ -3106,7 +3120,7 @@ def SetGlobalVariables():
       _checkMakeDir(GC_CACHE_DIR)
       for itemName in GC_VAR_INFO:
         if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
-          srcFile = os.path.expanduser(GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, itemName, raw=True))
+          srcFile = os.path.expanduser(_stripStringQuotes(GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, itemName, raw=True)))
           _copyCfgFile(srcFile, GC_CONFIG_DIR, oldGamPath)
       _writeGamCfgFile(GM_Globals[GM_PARSER], GM_Globals[GM_GAM_CFG_FILE], Action.INITIALIZE)
     else:
@@ -5279,20 +5293,8 @@ def doVersion(checkForArgs=True):
 def doUsage():
   printBlankLine()
   doVersion(checkForArgs=False)
-  printLine(u'''
-Usage: gam [OPTIONS]...
-
-GAM. Retrieve or set G Suite domain,
-user, group and alias settings. Exhaustive list of commands
-can be found at: {0}
-
-Examples:
-gam info domain
-gam create user jsmith firstname John lastname Smith password secretpass
-gam update user jsmith suspended on
-gam.exe update group announcements add member jsmith
-...
-'''.format(GAM_WIKI))
+  sys.stderr.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
+  sys.stderr.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
 
 # gam batch <FileName>|- [charset <Charset>]
 def doBatch():
@@ -5304,7 +5306,7 @@ def doBatch():
     usageErrorExit(MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE.format(u'batch'))
   encoding = getCharSet()
   checkForExtraneousArguments()
-  items = []
+  items = collections.deque()
   f = openFile(filename)
   batchFile = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   try:
@@ -5326,10 +5328,13 @@ def doBatch():
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   closeFile(f)
+  if not items:
+    return
   num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
   pool = Pool(processes=num_worker_threads)
   sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
-  for item in items:
+  while items:
+    item = items.popleft()
     if item[0] == u'commit-batch':
       sys.stderr.write(u'commit-batch - waiting for running processes to finish before proceeding...\n')
       pool.close()
@@ -5343,6 +5348,8 @@ def doBatch():
 
 def doAutoBatch(CL_entityType, CL_entityList, CL_command):
   from multiprocessing import Pool
+  if not CL_entityList:
+    return
   remaining = CLArgs.Remaining()
   num_worker_threads = min(len(CL_entityList), GC_Values[GC_NUM_THREADS])
   pool = Pool(processes=num_worker_threads)
@@ -5492,7 +5499,14 @@ def doCSV():
   if not CLArgs.ArgumentsRemaining():
     missingArgumentExit(OB_GAM_ARGUMENT_LIST)
   GAM_argv, subFields = getSubFields([GAM_CMD,], csvFile.fieldnames)
-  num_worker_threads = GC_Values[GC_NUM_THREADS]
+  items = collections.deque()
+  for row in csvFile:
+    if (not matchFields) or checkMatchFields(row, matchFields):
+      items.append(processSubFields(GAM_argv, row, subFields))
+  closeFile(f)
+  if not items:
+    return
+  num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
   pool = multiprocessing.Pool(processes=num_worker_threads)
   sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
   if GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]:
@@ -5500,9 +5514,8 @@ def doCSV():
     mpQueue = mpMgr.Queue()
     mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue,))
     mpQueueHandler.start()
-    for row in csvFile:
-      if (not matchFields) or checkMatchFields(row, matchFields):
-        pool.apply_async(ProcessGAMCommandQueue, (processSubFields(GAM_argv, row, subFields), mpQueue))
+    while items:
+      pool.apply_async(ProcessGAMCommandQueue, (items.popleft(), mpQueue))
     pool.close()
     pool.join()
     if GM_Globals[GM_WINDOWS]:
@@ -5512,12 +5525,10 @@ def doCSV():
     mpQueue.put((CSVFILE_QUEUE_EOF, None))
     mpQueueHandler.join()
   else:
-    for row in csvFile:
-      if (not matchFields) or checkMatchFields(row, matchFields):
-        pool.apply_async(ProcessGAMCommandNoQueue, [processSubFields(GAM_argv, row, subFields)])
+    while items:
+      pool.apply_async(ProcessGAMCommandNoQueue, (items.popleft()))
     pool.close()
     pool.join()
-  closeFile(f)
 
 # gam list [todrive] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
 def doListType():
@@ -17629,16 +17640,10 @@ MIMETYPE_CHOICES_MAP = {
   u'gspreadsheet': MIMETYPE_GA_SPREADSHEET,
   }
 
-DFA_CONVERT = u'convert'
-DFA_LOCALFILEPATH = u'localFilepath'
-DFA_LOCALFILENAME = u'localFilename'
-DFA_LOCALMIMETYPE = u'localMimeType'
-DFA_OCR = u'ocr'
-DFA_OCRLANGUAGE = u'ocrLanguage'
-DFA_PARENTQUERY = u'parentQuery'
-
 def initializeDriveFileAttributes():
-  return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None, DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None, DFA_PARENTQUERY: None})
+  return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None,
+               DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None,
+               DFA_PARENTQUERY: None, DFA_ADD_PARENTS: [], DFA_REMOVE_PARENTS: []})
 
 def getDriveFileAttribute(body, parameters, myarg, update):
   if myarg == u'localfile':
@@ -17680,6 +17685,10 @@ def getDriveFileAttribute(body, parameters, myarg, update):
     body[u'parents'].append({u'id': getString(OB_DRIVE_FOLDER_ID)})
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
+  elif myarg == u'addparents':
+    parameters[DFA_ADD_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
+  elif myarg == u'removeparents':
+    parameters[DFA_REMOVE_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
   elif myarg == u'writerscantshare':
     body[u'writersCanShare'] = False
   else:
@@ -18530,13 +18539,15 @@ def updateDriveFile(users):
           if media_body:
             result = callGAPI(drive.files(), DRIVE_UPDATE_FILE,
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                              fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                              fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                              addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
                               media_body=media_body, body=body, fields=u'id,{0},mimeType'.format(DRIVE_FILE_NAME))
             entityItemValueModifierNewValueActionPerformed(Entity.USER, user, Entity.DRIVE_FILE, result[DRIVE_FILE_NAME], Action.MODIFIER_WITH_CONTENT_FROM, parameters[DFA_LOCALFILENAME], j, jcount)
           else:
             result = callGAPI(drive.files(), DRIVE_PATCH_FILE,
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                              fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                              fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                              addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
                               body=body, fields=u'id,{0},mimeType'.format(DRIVE_FILE_NAME))
             entityItemValueActionPerformed(Entity.USER, user, [Entity.DRIVE_FOLDER, Entity.DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], result[DRIVE_FILE_NAME], j, jcount)
         except GAPI_fileNotFound:
