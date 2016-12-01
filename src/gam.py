@@ -5892,8 +5892,6 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
                                                    client_secret=client_secret, scope=scopes, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
                                                    user_agent=GAM_INFO, access_type=u'offline', response_type=u'code', login_hint=login_hint)
     storage = getCredentialsForScope(cred_family, storageOnly=True)
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-    flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
     try:
       oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
       time.sleep(3)
