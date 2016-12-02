@@ -1,3 +1,8 @@
+4.36.06
+
+Define logging level as CRITICAL to keep APIs silent.
+Define Google Product SKU Google-Apps-For-Government (gafg)
+
 4.36.05
 
 Fixed bug in doCSV.

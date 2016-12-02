@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.05'
+__version__ = u'4.36.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1742,6 +1742,7 @@ GOOGLE_PRODUCTS = [
   ]
 
 GOOGLE_APPS_FOR_BUSINESS_SKU = GOOGLE_APPS_PRODUCT+u'-For-Business'
+GOOGLE_APPS_FOR_GOVERNMENT_SKU = GOOGLE_APPS_PRODUCT+u'-For-Government'
 GOOGLE_APPS_FOR_POSTINI_SKU = GOOGLE_APPS_PRODUCT+u'-For-Postini'
 GOOGLE_APPS_LITE_SKU = GOOGLE_APPS_PRODUCT+u'-Lite'
 GOOGLE_APPS_UNLIMITED_SKU = GOOGLE_APPS_PRODUCT+u'-Unlimited'
@@ -1760,6 +1761,7 @@ GOOGLE_DRIVE_STORAGE_16TB_SKU = GOOGLE_DRIVE_STORAGE_PRODUCT+u'-16TB'
 
 GOOGLE_USER_SKUS = {
   GOOGLE_APPS_FOR_BUSINESS_SKU: GOOGLE_APPS_PRODUCT,
+  GOOGLE_APPS_FOR_GOVERNMENT_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_FOR_POSTINI_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_LITE_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_UNLIMITED_SKU: GOOGLE_APPS_PRODUCT,
@@ -1768,6 +1770,7 @@ GOOGLE_USER_SKUS = {
   }
 GOOGLE_SKUS = {
   GOOGLE_APPS_FOR_BUSINESS_SKU: GOOGLE_APPS_PRODUCT,
+  GOOGLE_APPS_FOR_GOVERNMENT_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_FOR_POSTINI_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_LITE_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_UNLIMITED_SKU: GOOGLE_APPS_PRODUCT,
@@ -1790,6 +1793,7 @@ GOOGLE_SKU_CHOICES_MAP = {
   u'gafb': GOOGLE_APPS_FOR_BUSINESS_SKU,
   u'gafw': GOOGLE_APPS_FOR_BUSINESS_SKU,
   u'gsbasic': GOOGLE_APPS_FOR_BUSINESS_SKU,
+  u'gafg': GOOGLE_APPS_FOR_GOVERNMENT_SKU,
   u'gams': GOOGLE_APPS_FOR_POSTINI_SKU,
   u'lite': GOOGLE_APPS_LITE_SKU,
   u'gau': GOOGLE_APPS_UNLIMITED_SKU,
@@ -3578,6 +3582,61 @@ def callGDataPages(service, function,
       return allResults
     uri = nextLink.href
 
+GAPI_REASON_MESSAGE_MAP = {
+  GAPI_ABORTED: [
+    (u'Label name exists or conflicts', GAPI_DUPLICATE),
+    ],
+  GAPI_CONDITION_NOT_MET: [
+    (u'Cyclic memberships not allowed', GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED),
+    (u'undelete', GAPI_DELETED_USER_NOT_FOUND),
+    ],
+  GAPI_FAILED_PRECONDITION: [
+    (u'Bad Request', GAPI_BAD_REQUEST),
+    (u'Mail service not enabled', GAPI_SERVICE_NOT_AVAILABLE),
+    ],
+  GAPI_INVALID: [
+    (u'userId', GAPI_USER_NOT_FOUND),
+    (u'memberKey', GAPI_INVALID_MEMBER),
+    (u'A system error has occurred', GAPI_SYSTEM_ERROR),
+    (u'Invalid Customer Id', GAPI_INVALID_CUSTOMER_ID),
+    (u'Invalid Input: INVALID_OU_ID', GAPI_INVALID_ORGUNIT),
+    (u'Invalid Input: custom_schema', GAPI_INVALID_SCHEMA_VALUE),
+    (u'Invalid Input: resource', GAPI_INVALID_RESOURCE),
+    (u'Invalid Input:', GAPI_INVALID_INPUT),
+    (u'Invalid Ou Id', GAPI_INVALID_ORGUNIT),
+    (u'Invalid Parent Orgunit Id', GAPI_INVALID_PARENT_ORGUNIT),
+    (u'Invalid query', GAPI_INVALID_QUERY),
+    (u'Invalid scope value', GAPI_INVALID_SCOPE_VALUE),
+    (u'New domain name is not a verified secondary domain', GAPI_DOMAIN_NOT_VERIFIED_SECONDARY),
+    ],
+  GAPI_INVALID_ARGUMENT: [
+    (u'Cannot delete primary send-as', GAPI_CANNOT_DELETE_PRIMARY_SENDAS),
+    ],
+  GAPI_NOT_FOUND: [
+    (u'userKey', GAPI_USER_NOT_FOUND),
+    (u'groupKey', GAPI_GROUP_NOT_FOUND),
+    (u'memberKey', GAPI_MEMBER_NOT_FOUND),
+    (u'photo', GAPI_PHOTO_NOT_FOUND),
+    (u'resource_id', GAPI_RESOURCE_ID_NOT_FOUND),
+    (u'resourceId', GAPI_RESOURCE_ID_NOT_FOUND),
+    (u'Customer doesn\'t exist', GAPI_CUSTOMER_NOT_FOUND),
+    (u'Domain alias does not exist', GAPI_DOMAIN_ALIAS_NOT_FOUND),
+    (u'Domain not found', GAPI_DOMAIN_NOT_FOUND),
+    (u'domain', GAPI_DOMAIN_NOT_FOUND),
+    (u'File not found', GAPI_FILE_NOT_FOUND),
+    (u'Org unit not found', GAPI_ORGUNIT_NOT_FOUND),
+    (u'Permission not found', GAPI_PERMISSION_NOT_FOUND),
+    (u'Resource Not Found', GAPI_RESOURCE_NOT_FOUND),
+    ],
+  GAPI_REQUIRED: [
+    (u'Login Required', GAPI_LOGIN_REQUIRED),
+    (u'memberKey', GAPI_MEMBER_NOT_FOUND),
+    ],
+  GAPI_RESOURCE_NOT_FOUND: [
+    (u'resourceId', GAPI_RESOURCE_ID_NOT_FOUND),
+    ],
+  }
+
 def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=False, service=None):
   try:
     error = json.loads(e.content)
@@ -3625,88 +3684,14 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       systemErrorExit(GOOGLE_API_ERROR_RC, str(error))
   try:
     reason = error[u'error'][u'errors'][0][u'reason']
-    if reason == GAPI_NOT_FOUND:
-      if u'userKey' in message:
-        reason = GAPI_USER_NOT_FOUND
-      elif u'groupKey' in message:
-        reason = GAPI_GROUP_NOT_FOUND
-      elif u'memberKey' in message:
-        reason = GAPI_MEMBER_NOT_FOUND
-      elif u'Org unit not found' in message:
-        reason = GAPI_ORGUNIT_NOT_FOUND
-      elif u'File not found' in message:
-        reason = GAPI_FILE_NOT_FOUND
-      elif u'Permission not found' in message:
-        reason = GAPI_PERMISSION_NOT_FOUND
-      elif u'resource_id' in message:
-        reason = GAPI_RESOURCE_ID_NOT_FOUND
-      elif u'resourceId' in message:
-        reason = GAPI_RESOURCE_ID_NOT_FOUND
-      elif (u'Domain not found' in message) or (u'domain' in message):
-        reason = GAPI_DOMAIN_NOT_FOUND
-      elif u'Domain alias does not exist' in message:
-        reason = GAPI_DOMAIN_ALIAS_NOT_FOUND
-      elif u'photo' in message:
-        reason = GAPI_PHOTO_NOT_FOUND
-      elif u'Resource Not Found' in message:
-        reason = GAPI_RESOURCE_NOT_FOUND
-      elif u'Customer doesn\'t exist' in message:
-        reason = GAPI_CUSTOMER_NOT_FOUND
-    elif reason == GAPI_RESOURCE_NOT_FOUND:
-      if u'resourceId' in message:
-        reason = GAPI_RESOURCE_ID_NOT_FOUND
-    elif reason == GAPI_INVALID:
-      if u'userId' in message:
-        reason = GAPI_USER_NOT_FOUND
-      elif u'memberKey' in message:
-        reason = GAPI_INVALID_MEMBER
-      elif u'Invalid Ou Id' in message:
-        reason = GAPI_INVALID_ORGUNIT
-      elif u'Invalid Input: INVALID_OU_ID' in message:
-        reason = GAPI_INVALID_ORGUNIT
-      elif u'Invalid Parent Orgunit Id' in message:
-        reason = GAPI_INVALID_PARENT_ORGUNIT
-      elif u'Invalid scope value' in message:
-        reason = GAPI_INVALID_SCOPE_VALUE
-      elif u'A system error has occurred' in message:
-        reason = GAPI_SYSTEM_ERROR
-      elif u'Invalid Input: custom_schema' in message:
-        reason = GAPI_INVALID_SCHEMA_VALUE
-      elif u'New domain name is not a verified secondary domain' in message:
-        reason = GAPI_DOMAIN_NOT_VERIFIED_SECONDARY
-      elif u'Invalid query' in message:
-        reason = GAPI_INVALID_QUERY
-      elif u'Invalid Customer Id' in message:
-        reason = GAPI_INVALID_CUSTOMER_ID
-      elif u'Invalid Input: resource' in message:
-        reason = GAPI_INVALID_RESOURCE
-      elif u'Invalid Input:' in message:
-        reason = GAPI_INVALID_INPUT
-    elif reason == GAPI_REQUIRED:
-      if u'memberKey' in message:
-        reason = GAPI_MEMBER_NOT_FOUND
-      elif u'Login Required' in message:
-        reason = GAPI_LOGIN_REQUIRED
-    elif reason == GAPI_CONDITION_NOT_MET:
-      if u'undelete' in message:
-        reason = GAPI_DELETED_USER_NOT_FOUND
-      elif u'Cyclic memberships not allowed' in message:
-        reason = GAPI_CYCLIC_MEMBERSHIPS_NOT_ALLOWED
-    elif reason == GAPI_INVALID_SHARING_REQUEST:
+    for messageItem in GAPI_REASON_MESSAGE_MAP.get(reason, []):
+      if messageItem[0] in message:
+        reason = messageItem[1]
+        break
+    if reason == GAPI_INVALID_SHARING_REQUEST:
       loc = message.find(u'User message: ')
       if loc != 1:
         message = message[loc+15:]
-    elif reason == GAPI_ABORTED:
-      if u'Label name exists or conflicts' in message:
-        reason = GAPI_DUPLICATE
-    elif reason == GAPI_FAILED_PRECONDITION:
-      if u'Bad Request' in message:
-        reason = GAPI_BAD_REQUEST
-      elif u'Mail service not enabled' in message:
-        reason = GAPI_SERVICE_NOT_AVAILABLE
-    elif reason == GAPI_INVALID_ARGUMENT:
-      if u'Cannot delete primary send-as' in message:
-        reason = GAPI_CANNOT_DELETE_PRIMARY_SENDAS
   except KeyError:
     reason = u'{0}'.format(http_status)
   return (http_status, reason, message)
@@ -5476,14 +5461,14 @@ def CSVFileQueueHandler(mpQueue):
 
 def ProcessGAMCommandQueue(args, mpQueue):
   resetDefaultEncodingToUTF8()
-  logging.basicConfig()
+  logging.basicConfig(level=logging.CRITICAL)
   logging.raiseExceptions = False
   GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = mpQueue
   ProcessGAMCommand(args)
 
 def ProcessGAMCommandNoQueue(args):
   resetDefaultEncodingToUTF8()
-  logging.basicConfig()
+  logging.basicConfig(level=logging.CRITICAL)
   logging.raiseExceptions = False
   ProcessGAMCommand(args)
 
@@ -24112,6 +24097,6 @@ if __name__ == "__main__":
   if sys.platform.startswith('win'):
     freeze_support()
     win32_unicode_argv() # cleanup sys.argv on Windows
-  logging.basicConfig()
+  logging.basicConfig(level=logging.CRITICAL)
   logging.raiseExceptions = False
   sys.exit(ProcessGAMCommand(sys.argv))
