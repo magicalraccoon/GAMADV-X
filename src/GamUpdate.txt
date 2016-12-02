@@ -1,3 +1,7 @@
+4.36.04
+
+Fix bug in SetGlobalVariables.
+
 4.36.03
 
 Added addparents and removeparents arguments to gam update drivefile to allow adding/removing parents to/from a file.
