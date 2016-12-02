@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.03'
+__version__ = u'4.36.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2937,7 +2937,7 @@ def SetGlobalVariables():
                                          u''))
 
   def _getCfgBoolean(sectionName, itemName):
-    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower())
+    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True).lower()
     if value in TRUE_VALUES:
       return True
     if value in FALSE_VALUES:
@@ -2947,7 +2947,7 @@ def SetGlobalVariables():
     return False
 
   def _getCfgInteger(sectionName, itemName):
-    value = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
+    value = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
     minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
     try:
       number = int(value)
