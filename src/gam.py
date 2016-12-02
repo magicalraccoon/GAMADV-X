@@ -5294,8 +5294,8 @@ def doVersion(checkForArgs=True):
 def doUsage():
   printBlankLine()
   doVersion(checkForArgs=False)
-  sys.stderr.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
-  sys.stderr.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
+  sys.stdout.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
+  sys.stdout.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
 
 # gam batch <FileName>|- [charset <Charset>]
 def doBatch():
