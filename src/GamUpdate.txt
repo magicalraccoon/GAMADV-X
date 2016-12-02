@@ -1,3 +1,7 @@
+4.36.05
+
+Fixed bug in doCSV.
+
 4.36.04
 
 Fix bug in SetGlobalVariables.
