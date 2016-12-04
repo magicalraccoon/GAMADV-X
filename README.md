@@ -8,21 +8,23 @@ General GAM documentation is hosted in the [GitHub Wiki]. Documentation specific
 
 Downloads
 ---------
-You can download the current GAMADV-X release from the [GitHub Releases] page.
+You can download the current GAMADV-X release from the [GitHub Releases] page. Choose one of the following:
 
-Download - do a or b or c
+* Single Executable, Linux/Mac OS - `gamadv-x-4.wx.yz-linux-x86_64.xz, gamadv-x-4.wx.yz-macos.tar.xz`
+  - Download the archive, extract the contents into some directory.
+  - Start a terminal session and cd to the install directory.
 
-a) Single Executable, Linux/Mac OS - *.xz
-- Download the archive, extract the contents into some directory.
-- Start a terminal session and cd to the install directory.
+* Single Executable Archive, Windows - `gamadv-x-x.yy.z-windows-x64.zip, gamadv-x-4.wx.yz-windows.zip`
+  - Download the archive, extract the contents into some directory.
+  - Start a terminal session and cd to the install directory.
 
-b) Single Executable, Windows - *.msi
-- Download the installer and run it.
-- Start a Command Prompt/PowerShell session and cd to the install directory.
+* Single Executable Installer, Windows - `gamadv-x-4.wx.yz-windows-x64.msi`
+  - Download the installer and run it.
+  - Start a Command Prompt/PowerShell session and cd to the install directory.
 
-c) Source, all platforms - *.zip, *.gz
-- Download the archive, extract the contents into some directory.
-- Start a terminal/Command Prompt/PowerShell session and cd to the install directory.
+* Source, all platforms - Source code(zip), Source code(tar.gz)
+  - Download the archive, extract the contents into some directory.
+  - Start a terminal/Command Prompt/PowerShell session and cd to the install directory.
 
 Installation - New Users
 ------------------------
@@ -65,5 +67,5 @@ GAMADV-X is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</
 
 [GitHub Releases]: https://github.com/taers232c/GAMADV-X/releases
 [GitHub]: https://github.com/taers232c/GAMADV-X/tree/master
-[GitHub Wiki]: https://github.com/jay0lee/GAM/wiki/
+[GitHub Wiki]: https://github.com/taers232c/GAMADV-X/wiki/
 [Google Groups]: http://groups.google.com/group/google-apps-manager
