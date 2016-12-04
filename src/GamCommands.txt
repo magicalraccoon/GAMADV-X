@@ -132,8 +132,6 @@ If an item contains spaces, it should be surrounded by " or '.
 <QueryUser> :: = <String> See: https://developers.google.com/admin-sdk/directory/v1/guides/search-users
 <RequestID> ::= <String>
 <ResourceID> ::= <String>
-<RoleAssignmentID> ::= <String>
-<RoleItem> ::= <UniqueID>|<String>
 <SchemaName> ::= <String>
 <Section> ::= <String>
 <SiteACLRole> ::= editor|invite|owner|reader|writer
@@ -344,9 +342,10 @@ gam oauth|oauth2 info|verify [<AccessToken>]
 
 gam <UserTypeEntity> check serviceaccount
 
-gam whatis <EmailItem> [noinfo]
-
 # Administrators
+
+<RoleAssignmentID> ::= <String>
+<RoleItem> ::= <UniqueID>|<String>
 
 gam create admin <UserItem> <RoleItem> customer|(org_unit <OrgUnitItem>)
 gam delete admin <RoleAssignmentId>
@@ -365,6 +364,8 @@ gam create aliases|nicknames <EmailAddressEntity> user|group|target <UniqueID>|<
 gam update aliases|nicknames <EmailAddressEntity> user|group|target <UniqueID>|<EmailAddress>
 gam delete aliases|nicknames [user|group|target] <EmailAddressEntity>
 gam info aliases|nicknames <EmailAddressEntity>
+
+gam whatis <EmailItem> [noinfo]
 
 # Auditing
 
@@ -413,11 +414,6 @@ gam audit monitor list <EmailAddress>
 	(noreminders|(reminder email|popup|sms <Number>)|(reminder <Number> email|popup|sms))|
 	(colorindex|colorid <EventColorIndex>)
 
-gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> del|delete <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> showacl
-
 gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
@@ -427,10 +423,6 @@ gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <ACLEntity>
 gam calendars <CalendarEntity> info acl|acls <ACLEntity>
 gam calendars <CalendarEntity> show acls
 gam calendars <CalendarEntity> wipe acls
-
-gam calendar <CalendarItem> addevent <EventAttributes>+
-gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
-gam calendar <CalendarItem> wipe
 
 gam calendars <CalendarEntity> add event <EventAttributes>+
 gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>+
@@ -444,6 +436,15 @@ gam calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] [alw
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Number>]
 	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 gam calendars <CalendarEntity> wipe events
+
+gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar <CalendarItem> del|delete <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar <CalendarItem> showacl
+
+gam calendar <CalendarItem> addevent <EventAttributes>+
+gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
+gam calendar <CalendarItem> wipe
 
 # ChromeOS Devices
 
@@ -490,6 +491,7 @@ gam info cros <CrosEntity> [nolists] [listlimit <Number>]
 gam <CrOSTypeEntity> info [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
+gam print cros
 gam [<CrOSTypeEntity>] print cros [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
 	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
@@ -502,8 +504,6 @@ gam <CrOSTypeEntity> print cros
 Prints no header row and deviceId for specified CrOS devices.
 gam print cros ... basic|full
 Prints a header row and selected fields for specified CrOS devices.
-gam print cros
-Prints a header row and deviceId for all CrOS devices.
 gam <CrOSTypeEntity> print cros
 Prints no header row and deviceId for specified CrOS devices.
 gam <CrOSTypeEntity> print cros deviceid
@@ -1055,6 +1055,7 @@ gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [
 gam <UserTypeEntity> update user <UserAttrubutes> [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
+gam print users
 gam [<UserTypeEntity>] print users [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
@@ -1079,12 +1080,10 @@ primaryEmail is the first column, all other column headers appear in the order s
 
 gam <UserTypeEntity> delete|del alias|aliases
 
-# Users - Application Specific Passwords
+# Users - Application Specific Passwords/backup Codes
 
 gam <UserTypeEntity> delete|del asp|asps|applicationspecificpasswords <AspID>
 gam <UserTypeEntity> show asps|asp|applicationspecificpasswords
-
-# Users - Backup Codes
 
 gam <UserTypeEntity> update backupcodes|backupcode|verificationcodes
 gam <UserTypeEntity> delete|del backupcodes|backupcode|verificationcodes
@@ -1207,9 +1206,11 @@ gam <UserTypeEntity> purge drivefile <DriveFileEntity>
 gam <UserTypeEntity> trash drivefile <DriveFileEntity>
 gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] [parentid <DriveFolderID>] [parentname <DriveFolderName>]
+
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser]
 gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])* [preview] [filepath] [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
@@ -1234,8 +1235,16 @@ gam <UserTypeEntity> print delegates [todrive [<ToDriveAttributes>]]
 
 # Users - Gmail - Filters
 
-gam <UserTypeEntity> [add] filter [from <EmailAddress>] [to <EmailAddress>] [subject <String>] [haswords|query <List>] [nowords|negatedquery <List>] [musthaveattachment|hasattachment] [excludechats] [size larger|smaller <ByteCount>]
-	[label <LabelID>] [important|notimportant] [star] [trash] [markread] [archive] [neverspam] [forward <EmailAddress>]
+<FilterCriteria> ::=
+	(from <EmailAddress>)|(to <EmailAddress>)|(subject <String>)|
+	(haswords|query <List>)|(nowords|negatedquery <List>)|
+	(musthaveattachment|hasattachment)|(excludechats)|(size larger|smaller <ByteCount>)
+
+<FilterAction> ::=
+	(label <LabelID>)|(important|notimportant)|(star)|(trash)|(markread)|(archive)|(neverspam)|
+	(forward <EmailAddress>)
+
+gam <UserTypeEntity> [add] filter <FilterCriteria>+ <FilterAction>+
 gam <UserTypeEntity> delete filters <FilterIDEntity>
 gam <UserTypeEntity> show filters
 gam <UserTypeEntity> info filters <FilterIDEntity>
@@ -1243,31 +1252,24 @@ gam <UserTypeEntity> print filters [todrive [<ToDriveAttributes>]]
 
 # Users - Gmail - Forwarding
 
-gam <UserTypeEntity> forward <FalseValues>
-gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
-gam <UserTypeEntity> show forward
-gam <UserTypeEntity> print forward [todrive [<ToDriveAttributes>]]
-
 gam <UserTypeEntity> add forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> delete forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> show forwardingaddress|forwardingaddresses
 gam <UserTypeEntity> info forwardingaddress|forwardingaddresses <EmailAddressEntity>
 gam <UserTypeEntity> print forwardingaddress|forwardingaddresses [todrive [<ToDriveAttributes>]]
 
-# Users - Gmail - IMAP
+gam <UserTypeEntity> forward <FalseValues>
+gam <UserTypeEntity> forward <TrueValues> keep|leaveininbox|archive|delete|trash|markread <EmailAddress>
+gam <UserTypeEntity> show forward
+gam <UserTypeEntity> print forward [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> imap|imap4 <Boolean> [noautoexpunge] [expungebehavior archive|deleteforever|trash] [maxfoldersize 0|1000|2000|5000|10000]
-gam <UserTypeEntity> show imap|imap4
-
-# Users - Gmail - Labels
+# Users - Gmail - Labels/Messages
 
 gam <UserTypeEntity> [add] label|labels <Name> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 gam <UserTypeEntity> update labelsettings <LabelName> [name <Name>] [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 gam <UserTypeEntity> update label|labels [search <RegularExpression>] [replace <LabelReplacement>] [merge]
 gam <UserTypeEntity> delete|del label|labels <LabelName>|regex:<RegularExpression>|--ALL_LABELS--
 gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
-
-# Users - Gmail - Messages
 
 gam <UserTypeEntity> archive messages <GroupItem> (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_archive <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> delete messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_delete|max_to_process <Number>])|(ids <MessageIDEntity>)
@@ -1280,17 +1282,12 @@ gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <L
 gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
 	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 
-# Users - Gmail - POP
-
-gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon|fromnowown] [action keep|leaveininbox|archive|delete|trash|markread]
-gam <UserTypeEntity> show pop|pop3
-
 # Users - Gmail - Profile
 
 gam <UserTypeEntity> show gmailprofile
 gam <UserTypeEntity> print gmailprofile [todrive [<ToDriveAttributes>]]
 
-# Users - Gmail - Send As/Signature
+# Users - Gmail - Send As/Signature/Vacation
 
 gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
@@ -1302,14 +1299,18 @@ gam <UserTypeEntity> print sendas [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [html] [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 gam <UserTypeEntity> show signature|sig [format] [primary]
 
-# Users - Gmail - Vacation
-
 gam <UserTypeEntity> vacation <FalseValues>
 gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html]
 	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
 gam <UserTypeEntity> show vacation [format]
 
-# Users - Gmail - Miscellaneous 
+# Users - Gmail - Settings
+
+gam <UserTypeEntity> imap|imap4 <Boolean> [noautoexpunge] [expungebehavior archive|deleteforever|trash] [maxfoldersize 0|1000|2000|5000|10000]
+gam <UserTypeEntity> show imap|imap4
+
+gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon|fromnowown] [action keep|leaveininbox|archive|delete|trash|markread]
+gam <UserTypeEntity> show pop|pop3
 
 gam <UserTypeEntity> arrows <Boolean>
 gam <UserTypeEntity> language <Language>
