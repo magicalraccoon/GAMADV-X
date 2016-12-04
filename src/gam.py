@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.36.06'
+__version__ = u'4.37.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -39,7 +39,6 @@ import datetime
 from htmlentitydefs import name2codepoint
 from HTMLParser import HTMLParser
 import json
-import logging
 import mimetypes
 import platform
 import random
@@ -100,8 +99,8 @@ GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__
                                                                               sys.version_info[0], sys.version_info[1], sys.version_info[2],
                                                                               sys.version_info[3],
                                                                               platform.platform(), platform.machine())
-GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
-GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
+GAM_RELEASES = u'{0}/releases'.format(GAM_URL)
+GAM_WIKI = u'{0}/wiki'.format(GAM_URL)
 GAM_ALL_RELEASES = u'https://api.github.com/repos/taers232c/'+GAM+u'/releases'
 GAM_LATEST_RELEASE = GAM_ALL_RELEASES+u'/latest'
 
@@ -1188,7 +1187,7 @@ MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloadin
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
 #
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes {1}'
-MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'\nPlease execute "gam oauth create"'
+MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'\nPlease execute "gam oauth create"\n'
 MESSAGE_INSTRUCTIONS_CHECK_AUTHORIZATIONS = u'Please run\n\ngam oauth info\ngam user <user> check serviceaccount\n\nto verify authorizations.\n'
 MESSAGE_INSTRUCTIONS_CLIENT_SECRETS_JSON = u'Please run\n\ngam create project\ngam oauth create\n\nto create and authorize a Client account.\n'
 MESSAGE_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please run\n\ngam create project\ngam user <user> check serviceaccount\n\nto create and authorizee a Service account.\n'
@@ -5425,6 +5424,10 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv
 
+def initializeLogging():
+  import logging
+  logging.getLogger().addHandler(logging.NullHandler())
+
 def resetDefaultEncodingToUTF8():
   if sys.getdefaultencoding().upper() != u'UTF-8':
     reload(sys)
@@ -5461,15 +5464,13 @@ def CSVFileQueueHandler(mpQueue):
 
 def ProcessGAMCommandQueue(args, mpQueue):
   resetDefaultEncodingToUTF8()
-  logging.basicConfig(level=logging.CRITICAL)
-  logging.raiseExceptions = False
+  initializeLogging()
   GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = mpQueue
   ProcessGAMCommand(args)
 
 def ProcessGAMCommandNoQueue(args):
   resetDefaultEncodingToUTF8()
-  logging.basicConfig(level=logging.CRITICAL)
-  logging.raiseExceptions = False
+  initializeLogging()
   ProcessGAMCommand(args)
 
 # gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
@@ -24097,6 +24098,5 @@ if __name__ == "__main__":
   if sys.platform.startswith('win'):
     freeze_support()
     win32_unicode_argv() # cleanup sys.argv on Windows
-  logging.basicConfig(level=logging.CRITICAL)
-  logging.raiseExceptions = False
+  initializeLogging()
   sys.exit(ProcessGAMCommand(sys.argv))

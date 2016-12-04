@@ -1,3 +1,9 @@
+4.37.00
+
+Initialize logging with NullHandler.
+Point to new Wiki.
+Reorganize GamCommands.txt.
+
 4.36.06
 
 Define logging level as CRITICAL to keep APIs silent.
