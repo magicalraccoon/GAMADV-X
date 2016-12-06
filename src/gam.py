@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.00'
+__version__ = u'4.37.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -854,7 +854,6 @@ CL_ENTITY_ALIAS_MAP = {
   }
 # CL entity source selectors
 CL_ENTITY_SELECTOR_ALL = u'all'
-CL_ENTITY_SELECTOR_ARGS = u'args'
 CL_ENTITY_SELECTOR_CSV = u'csv'
 CL_ENTITY_SELECTOR_CSVFILE = u'csvfile'
 CL_ENTITY_SELECTOR_FILE = u'file'
@@ -873,7 +872,6 @@ CL_CROS_ENTITY_SELECTORS = [
   ]
 CL_ENTITY_SELECTORS = [
   CL_ENTITY_SELECTOR_ALL,
-  CL_ENTITY_SELECTOR_ARGS,
   CL_ENTITY_SELECTOR_CSV,
   CL_ENTITY_SELECTOR_CSVFILE,
   CL_ENTITY_SELECTOR_FILE,
@@ -4701,19 +4699,6 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
   if invalid > 0:
     badEntitiesExit(Entity.ENTITY, invalid, [PHRASE_INVALID, PHRASE_INVALID], backupArg=True)
 
-def getEntitiesFromArgs():
-  marker = getString(OB_STRING)
-  entitySet = set()
-  entityList = []
-  while CLArgs.ArgumentsRemaining():
-    item = getString(Entity.Singular(Entity.ENTITY))
-    if item == marker:
-      break
-    if item not in entitySet:
-      entitySet.add(item)
-      entityList.append(item)
-  return entityList
-
 def splitEntityList(entity, dataDelimiter, shlexSplit):
   if not entity:
     return []
@@ -4858,14 +4843,6 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
       entityType = CL_ENTITY_SELECTOR_ALL_SUBTYPES_MAP[getChoice(choices)]
       return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType == CL_ENTITY_ALL_USERS],
               getUsersToModify(entityType, None))
-    if entitySelector == CL_ENTITY_SELECTOR_ARGS:
-      if userAllowed:
-        choices += CL_USER_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
-      if crosAllowed:
-        choices += CL_CROS_ENTITY_SELECTOR_ARGS_DATAFILE_CSVKMD_SUBTYPES
-      entityType = mapEntityType(getChoice(choices, choiceAliases=CL_ENTITY_ALIAS_MAP), typeMap)
-      return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType != CL_ENTITY_CROS],
-              getUsersToModify(entityType, getEntitiesFromArgs()))
     if userAllowed:
       if entitySelector == CL_ENTITY_SELECTOR_FILE:
         return (CL_ENTITY_USERS,
@@ -4934,7 +4911,7 @@ def getEntitySelection(entitySelector, shlexSplit):
   if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
     checkDataField()
     return GM_Globals[GM_CSV_DATA_DICT]
-  return getEntitiesFromArgs()
+  return []
 
 def getEntityList(item, listOptional=False, shlexSplit=False):
   entitySelector = getEntitySelector()
@@ -5459,8 +5436,24 @@ def CSVFileQueueHandler(mpQueue):
       GC_Values = dataItem
     else:
       break
-  GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
   writeCSVfile(csvRows, titles, list_type, todrive)
+
+def initializeCSVFileQueueHandler():
+  import multiprocessing
+  mpQueue = multiprocessing.Manager().Queue()
+  mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue,))
+  mpQueueHandler.start()
+  return (mpQueue, mpQueueHandler)
+
+def terminateCSVFileQueueHandler(mpQueue, mpQueueHandler):
+  GM_Globals[GM_PARSER] = None
+  GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = None
+  if GM_Globals[GM_WINDOWS]:
+    mpQueue.put((CSVFILE_QUEUE_ARGS, CLArgs.AllArguments()))
+    mpQueue.put((CSVFILE_QUEUE_GLOBALS, GM_Globals))
+    mpQueue.put((CSVFILE_QUEUE_VALUES, GC_Values))
+  mpQueue.put((CSVFILE_QUEUE_EOF, None))
+  mpQueueHandler.join()
 
 def ProcessGAMCommandQueue(args, mpQueue):
   resetDefaultEncodingToUTF8()
@@ -5497,20 +5490,12 @@ def doCSV():
   pool = multiprocessing.Pool(processes=num_worker_threads)
   sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
   if GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]:
-    mpMgr = multiprocessing.Manager()
-    mpQueue = mpMgr.Queue()
-    mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue,))
-    mpQueueHandler.start()
+    mpQueue, mpQueueHandler = initializeCSVFileQueueHandler()
     while items:
       pool.apply_async(ProcessGAMCommandQueue, [items.popleft(), mpQueue])
     pool.close()
     pool.join()
-    if GM_Globals[GM_WINDOWS]:
-      mpQueue.put((CSVFILE_QUEUE_ARGS, CLArgs.AllArguments()))
-      mpQueue.put((CSVFILE_QUEUE_GLOBALS, GM_Globals))
-      mpQueue.put((CSVFILE_QUEUE_VALUES, GC_Values))
-    mpQueue.put((CSVFILE_QUEUE_EOF, None))
-    mpQueueHandler.join()
+    terminateCSVFileQueueHandler(mpQueue, mpQueueHandler)
   else:
     while items:
       pool.apply_async(ProcessGAMCommandNoQueue, [items.popleft()])
@@ -24034,13 +24019,20 @@ def doLoop(processGamCfg=True):
 # gam redirect|select|config ... loop ... gam !redirect|select|config ... no further processing of gam.cfg
   processGamCfg = choice in GAM_META_COMMANDS
   GAM_argv, subFields = getSubFields([GAM_CMD,], csvFile.fieldnames)
+  multi = GM_Globals[GM_CSVFILE][GM_CSVFILE_MULTIPROCESS]
+  if multi:
+    mpQueue, mpQueueHandler = initializeCSVFileQueueHandler()
+  else:
+    mpQueue = None
+  GM_Globals[GM_CSVFILE][GM_CSVFILE_QUEUE] = mpQueue
   for row in csvFile:
     if (not matchFields) or checkMatchFields(row, matchFields):
       ProcessGAMCommand(processSubFields(GAM_argv, row, subFields), processGamCfg=processGamCfg)
       if (GM_Globals[GM_SYSEXITRC] > 0) and (GM_Globals[GM_SYSEXITRC] <= HARD_ERROR_RC):
         break
   closeFile(f)
-
+  if multi:
+    terminateCSVFileQueueHandler(mpQueue, mpQueueHandler)
 #
 if sys.platform.startswith('win'):
   from multiprocessing import freeze_support

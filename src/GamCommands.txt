@@ -199,7 +199,6 @@ Specify a collection of ChromeOS devices by directly specifying them or by speci
 		(cros_ou_and_children|cros_org_and_children <OrgUnitPath>)|
 		(cros_ous|cros_orgs <OrgUnitList>)|
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList>)|
-		(args cros <Marker> <CrOSID>* <Marker>)|
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
@@ -232,7 +231,6 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(courseparticipants <CourseIDList>)|
 		(students <CourseIDList>)|
 		(teachers <CourseIDList>)|
-		(args users|groups|ous|ous_and_children|courseparticipants|students|teachers <Marker> <UserItem>* <Marker>)|
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
@@ -244,7 +242,6 @@ Specify a collection of Users by directly specifying them or by specifiying item
 
 Specify a collection of items by directly specifying them; the item type is determined by context.
 
-<ArgsSelector> ::= args <Marker> <String>* <Marker>
 <CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			    (matchfield <FieldName> <RegularExpression>)*
@@ -252,32 +249,32 @@ Specify a collection of items by directly specifying them; the item type is dete
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
 
-<ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<CalendarEntity> ::= <CalendarList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<ContactEntity> ::= <ContactIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<CourseAliasEntity> ::= <CourseAliasList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<CourseEntity> ::= <CourseIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<CrOSEntity> ::= <CrOSItem>|<CrOSList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<DomainNameEntity> ::= <DomainNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
-<DriveFileNameEntity> ::= (drivefilename <DriveFileName>)|(drivefilename:<DriveFileName>)|(anydrivefilename <DriveFileName>)|(anydrivefilename:<DriveFileName>)
-<DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
-<DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>)
-<EmailAddressEntity> ::= <EmailAddressList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<EventIDEntity> ::= <EventIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<FilterIDEntity> ::= <FilterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<GroupEntity> ::= <GroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<MessageIDEntity> ::= <MessageIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<MobileEntity> ::= <MobileItem>|<MobileList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<OrgUnitEntity> ::= <OrgUnitList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<PrinterIDEntity> ::= <PrinterIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<PrintJobEntity> ::= <PrintJobIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<ResourceEntity> ::= <ResourceIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<SchemaEntity> ::= <SchemaNameList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
-<SiteEntity> ::= <SiteList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<ThreadIDEntity> ::= <ThreadIDList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
-<UserEntity> ::= <UserList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
+<ACLEntity>::= <ACLList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<CalendarEntity> ::= <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<ContactEntity> ::= <ContactIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<ContactGroupEntity> ::= <ContactGroupList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<CourseAliasEntity> ::= <CourseAliasList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<CourseEntity> ::= <CourseIDList> | <FileSelector> | <CSVkmdSelector>
+<CrOSEntity> ::= <CrOSItem> | <CrOSList> | <FileSelector> | <CSVkmdSelector>
+<DomainNameEntity> ::= <DomainNameList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
+<DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
+<DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
+<DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>)
+<EmailAddressEntity> ::= <EmailAddressList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<EventIDEntity> ::= <EventIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<FilterIDEntity> ::= <FilterIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<GroupEntity> ::= <GroupList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<MessageIDEntity> ::= <MessageIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<MobileEntity> ::= <MobileItem> | <MobileList> | <FileSelector> | <CSVkmdSelector>
+<OrgUnitEntity> ::= <OrgUnitList> | <FileSelector> | <CSVkmdSelector>
+<PrinterIDEntity> ::= <PrinterIDList> | <FileSelector> | <CSVkmdSelector>
+<PrintJobEntity> ::= <PrintJobIDList> | <FileSelector> | <CSVkmdSelector>
+<ResourceEntity> ::= <ResourceIDList> | <FileSelector> | <CSVkmdSelector>
+<SchemaEntity> ::= <SchemaNameList> | <FileSelector> | <CSVkmdSelector>
+<SiteEntity> ::= <SiteList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<ThreadIDEntity> ::= <ThreadIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<UserEntity> ::= <UserList> | <FileSelector> | <CSVkmdSelector> | 	<CSVDataSelector>
 
 # Meta Commands
 
