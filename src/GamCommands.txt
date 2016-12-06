@@ -390,15 +390,6 @@ gam audit monitor list <EmailAddress>
 
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
 
-<CalendarAttributes> ::=
-	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|
-	(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
-	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
-	(notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))
-
-<CalendarSettings> ::==
-	(summary <String>)|(description <String>)|(location <String>)|(timezone <String>)
-
 <EventAttributes> ::=
 	(anyonecanaddself)|(guestscantinviteothers)|(guestscantseeothers)|(notifyattendees)|
 	(available)|(visibility default|public|prvate)|(tentative)|
@@ -646,7 +637,7 @@ gam create course id|alias <CourseAlias> [teacher <UserItem>] <CourseAttributes>
 gam update course <CourseID> <CourseAttributes>+
 gam delete course <CourseID>
 gam info course <CourseID>
-gam print courses [todrive [<ToDriveAttributes>]] [teacher] [student] [alias|aliases] [delimiter <String>]
+gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>]
 
 gam update courses <CourseEntity> <CourseAttributes>+
 gam delete courses <CourseEntity>
@@ -673,9 +664,10 @@ gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <
 	[address1|addressline1 <String>] [address2|addressline2 <String>] [address3|addressline3 <String>]
 	[locality <String>] [region <String>] [postalcode <String>] [country|countrycode <String>]
 
-gam update instance logo <FileName>
 gam update instance sso_settings [enabled <Boolean>] [sign_on_uri <URI>] [sign_out_uri <URI>] [password_uri <URI>] [whitelist <CIDRnetmask>] [use_domain_specific_issuer <Boolean>]
 gam update instance sso_key <FileName>
+
+gam update instance logo <FileName>
 gam info instance [logo <FileName>]
 
 # Data Transfers
@@ -1087,27 +1079,39 @@ gam <UserTypeEntity> delete|del backupcodes|backupcode|verificationcodes
 gam <UserTypeEntity> show backupcodes|backupcode|verificationcodes
 
 # Users - Calendars
-gam <UserTypeEntity> add calendar <CalendarItem> <CalendarAttributes>*
-gam <UserTypeEntity> update calendar <CalendarItem>|primary <CalendarAttributes>+
-gam <UserTypeEntity> delete|del calendar <CalendarItem>
-gam <UserTypeEntity> show calendars
-gam <UserTypeEntity> info calendar <CalendarItem>|primary
-gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
-gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
-gam <UserTypeEntity> delete|del calendars <CalendarEntity>
-gam <UserTypeEntity> info calendars <CalendarEntity>|primary
-
-gam <UserTypeEntity> show calsettings
-gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
-gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
+<CalendarSettings> ::==
+	(summary <String>)|(description <String>)|(location <String>)|(timezone <String>)
 
 gam <UserTypeEntity> create calendar|calendars <CalendarSettings>
 gam <UserTypeEntity> modify calendar <CalendarItem>|primary <CalendarSettings>
 gam <UserTypeEntity> remove calendar <CalendarItem>
 gam <UserTypeEntity> modify calendars <CalendarEntity>|primary <CalendarSettings>
 gam <UserTypeEntity> remove calendars <CalendarEntity>
+
+gam <UserTypeEntity> show calsettings
+gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
+
+# Users - Calendars - List
+
+<CalendarAttributes> ::=
+	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|
+	(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
+	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
+	(notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))
+
+gam <UserTypeEntity> add calendar <CalendarItem> <CalendarAttributes>*
+gam <UserTypeEntity> update calendar <CalendarItem>|primary <CalendarAttributes>+
+gam <UserTypeEntity> delete|del calendar <CalendarItem>
+gam <UserTypeEntity> info calendar <CalendarItem>|primary
+
+gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
+gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
+gam <UserTypeEntity> delete|del calendars <CalendarEntity>
+gam <UserTypeEntity> info calendars <CalendarEntity>|primary
+gam <UserTypeEntity> show calendars
+gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
 # Users - Drive
 
