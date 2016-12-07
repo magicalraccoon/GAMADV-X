@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.01'
+__version__ = u'4.37.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12317,10 +12317,24 @@ def doPrintGroups():
 
   def _callbackProcessGroupBasic(request_id, response, exception):
     ri = request_id.splitlines()
+    i = int(ri[RI_I])
     if exception is not None:
-      entityUnknownWarning(Entity.GROUP, ri[RI_ENTITY], int(ri[RI_I]), int(ri[RI_COUNT]))
-    else:
-      entityList.append(response)
+      http_status, reason, message = checkGAPIError(exception)
+      if reason not in GAPI_DEFAULT_RETRY_REASONS+[GAPI_SERVICE_LIMIT, GAPI_INVALID]:
+        errMsg = getHTTPError({}, http_status, reason, message)
+        entityItemValueActionFailedWarning(Entity.GROUP, ri[RI_ENTITY], Entity.GROUP_SETTINGS, None, errMsg, i, int(ri[RI_COUNT]))
+        return
+      waitOnFailure(1, 10, reason, message)
+      try:
+        response = callGAPI(cd.groups(), u'get',
+                            soft_errors=True,
+                            throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                            retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
+                            groupKey=ri[RI_ENTITY], fields=cdfields)
+      except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden) as e:
+        entityItemValueActionFailedWarning(Entity.GROUP, ri[RI_ENTITY], Entity.GROUP_SETTINGS, None, e.message, i, int(ri[RI_COUNT]))
+        return
+    entityList.append(response)
 
   def _callbackProcessGroupMembers(request_id, response, exception):
     def _writeRowIfComplete(i):
@@ -15654,15 +15668,44 @@ def infoCourses(entityList):
     except GAPI_forbidden:
       APIAccessDeniedExit()
 
-# gam print courses [todrive] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>]
+# gam print courses [todrive] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>] [show all|students|teachers]
 def doPrintCourses():
+
+  def _saveParticipants(course, participants, role):
+    jcount = len(participants)
+    course[role] = jcount
+    addTitlesToCSVfile([role], titles)
+    j = 0
+    for member in participants:
+      memberTitles = []
+      prefix = u'{0}.{1}.'.format(role, j)
+      profile = member[u'profile']
+      emailAddress = profile.get(u'emailAddress')
+      if emailAddress:
+        memberTitle = prefix+u'emailAddress'
+        course[memberTitle] = emailAddress
+        memberTitles.append(memberTitle)
+      memberId = profile.get(u'id')
+      if memberId:
+        memberTitle = prefix+u'id'
+        course[memberTitle] = memberId
+        memberTitles.append(memberTitle)
+      fullName = profile.get(u'name', {}).get(u'fullName')
+      if fullName:
+        memberTitle = prefix+u'name.fullName'
+        course[memberTitle] = fullName
+        memberTitles.append(memberTitle)
+      addTitlesToCSVfile(memberTitles, titles)
+      j += 1
+
   croom = buildGAPIObject(CLASSROOM_API)
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'id',])
   teacherId = None
   studentId = None
-  get_aliases = False
+  showAliases = False
   delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
+  showMembers = u''
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -15672,9 +15715,11 @@ def doPrintCourses():
     elif myarg == u'student':
       studentId = getEmailAddress()
     elif myarg in [u'alias', u'aliases']:
-      get_aliases = True
+      showAliases = True
     elif myarg == u'delimiter':
       delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    elif myarg == u'show':
+      showMembers = getChoice([u'all', u'students', u'teachers'])
     else:
       unknownArgumentExit()
   printGettingAccountEntitiesInfo(Entity.COURSE)
@@ -15697,17 +15742,44 @@ def doPrintCourses():
     all_courses = collections.deque()
   for course in all_courses:
     addRowTitlesToCSVfile(flattenJSON(course, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
-  if get_aliases:
-    addTitleToCSVfile(u'Aliases', titles)
+  if showAliases or showMembers:
+    if showAliases:
+      addTitleToCSVfile(u'Aliases', titles)
     i = 0
     count = len(csvRows)
     for course in csvRows:
       i += 1
       courseId = course[u'id']
-      printGettingAllEntityItemsForWhom(Entity.ALIAS, entityTypeName(Entity.COURSE, removeCourseIdScope(courseId)), i, count)
-      course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
-                                     courseId=courseId)
-      course[u'Aliases'] = delimiter.join([removeCourseIdScope(alias[u'alias']) for alias in course_aliases])
+      page_message = getPageMessageForWhom(forWhom=formatKeyValueList(u'',
+                                                                      [Entity.Singular(Entity.COURSE), courseId],
+                                                                      currentCount(i, count)),
+                                           noNL=True)
+      try:
+        if showAliases:
+          Entity.SetGetting(Entity.ALIAS)
+          course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
+                                         page_message=page_message,
+                                         throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                                         courseId=courseId)
+          course[u'Aliases'] = delimiter.join([removeCourseIdScope(alias[u'alias']) for alias in course_aliases])
+        if showMembers:
+          if showMembers != u'students':
+            Entity.SetGetting(Entity.TEACHER)
+            results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                                    page_message=page_message,
+                                    throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                                    courseId=courseId, fields=u'nextPageToken,teachers(profile)')
+            _saveParticipants(course, results, u'teachers')
+          if showMembers != u'teachers':
+            Entity.SetGetting(Entity.STUDENT)
+            results = callGAPIpages(croom.courses().students(), u'list', u'students',
+                                    page_message=page_message,
+                                    throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                                    courseId=courseId, fields=u'nextPageToken,students(profile)')
+            _saveParticipants(course, results, u'students')
+      except (GAPI_notFound, GAPI_forbidden):
+        pass
+  sortCSVTitles([u'id', u'name'], titles)
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):

@@ -390,6 +390,16 @@ gam audit monitor list <EmailAddress>
 
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
 
+gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLEntity>
+gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLEntity>
+gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <ACLEntity>
+gam calendars <CalendarEntity> info acl|acls <ACLEntity>
+gam calendars <CalendarEntity> show acls
+gam calendars <CalendarEntity> wipe acls
+
 <EventAttributes> ::=
 	(anyonecanaddself)|(guestscantinviteothers)|(guestscantseeothers)|(notifyattendees)|
 	(available)|(visibility default|public|prvate)|(tentative)|
@@ -401,16 +411,6 @@ gam audit monitor list <EmailAddress>
 	(start allday <Date>)|(start <Time>)|(end allday <Date>)|(end <Time>)|(timezone <Timezone>)|
 	(noreminders|(reminder email|popup|sms <Number>)|(reminder <Number> email|popup|sms))|
 	(colorindex|colorid <EventColorIndex>)
-
-gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLEntity>
-gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLEntity>
-gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <ACLEntity>
-gam calendars <CalendarEntity> info acl|acls <ACLEntity>
-gam calendars <CalendarEntity> show acls
-gam calendars <CalendarEntity> wipe acls
 
 gam calendars <CalendarEntity> add event <EventAttributes>+
 gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>+
@@ -637,7 +637,7 @@ gam create course id|alias <CourseAlias> [teacher <UserItem>] <CourseAttributes>
 gam update course <CourseID> <CourseAttributes>+
 gam delete course <CourseID>
 gam info course <CourseID>
-gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>]
+gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers]
 
 gam update courses <CourseEntity> <CourseAttributes>+
 gam delete courses <CourseEntity>
@@ -778,9 +778,9 @@ gam update group <GroupItem> add [member|manager|owner] [notsuspended] <UserType
 gam update group <GroupItem> delete|remove [member|manager|owner] <UserTypeEntity>
 gam update group <GroupItem> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
 gam update group <GroupItem> update [member|manager|owner] <UserTypeEntity>
+gam update group <GroupItem> clear [member] [manager] [owner]
 gam delete group <GroupItem>
 gam info group <GroupItem> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
-gam update group <GroupItem> clear [member] [manager] [owner]
 
 gam update groups <GroupEntity> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*
 gam update groups <GroupEntity> add [member|manager|owner] [notsuspended] <UserTypeEntity>
@@ -1090,7 +1090,13 @@ gam <UserTypeEntity> modify calendars <CalendarEntity>|primary <CalendarSettings
 gam <UserTypeEntity> remove calendars <CalendarEntity>
 
 gam <UserTypeEntity> show calsettings
+
+gam <UserTypeEntity> info calendars <CalendarEntity>|primary
+gam <UserTypeEntity> show calendars
+gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
+
 gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+
 gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
 
 # Users - Calendars - List
@@ -1109,9 +1115,6 @@ gam <UserTypeEntity> info calendar <CalendarItem>|primary
 gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
 gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
 gam <UserTypeEntity> delete|del calendars <CalendarEntity>
-gam <UserTypeEntity> info calendars <CalendarEntity>|primary
-gam <UserTypeEntity> show calendars
-gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
 # Users - Drive
 
