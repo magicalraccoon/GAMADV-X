@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.02'
+__version__ = u'4.37.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -573,6 +573,7 @@ GAPI_ABORTED = u'aborted'
 GAPI_ALREADY_EXISTS = u'alreadyExists'
 GAPI_AUTH_ERROR = u'authError'
 GAPI_BACKEND_ERROR = u'backendError'
+GAPI_BAD_GATEWAY = u'badGateway'
 GAPI_BAD_REQUEST = u'badRequest'
 GAPI_CANNOT_CHANGE_OWN_ACL = u'cannotChangeOwnAcl'
 GAPI_CANNOT_CHANGE_OWNER_ACL = u'cannotChangeOwnerAcl'
@@ -633,7 +634,7 @@ GCP_UNKNOWN_JOB_ID = u'Unknown job id.'
 GCP_UNKNOWN_PRINTER = u'Unknown printer.'
 GCP_USER_IS_NOT_AUTHORIZED = u'User is not authorized.'
 #
-GAPI_DEFAULT_RETRY_REASONS = [GAPI_QUOTA_EXCEEDED, GAPI_RATE_LIMIT_EXCEEDED, GAPI_USER_RATE_LIMIT_EXCEEDED, GAPI_BACKEND_ERROR, GAPI_INTERNAL_ERROR]
+GAPI_DEFAULT_RETRY_REASONS = [GAPI_QUOTA_EXCEEDED, GAPI_RATE_LIMIT_EXCEEDED, GAPI_USER_RATE_LIMIT_EXCEEDED, GAPI_BACKEND_ERROR, GAPI_INTERNAL_ERROR, GAPI_BAD_GATEWAY]
 GAPI_ACTIVITY_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 GAPI_CALENDAR_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
@@ -3642,6 +3643,8 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       return (e.resp[u'status'], GAPI_QUOTA_EXCEEDED, e.content)
     if (e.resp[u'status'] == u'403') and (e.content.startswith(u'Request rate higher than configured')):
       return (e.resp[u'status'], GAPI_QUOTA_EXCEEDED, e.content)
+    if (e.resp[u'status'] == u'502') and (u'Bad Gateway' in e.content):
+      return (e.resp[u'status'], GAPI_BAD_GATEWAY, e.content)
     if (e.resp[u'status'] == u'403') and (u'Invalid domain.' in e.content):
       error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI_NOT_FOUND, u'message': u'Domain not found'}]}}
     elif (e.resp[u'status'] == u'400') and (u'InvalidSsoSigningKey' in e.content):
@@ -12334,7 +12337,7 @@ def doPrintGroups():
                             throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                             retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
                             groupKey=ri[RI_ENTITY], fields=cdfields)
-      except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden) as e:
+      except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
         entityUnknownWarning(Entity.GROUP, ri[RI_ENTITY], i, int(ri[RI_COUNT]))
         return
     entityList.append(response)
