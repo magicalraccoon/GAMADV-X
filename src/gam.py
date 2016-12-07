@@ -12321,8 +12321,11 @@ def doPrintGroups():
     if exception is not None:
       http_status, reason, message = checkGAPIError(exception)
       if reason not in GAPI_DEFAULT_RETRY_REASONS+[GAPI_SERVICE_LIMIT, GAPI_INVALID]:
-        errMsg = getHTTPError({}, http_status, reason, message)
-        entityItemValueActionFailedWarning(Entity.GROUP, ri[RI_ENTITY], Entity.GROUP_SETTINGS, None, errMsg, i, int(ri[RI_COUNT]))
+        if reason in [GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN]:
+          entityUnknownWarning(Entity.GROUP, ri[RI_ENTITY], i, int(ri[RI_COUNT]))
+        else:
+          errMsg = getHTTPError({}, http_status, reason, message)
+          entityItemValueActionFailedWarning(Entity.GROUP, ri[RI_ENTITY], Entity.GROUP, None, errMsg, i, int(ri[RI_COUNT]))
         return
       waitOnFailure(1, 10, reason, message)
       try:
@@ -12332,7 +12335,7 @@ def doPrintGroups():
                             retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
                             groupKey=ri[RI_ENTITY], fields=cdfields)
       except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden) as e:
-        entityItemValueActionFailedWarning(Entity.GROUP, ri[RI_ENTITY], Entity.GROUP_SETTINGS, None, e.message, i, int(ri[RI_COUNT]))
+        entityUnknownWarning(Entity.GROUP, ri[RI_ENTITY], i, int(ri[RI_COUNT]))
         return
     entityList.append(response)
 
