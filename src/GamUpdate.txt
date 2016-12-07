@@ -1,3 +1,7 @@
+4.37.03
+
+Handle GAPI Bad Gateway error.
+
 4.37.02
 
 Added show all|students|teachers argument to gam print courses. This allows you to get course and participant information in the same CSV file.
