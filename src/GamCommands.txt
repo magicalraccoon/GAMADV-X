@@ -110,8 +110,9 @@ If an item contains spaces, it should be surrounded by " or '.
 <MobileItem> ::= <MobileID>|(query:<QueryMobile>)|(query <QueryMobile>)
 <Name> ::= <String>
 <NotificationID> ::= <String>
-<OrgUnitID> ::= <String>
+<OrgUnitID> ::= id:<String>
 <OrgUnitPath> ::= /|(/<String)+
+<OrgUnitItem> ::= <OrgUnitID>|<OrgUnitPath>
 <ParameterKey> ::= <String>
 <ParameterValue> ::= <String>
 <PermissionID> ::= id:<String>|anyone|anyonewithlink
@@ -174,7 +175,7 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <LabelNameList> ::= '<LabelName>(,<LabelName)*'
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
-<OrgUnitList> ::== '<OrgUnitPath>(,<OrgUnitPath>)*'
+<OrgUnitList> ::== '<OrgUnitItem>(,<OrgUnitItem>)*'
 <PermissionIDList> ::= '<PermissionID>(,<PermissionID>)*'
 <PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
 <PrintJobIDList> ::= '<PrintJobID>(,<PrintJobID>)*'
@@ -197,8 +198,8 @@ Specify a collection of ChromeOS devices by directly specifying them or by speci
 		(crosfile <FileName> [charset <Charset>] [delimiter <String>])|
 		(croscsvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(crosquery <QueryCrOS>)|
-		(cros_ou|cros_org <OrgUnitPath>)|
-		(cros_ou_and_children|cros_org_and_children <OrgUnitPath>)|
+		(cros_ou|cros_org <OrgUnitItem>)|
+		(cros_ou_and_children|cros_org_and_children <OrgUnitItem>)|
 		(cros_ous|cros_orgs <OrgUnitList>)|
 		(cros_ous_and_children|cros_orgs_and_children <OrgUnitList>)|
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
@@ -218,8 +219,8 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(user <UserItem>)|
 		(users <UserList>)|
 		(group <GroupItem)|
-		(ou|org <OrgUnitPath)|
-		(ou_and_children|ou_and_child <OrgUnitPath>)|
+		(ou|org <OrgUnitItem)|
+		(ou_and_children|ou_and_child <OrgUnitItem>)|
 		(courseparticipants <CourseID>)|
 		(students <CourseID>)|
 		(teachers <CourseID>)|
@@ -848,14 +849,14 @@ gam info notification|notifications [unread|read|unreadonly]
 <OrgUnitFieldName> ::=
 	description|id|inherit|name|orgunitpath|parent|parentid|inherit
 
-gam create org|ou <Name> [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
-gam update org|ou <OrgUnitPath> [name <Name>] [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
-gam update org|ou <OrgUnitPath> add|move <CrOSTypeEntity>|<UserTypeEntity>
-gam delete org|ou <OrgUnitPath>
-gam info org|ou <OrgUnitPath> [nousers] [children|child]
-gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitPath>] [allfields|<OrgUnitFieldName>*]
+gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
+gam update org|ou <OrgUnitItem> [name <Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
+gam update org|ou <OrgUnitItem> add|move <CrOSTypeEntity>|<UserTypeEntity>
+gam delete org|ou <OrgUnitItem>
+gam info org|ou <OrgUnitItem> [nousers] [children|child]
+gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitItem>] [allfields|<OrgUnitFieldName>*]
 
-gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
+gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
 gam update orgs|ous <OrgUnitEntity> add|move <CrOSTypeEntity>|<UserTypeEntity>
 gam delete orgs|ous <OrgUnitEntity>
 gam info orgs|ous <OrgUnitEntity> [nousers] [children|child]

@@ -1111,6 +1111,7 @@ PHRASE_INVALID_CUSTOMER_ID = u'Invalid Customer ID'
 PHRASE_INVALID_DOMAIN = u'Invalid Domain'
 PHRASE_INVALID_ENTITY_MESSAGE = 'Invalid {0}, {1}'
 PHRASE_INVALID_GROUP = u'Invalid Group'
+PHRASE_INVALID_ORGUNIT = u'Invalid Organizational Unit'
 PHRASE_INVALID_PATH = u'Invalid Path'
 PHRASE_INVALID_QUERY = u'Invalid Query'
 PHRASE_INVALID_REQUEST = u'Invalid Request'
@@ -7329,7 +7330,7 @@ def doInfoInstance():
   _printAdminSetting(adm.ssoGeneral(), SINGLE_SIGN_ON_SETTINGS_MAP)
   _printAdminSetting(adm.ssoSigningKey(), SINGLE_SIGN_ON_SIGNING_KEY_MAP)
 
-# gam create org|ou <Name> [description <String>] [parent <OrgUnitPath>] [inherit] [noinherit]
+# gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit] [noinherit]
 def doCreateOrg():
   cd = buildGAPIObject(DIRECTORY_API)
   name = getOrgUnitPath(absolutePath=False)
@@ -7389,13 +7390,13 @@ def checkOrgUnitPathExists(cd, orgUnitPath, i=0, count=0):
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
 
-# gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitPath>] [inherit|noinherit]
+# gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
 # gam update orgs|ous <OrgUnitEntity> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrgs():
   updateOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
-# gam update org|ou <OrgUnitPath> [<Name>] [description <String>]  [parent <OrgUnitPath>] [inherit|noinherit]
-# gam update org|ou <OrgUnitPath> add|move <CrosTypeEntity>|<UserTypeEntity>
+# gam update org|ou <OrgUnitItem> [<Name>] [description <String>]  [parent <OrgUnitItem>] [inherit|noinherit]
+# gam update org|ou <OrgUnitItem> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrg():
   updateOrgs([getOrgUnitPath()])
 
@@ -7546,7 +7547,7 @@ def updateOrgs(entityList):
 def doDeleteOrgs():
   deleteOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
-# gam delete org|ou <OrgUnitPath>
+# gam delete org|ou <OrgUnitItem>
 def doDeleteOrg():
   deleteOrgs([getOrgUnitPath()])
 
@@ -7574,7 +7575,7 @@ def deleteOrgs(entityList):
 def doInfoOrgs():
   infoOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
-# gam info org|ou <OrgUnitPath> [nousers] [children|child]
+# gam info org|ou <OrgUnitItem> [nousers] [children|child]
 def doInfoOrg():
   infoOrgs([getOrgUnitPath()])
 
@@ -7651,7 +7652,7 @@ ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
   }
 ORG_FIELD_PRINT_ORDER = [u'orgunitpath', u'id', u'name', u'description', u'parent', u'parentid', u'inherit']
 
-# gam print orgs|ous [todrive] [from_parent <OrgUnitPath>] [toplevelonly] [allfields|<OrgUnitFieldName>*]
+# gam print orgs|ous [todrive] [from_parent <OrgUnitItem>] [toplevelonly] [allfields|<OrgUnitFieldName>*]
 def doPrintOrgs():
   cd = buildGAPIObject(DIRECTORY_API)
   listType = u'all'
@@ -14521,19 +14522,24 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
 def doCreateUser():
   cd = buildGAPIObject(DIRECTORY_API)
   body, admin_body = getUserAttributes(cd, updateCmd=False, noUid=True)
+  user = body[u'primaryEmail']
   try:
     callGAPI(cd.users(), u'insert',
-             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID_SCHEMA_VALUE],
+             throw_reasons=[GAPI_DUPLICATE, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_INVALID_SCHEMA_VALUE],
              body=body, fields=u'primaryEmail')
-    entityActionPerformed(Entity.USER, body[u'primaryEmail'])
+    entityActionPerformed(Entity.USER, user)
     if admin_body:
-      changeAdminStatus(cd, body[u'primaryEmail'], admin_body)
+      changeAdminStatus(cd, user, admin_body)
   except GAPI_duplicate:
-    entityDuplicateWarning(Entity.USER, body[u'primaryEmail'])
+    entityDuplicateWarning(Entity.USER, user)
   except (GAPI_domainNotFound, GAPI_forbidden) as e:
-    entityActionFailedWarning(Entity.USER, body[u'primaryEmail'], e.message)
+    entityActionFailedWarning(Entity.USER, user, e.message)
   except GAPI_invalidSchemaValue:
-    entityActionFailedWarning(Entity.USER, body[u'primaryEmail'], PHRASE_INVALID_SCHEMA_VALUE)
+    entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_SCHEMA_VALUE)
+  except GAPI_invalidOrgunit:
+    entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT)
+  except GAPI_invalid as e:
+    entityActionFailedWarning(Entity.USER, user, e.message)
 
 # gam update users <UserTypeEntity> <UserAttributes>
 def doUpdateUsers():
@@ -14566,7 +14572,7 @@ def updateUsers(entityList):
                             u'primary': False, u'address': user_primary}]
       if body:
         callGAPI(cd.users(), u'update',
-                 throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID, GAPI_INVALID_SCHEMA_VALUE],
+                 throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_INVALID_SCHEMA_VALUE],
                  userKey=user, body=body)
         entityActionPerformed(Entity.USER, user, i, count)
       if admin_body:
@@ -14575,6 +14581,8 @@ def updateUsers(entityList):
       entityUnknownWarning(Entity.USER, user, i, count)
     except GAPI_invalidSchemaValue:
       entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_SCHEMA_VALUE, i, count)
+    except GAPI_invalidOrgunit:
+      entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT, i, count)
     except GAPI_invalid as e:
       entityActionFailedWarning(Entity.USER, user, e.message, i, count)
 
@@ -14669,11 +14677,13 @@ def undeleteUsers(entityList):
     body[u'orgUnitPath'] = makeOrgUnitPathAbsolute(orgUnitPaths[0])
     try:
       callGAPI(cd.users(), u'undelete',
-               throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_DELETED_USER_NOT_FOUND],
+               throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_DELETED_USER_NOT_FOUND],
                userKey=user_uid, body=body)
       entityActionPerformed(Entity.DELETED_USER, user, i, count)
     except (GAPI_badRequest, GAPI_invalid, GAPI_deletedUserNotFound):
       entityUnknownWarning(Entity.DELETED_USER, user, i, count)
+    except GAPI_invalidOrgunit:
+      entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT, i, count)
 #
 USER_NAME_PROPERTY_PRINT_ORDER = [
   u'givenName',
