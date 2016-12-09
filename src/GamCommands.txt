@@ -114,7 +114,8 @@ If an item contains spaces, it should be surrounded by " or '.
 <OrgUnitPath> ::= /|(/<String)+
 <ParameterKey> ::= <String>
 <ParameterValue> ::= <String>
-<PermissionID> ::= id:<String>|<EmailAddress>|anyone|anyonewithlink
+<PermissionID> ::= id:<String>|anyone|anyonewithlink
+<PermissionIDorEmail> ::= <PermissionID>|<EmailAddress>
 <PrinterID> ::= <String>
 <PrintJobAge> ::= <Number>[m|h|d]
 <PrintJobID> ::= <String>
@@ -174,6 +175,7 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
 <OrgUnitList> ::== '<OrgUnitPath>(,<OrgUnitPath>)*'
+<PermissionIDList> ::= '<PermissionID>(,<PermissionID>)*'
 <PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
 <PrintJobIDList> ::= '<PrintJobID>(,<PrintJobID>)*'
 <ProductIDList> ::= '(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*'
@@ -202,6 +204,7 @@ Specify a collection of ChromeOS devices by directly specifying them or by speci
 		(datafile cros <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd cros <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvcros <FieldName>(:<FieldName>*))
@@ -234,6 +237,7 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(datafile users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [delimiter <String>])|
 		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
 			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
 			(matchfield <FieldName> <RegularExpression>)*
 			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
 		(csvdata <FieldName>(:<FieldName>*))
@@ -242,10 +246,13 @@ Specify a collection of Users by directly specifying them or by specifiying item
 
 Specify a collection of items by directly specifying them; the item type is determined by context.
 
-<CSVkmdSelector> ::= csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
-			    keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
-			    (matchfield <FieldName> <RegularExpression>)*
-			    [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+<CSVkmdSelector> ::=
+		csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+		       keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+		       subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+		       (matchfield <FieldName> <RegularExpression>)*
+		       [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+<CSVSubkeySelector> ::= csvsubkey <FieldName>
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
 
@@ -260,7 +267,7 @@ Specify a collection of items by directly specifying them; the item type is dete
 <DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
 <DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
 <DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
-<DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>)
+<DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
 <EmailAddressEntity> ::= <EmailAddressList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <EventIDEntity> ::= <EventIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <FilterIDEntity> ::= <FilterIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -268,13 +275,14 @@ Specify a collection of items by directly specifying them; the item type is dete
 <MessageIDEntity> ::= <MessageIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <MobileEntity> ::= <MobileItem> | <MobileList> | <FileSelector> | <CSVkmdSelector>
 <OrgUnitEntity> ::= <OrgUnitList> | <FileSelector> | <CSVkmdSelector>
+<PermissionIDEntity> ::= <PermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <PrinterIDEntity> ::= <PrinterIDList> | <FileSelector> | <CSVkmdSelector>
 <PrintJobEntity> ::= <PrintJobIDList> | <FileSelector> | <CSVkmdSelector>
 <ResourceEntity> ::= <ResourceIDList> | <FileSelector> | <CSVkmdSelector>
 <SchemaEntity> ::= <SchemaNameList> | <FileSelector> | <CSVkmdSelector>
 <SiteEntity> ::= <SiteList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ThreadIDEntity> ::= <ThreadIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
-<UserEntity> ::= <UserList> | <FileSelector> | <CSVkmdSelector> | 	<CSVDataSelector>
+<UserEntity> ::= <UserList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 # Meta Commands
 
@@ -1220,10 +1228,11 @@ gam <UserTypeEntity> empty drivetrash
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
-gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
+gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionIDorEmail>
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
-gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
+gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionIDorEmail> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
+gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
 
 # Users - Deprovision
 

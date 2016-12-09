@@ -1,3 +1,38 @@
+4.37.04
+
+Fix gam calendars <CalendarEntity> wipe acls to avoid trying to delete owner ACL.
+
+Expanded csvkmd to take a subkeyfield, this is used to support wipe drivefileacls.
+    <CrOSTypeEntity> ::=
+		(csvkmd cros <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+    <UserTypeEntity> ::=
+		(csvkmd users|groups|ous|ous_and_children|courseparticipants|students|teachers <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+			keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+			(matchfield <FieldName> <RegularExpression>)*
+			[datafield <FieldName>(:<FieldName)* [delimiter <String>]])|
+    <CSVkmdSelector> ::=
+		csvkmd <FileName> [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>]
+		       keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+		       subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+		       (matchfield <FieldName> <RegularExpression>)*
+		       [datafield <FieldName>(:<FieldName)* [delimiter <String>]]
+
+Added command to batch delete drivefileacls.
+    gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
+Given a CSV file DeletePerms.csv with three columns:
+Owner,driveFileId,permissionIds
+foo@domain.com,1-1234,"anyone,32737237,4343434"
+foo@domain.com,1-5678,54758584584754
+goo@domain.com,2-1234,7847834783
+hoo@domain.com,3-5678,"4837448347834,dhjshdjshdjshj,sjahd8wu8"
+All of the permissionIds for each driveFileId for each owner can be deleted with a single command:
+    gam csvkmd users DeletePerms.csv keyfield Owner subkeyfield driveFileId datafield permissionIds delimiter "," wipe drivefileacls csvsubkey driveFileId csvdata permissionIds
+
 4.37.03
 
 Handle GAPI Bad Gateway error.
@@ -760,7 +795,7 @@ GradYear,P1Email,P2Email
 2018,g2member21@domain.com,g2member22@domain.com
 ...
 For each row, the value from the GradYear column is matched against the keypattern, the matched segments are substituted into the keyvalue argument and that value is used as the group name.
-Verify daya selection: gam list csvkmd GradYearP1P2.csv keyfield GradYear keypattern '20(..)' keyvalue '\1-parents@domain.com' datafield P1Email:P2Email data csvdata P1Email:P2Email
+Verify data selection: gam list csvkmd GradYearP1P2.csv keyfield GradYear keypattern '20(..)' keyvalue '\1-parents@domain.com' datafield P1Email:P2Email data csvdata P1Email:P2Email
 Execute: gam update groups csvkmd GradYearP1P2.csv keyfield GradYear keypattern '20(..)' keyvalue '\1-parents@domain.com' datafield P1Email:P2Email sync member csvdata P1Email:P2Email
 
 4.22.03

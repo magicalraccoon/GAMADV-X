@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.03'
+__version__ = u'4.37.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -185,6 +185,7 @@ GM_ENTITY_CL_INDEX = u'enin'
 # { key: [datafieldvalues]}
 GM_CSV_DATA_DICT = u'csdd'
 GM_CSV_KEY_FIELD = u'cskf'
+GM_CSV_SUBKEY_FIELD = u'cssk'
 GM_CSV_DATA_FIELD = u'csdf'
 # Dictionary mapping OrgUnit ID to Name
 GM_MAP_ORGUNIT_ID_TO_NAME = u'oi2n'
@@ -220,6 +221,7 @@ GM_Globals = {
   GM_CSVFILE: {},
   GM_CSV_DATA_DICT: {},
   GM_CSV_KEY_FIELD: None,
+  GM_CSV_SUBKEY_FIELD: None,
   GM_CSV_DATA_FIELD: None,
   GM_ENTITY_CL_INDEX: 1,
   GM_MAP_ORGUNIT_ID_TO_NAME: None,
@@ -740,6 +742,7 @@ OB_ORGUNIT_PATH = u'OrgUnitPath'
 OB_PARAMETER_KEY = u'ParameterKey'
 OB_PARAMETER_VALUE = u'ParameterValue'
 OB_PERMISSION_ID = u'PermissionID'
+OB_PERMISSION_ID_ENTITY = u'PermissionIDEntity'
 OB_PHOTO_FILENAME_PATTERN = u'FilenameNamePattern'
 OB_PRINTER_ID = u'PrinterID'
 OB_PRINTER_ID_ENTITY = u'PrinterIDEntity'
@@ -863,6 +866,7 @@ CL_ENTITY_SELECTOR_CROSCSV = u'croscsv'
 CL_ENTITY_SELECTOR_CROSCSVFILE = u'croscsvfile'
 CL_ENTITY_SELECTOR_CROSFILE = u'crosfile'
 CL_ENTITY_SELECTOR_CSVKMD = u'csvkmd'
+CL_ENTITY_SELECTOR_CSVSUBKEY = u'csvsubkey'
 CL_ENTITY_SELECTOR_CSVDATA = u'csvdata'
 CL_ENTITY_SELECTOR_CSVCROS = u'csvcros'
 #
@@ -878,6 +882,7 @@ CL_ENTITY_SELECTORS = [
   CL_ENTITY_SELECTOR_FILE,
   CL_ENTITY_SELECTOR_DATAFILE,
   CL_ENTITY_SELECTOR_CSVKMD,
+  CL_ENTITY_SELECTOR_CSVSUBKEY,
   ]
 CL_CSVCROS_ENTITY_SELECTORS = [
   CL_ENTITY_SELECTOR_CSVCROS,
@@ -951,6 +956,7 @@ CL_OB_DRIVE = u'drive'
 CL_OB_DRIVEACTIVITY = u'driveactivity'
 CL_OB_DRIVEFILE = u'drivefile'
 CL_OB_DRIVEFILEACL = u'drivefileacl'
+CL_OB_DRIVEFILEACLS = u'drivefileacls'
 CL_OB_DRIVESETTINGS = u'drivesettings'
 CL_OB_DRIVETRASH = u'drivetrash'
 CL_OB_EMPTYDRIVEFOLDERS = u'emptydrivefolders'
@@ -1034,7 +1040,6 @@ GAM_META_COMMANDS = [SELECT_CMD, CONFIG_CMD, REDIRECT_CMD,]
 CLEAR_NONE_ARGUMENT = [u'clear', u'none',]
 CLIENTID_ARGUMENT = [u'clientid',]
 COLUMN_DELIMITER_ARGUMENT = [u'columndelimiter',]
-DATAFIELD_ARGUMENT = [u'datafield',]
 DATA_ARGUMENT = [u'data',]
 FILE_ARGUMENT = [u'file',]
 FROM_ARGUMENT = [u'from',]
@@ -1167,6 +1172,7 @@ MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compat
 MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
 MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
+MESSAGE_SUBKEY_FIELD_MISMATCH = u'subkeyfield {0} does not match saved subkeyfield {1}'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large G Suite instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
@@ -1176,6 +1182,7 @@ MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and 
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
+MESSAGE_NO_CSV_FILE_SUBKEYS_SAVED = u'No CSV file subkeys saved'
 MESSAGE_NO_CSV_HEADERS_IN_FILE = u'No headers found in CSV file "{0}".'
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by setting no_verify_ssl = true in gam.cfg'
 MESSAGE_NO_SCOPES_FOR_API = u'There are no scopes authorized for the {0}'
@@ -2220,8 +2227,17 @@ def checkMatchFields(row, matchFields):
       return False
   return True
 
+def checkSubkeyField():
+  if not GM_Globals[GM_CSV_SUBKEY_FIELD]:
+    CLArgs.Backup()
+    usageErrorExit(MESSAGE_NO_CSV_FILE_SUBKEYS_SAVED)
+  chkSubkeyField = getString(OB_FIELD_NAME, checkBlank=True)
+  if chkSubkeyField != GM_Globals[GM_CSV_SUBKEY_FIELD]:
+    CLArgs.Backup()
+    usageErrorExit(MESSAGE_SUBKEY_FIELD_MISMATCH.format(chkSubkeyField, GM_Globals[GM_CSV_SUBKEY_FIELD]))
+
 def checkDataField():
-  if not GM_Globals[GM_CSV_DATA_DICT]:
+  if not GM_Globals[GM_CSV_DATA_FIELD]:
     CLArgs.Backup()
     usageErrorExit(MESSAGE_NO_CSV_FILE_DATA_SAVED)
   chkDataField = getString(OB_FIELD_NAME, checkBlank=True)
@@ -3868,10 +3884,10 @@ def callGAPI(service, function,
     retry_reasons = []
   method = getattr(service, function)
   retries = 10
-  parameters = dict(kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
+  svcparms = dict(kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
   for n in range(1, retries+1):
     try:
-      return method(**parameters).execute()
+      return method(**svcparms).execute()
     except googleapiclient.errors.HttpError as e:
       http_status, reason, message = checkGAPIError(e, soft_errors=soft_errors, silent_errors=silent_errors, retryOnHttpError=n < 3, service=service)
       if http_status == -1:
@@ -4757,25 +4773,49 @@ def getEntitiesFromCSVFile(shlexSplit):
   closeFile(f)
   return entityList
 
-# <FileName> [charset <String>] [columndelimiter <String>] [fields <FieldNameList>] keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>] (matchfield <FieldName> <RegularExpression>)* [datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
+# <FileName> [charset <String>] [columndelimiter <String>] [fields <FieldNameList>]
+#	keyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+#	subkeyfield <FieldName> [keypattern <RegularExpression>] [keyvalue <String>] [delimiter <String>]
+#	(matchfield <FieldName> <RegularExpression>)*
+#	[datafield <FieldName>(:<FieldName>)* [delimiter <String>]]
 def getEntitiesFromCSVbyField():
+
+  def getKeyFieldInfo(keyword, required, globalKeyField):
+    if not checkArgumentPresent([keyword], required=required):
+      GM_Globals[globalKeyField] = None
+      return (None, None, None, None)
+    keyField = GM_Globals[globalKeyField] = getString(OB_FIELD_NAME)
+    if keyField not in csvFile.fieldnames:
+      csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
+    if checkArgumentPresent([u'keypattern',]):
+      keyPattern = getREPattern()
+    else:
+      keyPattern = None
+    if checkArgumentPresent([u'keyvalue',]):
+      keyValue = getString(OB_STRING)
+    else:
+      keyValue = keyField
+    keyDelimiter = getDelimiter()
+    return (keyField, keyPattern, keyValue, keyDelimiter)
+
+  def getKeyList(row, keyField, keyPattern, keyValue, keyDelimiter, matchFields):
+    item = row[keyField].strip()
+    if not item:
+      return []
+    if matchFields and not checkMatchFields(row, matchFields):
+      return []
+    if keyPattern:
+      keyList = [keyPattern.sub(keyValue, keyItem.strip()) for keyItem in splitEntityList(item, keyDelimiter, False)]
+    else:
+      keyList = [re.sub(keyField, keyItem.strip(), keyValue) for keyItem in splitEntityList(item, keyDelimiter, False)]
+    return [key for key in keyList if key]
+
   filename = getString(OB_FILE_NAME)
   f, csvFile = openCSVFileReader(filename)
-  checkArgumentPresent([u'keyfield',], required=True)
-  keyField = GM_Globals[GM_CSV_KEY_FIELD] = getString(OB_FIELD_NAME)
-  if keyField not in csvFile.fieldnames:
-    csvFieldErrorExit(keyField, csvFile.fieldnames, backupArg=True)
-  if checkArgumentPresent([u'keypattern',]):
-    keyPattern = getREPattern()
-  else:
-    keyPattern = None
-  if checkArgumentPresent([u'keyvalue',]):
-    keyValue = getString(OB_STRING)
-  else:
-    keyValue = keyField
-  keyDelimiter = getDelimiter()
+  mainKeyField, mainKeyPattern, mainKeyValue, mainKeyDelimiter = getKeyFieldInfo(u'keyfield', True, GM_CSV_KEY_FIELD)
+  subKeyField, subKeyPattern, subKeyValue, subKeyDelimiter = getKeyFieldInfo(u'subkeyfield', False, GM_CSV_SUBKEY_FIELD)
   matchFields = getMatchFields(csvFile.fieldnames)
-  if checkArgumentPresent(DATAFIELD_ARGUMENT):
+  if checkArgumentPresent([u'datafield',]):
     if GM_Globals[GM_CSV_DATA_DICT]:
       csvDataAlreadySavedErrorExit()
     GM_Globals[GM_CSV_DATA_FIELD] = getString(OB_FIELD_NAME, checkBlank=True)
@@ -4792,34 +4832,64 @@ def getEntitiesFromCSVbyField():
   entityList = []
   csvDataKeys = {}
   GM_Globals[GM_CSV_DATA_DICT] = {}
-  for row in csvFile:
-    item = row[keyField].strip()
-    if not item:
-      continue
-    if matchFields and not checkMatchFields(row, matchFields):
-      continue
-    if keyPattern:
-      keyList = [keyPattern.sub(keyValue, keyItem.strip()) for keyItem in splitEntityList(item, keyDelimiter, False)]
-    else:
-      keyList = [re.sub(keyField, keyItem.strip(), keyValue) for keyItem in splitEntityList(item, keyDelimiter, False)]
-    for key in keyList:
-      if key and (key not in entitySet):
-        entitySet.add(key)
-        entityList.append(key)
-        if GM_Globals[GM_CSV_DATA_FIELD]:
-          csvDataKeys[key] = set()
-          GM_Globals[GM_CSV_DATA_DICT][key] = []
-    for dataField in dataFields:
-      if dataField in row:
-        dataList = splitEntityList(row[dataField].strip(), dataDelimiter, False)
-        for dataValue in dataList:
-          dataValue = dataValue.strip()
-          if not dataValue:
-            continue
-          for key in keyList:
-            if dataValue not in csvDataKeys[key]:
-              csvDataKeys[key].add(dataValue)
-              GM_Globals[GM_CSV_DATA_DICT][key].append(dataValue)
+  if not subKeyField:
+    for row in csvFile:
+      mainKeyList = getKeyList(row, mainKeyField, mainKeyPattern, mainKeyValue, mainKeyDelimiter, matchFields)
+      if not mainKeyList:
+        continue
+      for mainKey in mainKeyList:
+        if mainKey not in entitySet:
+          entitySet.add(mainKey)
+          entityList.append(mainKey)
+          if GM_Globals[GM_CSV_DATA_FIELD]:
+            csvDataKeys[mainKey] = set()
+            GM_Globals[GM_CSV_DATA_DICT][mainKey] = []
+      for dataField in dataFields:
+        if dataField in row:
+          dataList = splitEntityList(row[dataField].strip(), dataDelimiter, False)
+          for dataValue in dataList:
+            dataValue = dataValue.strip()
+            if not dataValue:
+              continue
+            for mainKey in mainKeyList:
+              if dataValue not in csvDataKeys[mainKey]:
+                csvDataKeys[mainKey].add(dataValue)
+                GM_Globals[GM_CSV_DATA_DICT][mainKey].append(dataValue)
+  else:
+    csvSubKeys = {}
+    for row in csvFile:
+      mainKeyList = getKeyList(row, mainKeyField, mainKeyPattern, mainKeyValue, mainKeyDelimiter, matchFields)
+      if not mainKeyList:
+        continue
+      for mainKey in mainKeyList:
+        if mainKey not in entitySet:
+          entitySet.add(mainKey)
+          entityList.append(mainKey)
+          csvSubKeys[mainKey] = set()
+          csvDataKeys[mainKey] = {}
+          GM_Globals[GM_CSV_DATA_DICT][mainKey] = {}
+      subKeyList = getKeyList(row, subKeyField, subKeyPattern, subKeyValue, subKeyDelimiter, {})
+      if not subKeyList:
+        continue
+      for mainKey in mainKeyList:
+        for subKey in subKeyList:
+          if subKey not in csvSubKeys[mainKey]:
+            csvSubKeys[mainKey].add(subKey)
+            if GM_Globals[GM_CSV_DATA_FIELD]:
+              csvDataKeys[mainKey][subKey] = set()
+              GM_Globals[GM_CSV_DATA_DICT][mainKey][subKey] = []
+      for dataField in dataFields:
+        if dataField in row:
+          dataList = splitEntityList(row[dataField].strip(), dataDelimiter, False)
+          for dataValue in dataList:
+            dataValue = dataValue.strip()
+            if not dataValue:
+              continue
+            for mainKey in mainKeyList:
+              for subKey in subKeyList:
+                if dataValue not in csvDataKeys[mainKey][subKey]:
+                  csvDataKeys[mainKey][subKey].add(dataValue)
+                  GM_Globals[GM_CSV_DATA_DICT][mainKey][subKey].append(dataValue)
   closeFile(f)
   return entityList
 
@@ -4911,6 +4981,9 @@ def getEntitySelection(entitySelector, shlexSplit):
     return getEntitiesFromCSVFile(shlexSplit)
   if entitySelector == CL_ENTITY_SELECTOR_CSVKMD:
     return getEntitiesFromCSVbyField()
+  if entitySelector in [CL_ENTITY_SELECTOR_CSVSUBKEY]:
+    checkSubkeyField()
+    return GM_Globals[GM_CSV_DATA_DICT]
   if entitySelector in [CL_ENTITY_SELECTOR_CSVDATA]:
     checkDataField()
     return GM_Globals[GM_CSV_DATA_DICT]
@@ -7345,17 +7418,16 @@ def updateOrgs(entityList):
     Indent.Increment()
     body = {u'orgUnitPath': orgUnitPath}
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
     j = 0
     for deviceId in CrOSList:
       j += 1
-      if bsize > 1:
-        parameters = dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.chromeosdevices().patch(**parameters), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.chromeosdevices().patch(**dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
           bcount = 0
@@ -7390,18 +7462,17 @@ def updateOrgs(entityList):
     Indent.Increment()
     body = {u'orgUnitPath': orgUnitPath}
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
     j = 0
     for user in UserList:
       j += 1
       user = normalizeEmailAddressOrUID(user)
-      if bsize > 1:
-        parameters = dict([(u'userKey', user), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.users().patch(**parameters), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, user))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.users().patch(**dict([(u'userKey', user), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(orgUnitPath, i, count, j, jcount, user))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
           bcount = 0
@@ -8544,7 +8615,7 @@ def doCalendarShowACLs(cal, calendarList):
     try:
       acls = callGAPIpages(cal.acl(), u'list', u'items',
                            throw_reasons=[GAPI_NOT_FOUND],
-                           calendarId=calendarId, fields=u'nextPageToken,items')
+                           calendarId=calendarId, fields=u'nextPageToken,items(id,role,scope)')
       jcount = len(acls)
       entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
       if jcount == 0:
@@ -8568,9 +8639,10 @@ def doCalendarWipeACLs(cal, calendarList):
     i += 1
     calendarId = convertUserUIDtoEmailAddress(calendarId)
     try:
-      acls = callGAPIpages(cal.acl(), u'list', u'items',
-                           throw_reasons=[GAPI_NOT_FOUND],
-                           calendarId=calendarId, fields=u'nextPageToken,items')
+      result = callGAPIpages(cal.acl(), u'list', u'items',
+                             throw_reasons=[GAPI_NOT_FOUND],
+                             calendarId=calendarId, fields=u'nextPageToken,items(id,role,scope)')
+      acls = [rule for rule in result if (rule[u'role'] != u'owner') or (rule[u'scope'][u'type'] != u'user') or (rule[u'scope'][u'value'] != calendarId)]
       jcount = len(acls)
       entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
       if jcount == 0:
@@ -8584,11 +8656,11 @@ def doCalendarWipeACLs(cal, calendarList):
           callGAPI(cal.acl(), u'delete',
                    throw_reasons=[GAPI_NOT_FOUND, GAPI_CANNOT_CHANGE_OWNER_ACL],
                    calendarId=calendarId, ruleId=rule[u'id'])
-          entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, rule[u'id'], j, jcount)
+          entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), j, jcount)
         except GAPI_notFound:
-          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, rule[u'id'], PHRASE_DOES_NOT_EXIST, j, jcount)
+          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), PHRASE_DOES_NOT_EXIST, j, jcount)
         except GAPI_cannotChangeOwnerAcl:
-          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, rule[u'id'], PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
       Indent.Decrement()
     except GAPI_notFound:
       entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
@@ -11287,15 +11359,14 @@ def doPrintCrOSDevices(entityList=None):
   def _batchPrintCrOS(deviceIds):
     jcount = len(deviceIds)
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackPrintCrOS)
     j = 0
     for deviceId in deviceIds:
       j += 1
-      if bsize > 1:
-        parameters = dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'projection', projection), (u'fields', fields)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.chromeosdevices().get(**parameters), request_id=batchRequestID(u'', 0, 0, j, jcount, deviceId))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.chromeosdevices().get(**dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'projection', projection), (u'fields', fields)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(u'', 0, 0, j, jcount, deviceId))
         bcount += 1
         if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
@@ -11785,8 +11856,7 @@ def updateGroups(entityList):
     entityPerformActionNumItems(Entity.GROUP, group, jcount, role, i, count)
     Indent.Increment()
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddMembersToGroup)
     j = 0
     for member in addMembers:
@@ -11796,11 +11866,11 @@ def updateGroups(entityList):
         body = {u'role': role, u'email': member}
       else:
         body = {u'role': role, u'id': member}
-      if bsize > 1:
-        parameters = dict([(u'groupKey', group), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.members().insert(**parameters), request_id=batchRequestID(group, i, count, j, jcount, member, role))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.members().insert(**dict([(u'groupKey', group), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(group, i, count, j, jcount, member, role))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddMembersToGroup)
           bcount = 0
@@ -11838,16 +11908,15 @@ def updateGroups(entityList):
     entityPerformActionNumItems(Entity.GROUP, group, jcount, role, i, count)
     Indent.Increment()
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackRemoveMembersFromGroup)
     j = 0
     for member in removeMembers:
       j += 1
       member = normalizeEmailAddressOrUID(member)
-      if bsize > 1:
-        parameters = dict([(u'groupKey', group), (u'memberKey', member)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.members().delete(**parameters), request_id=batchRequestID(group, i, count, j, jcount, member, role))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.members().delete(**dict([(u'groupKey', group), (u'memberKey', member)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(group, i, count, j, jcount, member, role))
         bcount += 1
         if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
@@ -11884,18 +11953,17 @@ def updateGroups(entityList):
     entityPerformActionNumItems(Entity.GROUP, group, jcount, role, i, count)
     Indent.Increment()
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackUpdateMembersInGroup)
     j = 0
     for member in updateMembers:
       j += 1
       member = normalizeEmailAddressOrUID(member)
-      if bsize > 1:
-        parameters = dict([(u'groupKey', group), (u'memberKey', member), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.members().update(**parameters), request_id=batchRequestID(group, i, count, j, jcount, member, role))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.members().update(**dict([(u'groupKey', group), (u'memberKey', member), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(group, i, count, j, jcount, member, role))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackUpdateMembersInGroup)
           bcount = 0
@@ -12503,7 +12571,6 @@ def doPrintGroups():
     gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(rolesList)))
   rolesOrSettings = roles or getSettings
-  bsize = GC_Values[GC_BATCH_SIZE]
   if entitySelection is None:
     printGettingAccountEntitiesInfo(Entity.GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
@@ -12535,10 +12602,10 @@ def doPrintGroups():
       i += 1
       groupEmail = normalizeEmailAddressOrUID(groupEntity)
       printGettingEntityItem(Entity.GROUP, groupEmail, i, count)
-      parameters = dict([(u'groupKey', groupEmail), (u'fields', cdfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(cd.groups().get(**parameters), request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
+      dbatch.add(cd.groups().get(**dict([(u'groupKey', groupEmail), (u'fields', cdfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
       bcount += 1
-      if bcount == bsize:
+      if bcount == GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
         dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackProcessGroupBasic)
         bcount = 0
@@ -12558,17 +12625,17 @@ def doPrintGroups():
     groupData[i] = {u'entity': groupEntity, u'members': [], u'settings': getSettings}
     if roles:
       printGettingEntityItemForWhom(roles, groupEmail, i, count)
-      parameters = dict([(u'groupKey', groupEmail), (u'roles', roles), (u'fields', u'nextPageToken,members(email,id,role)'), (u'maxResults', GC_Values[GC_MEMBER_MAX_RESULTS])]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(cd.members().list(**parameters), callback=_callbackProcessGroupMembers, request_id=batchRequestID(groupEmail, i, count, 0, 0, None, roles))
+      dbatch.add(cd.members().list(**dict([(u'groupKey', groupEmail), (u'roles', roles), (u'fields', u'nextPageToken,members(email,id,role)'), (u'maxResults', GC_Values[GC_MEMBER_MAX_RESULTS])]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 callback=_callbackProcessGroupMembers, request_id=batchRequestID(groupEmail, i, count, 0, 0, None, roles))
     if getSettings:
       if not GroupIsAbuseOrPostmaster(groupEmail):
         printGettingEntityItemForWhom(Entity.GROUP_SETTINGS, groupEmail, i, count)
-        parameters = dict([(u'groupUniqueId', groupEmail), (u'fields', gsfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(gs.groups().get(**parameters), callback=_callbackProcessGroupSettings, request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
+        dbatch.add(gs.groups().get(**dict([(u'groupUniqueId', groupEmail), (u'fields', gsfields)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   callback=_callbackProcessGroupSettings, request_id=batchRequestID(groupEmail, i, count, 0, 0, None))
       else:
         groupData[i][u'settings'] = False
     bcount += 1
-    if bcount == bsize:
+    if bcount == GC_Values[GC_BATCH_SIZE]:
       dbatch.execute()
       dbatch = googleapiclient.http.BatchHttpRequest()
       bcount = 0
@@ -15055,16 +15122,15 @@ def doPrintUsers(entityList=None):
   def _batchPrintUser(entityList):
     jcount = len(entityList)
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackPrintUser)
     j = 0
     for userEntity in entityList:
       j += 1
       userEmail = normalizeEmailAddressOrUID(userEntity)
-      if bsize > 1:
-        parameters = dict([(u'userKey', userEmail), (u'fields', fields), (u'projection', projection), (u'customFieldMask', customFieldMask), (u'viewType', viewType)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.users().get(**parameters), request_id=batchRequestID(u'', 0, 0, j, jcount, userEmail))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.users().get(**dict([(u'userKey', userEmail), (u'fields', fields), (u'projection', projection), (u'customFieldMask', customFieldMask), (u'viewType', viewType)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(u'', 0, 0, j, jcount, userEmail))
         bcount += 1
         if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
@@ -15828,8 +15894,7 @@ def _batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, ro
   entityPerformActionNumItems(Entity.COURSE, noScopeCourseId, jcount, role, i, count)
   Indent.Increment()
   bcount = 0
-  bsize = GC_Values[GC_BATCH_SIZE]
-  if bsize > 1:
+  if GC_Values[GC_BATCH_SIZE] > 1:
     dbatch = croom.new_batch_http_request(callback=_callbackAddParticipantsToCourse)
   body = {attribute: None}
   j = 0
@@ -15840,11 +15905,11 @@ def _batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, ro
     else:
       body[attribute] = addCourseIdScope(participant)
       cleanItem = removeCourseIdScope(body[attribute])
-    if bsize > 1:
-      parameters = dict([(u'courseId', courseId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(service.create(**parameters), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
+    if GC_Values[GC_BATCH_SIZE] > 1:
+      dbatch.add(service.create(**dict([(u'courseId', courseId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
       bcount += 1
-      if bcount == bsize:
+      if bcount == GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
         dbatch = croom.new_batch_http_request(callback=_callbackAddParticipantsToCourse)
         bcount = 0
@@ -15895,8 +15960,7 @@ def _batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticip
   entityPerformActionNumItems(Entity.COURSE, noScopeCourseId, jcount, role, i, count)
   Indent.Increment()
   bcount = 0
-  bsize = GC_Values[GC_BATCH_SIZE]
-  if bsize > 1:
+  if GC_Values[GC_BATCH_SIZE] > 1:
     dbatch = croom.new_batch_http_request(callback=_callbackRemoveParticipantsFromCourse)
   kwargs = {}
   j = 0
@@ -15907,9 +15971,9 @@ def _batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticip
     else:
       kwargs[attribute] = addCourseIdScope(participant)
       cleanItem = removeCourseIdScope(kwargs[attribute])
-    if bsize > 1:
-      parameters = dict([(u'courseId', courseId)]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(service.delete(**parameters), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
+    if GC_Values[GC_BATCH_SIZE] > 1:
+      dbatch.add(service.delete(**dict([(u'courseId', courseId)]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
       bcount += 1
       if bcount == GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
@@ -19641,8 +19705,75 @@ def deleteDriveFileACL(users):
         break
     Indent.Decrement()
 
+# gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
+def wipeDriveFileACLs(users):
+
+  def _callbackDeletePermissionId(request_id, response, exception):
+    ri = request_id.splitlines()
+    if int(ri[RI_J]) == 1:
+      entityPerformActionNumItems(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], int(ri[RI_JCOUNT]), Entity.PERMISSION_ID, int(ri[RI_I]), int(ri[RI_COUNT]))
+    if exception is None:
+      entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+    else:
+      http_status, reason, message = checkGAPIError(exception)
+      if reason == GAPI_PERMISSION_NOT_FOUND:
+        entityDoesNotHaveItemValueWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      else:
+        errMsg = getHTTPError({}, http_status, reason, message)
+        entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+
+  fileIdSelection = getDriveFileEntity()
+  body, parameters = initializeDriveFileAttributes()
+  permissionIds = getEntityList(OB_PERMISSION_ID_ENTITY)
+  permissionIdsLists = permissionIds if isinstance(permissionIds, dict) else None
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    origUser = user
+    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+    if not drive:
+      continue
+    try:
+      callGAPI(drive.about(), u'get',
+               throw_reasons=GAPI_DRIVE_THROW_REASONS,
+               fields=u'user/emailAddress')
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(Entity.USER, user, i, count)
+      continue
+    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    if jcount == 0:
+      continue
+    Indent.Increment()
+    bcount = 0
+    dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackDeletePermissionId)
+    j = 0
+    for fileId in fileIdSelection[u'fileIds']:
+      j += 1
+      if permissionIdsLists:
+        if not GM_Globals[GM_CSV_SUBKEY_FIELD]:
+          permissionIds = permissionIdsLists[fileId]
+        else:
+          permissionIds = permissionIdsLists[origUser][fileId]
+      kcount = len(permissionIds)
+      if kcount == 0:
+        continue
+      k = 0
+      for permissionId in permissionIds:
+        k += 1
+        dbatch.add(drive.permissions().delete(**dict([(u'fileId', fileId), (u'permissionId', permissionId)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(fileId, j, jcount, k, kcount, permissionId))
+        bcount += 1
+        if bcount == GC_Values[GC_BATCH_SIZE]:
+          dbatch.execute()
+          dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackDeletePermissionId)
+          bcount = 0
+    if bcount > 0:
+      dbatch.execute()
+    Indent.Decrement()
+
 # gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
-def showDriveFileACL(users):
+def showDriveFileACLs(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   showTitles = checkArgumentPresent(SHOWTITLES_ARGUMENT)
@@ -19759,18 +19890,17 @@ def addUserToGroups(users):
     entityPerformActionModifierNumItemsModifier(Entity.USER, user, Action.MODIFIER_TO, jcount, Entity.GROUP, u'{0} {1}'.format(PHRASE_AS, body[u'role'].lower()), i, count)
     Indent.Increment()
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddUserToGroups)
     j = 0
     for group in groupKeys:
       j += 1
       group = normalizeEmailAddressOrUID(group)
-      if bsize > 1:
-        parameters = dict([(u'groupKey', group), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.members().insert(**parameters), request_id=batchRequestID(group, i, count, j, jcount, user, body[u'role']))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.members().insert(**dict([(u'groupKey', group), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(group, i, count, j, jcount, user, body[u'role']))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddUserToGroups)
           bcount = 0
@@ -19837,18 +19967,17 @@ def deleteUserFromGroups(users):
     entityPerformActionModifierNumItems(Entity.USER, user, Action.MODIFIER_FROM, jcount, Entity.GROUP, i, count)
     Indent.Increment()
     bcount = 0
-    bsize = GC_Values[GC_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackDeleteUserFromGroups)
     j = 0
     for group in groupKeys:
       j += 1
       group = normalizeEmailAddressOrUID(group)
-      if bsize > 1:
-        parameters = dict([(u'groupKey', group), (u'memberKey', user)]+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(cd.members().delete(**parameters), request_id=batchRequestID(group, i, count, j, jcount, user, role))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(cd.members().delete(**dict([(u'groupKey', group), (u'memberKey', user)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(group, i, count, j, jcount, user, role))
         bcount += 1
-        if bcount == bsize:
+        if bcount == GC_Values[GC_BATCH_SIZE]:
           dbatch.execute()
           dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackDeleteUserFromGroups)
           bcount = 0
@@ -20656,8 +20785,8 @@ def deleteLabel(users):
     j = 0
     for del_me in del_labels:
       j += 1
-      parameters = dict([(u'userId', u'me'), (u'id', del_me[u'id'])]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(gmail.users().labels().delete(**parameters), request_id=batchRequestID(user, i, count, j, jcount, del_me[u'name']))
+      dbatch.add(gmail.users().labels().delete(**dict([(u'userId', u'me'), (u'id', del_me[u'id'])]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 request_id=batchRequestID(user, i, count, j, jcount, del_me[u'name']))
       bcount += 1
       if bcount == 10:
         dbatch.execute()
@@ -20981,16 +21110,15 @@ def processMessagesThreads(users, entityType):
 
   def _batchProcessMessagesThreads(service, function, user, jcount, messageIds, i, count, **kwargs):
     bcount = 0
-    bsize = GC_Values[GC_EMAIL_BATCH_SIZE]
-    if bsize > 1:
+    if GC_Values[GC_BATCH_SIZE] > 1:
       method = getattr(service, function)
       dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackProcessMessage)
     j = 0
     for message in messageIds:
       j += 1
-      if bsize > 1:
-        parameters = dict([(u'userId', u'me'), (u'id', message[u'id'])]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
-        dbatch.add(method(**parameters), request_id=batchRequestID(user, i, count, j, jcount, message[u'id']))
+      if GC_Values[GC_BATCH_SIZE] > 1:
+        dbatch.add(method(**dict([(u'userId', u'me'), (u'id', message[u'id'])]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(user, i, count, j, jcount, message[u'id']))
         bcount += 1
         if bcount == GC_Values[GC_EMAIL_BATCH_SIZE]:
           dbatch.execute()
@@ -21373,8 +21501,8 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     j = 0
     for message in messageIds:
       j += 1
-      parameters = dict([(u'userId', u'me'), (u'id', message[u'id']), (u'format', [u'metadata', u'full'][show_body])]+GM_Globals[GM_EXTRA_ARGS_LIST])
-      dbatch.add(service.get(**parameters), request_id=batchRequestID(user, i, count, j, jcount, message[u'id']))
+      dbatch.add(service.get(**dict([(u'userId', u'me'), (u'id', message[u'id']), (u'format', [u'metadata', u'full'][show_body])]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                 request_id=batchRequestID(user, i, count, j, jcount, message[u'id']))
       bcount += 1
       if maxToProcess and j == maxToProcess:
         break
@@ -23854,7 +23982,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CONTACT_GROUPS:	showUserContactGroups,
         CL_OB_DELEGATES:	showDelegates,
         CL_OB_DRIVEACTIVITY:	printDriveActivity,
-        CL_OB_DRIVEFILEACL:	showDriveFileACL,
+        CL_OB_DRIVEFILEACLS:	showDriveFileACLs,
         CL_OB_DRIVESETTINGS:	printDriveSettings,
         CL_OB_FILEINFO:	showDriveFileInfo,
         CL_OB_FILELIST:	printDriveFileList,
@@ -23888,6 +24016,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_CONTACT_GROUP:	CL_OB_CONTACT_GROUPS,
         CL_OB_DELEGATE:	CL_OB_DELEGATES,
+        CL_OB_DRIVEFILEACL:	CL_OB_DRIVEFILEACLS,
         CL_OB_FILTER:	CL_OB_FILTERS,
         CL_OB_FORWARDINGADDRESS:	CL_OB_FORWARDINGADDRESSES,
         u'imap4':	CL_OB_IMAP,
@@ -23978,6 +24107,15 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'licence':	CL_OB_LICENSE,
         CL_OB_SITE:	CL_OB_SITES,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
+       },
+    },
+  u'wipe':
+    {CMD_ACTION: Action.WIPE,
+     CMD_FUNCTION:
+       {CL_OB_DRIVEFILEACLS:	wipeDriveFileACLs,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_DRIVEFILEACL:	CL_OB_DRIVEFILEACLS,
        },
     },
   }
