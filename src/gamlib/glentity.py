@@ -37,6 +37,7 @@ class GamEntity(object):
   ACL = u'acl '
   ACTION = u'actn'
   ACTIVITY = u'actv'
+  ADMINISTRATOR = u'admi'
   ALIAS = u'alia'
   ALIAS_EMAIL = u'alie'
   ALIAS_TARGET = u'alit'
@@ -171,6 +172,7 @@ class GamEntity(object):
     ACL: [u'ACLs', u'ACL'],
     ACTION: [u'Actions', u'Action'],
     ACTIVITY: [u'Activities', u'Activity'],
+    ADMINISTRATOR: [u'Administrators', u'Administrator'],
     ALIAS: [u'Aliases', u'Alias'],
     ALIAS_EMAIL: [u'Alias Emails', u'Alias Email'],
     ALIAS_TARGET: [u'Alias Targets', u'Alias Target'],

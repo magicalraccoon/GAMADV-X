@@ -738,6 +738,7 @@ OB_MOBILE_ENTITY = u'MobileEntity'
 OB_NAME = u'Name'
 OB_NOTIFICATION_ID = u'NotificationID'
 OB_ORGUNIT_ENTITY = u'OrgUnitEntity'
+OB_ORGUNIT_ITEM = u'OrgUnitItem'
 OB_ORGUNIT_PATH = u'OrgUnitPath'
 OB_PARAMETER_KEY = u'ParameterKey'
 OB_PARAMETER_VALUE = u'ParameterValue'
@@ -2027,15 +2028,17 @@ def makeOrgUnitPathRelative(path):
     return path[1:]
   return path.rstrip(u'/')
 
-def getOrgUnitPath(absolutePath=True):
+def getOrgUnitItem(pathOnly=False, absolutePath=True):
   if CLArgs.ArgumentsRemaining():
     path = CLArgs.Current().strip()
     if path:
+      if pathOnly and (path.startswith(u'id:') or path.startswith(u'uid:')):
+        invalidArgumentExit(OB_ORGUNIT_PATH)
       CLArgs.Advance()
       if absolutePath:
         return makeOrgUnitPathAbsolute(path)
       return makeOrgUnitPathRelative(path)
-  missingArgumentExit(OB_ORGUNIT_PATH)
+  missingArgumentExit([OB_ORGUNIT_ITEM, OB_ORGUNIT_PATH][pathOnly])
 
 def getREPattern():
   if CLArgs.ArgumentsRemaining():
@@ -3618,6 +3621,7 @@ GAPI_REASON_MESSAGE_MAP = {
     (u'Invalid Input: custom_schema', GAPI_INVALID_SCHEMA_VALUE),
     (u'Invalid Input: resource', GAPI_INVALID_RESOURCE),
     (u'Invalid Input:', GAPI_INVALID_INPUT),
+    (u'Invalid Org Unit', GAPI_INVALID_ORGUNIT),
     (u'Invalid Ou Id', GAPI_INVALID_ORGUNIT),
     (u'Invalid Parent Orgunit Id', GAPI_INVALID_PARENT_ORGUNIT),
     (u'Invalid query', GAPI_INVALID_QUERY),
@@ -3689,6 +3693,8 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
         error = {u'error': {u'errors': [{u'reason': GAPI_UNKNOWN_ERROR, u'message': message}]}}
       elif u'Backend Error' in message:
         error = {u'error': {u'errors': [{u'reason': GAPI_BACKEND_ERROR, u'message': message}]}}
+      elif u'Role assignment exists: RoleAssignment' in message:
+        error = {u'error': {u'errors': [{u'reason': GAPI_DUPLICATE, u'message': message}]}}
   else:
     if u'error_description' in error:
       if error[u'error_description'] == u'Invalid Value':
@@ -6873,7 +6879,7 @@ def getRoleId():
   return (role, roleId)
 
 def getOrgUnitId(cd):
-  orgUnit = getOrgUnitPath()
+  orgUnit = getOrgUnitItem()
   if orgUnit[:3] == u'id:':
     return (orgUnit, orgUnit[3:])
   try:
@@ -6909,7 +6915,7 @@ def doCreateAdmin():
   checkForExtraneousArguments()
   try:
     result = callGAPI(cd.roleAssignments(), u'insert',
-                      throw_reasons=[GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
+                      throw_reasons=[GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID_ORGUNIT, GAPI_DUPLICATE],
                       customer=GC_Values[GC_CUSTOMER_ID], body=body)
     entityActionPerformedMessage(Entity.ROLE_ASSIGNMENT_ID, result[u'roleAssignmentId'],
                                  u'{0} {1}, {2} {3}, {4} {5}'.format(Entity.Singular(Entity.USER), user,
@@ -6919,6 +6925,10 @@ def doCreateAdmin():
     pass
   except (GAPI_badRequest, GAPI_customerNotFound, GAPI_forbidden):
     accessErrorExit(cd)
+  except GAPI_invalidOrgunit:
+    entityActionFailedWarning(Entity.ADMINISTRATOR, user, PHRASE_INVALID_ORGUNIT)
+  except GAPI_duplicate:
+    entityItemValueActionFailedWarning(Entity.ADMINISTRATOR, user, Entity.ROLE, role, PHRASE_DUPLICATE)
 
 # gam delete admin <RoleAssignmentId>
 def doDeleteAdmin():
@@ -7333,7 +7343,7 @@ def doInfoInstance():
 # gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit] [noinherit]
 def doCreateOrg():
   cd = buildGAPIObject(DIRECTORY_API)
-  name = getOrgUnitPath(absolutePath=False)
+  name = getOrgUnitItem(pathOnly=True, absolutePath=False)
   parent = u''
   body = {}
   while CLArgs.ArgumentsRemaining():
@@ -7341,7 +7351,7 @@ def doCreateOrg():
     if myarg == u'description':
       body[u'description'] = getString(OB_STRING)
     elif myarg == u'parent':
-      parent = getOrgUnitPath()
+      parent = getOrgUnitItem()
     elif myarg == u'noinherit':
       body[u'blockInheritance'] = True
     elif myarg == u'inherit':
@@ -7398,7 +7408,7 @@ def doUpdateOrgs():
 # gam update org|ou <OrgUnitItem> [<Name>] [description <String>]  [parent <OrgUnitItem>] [inherit|noinherit]
 # gam update org|ou <OrgUnitItem> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrg():
-  updateOrgs([getOrgUnitPath()])
+  updateOrgs([getOrgUnitItem()])
 
 def updateOrgs(entityList):
 
@@ -7518,7 +7528,7 @@ def updateOrgs(entityList):
       elif myarg == u'description':
         body[u'description'] = getString(OB_STRING)
       elif myarg == u'parent':
-        parent = getOrgUnitPath()
+        parent = getOrgUnitItem()
         if parent.startswith(u'id:'):
           body[u'parentOrgUnitId'] = parent
         else:
@@ -7549,7 +7559,7 @@ def doDeleteOrgs():
 
 # gam delete org|ou <OrgUnitItem>
 def doDeleteOrg():
-  deleteOrgs([getOrgUnitPath()])
+  deleteOrgs([getOrgUnitItem()])
 
 def deleteOrgs(entityList):
   cd = buildGAPIObject(DIRECTORY_API)
@@ -7577,7 +7587,7 @@ def doInfoOrgs():
 
 # gam info org|ou <OrgUnitItem> [nousers] [children|child]
 def doInfoOrg():
-  infoOrgs([getOrgUnitPath()])
+  infoOrgs([getOrgUnitItem()])
 
 def infoOrgs(entityList):
   cd = buildGAPIObject(DIRECTORY_API)
@@ -7668,7 +7678,7 @@ def doPrintOrgs():
     elif myarg == u'toplevelonly':
       listType = u'children'
     elif myarg == u'fromparent':
-      orgUnitPath = getOrgUnitPath()
+      orgUnitPath = getOrgUnitItem()
     elif myarg == u'allfields':
       fieldsList = []
       fieldsTitles = {}
@@ -11087,7 +11097,7 @@ def updateCrOSDevices(entityList, cd=None):
     if myarg in UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP:
       up = UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'orgUnitPath':
-        update_body[up] = getOrgUnitPath()
+        update_body[up] = getOrgUnitItem(pathOnly=True)
       elif up == u'notes':
         update_body[up] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
       else:
@@ -11107,29 +11117,29 @@ def updateCrOSDevices(entityList, cd=None):
     if action_body[u'action'] == u'deprovision' and not ack_wipe:
       stderrWarningMsg(MESSAGE_REFUSING_TO_DEPROVISION_DEVICES.format(count))
       systemErrorExit(AC_NOT_PERFORMED_RC, None)
-    for deviceId in entityList:
-      i += 1
-      try:
-        callGAPI(cd.chromeosdevices(), u'action',
-                 throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                 customerId=GC_Values[GC_CUSTOMER_ID], resourceId=deviceId, body=action_body)
-        entityActionPerformed(Entity.CROS_DEVICE, deviceId, i, count)
-      except GAPI_invalid as e:
-        entityActionFailedWarning(Entity.CROS_DEVICE, deviceId, e.message, i, count)
-      except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-        checkEntityAFDNEorAccessErrorExit(cd, Entity.CROS_DEVICE, deviceId, i, count)
+    function = u'action'
+    parmId = u'resourceId'
+    kwargs = {parmId: None, u'body': action_body}
   elif update_body:
-    for deviceId in entityList:
-      i += 1
-      try:
-        callGAPI(cd.chromeosdevices(), u'patch',
-                 throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                 customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=update_body)
-        entityActionPerformed(Entity.CROS_DEVICE, deviceId, i, count)
-      except GAPI_invalid as e:
-        entityActionFailedWarning(Entity.CROS_DEVICE, deviceId, e.message, i, count)
-      except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-        checkEntityAFDNEorAccessErrorExit(cd, Entity.CROS_DEVICE, deviceId, i, count)
+    function = u'patch'
+    parmId = u'deviceId'
+    kwargs = {parmId: None, u'body': update_body}
+  else:
+    return
+  for deviceId in entityList:
+    i += 1
+    kwargs[parmId] = deviceId
+    try:
+      callGAPI(cd.chromeosdevices(), function,
+               throw_reasons=[GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+               customerId=GC_Values[GC_CUSTOMER_ID], **kwargs)
+      entityActionPerformed(Entity.CROS_DEVICE, deviceId, i, count)
+    except GAPI_invalid as e:
+      entityActionFailedWarning(Entity.CROS_DEVICE, deviceId, e.message, i, count)
+    except GAPI_invalidOrgunit:
+      entityActionFailedWarning(Entity.CROS_DEVICE, deviceId, PHRASE_INVALID_ORGUNIT, i, count)
+    except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
+      checkEntityAFDNEorAccessErrorExit(cd, Entity.CROS_DEVICE, deviceId, i, count)
 
 CROS_ARGUMENT_TO_PROPERTY_MAP = {
   u'activetimeranges': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
@@ -14339,7 +14349,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       elif up == u'customerId' and updateCmd:
         body[up] = getString(OB_STRING)
       elif up == u'orgUnitPath':
-        body[up] = getOrgUnitPath()
+        body[up] = getOrgUnitItem(pathOnly=True)
       elif up == u'addresses':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
@@ -14536,10 +14546,10 @@ def doCreateUser():
     entityActionFailedWarning(Entity.USER, user, e.message)
   except GAPI_invalidSchemaValue:
     entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_SCHEMA_VALUE)
-  except GAPI_invalidOrgunit:
-    entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT)
   except GAPI_invalid as e:
     entityActionFailedWarning(Entity.USER, user, e.message)
+  except GAPI_invalidOrgunit:
+    entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT)
 
 # gam update users <UserTypeEntity> <UserAttributes>
 def doUpdateUsers():
@@ -14581,10 +14591,10 @@ def updateUsers(entityList):
       entityUnknownWarning(Entity.USER, user, i, count)
     except GAPI_invalidSchemaValue:
       entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_SCHEMA_VALUE, i, count)
-    except GAPI_invalidOrgunit:
-      entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT, i, count)
     except GAPI_invalid as e:
       entityActionFailedWarning(Entity.USER, user, e.message, i, count)
+    except GAPI_invalidOrgunit:
+      entityActionFailedWarning(Entity.USER, user, PHRASE_INVALID_ORGUNIT, i, count)
 
 # gam delete users <UserTypeEntity>
 # gam delete user <UserItem>
