@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.04'
+__version__ = u'4.37.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -601,6 +601,7 @@ GAPI_INVALID_ARGUMENT = u'invalidArgument'
 GAPI_INVALID_CUSTOMER_ID = u'invalidCustomerId'
 GAPI_INVALID_INPUT = u'invalidInput'
 GAPI_INVALID_MEMBER = u'invalidMember'
+GAPI_INVALID_MESSAGE_ID = u'invalidMessageId'
 GAPI_INVALID_ORGUNIT = u'invalidOrgunit'
 GAPI_INVALID_PARENT_ORGUNIT = u'invalidParentOrgunit'
 GAPI_INVALID_QUERY = u'invalidQuery'
@@ -1112,6 +1113,7 @@ PHRASE_INVALID_CUSTOMER_ID = u'Invalid Customer ID'
 PHRASE_INVALID_DOMAIN = u'Invalid Domain'
 PHRASE_INVALID_ENTITY_MESSAGE = 'Invalid {0}, {1}'
 PHRASE_INVALID_GROUP = u'Invalid Group'
+PHRASE_INVALID_MESSAGE_ID = 'Invalid message id(s)'
 PHRASE_INVALID_ORGUNIT = u'Invalid Organizational Unit'
 PHRASE_INVALID_PATH = u'Invalid Path'
 PHRASE_INVALID_QUERY = u'Invalid Query'
@@ -3630,6 +3632,8 @@ GAPI_REASON_MESSAGE_MAP = {
     ],
   GAPI_INVALID_ARGUMENT: [
     (u'Cannot delete primary send-as', GAPI_CANNOT_DELETE_PRIMARY_SENDAS),
+    (u'Invalid id value', GAPI_INVALID_MESSAGE_ID),
+    (u'Invalid ids value', GAPI_INVALID_MESSAGE_ID),
     ],
   GAPI_NOT_FOUND: [
     (u'userKey', GAPI_USER_NOT_FOUND),
@@ -3795,6 +3799,8 @@ class GAPI_loginRequired(Exception):
   pass
 class GAPI_memberNotFound(Exception):
   pass
+class GAPI_invalidMessageId(Exception):
+  pass
 class GAPI_notFound(Exception):
   pass
 class GAPI_notImplemented(Exception):
@@ -3856,6 +3862,7 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_INVALID_CUSTOMER_ID: GAPI_invalidCustomerId,
   GAPI_INVALID_INPUT: GAPI_invalidInput,
   GAPI_INVALID_MEMBER: GAPI_invalidMember,
+  GAPI_INVALID_MESSAGE_ID: GAPI_invalidMessageId,
   GAPI_INVALID_ORGUNIT: GAPI_invalidOrgunit,
   GAPI_INVALID_PARENT_ORGUNIT: GAPI_invalidParentOrgunit,
   GAPI_INVALID_QUERY: GAPI_invalidQuery,
@@ -6869,7 +6876,9 @@ def user_from_userid(userid):
 
 def getRoleId():
   role = getString(OB_ROLE_ID)
-  if role[:4].lower() == u'uid:':
+  if role[:3].lower() == u'id:':
+    roleId = role[3:]
+  elif role[:4].lower() == u'uid:':
     roleId = role[4:]
   else:
     roleId = roleid_from_role(role)
@@ -21093,11 +21102,13 @@ def processMessagesThreads(users, entityType):
   def _deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
     try:
       callGAPI(gmail.users().messages(), u'batchDelete',
-               throw_reasons=GAPI_GMAIL_THROW_REASONS,
+               throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_INVALID_MESSAGE_ID],
                userId=u'me', body={u'ids': messageIds})
       entityItemValueActionPerformed(Entity.USER, user, entityType, u'{0} of {1}'.format(mcount, jcount), i, count)
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       pass
+    except GAPI_invalidMessageId:
+      entityItemValueActionFailedWarning(Entity.USER, user, entityType, u'{0} of {1}'.format(mcount, jcount), PHRASE_INVALID_MESSAGE_ID, i, count)
 
   def _batchDeleteMessages(gmail, user, jcount, messageIds, i, count):
     mcount = 0
@@ -21115,7 +21126,7 @@ def processMessagesThreads(users, entityType):
       mcount += bcount
       _deleteMessageBatch(gmail, user, i, count, delMessageIds, mcount, jcount)
 
-  _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
+  _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI_NOT_FOUND: PHRASE_DOES_NOT_EXIST, GAPI_INVALID_MESSAGE_ID: PHRASE_INVALID_MESSAGE_ID}
   def _handleProcessGmailError(exception, ri):
     http_status, reason, message = checkGAPIError(exception)
     errMsg = getHTTPError(_GMAIL_ERROR_REASON_TO_MESSAGE_MAP, http_status, reason, message)
@@ -21147,11 +21158,13 @@ def processMessagesThreads(users, entityType):
       else:
         try:
           callGAPI(service, function,
-                   throw_reasons=[GAPI_NOT_FOUND],
+                   throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_MESSAGE_ID],
                    userId=u'me', id=message[u'id'], **kwargs)
           entityItemValueActionPerformed(Entity.USER, user, entityType, message[u'id'], j, jcount)
         except GAPI_notFound:
           entityItemValueActionFailedWarning(Entity.USER, user, entityType, message[u'id'], PHRASE_DOES_NOT_EXIST, j, jcount)
+        except GAPI_invalidMessageId:
+          entityItemValueActionFailedWarning(Entity.USER, user, entityType, message[u'id'], PHRASE_INVALID_MESSAGE_ID, j, jcount)
     if bcount > 0:
       dbatch.execute()
 
@@ -21378,7 +21391,7 @@ def showThreads(users):
 
 def printShowMessagesThreads(users, entityType, csvFormat):
 
-  _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
+  _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI_NOT_FOUND: PHRASE_DOES_NOT_EXIST, GAPI_INVALID_MESSAGE_ID: PHRASE_INVALID_MESSAGE_ID}
   def _handleShowGmailError(exception, ri):
     http_status, reason, message = checkGAPIError(exception)
     errMsg = getHTTPError(_GMAIL_ERROR_REASON_TO_MESSAGE_MAP, http_status, reason, message)

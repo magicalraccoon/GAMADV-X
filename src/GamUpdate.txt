@@ -1,3 +1,7 @@
+4.37.05
+
+Improve message/thread error handling when ids argument is used.
+
 4.37.04
 
 Fix gam calendars <CalendarEntity> wipe acls to avoid trying to delete owner ACL.
