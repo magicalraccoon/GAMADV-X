@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.06'
+__version__ = u'4.37.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6341,7 +6341,7 @@ REPORT_ACTIVITIES_TIME_OBJECTS = [u'time']
 # gam report <customers|customer|domain> [todrive] [nodatechange]
 #	[date <Date>] [fields|parameters <String>]
 # gam report <admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token> [todrive] [maxresults <Number>]
-#	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>]
+#	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>] countsonly
 def doReport():
 
   def _adjustDate(errMsg):
@@ -6359,7 +6359,7 @@ def doReport():
   if customerId == MY_CUSTOMER:
     customerId = None
   maxResults = try_date = filters = parameters = actorIpAddress = startTime = endTime = startDateTime = endDateTime = eventName = None
-  exitUserLoop = noDateChange = normalizeUsers = select = False
+  countsOnly = exitUserLoop = noDateChange = normalizeUsers = select = False
   todrive = {}
   userKey = u'all'
   filtersUserValid = report != u'customer'
@@ -6393,6 +6393,8 @@ def doReport():
       eventName = getString(OB_STRING)
     elif activityReports and myarg == u'ip':
       actorIpAddress = getString(OB_STRING)
+    elif activityReports and myarg == u'countsonly':
+      countsOnly = True
     elif filtersUserValid and myarg == u'maxresults':
       maxResults = getInteger(minVal=1, maxVal=1000)
     elif filtersUserValid and myarg == u'user':
@@ -6519,6 +6521,7 @@ def doReport():
       Entity.SetGetting(Entity.ACTIVITY)
       page_message = getPageMessage(showTotal=False)
       users = [normalizeEmailAddressOrUID(userKey)]
+    eventCounts = {}
     titles, csvRows = initializeTitlesCSVfile(None)
     i = 0
     count = len(users)
@@ -6537,14 +6540,19 @@ def doReport():
           activity = feed.popleft()
           events = activity[u'events']
           del activity[u'events']
-          activity_row = flattenJSON(activity, time_objects=REPORT_ACTIVITIES_TIME_OBJECTS)
-          for event in events:
-            for item in event.get(u'parameters', []):
-              if u'value' in item:
-                item[u'value'] = NL_SPACES_PATTERN.sub(u'', item[u'value'])
-            row = flattenJSON(event)
-            row.update(activity_row)
-            addRowTitlesToCSVfile(row, csvRows, titles)
+          if not countsOnly:
+            activity_row = flattenJSON(activity, time_objects=REPORT_ACTIVITIES_TIME_OBJECTS)
+            for event in events:
+              for item in event.get(u'parameters', []):
+                if u'value' in item:
+                  item[u'value'] = NL_SPACES_PATTERN.sub(u'', item[u'value'])
+              row = flattenJSON(event)
+              row.update(activity_row)
+              addRowTitlesToCSVfile(row, csvRows, titles)
+          else:
+            for event in events:
+              eventCounts.setdefault(event[u'name'], 0)
+              eventCounts[event[u'name']] += 1
       except GAPI_badRequest:
         if user != u'all':
           entityUnknownWarning(Entity.USER, user, i, count)
@@ -6555,6 +6563,10 @@ def doReport():
         systemErrorExit(GOOGLE_API_ERROR_RC, e.message)
       except GAPI_authError:
         accessErrorExit(None)
+    if countsOnly:
+      addTitlesToCSVfile([u'name', u'count'], titles)
+      for event, count in eventCounts.items():
+        csvRows.append({u'name': event, u'count': count})
     sortCSVTitles([u'name',], titles)
     writeCSVfile(csvRows, titles, u'{0} Activity Report'.format(report.capitalize()), todrive)
 

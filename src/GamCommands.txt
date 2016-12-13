@@ -81,7 +81,6 @@ If an item contains spaces, it should be surrounded by " or '.
 <CrOSItem> ::= <CrOSID>|(query:<QueryCrOS>)|(query <QueryCrOS>)
 <DomainName> ::= <String>(.<String>)+
 <EmailAddress> ::= <String>@<DomainName>
-<DriveFileACLRole> :: =commenter|editor|owner|reader|writer
 <DriveFileID> ::= <String>
 <DriveFileURL> :: = https://docs.google.com/a/<DomainName>/document/d/<DriveFileID>/<String>
 <DriveFileItem> ::= <DriveFileID>|<DriveFileURL>
@@ -819,10 +818,14 @@ gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain 
 <GuardianStateList> ::= '<GuardianState>(,<GuardianState>)*'
 
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <StudentItem>
-gam delete guardian|guardians <GuardianItem> <StudentItem> [invitation]
-gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
-gam print guardian|guardians [todrive [<ToDriveAttributes>]] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations [states <GuardianStateList>]] [<UserTypeEntity>]
 gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+gam delete guardian|guardians <GuardianItem> <StudentItem> invitation
+gam show guardian|guardians invitations [states <GuardianStateList>] [invitedguardian <EmailAddress>] [student <StudentItem>] [<UserTypeEntity>]
+gam print guardian|guardians [todrive [<ToDriveAttributes>]] invitations [states <GuardianStateList>] [invitedguardian <EmailAddress>] [student <StudentItem>] [<UserTypeEntity>]
+
+gam delete guardian|guardians <GuardianItem> <StudentItem>
+gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [states <GuardianStateList>] [<UserTypeEntity>]
+gam print guardian|guardians [todrive [<ToDriveAttributes>]] [invitedguardian <EmailAddress>] [student <StudentItem>] [<UserTypeEntity>]
 
 # Licenses
 
@@ -900,6 +903,7 @@ gam printers <PrinterIDEntity> wipe user|manager|owner
 <PrintJobOrderByFieldName> ::=
 	create_time|status|title
 
+gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
 gam printjob <PrintJobID> cancel
 gam printjob <PrintJobID> delete
 gam printjob <PrintJobID> resubmit <PrinterID>
@@ -914,7 +918,7 @@ gam printjob|printjobs <PrinterID>|any fetch
 	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 	[owner|user <EmailAddress>]
 	[limit <Number>] [drivedir|(targetfolder <FilePath>)]
-gam printjob|printjobs <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
+
 gam print printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterID>]
 	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
 	[status <PrintJobStatus>]
@@ -929,26 +933,22 @@ gam report users|user [todrive [<ToDriveAttributes>]] [nodatechange] [maxresults
 gam report customers|customer|domain [todrive [<ToDriveAttributes>]] [nodatechange]
 	[date <Date>] [fields|parameters <String>]
 gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive [<ToDriveAttributes>]] [maxresults <Number>]
-	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>]
+	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] countsonly
 
 # Resources
 
-<ResourceFieldName> ::=
-	description|
-	email|
-	id|
-	name|
-	type
+<ResourceFieldName> ::= description|email|id|name|type
 
 gam create resource <ResourceID> <Name> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
 gam delete resource <ResourceID>
 gam info resource <ResourceID>
-gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*] [convertcrnl]
 
 gam update resources <ResourceEntity> [name <Name>] [description <String>] [type <String>]
 gam delete resources <ResourceEntity>
 gam info resources <ResourceEntity>
+
+gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*] [convertcrnl]
 
 # Schemas
 
@@ -1230,6 +1230,8 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
+
+<DriveFileACLRole> :: =commenter|editor|owner|reader|writer
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
