@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.05'
+__version__ = u'4.37.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -13758,6 +13758,7 @@ SITE_ACL_ROLES_MAP = {
   u'editor': u'writer',
   u'invite': u'invite',
   u'owner': u'owner',
+  u'read': u'reader',
   u'reader': u'reader',
   u'writer': u'writer',
   }
@@ -18185,6 +18186,14 @@ def _stripNotMeInOwners(query):
   query = query.replace(AND_NOT_ME_IN_OWNERS, u'')
   return query.replace(NOT_ME_IN_OWNERS, u'').strip() or None
 
+def _checkForCommenter(permission):
+  if permission[u'role'] != u'reader' or not permission.get(u'additionalRoles'):
+    return
+  if permission[u'additionalRoles'][0] == u'commenter':
+    permission[u'role'] = permission[u'additionalRoles'].pop(0)
+    if not permission[u'additionalRoles']:
+      del permission[u'additionalRoles']
+
 def buildFileTree(feed, drive):
   fileTree = {u'orphans': {u'info': {u'id': u'orphans', DRIVE_FILE_NAME: u'orphans', u'mimeType': MIMETYPE_GA_FOLDER}, u'children': []}}
   try:
@@ -18276,6 +18285,8 @@ def printDriveFileList(users):
     row = {u'Owner': user}
     if filepath:
       addFilePathsToRow(drive, fileTree, f_file, filePathInfo, row, titles)
+    for permission in f_file.get(u'permissions', []):
+      _checkForCommenter(permission)
     for attrib in f_file:
       if attrib in skip_objects:
         continue
@@ -19512,10 +19523,14 @@ def _showPermission(permission):
     else:
       printKeyValueList([permission[u'id']])
   Indent.Increment()
+  _checkForCommenter(permission)
   for key in permission:
     if key not in [u'kind', u'etag', u'selfLink', DRIVE_PERMISSIONS_NAME]:
       if key not in DRIVEFILE_ACL_TIME_OBJECTS:
-        printKeyValueList([key, permission[key]])
+        if key != u'additionalRoles':
+          printKeyValueList([key, permission[key]])
+        else:
+          printKeyValueList([key, u','.join(permission[key])])
       else:
         printKeyValueList([key, formatLocalTime(permission[key])])
   Indent.Decrement()
@@ -19524,7 +19539,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
   u'commenter': u'commenter',
   u'editor': u'writer',
   u'owner': u'owner',
-  u'read': u'read',
+  u'read': u'reader',
   u'reader': u'reader',
   u'writer': u'writer',
   }

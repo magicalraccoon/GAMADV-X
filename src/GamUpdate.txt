@@ -1,3 +1,9 @@
+4.37.06
+
+Fixed bug in gam show drivefileacls when role was reader and additionalRoles[0] was commenter.
+Always show role as commenter rather than role as reader with additionalRoles commenter.
+
+
 4.37.05
 
 Improve message/thread error handling when ids argument is used.
