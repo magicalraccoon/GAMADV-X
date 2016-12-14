@@ -6343,7 +6343,7 @@ REPORT_ACTIVITIES_TIME_OBJECTS = [u'time']
 # gam report <customers|customer|domain> [todrive] [nodatechange]
 #	[date <Date>] [fields|parameters <String>]
 # gam report <admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token> [todrive] [maxresults <Number>]
-#	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>] countsonly summary
+#	[([start <Time>] [end <Time>])|yesterday] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>] countsonly summary
 def doReport():
 
   def _adjustDate(errMsg):
@@ -6391,6 +6391,12 @@ def doReport():
       if startDateTime and endDateTime < startDateTime:
         CLArgs.Backup()
         usageErrorExit(MESSAGE_INVALID_TIME_RANGE.format(u'end', endTime, u'start', startTime))
+    elif activityReports and myarg == u'yesterday':
+      today = datetime.date.today()
+      startDateTime = datetime.datetime(today.year, today.month, today.day, tzinfo=iso8601.UTC)+datetime.timedelta(days=-1)
+      startTime = startDateTime.isoformat()
+      endDateTime = datetime.datetime(today.year, today.month, today.day, tzinfo=iso8601.UTC)+datetime.timedelta(seconds=-1)
+      endTime = endDateTime.isoformat()
     elif activityReports and myarg == u'event':
       eventName = getString(OB_STRING)
     elif activityReports and myarg == u'ip':
