@@ -1,3 +1,7 @@
+4.38.01
+
+Add additional error handling for wipe drivefileacls and add drivefilepermissions.
+
 4.38.00
 
 Added command to batch add drivefileacls.

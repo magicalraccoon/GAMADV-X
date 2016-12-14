@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.38.00'
+__version__ = u'4.38.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19768,8 +19768,19 @@ def addDriveFilePermissions(users):
       entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
     else:
       http_status, reason, message = checkGAPIError(exception)
-      errMsg = getHTTPError({}, http_status, reason, message)
-      entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      if reason not in GAPI_DEFAULT_RETRY_REASONS+[GAPI_SERVICE_LIMIT]:
+        errMsg = getHTTPError({}, http_status, reason, message)
+        entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+        return
+      waitOnFailure(1, 10, reason, message)
+      try:
+        callGAPI(drive.permissions(), DRIVE_CREATE_PERMISSIONS,
+                 throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_INVALID_SHARING_REQUEST, GAPI_FORBIDDEN],
+                 retry_reasons=[GAPI_SERVICE_LIMIT],
+                 fileId=ri[RI_ENTITY], sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=_makePermissionBody(ri[RI_ITEM]))
+        entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      except (GAPI_fileNotFound, GAPI_invalidSharingRequest, GAPI_forbidden, GAPI_serviceNotAvailable, GAPI_authError) as e:
+        entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], e.message, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
   sendNotificationEmails = False
   emailMessage = expiration = None
@@ -19899,11 +19910,22 @@ def wipeDriveFileACLs(users):
       entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
     else:
       http_status, reason, message = checkGAPIError(exception)
-      if reason == GAPI_PERMISSION_NOT_FOUND:
-        entityDoesNotHaveItemValueWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
-      else:
-        errMsg = getHTTPError({}, http_status, reason, message)
-        entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      if reason not in GAPI_DEFAULT_RETRY_REASONS+[GAPI_SERVICE_LIMIT]:
+        if reason == GAPI_PERMISSION_NOT_FOUND:
+          entityDoesNotHaveItemValueWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+        else:
+          errMsg = getHTTPError({}, http_status, reason, message)
+          entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+        return
+      waitOnFailure(1, 10, reason, message)
+      try:
+        callGAPI(drive.permissions(), u'delete',
+                 throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
+                 retry_reasons=[GAPI_SERVICE_LIMIT],
+                 fileId=ri[RI_ENTITY], permissionId=ri[RI_ITEM])
+        entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      except (GAPI_fileNotFound, GAPI_permissionNotFound, GAPI_badRequest, GAPI_forbidden, GAPI_serviceNotAvailable, GAPI_authError) as e:
+        entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM], e.message, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
