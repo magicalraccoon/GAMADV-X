@@ -81,12 +81,16 @@ If an item contains spaces, it should be surrounded by " or '.
 <CrOSItem> ::= <CrOSID>|(query:<QueryCrOS>)|(query <QueryCrOS>)
 <DomainName> ::= <String>(.<String>)+
 <EmailAddress> ::= <String>@<DomainName>
+<DriveFileACLRole> :: =commenter|editor|owner|reader|writer
 <DriveFileID> ::= <String>
 <DriveFileURL> :: = https://docs.google.com/a/<DomainName>/document/d/<DriveFileID>/<String>
 <DriveFileItem> ::= <DriveFileID>|<DriveFileURL>
 <DriveFileName> ::= <String>
 <DriveFolderID> ::= <String>
 <DriveFolderName> ::= <String>
+<DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>|domainwithlink:<DomainName>;<DriveFileACLRole>
+<DriveFilePermissionID> ::= anyone|anyonewithlink|id:<String>
+<DriveFilePermissionIDorEmail> ::= <DriveFilePermissionID>|<EmailAddress>
 <EmailItem> ::= <EmailAddress>|<UniqueID>|<String>
 <EventColorIndex> ::== <Number in range 1-11>
 <EventID> ::= <String>
@@ -114,8 +118,6 @@ If an item contains spaces, it should be surrounded by " or '.
 <OrgUnitItem> ::= <OrgUnitID>|<OrgUnitPath>
 <ParameterKey> ::= <String>
 <ParameterValue> ::= <String>
-<PermissionID> ::= id:<String>|anyone|anyonewithlink
-<PermissionIDorEmail> ::= <PermissionID>|<EmailAddress>
 <PrinterID> ::= <String>
 <PrintJobAge> ::= <Number>[m|h|d]
 <PrintJobID> ::= <String>
@@ -165,6 +167,8 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <DomainNameList> ::== '<DomainNamePath>(,<DomainNamePath>)*'
 <DriveFolderIDList> ::= '<DriveFolderID>(,<DriveFolderID>)*'
 <DriveFileList> ::= '<DriveFileItem>(,<DriveFileItem>)*'
+<DriveFilePermissionList> ::= '<DriveFilePermission>(,<DriveFilePermission)*'
+<DriveFilePermissionIDList> ::= '<DriveFilePermissionID>(,<DriveFilePermissionID>)*'
 <EmailAddressList> ::= '<EmailAddress>(,<EmailAddress>)*'
 <EventIDList> ::= '<EventID>(,<EventID>)*'
 <FieldNameList> ::= '<FieldName>(,<FieldName>)*'
@@ -175,7 +179,6 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
 <OrgUnitList> ::== '<OrgUnitItem>(,<OrgUnitItem>)*'
-<PermissionIDList> ::= '<PermissionID>(,<PermissionID>)*'
 <PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
 <PrintJobIDList> ::= '<PrintJobID>(,<PrintJobID>)*'
 <ProductIDList> ::= '(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*'
@@ -268,6 +271,8 @@ Specify a collection of items by directly specifying them; the item type is dete
 <DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
 <DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
 <DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
+<DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<DriveFilePermissionIDEntity> ::= <DriveFilePermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <EmailAddressEntity> ::= <EmailAddressList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <EventIDEntity> ::= <EventIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <FilterIDEntity> ::= <FilterIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -275,7 +280,6 @@ Specify a collection of items by directly specifying them; the item type is dete
 <MessageIDEntity> ::= <MessageIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <MobileEntity> ::= <MobileItem> | <MobileList> | <FileSelector> | <CSVkmdSelector>
 <OrgUnitEntity> ::= <OrgUnitList> | <FileSelector> | <CSVkmdSelector>
-<PermissionIDEntity> ::= <PermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <PrinterIDEntity> ::= <PrinterIDList> | <FileSelector> | <CSVkmdSelector>
 <PrintJobEntity> ::= <PrintJobIDList> | <FileSelector> | <CSVkmdSelector>
 <ResourceEntity> ::= <ResourceIDList> | <FileSelector> | <CSVkmdSelector>
@@ -933,7 +937,7 @@ gam report users|user [todrive [<ToDriveAttributes>]] [nodatechange] [maxresults
 gam report customers|customer|domain [todrive [<ToDriveAttributes>]] [nodatechange]
 	[date <Date>] [fields|parameters <String>]
 gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive [<ToDriveAttributes>]] [maxresults <Number>]
-	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] countsonly
+	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] [countsonly] [summary]
 
 # Resources
 
@@ -1231,15 +1235,28 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 gam <UserTypeEntity> delete|del emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
+<DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
+<DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
+<DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
+<DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
+<DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<DriveFilePermissionIDEntity> ::= <DriveFilePermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+
 <DriveFileACLRole> :: =commenter|editor|owner|reader|writer
+<DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>;<DriveFileACLRole>
+<DriveFilePermissionID> ::= anyone|anyonewithlink|id:<String>
+<DriveFilePermissionIDorEmail> ::= <DriveFilePermissionID>|<EmailAddress>
+<DriveFilePermissionList> ::= '<DriveFilePermission>(,<DriveFilePermission)*'
+<DriveFilePermissionIDList> ::= '<DriveFilePermissionID>(,<DriveFilePermissionID>)*'
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
-gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionIDorEmail>
+gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail>
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
-gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionIDorEmail> [showtitles]
+gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
-gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
+gam <UserTypeEntity> add drivefilepermissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendmail] [emailmessage <String>]
+gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <DriveFilePermissionIDEntity>
 
 # Users - Deprovision
 

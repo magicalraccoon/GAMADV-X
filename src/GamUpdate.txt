@@ -1,8 +1,24 @@
+4.38.00
+
+Added command to batch add drivefileacls.
+    <DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>|domainwithlink:<DomainName>;<DriveFileACLRole>
+    <DriveFilePermissionList> ::= '<DriveFilePermission>(,<DriveFilePermission)*'
+    <DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+    gam <UserTypeEntity> add drivefilepermissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendmail] [emailmessage <String>]
+Given a CSV file AddPerms.csv with three columns:
+Owner,driveFileId,permissions
+foo@domain.com,1-1234,"anyone;reader,user:foo@domain.com;writer,group:foo@domain.com;commenter"
+goo@domain.com,1-5678,"domain:domain.com;reader"
+hoo@domain.com,2-1234,"domainwithlink:domain.com;writer"
+All of the permissions for each driveFileId for each owner can be added with a single command:
+    gam csvkmd users AddPerms.csv keyfield Owner subkeyfield driveFileId datafield permissions delimiter "," add permissions csvsubkey driveFileId csvdata permissions
+
 4.37.07
 
-Added countsonly argument to gam report when activities are selected; there will be two columns output (name, count) showing event names and counts.
+Added countsonly and summary arguments to gam report when activities are selected. When countsonly is specified, the columns will be (emailAddress, event names)
+showing counts for each event for each email address. When countsonly and summary are both specified there will be two columns output (event, count) showing event names and counts.
     gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive [<ToDriveAttributes>]] [maxresults <Number>]
-	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] countsonly
+	[start <Time>] [end <Time>] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] [countsonly] [summary]
 
 4.37.06
 

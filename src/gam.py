@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.37.07'
+__version__ = u'4.38.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -704,6 +704,9 @@ OB_DOMAIN_NAME_ENTITY = u'DomainNameEntity'
 OB_DRIVE_FILE_ENTITY = u'DriveFileEntity'
 OB_DRIVE_FILE_ID = u'DriveFileID'
 OB_DRIVE_FILE_NAME = u'DriveFileName'
+OB_DRIVE_FILE_PERMISSION_ENTITY = u'DriveFilePermissionEntity'
+OB_DRIVE_FILE_PERMISSION_ID = u'DriveFilePermissionID'
+OB_DRIVE_FILE_PERMISSION_ID_ENTITY = u'DriveFilePermissionIDEntity'
 OB_DRIVE_FOLDER_ID = u'DriveFolderID'
 OB_DRIVE_FOLDER_ID_LIST = u'DriveFolderIDList'
 OB_DRIVE_FOLDER_NAME = u'DriveFolderName'
@@ -743,8 +746,6 @@ OB_ORGUNIT_ITEM = u'OrgUnitItem'
 OB_ORGUNIT_PATH = u'OrgUnitPath'
 OB_PARAMETER_KEY = u'ParameterKey'
 OB_PARAMETER_VALUE = u'ParameterValue'
-OB_PERMISSION_ID = u'PermissionID'
-OB_PERMISSION_ID_ENTITY = u'PermissionIDEntity'
 OB_PHOTO_FILENAME_PATTERN = u'FilenameNamePattern'
 OB_PRINTER_ID = u'PrinterID'
 OB_PRINTER_ID_ENTITY = u'PrinterIDEntity'
@@ -959,6 +960,7 @@ CL_OB_DRIVEACTIVITY = u'driveactivity'
 CL_OB_DRIVEFILE = u'drivefile'
 CL_OB_DRIVEFILEACL = u'drivefileacl'
 CL_OB_DRIVEFILEACLS = u'drivefileacls'
+CL_OB_DRIVEFILEPERMISSIONS = u'drivefilepermissions'
 CL_OB_DRIVESETTINGS = u'drivesettings'
 CL_OB_DRIVETRASH = u'drivetrash'
 CL_OB_EMPTYDRIVEFOLDERS = u'emptydrivefolders'
@@ -1734,7 +1736,7 @@ def getPermissionId():
         CLArgs.Advance()
         return (True, emailAddress)
       invalidArgumentExit(u'name@domain')
-  missingArgumentExit(OB_PERMISSION_ID)
+  missingArgumentExit(OB_DRIVE_FILE_PERMISSION_ID)
 
 # Products/SKUs
 #
@@ -6341,7 +6343,7 @@ REPORT_ACTIVITIES_TIME_OBJECTS = [u'time']
 # gam report <customers|customer|domain> [todrive] [nodatechange]
 #	[date <Date>] [fields|parameters <String>]
 # gam report <admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token> [todrive] [maxresults <Number>]
-#	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>] countsonly
+#	[start <Time>] [end <Time>] [user all|<UserItem>] [select <UserTypeEntity>] [event <String>] [filter|filters <String>] [fields|parameters <String>] [ip <String>] countsonly summary
 def doReport():
 
   def _adjustDate(errMsg):
@@ -6359,7 +6361,7 @@ def doReport():
   if customerId == MY_CUSTOMER:
     customerId = None
   maxResults = try_date = filters = parameters = actorIpAddress = startTime = endTime = startDateTime = endDateTime = eventName = None
-  countsOnly = exitUserLoop = noDateChange = normalizeUsers = select = False
+  countsOnly = exitUserLoop = noDateChange = normalizeUsers = select = summary = False
   todrive = {}
   userKey = u'all'
   filtersUserValid = report != u'customer'
@@ -6395,6 +6397,8 @@ def doReport():
       actorIpAddress = getString(OB_STRING)
     elif activityReports and myarg == u'countsonly':
       countsOnly = True
+    elif activityReports and myarg == u'summary':
+      summary = True
     elif filtersUserValid and myarg == u'maxresults':
       maxResults = getInteger(minVal=1, maxVal=1000)
     elif filtersUserValid and myarg == u'user':
@@ -6549,6 +6553,12 @@ def doReport():
               row = flattenJSON(event)
               row.update(activity_row)
               addRowTitlesToCSVfile(row, csvRows, titles)
+          elif not summary:
+            actor = activity[u'actor'][u'email']
+            eventCounts.setdefault(actor, {})
+            for event in events:
+              eventCounts[actor].setdefault(event[u'name'], 0)
+              eventCounts[actor][event[u'name']] += 1
           else:
             for event in events:
               eventCounts.setdefault(event[u'name'], 0)
@@ -6563,11 +6573,20 @@ def doReport():
         systemErrorExit(GOOGLE_API_ERROR_RC, e.message)
       except GAPI_authError:
         accessErrorExit(None)
-    if countsOnly:
-      addTitlesToCSVfile([u'name', u'count'], titles)
-      for event, count in eventCounts.items():
-        csvRows.append({u'name': event, u'count': count})
-    sortCSVTitles([u'name',], titles)
+    if not countsOnly:
+      sortCSVTitles([u'name',], titles)
+    elif not summary:
+      addTitlesToCSVfile([u'emailAddress',], titles)
+      for actor, events in eventCounts.items():
+        row = {u'emailAddress': actor}
+        for event, count in events.items():
+          row[event] = count
+        addRowTitlesToCSVfile(row, csvRows, titles)
+      sortCSVTitles([u'emailAddress',], titles)
+    else:
+      addTitlesToCSVfile([u'event', u'count'], titles)
+      for event in sorted(eventCounts):
+        csvRows.append({u'event': event, u'count': eventCounts[event]})
     writeCSVfile(csvRows, titles, u'{0} Activity Report'.format(report.capitalize()), todrive)
 
 # gam create domainalias|aliasdomain <DomainAlias> <DomainName>
@@ -18198,13 +18217,17 @@ def _stripNotMeInOwners(query):
   query = query.replace(AND_NOT_ME_IN_OWNERS, u'')
   return query.replace(NOT_ME_IN_OWNERS, u'').strip() or None
 
-def _checkForCommenter(permission):
-  if permission[u'role'] != u'reader' or not permission.get(u'additionalRoles'):
-    return
-  if permission[u'additionalRoles'][0] == u'commenter':
+def _convertReaderToCommenter(permission):
+  if permission[u'role'] == u'reader' and permission.get(u'additionalRoles') and permission[u'additionalRoles'][0] == u'commenter':
     permission[u'role'] = permission[u'additionalRoles'].pop(0)
     if not permission[u'additionalRoles']:
       del permission[u'additionalRoles']
+
+def _setRoleConvertCommenterToReader(body, role):
+  body[u'role'] = role
+  if role == u'commenter':
+    body[u'role'] = u'reader'
+    body[u'additionalRoles'] = [role]
 
 def buildFileTree(feed, drive):
   fileTree = {u'orphans': {u'info': {u'id': u'orphans', DRIVE_FILE_NAME: u'orphans', u'mimeType': MIMETYPE_GA_FOLDER}, u'children': []}}
@@ -18298,7 +18321,7 @@ def printDriveFileList(users):
     if filepath:
       addFilePathsToRow(drive, fileTree, f_file, filePathInfo, row, titles)
     for permission in f_file.get(u'permissions', []):
-      _checkForCommenter(permission)
+      _convertReaderToCommenter(permission)
     for attrib in f_file:
       if attrib in skip_objects:
         continue
@@ -19535,7 +19558,7 @@ def _showPermission(permission):
     else:
       printKeyValueList([permission[u'id']])
   Indent.Increment()
-  _checkForCommenter(permission)
+  _convertReaderToCommenter(permission)
   for key in permission:
     if key not in [u'kind', u'etag', u'selfLink', DRIVE_PERMISSIONS_NAME]:
       if key not in DRIVEFILE_ACL_TIME_OBJECTS:
@@ -19556,7 +19579,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
   u'writer': u'writer',
   }
 
-DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',]
+DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # anyone must be first element
 
 # gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 #	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
@@ -19581,10 +19604,7 @@ def addDriveFileACL(users):
     elif myarg == u'allowfilediscovery':
       body[u'withLink'] = not getBoolean()
     elif myarg == u'role':
-      body[u'role'] = getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True)
-      if body[u'role'] == u'commenter':
-        body[u'role'] = u'reader'
-        body[u'additionalRoles'] = [u'commenter',]
+      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
     elif myarg == u'expiration':
       body[DRIVE_PERMISSIONS_EXPIRATION] = getFullTime()
     elif myarg == u'sendemail':
@@ -19637,7 +19657,7 @@ def addDriveFileACL(users):
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <PermissionID>
+# gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail>
 #	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 def updateDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
@@ -19651,10 +19671,7 @@ def updateDriveFileACL(users):
     elif myarg == u'allowfilediscovery':
       body[u'withLink'] = not getBoolean()
     elif myarg == u'role':
-      body[u'role'] = getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True)
-      if body[u'role'] == u'commenter':
-        body[u'role'] = u'reader'
-        body[u'additionalRoles'] = [u'commenter',]
+      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
     elif myarg == u'expiration':
       body[DRIVE_PERMISSIONS_EXPIRATION] = getFullTime()
     elif myarg == u'removeexpiration':
@@ -19711,7 +19728,111 @@ def updateDriveFileACL(users):
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <PermissionID> [showtitles]
+# gam <UserTypeEntity> add permissions <DriveFileEntity> <DriveFilePermissionsEntity> [expiration <Time>] [sendmail] [emailmessage <String>]
+def addDriveFilePermissions(users):
+
+  def _makePermissionBody(permission):
+    body = {}
+    try:
+      scope, role = permission.split(u';', 1)
+      if scope == u'anyone' or scope == u'anyonewithlink':
+        body[u'type'] = body[u'id'] = u'anyone'
+        body[u'withLink'] = scope == u'anyonewithlink'
+      else:
+        body[u'type'], body[u'value'] = scope.split(u':', 1)
+        if body[u'type'] == u'domainwithlink':
+          body[u'withLink'] = True
+          body[u'type'] = u'domain'
+        if body[u'type'] not in DRIVEFILE_ACL_PERMISSION_TYPES[1:]:
+          return None
+      _setRoleConvertCommenterToReader(body, DRIVEFILE_ACL_ROLES_MAP.get(role))
+      if not body[u'role']:
+        return None
+      if expiration:
+        body[DRIVE_PERMISSIONS_EXPIRATION] = expiration
+      return body
+    except ValueError:
+      return None
+
+  def _callbackAddPermission(request_id, response, exception):
+    ri = request_id.splitlines()
+    if int(ri[RI_J]) == 1:
+      entityPerformActionNumItems(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], int(ri[RI_JCOUNT]), Entity.PERMITTEE, int(ri[RI_I]), int(ri[RI_COUNT]))
+    if exception is None:
+      entityItemValueActionPerformed(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+    else:
+      http_status, reason, message = checkGAPIError(exception)
+      errMsg = getHTTPError({}, http_status, reason, message)
+      entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMITTEE, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
+
+  sendNotificationEmails = False
+  emailMessage = expiration = None
+  fileIdSelection = getDriveFileEntity()
+  body, parameters = initializeDriveFileAttributes()
+  permissions = getEntityList(OB_DRIVE_FILE_PERMISSION_ENTITY)
+  permissionsLists = permissions if isinstance(permissions, dict) else None
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'expiration':
+      expiration = getFullTime()
+    elif myarg == u'sendemail':
+      sendNotificationEmails = True
+    elif myarg == u'emailmessage':
+      sendNotificationEmails = True
+      emailMessage = getString(OB_STRING)
+    else:
+      unknownArgumentExit()
+  i = 0
+  count = len(users)
+  for user in users:
+    i += 1
+    origUser = user
+    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+    if not drive:
+      continue
+    try:
+      callGAPI(drive.about(), u'get',
+               throw_reasons=GAPI_DRIVE_THROW_REASONS,
+               fields=u'user/emailAddress')
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(Entity.USER, user, i, count)
+      continue
+    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    if jcount == 0:
+      continue
+    Indent.Increment()
+    bcount = 0
+    dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddPermission)
+    j = 0
+    for fileId in fileIdSelection[u'fileIds']:
+      j += 1
+      if permissionsLists:
+        if not GM_Globals[GM_CSV_SUBKEY_FIELD]:
+          permissions = permissionsLists[fileId]
+        else:
+          permissions = permissionsLists[origUser][fileId]
+      kcount = len(permissions)
+      if kcount == 0:
+        continue
+      k = 0
+      for permission in permissions:
+        k += 1
+        body = _makePermissionBody(permission)
+        if not body:
+          entityItemValueActionFailedWarning(Entity.DRIVE_FILE_OR_FOLDER_ID, fileId, Entity.PERMITTEE, permission, PHRASE_INVALID, k, kcount)
+          continue
+        dbatch.add(drive.permissions().insert(**dict([(u'fileId', fileId), (u'sendNotificationEmails', sendNotificationEmails), (u'emailMessage', emailMessage), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
+                   request_id=batchRequestID(fileId, j, jcount, k, kcount, permission))
+        bcount += 1
+        if bcount == GC_Values[GC_BATCH_SIZE]:
+          dbatch.execute()
+          dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddPermission)
+          bcount = 0
+    if bcount > 0:
+      dbatch.execute()
+    Indent.Decrement()
+
+# gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
 def deleteDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
@@ -19761,7 +19882,7 @@ def deleteDriveFileACL(users):
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
+# gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <DriveFilePermissionIDEntity>
 def wipeDriveFileACLs(users):
 
   def _callbackDeletePermissionId(request_id, response, exception):
@@ -19780,7 +19901,8 @@ def wipeDriveFileACLs(users):
 
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
-  permissionIds = getEntityList(OB_PERMISSION_ID_ENTITY)
+  permissionIds = getEntityList(OB_DRIVE_FILE_PERMISSION_ID_ENTITY)
+  checkForExtraneousArguments()
   permissionIdsLists = permissionIds if isinstance(permissionIds, dict) else None
   i = 0
   count = len(users)
@@ -19861,7 +19983,7 @@ def showDriveFileACLs(users):
         result = callGAPI(drive.permissions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=DRIVE_PERMISSIONS_LIST)
-        printEntityKVList(entityType, fileName, [Entity.Plural(Entity.PERMISSIONS)], j, jcount)
+        printEntityKVList(entityType, fileName, [Entity.Plural(Entity.PERMITTEE)], j, jcount)
         if result:
           Indent.Increment()
           for permission in result[DRIVE_PERMISSIONS_LIST]:
@@ -23808,6 +23930,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_GROUP:	addUserToGroups,
         CL_OB_LABEL:	addLabel,
         CL_OB_LICENSE:	addLicense,
+        CL_OB_DRIVEFILEPERMISSIONS:	addDriveFilePermissions,
         CL_OB_SENDAS:	addSendAs,
         CL_OB_SITEACLS:	processUserSiteACLs,
        },
