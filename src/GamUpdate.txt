@@ -1,3 +1,8 @@
+4.38.02
+
+Added replace argument to gam update calattendees to allow simple attendee replacements without having to use a CSV file.
+    gam <UserTypeEntity> update calattendees [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [dryrun] [start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [allevents]
+
 4.38.01
 
 Add additional error handling for wipe drivefileacls and add drivefilepermissions.

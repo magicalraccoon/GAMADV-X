@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.38.01'
+__version__ = u'4.38.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3210,6 +3210,7 @@ def SetGlobalVariables():
       GC_Values[itemName] = _getCfgFile(sectionName, itemName)
   if status[u'errors']:
     sys.exit(CONFIG_ERROR_RC)
+  GC_Values[GC_DOMAIN] = GC_Values[GC_DOMAIN].lower()
 # Create/set mode for oauth2.txt.lock
   if not GM_Globals[GM_OAUTH2_TXT_LOCK]:
     fileName = u'{0}.lock'.format(GC_Values[GC_OAUTH2_TXT])
@@ -9075,6 +9076,7 @@ def doCalendarMoveEvent(cal, calendarList):
 
 SHOW_EVENTS_ATTRIBUTES = {
   u'alwaysincludeemail': [u'alwaysIncludeEmail', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'end': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   u'endtime': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   u'eventquery': [u'q', {GC_VAR_TYPE: GC_TYPE_STRING}],
   u'icaluid': [u'iCalUID', {GC_VAR_TYPE: GC_TYPE_STRING}],
@@ -9087,6 +9089,7 @@ SHOW_EVENTS_ATTRIBUTES = {
   u'showdeleted': [u'showDeleted', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'showhiddeninvitations': [u'showHiddenInvitations', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
   u'singleevents': [u'singleEvents', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}],
+  u'start': [u'timeMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   u'starttime': [u'timeMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   u'timemax': [u'timeMax', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   u'timemin': [u'timeMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
@@ -9096,13 +9099,13 @@ SHOW_EVENTS_ATTRIBUTES = {
 
 # gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 #	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
-#	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+#	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 def doCalendarPrintEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, True)
 
 # gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 #	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
-#	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+#	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 def doCalendarShowEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, False)
 
@@ -17521,35 +17524,39 @@ def modifyRemoveCalendars(users, calendarIds, calendarLists, function, **kwargs)
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+# gam <UserTypeEntity> update calattendees [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [dryrun] [start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [allevents]
 def updateCalendarAttendees(users):
   csv_file = None
   do_it = True
   allevents = False
-  start_date = end_date = None
+  timeMin = timeMax = None
+  attendee_map = {}
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'csv':
       csv_file = getString(OB_FILE_NAME)
+    elif myarg == u'replace':
+      origAttendee = getEmailAddress(noUid=True)
+      attendee_map[origAttendee] = getEmailAddress(noUid=True)
     elif myarg == u'dryrun':
       do_it = False
-    elif myarg == u'start':
-      start_date = getYYYYMMDD()
-    elif myarg == u'end':
-      end_date = getYYYYMMDD()
+    elif myarg in [u'start', u'starttime', u'timemin']:
+      timeMin = getFullTime()
+    elif myarg in [u'end', u'endtime', u'timemax']:
+      timeMax = getFullTime()
     elif myarg == u'allevents':
       allevents = True
     else:
       unknownArgumentExit()
-  if not csv_file:
-    missingArgumentExit(u'csv <FileName>')
-  attendee_map = {}
-  f = openFile(csv_file)
-  csvFile = csv.reader(f)
-  for row in csvFile:
-    if len(row) >= 2:
-      attendee_map[row[0].lower()] = row[1].lower()
-  closeFile(f)
+  if not attendee_map:
+    missingChoiceExit([u'csv <FileName>', u'replace <EmailAddress> <EmailAddress>'])
+  if csv_file:
+    f = openFile(csv_file)
+    csvFile = csv.reader(f)
+    for row in csvFile:
+      if len(row) >= 2:
+        attendee_map[row[0].lower()] = row[1].lower()
+    closeFile(f)
   i = 0
   count = len(users)
   for user in users:
@@ -17557,27 +17564,28 @@ def updateCalendarAttendees(users):
     user, cal = buildCalendarGAPIObject(user)
     if not cal:
       continue
-    printEntityKVList(Entity.USER, user, [PHRASE_CHECKING, None], i, count)
-    Indent.Increment()
     try:
+      printGettingAllEntityItemsForWhom(Entity.EVENT, user, i, count)
+      page_message = getPageMessageForWhom(noNL=True)
       events_page = callGAPIpages(cal.events(), u'list', u'items',
+                                  page_message=page_message,
                                   throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-                                  calendarId=user, timeMin=start_date, timeMax=end_date, showDeleted=False, showHiddenInvitations=False)
+                                  calendarId=u'primary', timeMin=timeMin, timeMax=timeMax, showDeleted=False, showHiddenInvitations=False)
       jcount = len(events_page)
       if jcount == 0:
         break
-      printKeyValueList([u'Got {0} items'.format(jcount)])
+      Action.Set(Action.UPDATE)
+      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.EVENT, i, count)
+      Indent.Increment()
+      j = 0
       for event in events_page:
+        j += 1
+        Action.Set(Action.REPLACE)
         if event[u'status'] == u'cancelled':
-          #printLine(u' skipping cancelled event')
           continue
-        if u'summary' in event:
-          event_summary = convertUTF8(event[u'summary'])
-        else:
-          event_summary = event[u'id']
+        event_summary = convertUTF8(event.get(u'summary', event[u'id']))
         try:
           if not allevents and event[u'organizer'][u'email'].lower() != user:
-            #printLine(u' skipping not-my-event {0}'.format(event_summary))
             continue
         except KeyError:
           pass # no email for organizer
@@ -17585,27 +17593,23 @@ def updateCalendarAttendees(users):
         for attendee in event.get(u'attendees', []):
           if u'email' in attendee:
             old_email = attendee[u'email'].lower()
-            if old_email in attendee_map:
-              new_email = attendee_map[old_email]
-              printKeyValueList([u'SWITCHING attendee {0} to {1} for {2}'.format(old_email, new_email, event_summary)])
+            new_email = attendee_map.get(old_email)
+            if new_email:
+              entityItemValueModifierNewValueActionPerformed(Entity.EVENT, event_summary, Entity.ATTENDEE, old_email, Action.MODIFIER_WITH, new_email, j, jcount)
               event[u'attendees'].remove(attendee)
               event[u'attendees'].append({u'email': new_email})
               needs_update = True
         if needs_update:
-          body = {}
-          body[u'attendees'] = event[u'attendees']
-          printKeyValueList([u'UPDATING {0}'.format(event_summary)])
+          Action.Set(Action.UPDATE)
           if do_it:
             callGAPI(cal.events(), u'patch',
-                     calendarId=user, eventId=event[u'id'], sendNotifications=False, body=body)
+                     calendarId=u'primary', eventId=event[u'id'], sendNotifications=False, body={u'attendees': event[u'attendees']})
+            entityActionPerformed(Entity.EVENT, event_summary, j, jcount)
           else:
-            printKeyValueList([u'Dry run, not pulling the trigger.'])
-        #else:
-        #  printLine(u' no update needed for {}'.format(event_summary))
+            entityActionNotPerformedWarning(Entity.EVENT, event_summary, u'dryrun specified', j, jcount)
+      Indent.Decrement()
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
-      break
-    Indent.Decrement()
 
 # gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
 def transferSecCals(users):

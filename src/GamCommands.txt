@@ -432,10 +432,10 @@ gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [not
 gam calendars <CalendarEntity> info event <EventIDEntity>
 gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Number>]
-	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 gam calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Number>]
-	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 gam calendars <CalendarEntity> wipe events
 
 gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
@@ -1112,7 +1112,7 @@ gam <UserTypeEntity> info calendars <CalendarEntity>|primary
 gam <UserTypeEntity> show calendars
 gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+gam <UserTypeEntity> update calattendees [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [dryrun] [start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [allevents]
 
 gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
 
@@ -1364,7 +1364,7 @@ gam <UserTypeEntity> print gplusprofile [todrive [<ToDriveAttributes>]]
 
 # Users - Groups
 
-gam <UserTypeEntity> add group|groups [member|manager|owner] [<GroupEntity>]
+gam <UserTypeEntity> add group|groups [member|manager|owner] <GroupEntity>
 gam <UserTypeEntity> delete|del group|groups [<GroupEntity>]
 
 # Users - Licenses
