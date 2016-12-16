@@ -1,3 +1,9 @@
+4.38.05
+
+Allow = in gam config. The = is optional but must be surrounded by spaces if included.
+    <Config> ::=
+	config (<VariableName> [=] <Value)* [save] [verify]
+
 4.38.04
 
 Fixed bug in gam config verify.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.38.04'
+__version__ = u'4.38.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3169,7 +3169,7 @@ def SetGlobalVariables():
         _verifyValues(sectionName)
       else:
         break
-# config (<VariableName> <Value>)* [save] [verify]
+# config (<VariableName> [=] <Value>)* [save] [verify]
   if checkArgumentPresent([CONFIG_CMD,]):
     while CLArgs.ArgumentsRemaining():
       if checkArgumentPresent([u'save',]):
@@ -3180,6 +3180,7 @@ def SetGlobalVariables():
         itemName = getChoice(GC_VAR_INFO, defaultChoice=None)
         if itemName is None:
           break
+        checkArgumentPresent([u'=',])
         if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_BOOLEAN:
           value = [FALSE, TRUE][getBoolean()]
         elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_INTEGER:

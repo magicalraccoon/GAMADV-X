@@ -278,10 +278,11 @@ select <Section> [save] [verify]
 
 The config argument is used to set selected variables in gam.cfg via the command line.
 
-config [<VariableName> <Value>]* [save] [verify]
-    <VariableName> <Value>
-        Set <VariableName> = <Value> in the current section
+config [<VariableName> [=] <Value>]* [save] [verify]
+    <VariableName> [=] <Value>
+	Set <VariableName> = <Value> in the current section
 	All <VariableNames> except section are allowed.
+	The = is optional but must be surrounded by spaces if included.
     save
 	Write configuration data to gam.cfg
     verify

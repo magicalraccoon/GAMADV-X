@@ -293,15 +293,25 @@ Specify a collection of items by directly specifying them; the item type is dete
 ## Select a section from gam.cfg and process a GAM command using values from that section
 <Select> ::=
 	select <Section> [save] [verify]
-The save argument causes Gam to update gam.cfg.
-The verify argument causes Gam to print all variable values.
+save
+    Set section = <Section> in the [DEFAULT] section and write configuration data to gam.cfg
+verify
+    Print the variable values for the selected section
+    Values are determined in this order: Selected section, DEFAULT section, Program default
 
 ## Set variables in gam.cfg.
 
 <Config> ::=
-	config (<VariableName> <Value)* [save] [verify]
-The save argument causes Gam to update gam.cfg.
-The verify argument causes Gam to print all variable values.
+	config (<VariableName> [=] <Value)* [save] [verify]
+<VariableName> [=] <Value>
+    Set <VariableName> = <Value> in the current section
+    All <VariableNames> except section are allowed.
+    The = is optional but must be surrounded by spaces if included.
+save
+    Write configuration data to gam.cfg
+verify
+    Print the variable values for the current section
+    Values are determined in this order: Current section, DEFAULT section, Program default
 
 ## File Redirection
 
