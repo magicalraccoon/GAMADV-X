@@ -1,3 +1,11 @@
+4.38.04
+
+Fixed bug in gam config verify.
+
+4.38.03
+
+Fixed bug in redirect stdout.
+
 4.38.02
 
 Added replace argument to gam update calattendees to allow simple attendee replacements without having to use a CSV file.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.38.02'
+__version__ = u'4.38.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3059,7 +3059,9 @@ def SetGlobalVariables():
     printKeyValueList([Entity.Singular(Entity.SECTION), sectionName])
     Indent.Increment()
     for itemName in sorted(GC_VAR_INFO):
-      cfgValue = _stripStringQuotes(GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True))
+      cfgValue = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
+      if GC_VAR_INFO[itemName][GC_VAR_TYPE] not in [GC_TYPE_BOOLEAN, GC_TYPE_INTEGER]:
+        cfgValue = _stripStringQuotes(cfgValue)
       if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
         expdValue = _getCfgFile(sectionName, itemName)
         if cfgValue != expdValue:
@@ -3246,7 +3248,7 @@ def SetGlobalVariables():
       _setCSVFile(filename, mode, encoding, writeHeader, multi)
     elif myarg == u'stdout':
       sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
-      if GM_Globals[GM_CSVFILE][GM_CSVFILE_NAME] == u'-':
+      if GM_Globals[GM_CSVFILE].get(GM_CSVFILE_NAME) == u'-':
         GM_Globals[GM_CSVFILE] = {}
     else:
       sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
