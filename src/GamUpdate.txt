@@ -1,3 +1,7 @@
+4.39.01
+
+Use patch API rather than update API for gam update customer.
+
 4.39.00
 
 For calendar/calendars add/update/delete acl, the scope can be specified in a new form to make it consistent with other commands.

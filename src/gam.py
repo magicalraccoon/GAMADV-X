@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.00'
+__version__ = u'4.39.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6739,7 +6739,7 @@ def doUpdateDomain():
   if not body:
     missingArgumentExit(u'primary')
   try:
-    callGAPI(cd.customers(), u'update',
+    callGAPI(cd.customers(), u'patch',
              throw_reasons=[GAPI_DOMAIN_NOT_VERIFIED_SECONDARY, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
              customerKey=GC_Values[GC_CUSTOMER_ID], body=body)
     entityActionPerformedMessage(Entity.DOMAIN, domainName, PHRASE_NOW_THE_PRIMARY_DOMAIN)
@@ -7120,7 +7120,7 @@ def doUpdateCustomer():
       unknownArgumentExit()
   if body:
     try:
-      callGAPI(cd.customers(), u'update',
+      callGAPI(cd.customers(), u'patch',
                throw_reasons=[GAPI_DOMAIN_NOT_VERIFIED_SECONDARY, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                customerKey=GC_Values[GC_CUSTOMER_ID], body=body)
       entityActionPerformed(Entity.CUSTOMER_ID, GC_Values[GC_CUSTOMER_ID])
