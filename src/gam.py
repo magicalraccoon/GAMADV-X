@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.38.05'
+__version__ = u'4.39.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -594,6 +594,7 @@ GAPI_FAILED_PRECONDITION = u'failedPrecondition'
 GAPI_FILE_NOT_FOUND = u'fileNotFound'
 GAPI_FORBIDDEN = u'forbidden'
 GAPI_GROUP_NOT_FOUND = u'groupNotFound'
+GAPI_ILLEGAL_ACCESS_ROLE_FOR_DEFAULT = u'illegalAccessRoleForDefault'
 GAPI_INSUFFICIENT_PERMISSIONS = u'insufficientPermissions'
 GAPI_INTERNAL_ERROR = u'internalError'
 GAPI_INVALID = u'invalid'
@@ -680,7 +681,8 @@ OAUTH2_FAM_LIST = [OAUTH2_FAM1_SCOPES, OAUTH2_FAM2_SCOPES]
 OAUTH2_PREV_FAM_LIST = [u'gapi', u'gdata']
 # Object BNF names
 OB_ACCESS_TOKEN = u'AccessToken'
-OB_ACL_ENTITY = u'ACLEntity'
+OB_ACL_SCOPE = u'ACLScope'
+OB_ACL_SCOPE_ENTITY = u'ACLScopeEntity'
 OB_ARGUMENT = u'argument'
 OB_ASP_ID = u'AspID'
 OB_CALENDAR_ITEM = U'CalendarItem'
@@ -960,7 +962,6 @@ CL_OB_DRIVEACTIVITY = u'driveactivity'
 CL_OB_DRIVEFILE = u'drivefile'
 CL_OB_DRIVEFILEACL = u'drivefileacl'
 CL_OB_DRIVEFILEACLS = u'drivefileacls'
-CL_OB_DRIVEFILEPERMISSIONS = u'drivefilepermissions'
 CL_OB_DRIVESETTINGS = u'drivesettings'
 CL_OB_DRIVETRASH = u'drivetrash'
 CL_OB_EMPTYDRIVEFOLDERS = u'emptydrivefolders'
@@ -1001,6 +1002,7 @@ CL_OB_NOTIFICATION = u'notification'
 CL_OB_ORG = u'org'
 CL_OB_ORGS = u'orgs'
 CL_OB_OWNERSHIP = u'ownership'
+CL_OB_PERMISSIONS = u'permissions'
 CL_OB_PHOTO = u'photo'
 CL_OB_POP = u'pop'
 CL_OB_PRINTER = u'printer'
@@ -1597,6 +1599,19 @@ def getChoice(choices, **opts):
   elif opts.get(DEFAULT_CHOICE, NO_DEFAULT) != NO_DEFAULT:
     return opts[DEFAULT_CHOICE]
   missingChoiceExit(choices)
+
+def getChoiceAndValue(item, choices, delimiter):
+  if not CLArgs.ArgumentsRemaining() or CLArgs.Current().find(delimiter) == -1:
+    return (None, None)
+  choice, value = CLArgs.Current().strip().split(delimiter, 1)
+  choice = choice.strip().lower()
+  value = value.strip()
+  if choice in choices:
+    if value:
+      CLArgs.Advance()
+      return (choice, value)
+    missingArgumentExit(item)
+  invalidChoiceExit(choices)
 
 COLORHEX_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
 COLORHEX_FORMAT_REQUIRED = u'#ffffff'
@@ -3061,7 +3076,7 @@ def SetGlobalVariables():
     for itemName in sorted(GC_VAR_INFO):
       cfgValue = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
       if GC_VAR_INFO[itemName][GC_VAR_TYPE] not in [GC_TYPE_BOOLEAN, GC_TYPE_INTEGER]:
-        cfgValue = _stripStringQuotes(cfgValue)
+        cfgValue = _quoteStringIfLeadingTrailingBlanks(cfgValue)
       if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
         expdValue = _getCfgFile(sectionName, itemName)
         if cfgValue != expdValue:
@@ -3773,6 +3788,8 @@ class GAPI_forbidden(Exception):
   pass
 class GAPI_groupNotFound(Exception):
   pass
+class GAPI_illegalAccessRoleForDefault(Exception):
+  pass
 class GAPI_insufficientPermissions(Exception):
   pass
 class GAPI_internalError(Exception):
@@ -3861,6 +3878,7 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_FILE_NOT_FOUND: GAPI_fileNotFound,
   GAPI_FORBIDDEN: GAPI_forbidden,
   GAPI_GROUP_NOT_FOUND: GAPI_groupNotFound,
+  GAPI_ILLEGAL_ACCESS_ROLE_FOR_DEFAULT: GAPI_illegalAccessRoleForDefault,
   GAPI_INSUFFICIENT_PERMISSIONS: GAPI_insufficientPermissions,
   GAPI_INTERNAL_ERROR: GAPI_internalError,
   GAPI_INVALID: GAPI_invalid,
@@ -4564,7 +4582,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         page_message = getPageMessageForWhom(noNL=True)
         result = callGAPIpages(cd.users(), u'list', u'users',
                                page_message=page_message,
-                               throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                               throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_INPUT, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                                customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(ou),
                                fields=u'nextPageToken,users(primaryEmail,suspended,orgUnitPath)',
                                maxResults=GC_Values[GC_USER_MAX_RESULTS])
@@ -4582,7 +4600,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         totalLen = len(entityList)
         printGettingEntityItemsDoneInfo(totalLen-prevLen, qualifier=qualifier)
         prevLen = totalLen
-      except (GAPI_badRequest, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
+      except (GAPI_badRequest, GAPI_invalidInput, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
         checkEntityDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, ou, 0, 0)
         doNotExist += 1
   elif entityType == CL_ENTITY_QUERY:
@@ -5233,7 +5251,7 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
     flattened = {}
   if time_objects is None:
     time_objects = []
-  if not isinstance(structure, (dict, list)):
+  if not isinstance(structure, (dict, list, collections.deque)):
     if key not in time_objects:
       if isinstance(structure, (str, unicode)) and GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]:
         flattened[((path+u'.') if path else u'')+key] = convertCRsNLs(structure)
@@ -5241,7 +5259,7 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
         flattened[((path+u'.') if path else u'')+key] = structure
     else:
       flattened[((path+u'.') if path else u'')+key] = formatLocalTime(structure)
-  elif isinstance(structure, list):
+  elif isinstance(structure, (list, collections.deque)):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
     flattened[((path+u'.') if path else u'')+key] = listLen
@@ -7679,7 +7697,7 @@ def infoOrgs(entityList):
         page_message = getPageMessage(showFirstLastItems=True)
         users = callGAPIpages(cd.users(), u'list', u'users',
                               page_message=page_message, message_attribute=u'primaryEmail',
-                              throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                              throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID_INPUT, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                               customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(orgUnitPath),
                               fields=u'nextPageToken,users(primaryEmail,orgUnitPath)',
                               maxResults=GC_Values[GC_USER_MAX_RESULTS])
@@ -7693,7 +7711,7 @@ def infoOrgs(entityList):
             printKeyValueList([u'{0} (child)'.format(user[u'primaryEmail'])])
         Indent.Decrement()
       Indent.Decrement()
-    except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
+    except (GAPI_invalidInput, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
@@ -8385,9 +8403,16 @@ def checkCalendarExists(cal, calendarId):
   except GAPI_notFound:
     return None
 
-ACL_SCOPE_CHOICES = [u'default', u'user', u'group', u'domain',]
+ACL_SCOPE_CHOICES = [u'default', u'user', u'group', u'domain',] # default must be first element
 
 def getACLScope():
+  scopeType, scopeValue = getChoiceAndValue(OB_ACL_SCOPE, ACL_SCOPE_CHOICES[1:], u':')
+  if scopeType:
+    if scopeType != u'domain':
+      scopeValue = normalizeEmailAddressOrUID(scopeValue, noUid=True)
+    else:
+      scopeValue = scopeValue.lower()
+    return (scopeType, scopeValue)
   scopeType = getChoice(ACL_SCOPE_CHOICES, defaultChoice=u'user')
   if scopeType == u'domain':
     entity = getString(OB_DOMAIN_NAME, optional=True)
@@ -8415,21 +8440,14 @@ def formatACLScopeRole(scope, role):
   else:
     return formatKeyValueList(u'(', [u'Scope', scope], u')')
 
-def formatACLRule(rule):
+def ACLRoleKeyValueList(rule):
   if rule[u'scope'][u'type'] != u'default':
-    return formatKeyValueList(u'(', [u'Scope', u'{0}:{1}'.format(rule[u'scope'][u'type'], rule[u'scope'][u'value']), u'Role', rule[u'role']], u')')
+    return [u'Scope', u'{0}:{1}'.format(rule[u'scope'][u'type'], rule[u'scope'][u'value']), u'Role', rule[u'role']]
   else:
-    return formatKeyValueList(u'(', [u'Scope', u'{0}'.format(rule[u'scope'][u'type']), u'Role', rule[u'role']], u')')
+    return [u'Scope', u'{0}'.format(rule[u'scope'][u'type']), u'Role', rule[u'role']]
 
-def convertRuleId(role, ruleId):
-  ruleIdParts = ruleId.split(u':')
-  if len(ruleIdParts) == 1:
-    if ruleIdParts[0] == u'default':
-      return {u'role': role, u'scope': {u'type': ruleIdParts[0]}}
-    if ruleIdParts[0] == u'domain':
-      return {u'role': role, u'scope': {u'type': ruleIdParts[0], u'value': GC_Values[GC_DOMAIN]}}
-    return {u'role': role, u'scope': {u'type': u'user', u'value': ruleIdParts[0]}}
-  return {u'role': role, u'scope': {u'type': ruleIdParts[0], u'value': ruleIdParts[1]}}
+def formatACLRule(rule):
+  return formatKeyValueList(u'(', ACLRoleKeyValueList(rule), u')')
 
 def normalizeRuleId(ruleId):
   ruleIdParts = ruleId.split(u':')
@@ -8443,6 +8461,25 @@ def normalizeRuleId(ruleId):
     return u'{0}:{1}'.format(ruleIdParts[0], normalizeEmailAddressOrUID(ruleIdParts[1], noUid=True))
   return ruleId
 
+def makeRoleRuleIdBody(role, ruleId):
+  ruleIdParts = ruleId.split(u':')
+  if len(ruleIdParts) == 1:
+    if ruleIdParts[0] == u'default':
+      return {u'role': role, u'scope': {u'type': ruleIdParts[0]}}
+    if ruleIdParts[0] == u'domain':
+      return {u'role': role, u'scope': {u'type': ruleIdParts[0], u'value': GC_Values[GC_DOMAIN]}}
+    return {u'role': role, u'scope': {u'type': u'user', u'value': ruleIdParts[0]}}
+  return {u'role': role, u'scope': {u'type': ruleIdParts[0], u'value': ruleIdParts[1]}}
+
+def _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists):
+  calRuleIds = ruleIdLists[calendarId] if ruleIdLists else ruleIds
+  calendarId = convertUserUIDtoEmailAddress(calendarId)
+  jcount = len(calRuleIds)
+  entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+  if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
+  return (calendarId, calRuleIds, jcount)
+
 CALENDAR_ACL_ROLES_MAP = {
   u'editor': u'writer',
   u'freebusy': u'freeBusyReader',
@@ -8454,88 +8491,68 @@ CALENDAR_ACL_ROLES_MAP = {
   u'none': u'none',
   }
 
-def _processCalendarAddACL(calendarId, i, count, j, jcount, cal, body):
+def _processCalendarACLs(cal, function, calendarId, i, count, j, jcount, ruleId, role, body):
   result = True
+  kwargs = {u'calendarId': calendarId}
+  if function in [u'insert', u'patch']:
+    kwargs[u'body'] = body
+  if function in [u'patch', u'delete']:
+    kwargs[u'ruleId'] = ruleId
   try:
-    callGAPI(cal.acl(), u'insert',
-             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_SCOPE_VALUE, GAPI_CANNOT_CHANGE_OWNER_ACL],
-             calendarId=calendarId, body=body)
-    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(body), j, jcount)
-  except GAPI_notFound:
+    callGAPI(cal.acl(), function,
+             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID, GAPI_INVALID_SCOPE_VALUE, GAPI_ILLEGAL_ACCESS_ROLE_FOR_DEFAULT, GAPI_CANNOT_CHANGE_OWNER_ACL],
+             **kwargs)
+    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), j, jcount)
+  except (GAPI_notFound, GAPI_invalid):
     if not checkCalendarExists(cal, calendarId):
       entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
       result = False
     else:
-      entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(body), PHRASE_DOES_NOT_EXIST, j, jcount)
-  except GAPI_invalidScopeValue:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(body), PHRASE_INVALID_SCOPE, j, jcount)
+      entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, j, jcount)
+  except (GAPI_invalidScopeValue, GAPI_illegalAccessRoleForDefault) as e:
+    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), e.message, j, jcount)
   except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(body), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
   return result
 
-# gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-# gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+# gam calendars <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
+# gam calendar <CalendarItem> add <CalendarACLRole> <ACLScope>
 def doCalendarAddACL(cal, calendarList):
   role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
-  scopeType, scopeValue = getACLScope()
-  body = {u'role': role, u'scope': {u'type': scopeType}}
-  if scopeType != u'default':
-    body[u'scope'][u'value'] = scopeValue
+  ruleId = getACLRuleId()
+  body = makeRoleRuleIdBody(role, ruleId)
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
     calendarId = convertUserUIDtoEmailAddress(calendarId)
-    _processCalendarAddACL(calendarId, i, count, i, count, cal, body)
+    _processCalendarACLs(cal, u'insert', calendarId, i, count, i, count, ruleId, role, body)
 
-# gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLEntity>
+# gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLScopeEntity>
 def doCalendarAddACLs(cal, calendarList):
   role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
-  ruleIds = getEntityList(OB_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if ruleIdLists:
-      ruleIds = ruleIdLists[calendarId]
-    calendarId = convertUserUIDtoEmailAddress(calendarId)
-    jcount = len(ruleIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+    calendarId, calRuleIds, jcount = _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for ruleId in ruleIds:
+    for ruleId in calRuleIds:
       j += 1
       ruleId = normalizeRuleId(ruleId)
-      body = convertRuleId(role, ruleId)
-      if not _processCalendarAddACL(calendarId, i, count, j, jcount, cal, body):
+      if not _processCalendarACLs(cal, u'insert', calendarId, i, count, j, jcount, ruleId, role, makeRoleRuleIdBody(role, ruleId)):
         break
     Indent.Decrement()
 
-def _processCalendarUpdateACL(calendarId, i, count, j, jcount, cal, ruleId, body):
-  result = True
-  try:
-    callGAPI(cal.acl(), u'patch',
-             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID, GAPI_CANNOT_CHANGE_OWNER_ACL],
-             calendarId=calendarId, ruleId=ruleId, body=body)
-    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, body[u'role']), j, jcount)
-  except (GAPI_notFound, GAPI_invalid):
-    if not checkCalendarExists(cal, calendarId):
-      entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
-      result = False
-    else:
-      entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, body[u'role']), PHRASE_DOES_NOT_EXIST, j, jcount)
-  except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, body[u'role']), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
-  return result
-
-# gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-# gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+# gam calendars <CalendarEntity> update acl <CalendarACLRole> <ACLScope>
+# gam calendar <CalendarItem> update <CalendarACLRole> <ACLScope>
 def doCalendarUpdateACL(cal, calendarList):
   body = {u'role': getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)}
   ruleId = getACLRuleId()
@@ -8545,55 +8562,33 @@ def doCalendarUpdateACL(cal, calendarList):
   for calendarId in calendarList:
     i += 1
     calendarId = convertUserUIDtoEmailAddress(calendarId)
-    _processCalendarUpdateACL(calendarId, i, count, i, count, cal, ruleId, body)
+    _processCalendarACLs(cal, u'patch', calendarId, i, count, i, count, ruleId, body[u'role'], body)
 
-# gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLEntity>
+# gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLScopeEntity>
 def doCalendarUpdateACLs(cal, calendarList):
   body = {u'role': getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)}
-  ruleIds = getEntityList(OB_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if ruleIdLists:
-      ruleIds = ruleIdLists[calendarId]
-    calendarId = convertUserUIDtoEmailAddress(calendarId)
-    jcount = len(ruleIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+    calendarId, calRuleIds, jcount = _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for ruleId in ruleIds:
+    for ruleId in calRuleIds:
       j += 1
-      ruleId = normalizeRuleId(ruleId)
-      if not _processCalendarUpdateACL(calendarId, i, count, j, jcount, cal, ruleId, body):
+      if not _processCalendarACLs(cal, u'patch', calendarId, i, count, j, jcount, normalizeRuleId(ruleId), body[u'role'], body):
         break
     Indent.Decrement()
 
-def _processCalendarDeleteACL(calendarId, i, count, j, jcount, cal, ruleId):
-  result = True
-  try:
-    callGAPI(cal.acl(), u'delete',
-             throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_SCOPE_VALUE, GAPI_CANNOT_CHANGE_OWNER_ACL],
-             calendarId=calendarId, ruleId=ruleId)
-    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), j, jcount)
-  except GAPI_notFound:
-    entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
-    result = False
-  except GAPI_invalidScopeValue:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
-  except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
-  return result
-
-# gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-# gam calendar <CalendarItem> del|delete <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+# gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] <ACLScope>
+# gam calendar <CalendarItem> del|delete [<CalendarACLRole>] <ACLScope>
 def doCalendarDeleteACL(cal, calendarList):
-  getChoice(CALENDAR_ACL_ROLES_MAP, defaultChoice=None, mapChoice=True)
+  role = getChoice(CALENDAR_ACL_ROLES_MAP, defaultChoice=None, mapChoice=True)
   ruleId = getACLRuleId()
   checkForExtraneousArguments()
   i = 0
@@ -8601,54 +8596,43 @@ def doCalendarDeleteACL(cal, calendarList):
   for calendarId in calendarList:
     i += 1
     calendarId = convertUserUIDtoEmailAddress(calendarId)
-    _processCalendarDeleteACL(calendarId, i, count, i, count, cal, ruleId)
+    _processCalendarACLs(cal, u'delete', calendarId, i, count, i, count, ruleId, role, {})
 
-# gam calendars <CalendarEntity> del|delete acls <ACLEntity>
+# gam calendars <CalendarEntity> del|delete acls <ACLScopeEntity>
 def doCalendarDeleteACLs(cal, calendarList):
-  ruleIds = getEntityList(OB_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if ruleIdLists:
-      ruleIds = ruleIdLists[calendarId]
-    calendarId = convertUserUIDtoEmailAddress(calendarId)
-    jcount = len(ruleIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+    calendarId, calRuleIds, jcount = _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for ruleId in ruleIds:
+    for ruleId in calRuleIds:
       j += 1
-      ruleId = normalizeRuleId(ruleId)
-      if not _processCalendarDeleteACL(calendarId, i, count, j, jcount, cal, ruleId):
+      if not _processCalendarACLs(cal, u'delete', calendarId, i, count, j, jcount, normalizeRuleId(ruleId), None, {}):
         break
     Indent.Decrement()
 
-# gam calendars <CalendarEntity> info acl|acls <ACLEntity>
+# gam calendars <CalendarEntity> info acl|acls <ACLScopeEntity>
 def doCalendarInfoACLs(cal, calendarList):
-  ruleIds = getEntityList(OB_ACL_ENTITY)
+  ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
   ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if ruleIdLists:
-      ruleIds = ruleIdLists[calendarId]
-    calendarId = convertUserUIDtoEmailAddress(calendarId)
-    jcount = len(ruleIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+    calendarId, calRuleIds, jcount = _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for ruleId in ruleIds:
+    for ruleId in calRuleIds:
       j += 1
       ruleId = normalizeRuleId(ruleId)
       try:
@@ -8687,41 +8671,6 @@ def doCalendarShowACLs(cal, calendarList):
       for rule in acls:
         j += 1
         printEntityItemValue(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), j, jcount)
-      Indent.Decrement()
-    except GAPI_notFound:
-      entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
-
-# gam calendars <CalendarEntity> wipe acls
-def doCalendarWipeACLs(cal, calendarList):
-  checkForExtraneousArguments()
-  i = 0
-  count = len(calendarList)
-  for calendarId in calendarList:
-    i += 1
-    calendarId = convertUserUIDtoEmailAddress(calendarId)
-    try:
-      result = callGAPIpages(cal.acl(), u'list', u'items',
-                             throw_reasons=[GAPI_NOT_FOUND],
-                             calendarId=calendarId, fields=u'nextPageToken,items(id,role,scope)')
-      acls = [rule for rule in result if (rule[u'role'] != u'owner') or (rule[u'scope'][u'type'] != u'user') or (rule[u'scope'][u'value'] != calendarId)]
-      jcount = len(acls)
-      entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      Indent.Increment()
-      j = 0
-      for rule in acls:
-        j += 1
-        try:
-          callGAPI(cal.acl(), u'delete',
-                   throw_reasons=[GAPI_NOT_FOUND, GAPI_CANNOT_CHANGE_OWNER_ACL],
-                   calendarId=calendarId, ruleId=rule[u'id'])
-          entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), j, jcount)
-        except GAPI_notFound:
-          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), PHRASE_DOES_NOT_EXIST, j, jcount)
-        except GAPI_cannotChangeOwnerAcl:
-          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
       Indent.Decrement()
     except GAPI_notFound:
       entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
@@ -8849,28 +8798,68 @@ def doCalendarAddEvent(cal, calendarList):
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.CALENDAR, calendarId, i, count)
 
-# gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>
+def _getEventIDsOrQueries():
+  eventIds = []
+  eventQueries = []
+  if checkArgumentPresent([u'q', u'query', u'eventquery']):
+    eventQueries.append(getString(OB_QUERY))
+    while checkArgumentPresent([u'q', u'query', u'eventquery']):
+      eventQueries.append(getString(OB_QUERY))
+  else:
+    eventIds = getEntityList(OB_EVENT_ID_ENTITY)
+  return (eventIds, eventQueries)
+
+def _validateCalendarGetEventIDs(calendarId, i, count, eventIds, eventIdLists, eventQueries, doIt):
+  calEventIds = eventIdLists[calendarId][:] if eventIdLists else eventIds[:]
+  calendarId, cal = buildCalendarGAPIObject(calendarId)
+  if not cal:
+    return (calendarId, None, None, 0)
+  if eventQueries:
+    querySet = set()
+    queryIds = []
+    try:
+      for query in eventQueries:
+        events = callGAPIpages(cal.events(), u'list', items=u'items',
+                               throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                               calendarId=calendarId, q=query)
+        for event in events:
+          eventId = event.get(u'id')
+          if eventId and eventId not in querySet:
+            querySet.add(eventId)
+            queryIds.append(eventId)
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(Entity.CALENDAR, calendarId, i, count)
+      return (calendarId, None, None, 0)
+    jcount = len(queryIds)
+    if jcount == 0 and len(calEventIds) == 0:
+      entityNumEntitiesActionNotPerformedWarning(Entity.CALENDAR, calendarId, Entity.EVENT, jcount, PHRASE_NO_ENTITIES_MATCHED.format(Entity.Plural(Entity.EVENT)), i, count)
+      setSysExitRC(NO_ENTITIES_FOUND)
+      return (calendarId, None, None, 0)
+    calEventIds.extend(queryIds)
+  jcount = len(calEventIds)
+  if not doIt:
+    entityNumEntitiesActionNotPerformedWarning(Entity.CALENDAR, calendarId, Entity.EVENT, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
+    return (calendarId, None, None, 0)
+  entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
+  if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
+  return (calendarId, cal, calEventIds, jcount)
+
+# gam calendars <CalendarEntity> update event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> <EventAttributes>
 def doCalendarUpdateEvent(cal, calendarList):
-  eventIds = getEntityList(OB_EVENT_ID_ENTITY)
+  eventIds, eventQueries = _getEventIDsOrQueries()
   eventIdLists = eventIds if isinstance(eventIds, dict) else None
   body, parameters = getCalendarEventAttributes()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if eventIdLists:
-      eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId)
-    if not cal:
-      continue
-    jcount = len(eventIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
+    calendarId, cal, calEventIds, jcount = _validateCalendarGetEventIDs(calendarId, i, count, eventIds, eventIdLists, eventQueries, True)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for eventId in eventIds:
+    for eventId in calEventIds:
       j += 1
       try:
         if u'recurrence' in body:
@@ -8898,55 +8887,14 @@ def doCalendarUpdateEvent(cal, calendarList):
         entityServiceNotApplicableWarning(Entity.CALENDAR, calendarId, i, count)
         break
 
-# gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
-def doCalendarDeleteEvent(cal, calendarList):
-  eventIds = []
-  queries = []
-  doIt = sendNotifications = False
-  while CLArgs.ArgumentsRemaining():
-    myarg = getArgument()
-    if myarg == u'notifyattendees':
-      sendNotifications = True
-    elif myarg in [u'id', u'eventid']:
-      eventIds.append(getString(OB_EVENT_ID))
-    elif myarg in [u'q', u'query', u'eventquery']:
-      queries.append(getString(OB_QUERY))
-    elif myarg == u'doit':
-      doIt = True
-    else:
-      unknownArgumentExit()
+def _calendarDeleteEvents(calendarList, eventIds, eventIdLists, eventQueries, doIt, sendNotifications):
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    calendarId, cal = buildCalendarGAPIObject(calendarId)
-    if not cal:
-      continue
-    calEventIds = []
-    if queries:
-      calError = False
-      for query in queries:
-        try:
-          events = callGAPIpages(cal.events(), u'list', items=u'items',
-                                 throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-                                 calendarId=calendarId, q=query)
-          calEventIds.extend([event[u'id'] for event in events if u'id' in event and event[u'id'] not in calEventIds])
-        except (GAPI_serviceNotAvailable, GAPI_authError):
-          entityServiceNotApplicableWarning(Entity.CALENDAR, calendarId, i, count)
-          calError = True
-          break
-      if calError:
-        continue
-    calEventIds.extend(eventIds)
-    jcount = len(calEventIds)
+    calendarId, cal, calEventIds, jcount = _validateCalendarGetEventIDs(calendarId, i, count, eventIds, eventIdLists, eventQueries, doIt)
     if jcount == 0:
-      entityNumEntitiesActionNotPerformedWarning(Entity.CALENDAR, calendarId, Entity.EVENT, jcount, PHRASE_NO_ENTITIES_MATCHED.format(Entity.Plural(Entity.EVENT)), i, count)
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
-    if not doIt:
-      entityNumEntitiesActionNotPerformedWarning(Entity.CALENDAR, calendarId, Entity.EVENT, jcount, PHRASE_USE_DOIT_ARGUMENT_TO_PERFORM_ACTION, i, count)
-      continue
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
     Indent.Increment()
     j = 0
     for eventId in calEventIds:
@@ -8963,64 +8911,55 @@ def doCalendarDeleteEvent(cal, calendarList):
         break
     Indent.Decrement()
 
-# gam calendars <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
-def doCalendarsDeleteEvent(cal, calendarList):
-  eventIds = getEntityList(OB_EVENT_ID_ENTITY)
-  eventIdLists = eventIds if isinstance(eventIds, dict) else None
-  sendNotifications = checkArgumentPresent(NOTIFYATTENDEES_ARGUMENT)
-  checkForExtraneousArguments()
-  i = 0
-  count = len(calendarList)
-  for calendarId in calendarList:
-    i += 1
-    if eventIdLists:
-      eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId)
-    if not cal:
-      continue
-    jcount = len(eventIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
-    if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
-      continue
-    Indent.Increment()
-    j = 0
-    for eventId in eventIds:
-      j += 1
-      try:
-        callGAPI(cal.events(), u'delete',
-                 throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DELETED],
-                 calendarId=calendarId, eventId=eventId, sendNotifications=sendNotifications)
-        entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.EVENT, eventId, j, jcount)
-      except (GAPI_notFound, GAPI_deleted):
-        entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.EVENT, eventId, PHRASE_DOES_NOT_EXIST, j, jcount)
-      except (GAPI_serviceNotAvailable, GAPI_authError):
-        entityServiceNotApplicableWarning(Entity.CALENDAR, calendarId, i, count)
-        break
-    Indent.Decrement()
+# gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
+def doCalendarDeleteEvent(cal, calendarList):
+  doIt = sendNotifications = False
+  eventIds = []
+  eventQueries = []
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg in [u'id', u'eventid']:
+      eventIds.append(getString(OB_EVENT_ID))
+    elif myarg in [u'q', u'query', u'eventquery']:
+      eventQueries.append(getString(OB_QUERY))
+    elif myarg == u'doit':
+      doIt = True
+    elif myarg == u'notifyattendees':
+      sendNotifications = True
+    else:
+      unknownArgumentExit()
+  _calendarDeleteEvents(calendarList, eventIds, None, eventQueries, doIt, sendNotifications)
 
-# gam calendars <CalendarEntity> info event <EventIDEntity>
+# gam calendars <CalendarEntity> delete event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> [doit] [notifyattendees]
+def doCalendarsDeleteEvent(cal, calendarList):
+  doIt = sendNotifications = False
+  eventIds, eventQueries = _getEventIDsOrQueries()
+  eventIdLists = eventIds if isinstance(eventIds, dict) else None
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'notifyattendees':
+      sendNotifications = True
+    elif myarg == u'doit':
+      doIt = True
+    else:
+      unknownArgumentExit()
+  _calendarDeleteEvents(calendarList, eventIds, eventIdLists, eventQueries, doIt, sendNotifications)
+
+# gam calendars <CalendarEntity> info event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity>
 def doCalendarInfoEvent(cal, calendarList):
-  eventIds = getEntityList(OB_EVENT_ID_ENTITY)
+  eventIds, eventQueries = _getEventIDsOrQueries()
   eventIdLists = eventIds if isinstance(eventIds, dict) else None
   checkForExtraneousArguments()
   i = 0
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if eventIdLists:
-      eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId)
-    if not cal:
-      continue
-    jcount = len(eventIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
+    calendarId, cal, calEventIds, jcount = _validateCalendarGetEventIDs(calendarId, i, count, eventIds, eventIdLists, eventQueries, True)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for eventId in eventIds:
+    for eventId in calEventIds:
       j += 1
       try:
         event = callGAPI(cal.events(), u'get',
@@ -9037,9 +8976,10 @@ def doCalendarInfoEvent(cal, calendarList):
         break
     Indent.Decrement()
 
-# gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
+# gam calendars <CalendarEntity> move event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> to <CalendarItem> [notifyattendees]
 def doCalendarMoveEvent(cal, calendarList):
-  eventIds = getEntityList(OB_EVENT_ID_ENTITY)
+  sendNotifications = False
+  eventIds, eventQueries = _getEventIDsOrQueries()
   eventIdLists = eventIds if isinstance(eventIds, dict) else None
   checkArgumentPresent(TO_ARGUMENT)
   newCalendarId = convertUserUIDtoEmailAddress(getString(OB_CALENDAR_ITEM))
@@ -9049,19 +8989,12 @@ def doCalendarMoveEvent(cal, calendarList):
   count = len(calendarList)
   for calendarId in calendarList:
     i += 1
-    if eventIdLists:
-      eventIds = eventIdLists[calendarId]
-    calendarId, cal = buildCalendarGAPIObject(calendarId)
-    if not cal:
-      continue
-    jcount = len(eventIds)
-    entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.EVENT, i, count)
+    calendarId, cal, calEventIds, jcount = _validateCalendarGetEventIDs(calendarId, i, count, eventIds, eventIdLists, eventQueries, True)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
-    for eventId in eventIds:
+    for eventId in calEventIds:
       j += 1
       try:
         callGAPI(cal.events(), u'move',
@@ -9100,15 +9033,11 @@ SHOW_EVENTS_ATTRIBUTES = {
   u'updatedmin': [u'updatedMin', {GC_VAR_TYPE: GC_TYPE_DATETIME}],
   }
 
-# gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
-#	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+# gam calendars <CalendarEntity> print events [todrive] (q|query|eventquery <QueryCalendar>)* <EventDisplayProperties>*
 def doCalendarPrintEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, True)
 
-# gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-#	[icaluid <String>] (privateextendedproperty <String)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Integer>]
-#	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+# gam calendars <CalendarEntity> show events (q|query|eventquery <QueryCalendar>)* <EventDisplayProperties>*
 def doCalendarShowEvents(cal, calendarList):
   calendarPrintShowEvents(cal, calendarList, False)
 
@@ -9116,7 +9045,7 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile(None)
-  queries = []
+  eventQueries = []
   kwargs = {}
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -9135,7 +9064,7 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
         if attrName != u'q':
           kwargs[attrName] = getString(OB_STRING)
         else:
-          queries.append(getString(OB_QUERY))
+          eventQueries.append(getString(OB_QUERY))
       elif attrType == GC_TYPE_CHOICE:
         kwargs[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
       elif attrType == GC_TYPE_DATETIME:
@@ -9150,16 +9079,16 @@ def calendarPrintShowEvents(cal, calendarList, csvFormat):
     if not cal:
       continue
     try:
-      if len(queries) <= 1:
-        if len(queries) == 1:
-          kwargs[u'q'] = queries[0]
+      if len(eventQueries) <= 1:
+        if len(eventQueries) == 1:
+          kwargs[u'q'] = eventQueries[0]
         events = callGAPIpages(cal.events(), u'list', u'items',
                                throw_reasons=GAPI_CALENDAR_THROW_REASONS,
                                calendarId=calendarId, fields=u'nextPageToken,items', **kwargs)
       else:
         events = collections.deque()
         eventIds = set()
-        for query in queries:
+        for query in eventQueries:
           kwargs[u'q'] = query
           qevents = callGAPIpages(cal.events(), u'list', u'items',
                                   throw_reasons=GAPI_CALENDAR_THROW_REASONS,
@@ -14047,10 +13976,10 @@ def printShowSites(entityList, entityType, csvFormat):
       addTitlesToCSVfile([u'Scope', u'Role'], titles)
     writeCSVfile(csvRows, titles, u'Sites', todrive)
 
-# gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
-# gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
-# gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLEntity>
-# gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLEntity>
+# gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
+# gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
+# gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLScopeEntity>
+# gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLScopeEntity>
 # gam [<UserTypeEntity>] show siteacls <SiteEntity>
 def processUserSiteACLs(users):
   doProcessSiteACLs(users, Entity.USER)
@@ -14067,7 +13996,7 @@ def doProcessSiteACLs(users, entityType):
   else:
     role = None
   if action != Action.SHOW:
-    ruleIds = getEntityList(OB_ACL_ENTITY)
+    ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
     ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
   sitesManager = SitesManager()
@@ -14106,8 +14035,7 @@ def doProcessSiteACLs(users, entityType):
           ruleId = normalizeRuleId(ruleId)
           try:
             if action == Action.ADD:
-              fields = convertRuleId(role, ruleId)
-              acl = sitesManager.FieldsToAclEntry(fields)
+              acl = sitesManager.FieldsToAclEntry(makeRoleRuleIdBody(role, ruleId))
               acl = callGData(sitesObject, u'CreateAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_ENTITY_EXISTS, GDATA_BAD_REQUEST, GDATA_FORBIDDEN],
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
@@ -17197,11 +17125,12 @@ def getCalendarAttributes(body):
       unknownArgumentExit()
   return colorRgbFormat
 
-def _showCalendar(userCalendar, j, jcount):
+def _showCalendar(userCalendar, j, jcount, acls=None):
   printEntity(Entity.CALENDAR, userCalendar[u'id'], j, jcount)
   Indent.Increment()
   printKeyValueList([u'Summary', userCalendar.get(u'summaryOverride', userCalendar[u'summary'])])
   printKeyValueList([u'Description', userCalendar.get(u'description', u'')])
+  printKeyValueList([u'Primary', userCalendar.get(u'primary', FALSE)])
   printKeyValueList([u'Access Level', userCalendar[u'accessRole']])
   printKeyValueList([u'Timezone', userCalendar[u'timeZone']])
   printKeyValueList([u'Location', userCalendar.get(u'location', u'')])
@@ -17219,6 +17148,12 @@ def _showCalendar(userCalendar, j, jcount):
     for notification in userCalendar[u'notificationSettings'].get(u'notifications', []):
       printKeyValueList([u'Method', notification[u'method'], u'Type', notification[u'type']])
   Indent.Decrement()
+  if acls:
+    printKeyValueList([u'ACLs', None])
+    Indent.Increment()
+    for rule in acls:
+      printKeyValueList(ACLRoleKeyValueList(rule))
+    Indent.Decrement()
   Indent.Decrement()
 
 # Process CalendarList functions
@@ -17354,15 +17289,29 @@ def infoCalendar(users, getEntityListArg=False):
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> print calendars [todrive]
+# gam <UserTypeEntity> print calendars [todrive] [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
 def printCalendars(users):
   printShowCalendars(users, True)
 
-# gam <UserTypeEntity> show calendars
+# gam <UserTypeEntity> show calendars [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
 def showCalendars(users):
   printShowCalendars(users, False)
 
 def printShowCalendars(users, csvFormat):
+
+  def _getPermissions(cal, userCalendar):
+    if userCalendar[u'accessRole'] == u'owner':
+      try:
+        return callGAPIpages(cal.acl(), u'list', u'items',
+                             throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND],
+                             calendarId=userCalendar[u'id'], fields=u'nextPageToken,items(id,role,scope)')
+      except (GAPI_serviceNotAvailable, GAPI_authError, GAPI_notFound):
+        pass
+    return collections.deque()
+
+  acls = collections.deque()
+  minAccessRole = None
+  primary = showDeleted = showHidden = showPermissions = False
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile(None)
@@ -17370,6 +17319,16 @@ def printShowCalendars(users, csvFormat):
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif myarg == u'role':
+      minAccessRole = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
+    elif myarg == u'primary':
+      primary = True
+    elif myarg == u'showdeleted':
+      showDeleted = True
+    elif myarg == u'showhidden':
+      showHidden = True
+    elif myarg == u'permissions':
+      showPermissions = True
     else:
       unknownArgumentExit()
   i = 0
@@ -17381,8 +17340,15 @@ def printShowCalendars(users, csvFormat):
       continue
     try:
       result = callGAPIpages(cal.calendarList(), u'list', u'items',
-                             throw_reasons=GAPI_CALENDAR_THROW_REASONS)
-      jcount = len(result)
+                             throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                             minAccessRole=minAccessRole, showDeleted=showDeleted, showHidden=showHidden)
+      if primary:
+        jcount = 0
+        for userCalendar in result:
+          if userCalendar.get(u'primary'):
+            jcount += 1
+      else:
+        jcount = len(result)
       if not csvFormat:
         entityPerformActionNumItems(Entity.USER, user, jcount, Entity.CALENDAR, i, count)
       if jcount == 0:
@@ -17392,12 +17358,19 @@ def printShowCalendars(users, csvFormat):
         Indent.Increment()
         j = 0
         for userCalendar in result:
-          j += 1
-          _showCalendar(userCalendar, j, jcount)
+          if not primary or userCalendar.get(u'primary'):
+            j += 1
+            if showPermissions:
+              acls = _getPermissions(cal, userCalendar)
+            _showCalendar(userCalendar, j, jcount, acls)
         Indent.Decrement()
       else:
         for userCalendar in result:
-          addRowTitlesToCSVfile(flattenJSON(userCalendar, flattened={u'primaryEmail': user}), csvRows, titles)
+          if not primary or userCalendar.get(u'primary'):
+            row = {u'primaryEmail': user}
+            if showPermissions:
+              flattenJSON(_getPermissions(cal, userCalendar), key=u'permissions', flattened=row)
+            addRowTitlesToCSVfile(flattenJSON(userCalendar, flattened=row), csvRows, titles)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
   if csvFormat:
@@ -17763,7 +17736,7 @@ def getDriveFileEntity(orphansOK=False):
       cleanFileIDsList(fileIdSelection, [myarg,])
   return fileIdSelection
 
-def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, drive=None):
+def _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, drive=None, entityType=None):
   if fileIdSelection[u'dict']:
     cleanFileIDsList(fileIdSelection, fileIdSelection[u'dict'][user])
   if not drive:
@@ -17798,6 +17771,8 @@ def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, dr
   l = len(fileIdSelection[u'fileIds'])
   if l == 0:
     setSysExitRC(NO_ENTITIES_FOUND)
+  if entityType:
+    entityPerformActionNumItems(Entity.USER, user, l, entityType, i, count)
   return (user, drive, l)
 
 DRIVEFILE_LABEL_CHOICES_MAP = {
@@ -18141,10 +18116,7 @@ def showDriveFileInfo(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
     if filepath:
@@ -18185,10 +18157,7 @@ def showDriveFileRevisions(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -18511,8 +18480,8 @@ def printDriveFileList(users):
           while feed:
             _printFileInfo(drive, feed.popleft())
       else:
-        user, drive, jcount = validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive)
-        if not drive:
+        user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive)
+        if jcount == 0:
           continue
         fileTree = buildFileTree(feed, drive)
         j = 0
@@ -18546,10 +18515,7 @@ def showDriveFilePath(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
     filePathInfo = initFilePathInfo()
@@ -18640,8 +18606,7 @@ def showDriveFileTree(users):
                            page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
                            q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},{2},mimeType)'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME, DRIVE_PARENTS_ID), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
-      user, drive, jcount = validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive)
-      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FOLDER, i, count)
+      user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdSelection, body, parameters, drive=drive, entityType=Entity.DRIVE_FOLDER)
       if jcount == 0:
         continue
       j = 0
@@ -18678,7 +18643,7 @@ def addDriveFile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, _ = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+    user, drive, _ = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
     if not drive:
       continue
     if parameters[DFA_LOCALFILEPATH]:
@@ -18710,6 +18675,7 @@ def updateDriveFile(users):
     myarg = getArgument()
     if myarg == u'copy':
       operation = u'copy'
+      Action.Set(Action.COPY)
     elif myarg == u'newfilename':
       body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FILE_NAME)
     else:
@@ -18718,19 +18684,15 @@ def updateDriveFile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
+    if jcount == 0:
       continue
     if operation == u'update':
-      Action.Set(Action.UPDATE)
       if parameters[DFA_LOCALFILEPATH]:
         try:
           media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
         except IOError as e:
           systemErrorExit(FILE_ERROR_RC, e)
-      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
-      if jcount == 0:
-        continue
       Indent.Increment()
       j = 0
       for fileId in fileIdSelection[u'fileIds']:
@@ -18757,10 +18719,6 @@ def updateDriveFile(users):
           break
       Indent.Decrement()
     else:
-      Action.Set(Action.COPY)
-      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
-      if jcount == 0:
-        continue
       Indent.Increment()
       j = 0
       for fileId in fileIdSelection[u'fileIds']:
@@ -18830,10 +18788,7 @@ def copyDriveFile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -18889,10 +18844,7 @@ def deleteDriveFile(users, function=None):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -18976,10 +18928,7 @@ def getDriveFile(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -19225,10 +19174,7 @@ def transferDriveFileOwnership(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FOLDER, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FOLDER)
     if jcount == 0:
       continue
     if filepath:
@@ -19378,7 +19324,7 @@ def claimDriveFolderOwnership(users):
   for user in users:
     i += 1
     origUser = user
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
     if not drive:
       continue
     permissionId = validateUserGetPermissionId(user)
@@ -19391,7 +19337,7 @@ def claimDriveFolderOwnership(users):
       filePathInfo = initFilePathInfo()
     bodyAdd = {u'role': u'writer', u'type': u'user', u'value': user}
     if skipIdSelection[u'query'] or skipIdSelection[u'root']:
-      validateUserGetFileIDs(origUser, i, count, skipIdSelection, skipbody, skipparameters, drive=drive)
+      _validateUserGetFileIDs(origUser, i, count, skipIdSelection, skipbody, skipparameters, drive=drive)
     try:
       printGettingAllEntityItemsForWhom(Entity.DRIVE_FILE_OR_FOLDER, user, i, count)
       page_message = getPageMessageForWhom()
@@ -19560,7 +19506,7 @@ def emptyDriveTrash(users):
 DRIVEFILE_ACL_TIME_OBJECTS = [u'expirationDate',]
 
 # Utilities for DriveFileACL commands
-def _showPermission(permission):
+def _showDriveFilePermission(permission):
   if DRIVE_PERMISSIONS_NAME in permission:
     printKeyValueList([permission[DRIVE_PERMISSIONS_NAME]])
   elif u'id' in permission:
@@ -19635,12 +19581,8 @@ def addDriveFileACL(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
       continue
     Indent.Increment()
     j = 0
@@ -19660,7 +19602,7 @@ def addDriveFileACL(users):
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_INVALID_SHARING_REQUEST, GAPI_FORBIDDEN],
                               fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
         entityItemValueItemValueActionPerformed(Entity.USER, user, entityType, fileName, Entity.PERMISSION_ID, permissionId, j, jcount)
-        _showPermission(permission)
+        _showDriveFilePermission(permission)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(Entity.USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
       except (GAPI_invalidSharingRequest, GAPI_forbidden) as e:
@@ -19705,10 +19647,7 @@ def updateDriveFileACL(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -19729,7 +19668,7 @@ def updateDriveFileACL(users):
                               throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
                               fileId=fileId, permissionId=permissionId, removeExpiration=removeExpiration, transferOwnership=transferOwnership, body=body)
         entityItemValueItemValueActionPerformed(Entity.USER, user, entityType, fileName, Entity.PERMISSION_ID, permissionId, j, jcount)
-        _showPermission(permission)
+        _showDriveFilePermission(permission)
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(Entity.USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
       except GAPI_permissionNotFound:
@@ -19811,8 +19750,8 @@ def addDriveFilePermissions(users):
   for user in users:
     i += 1
     origUser = user
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
+    if jcount == 0:
       continue
     try:
       callGAPI(drive.about(), u'get',
@@ -19820,9 +19759,6 @@ def addDriveFilePermissions(users):
                fields=u'user/emailAddress')
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
-    if jcount == 0:
       continue
     Indent.Increment()
     bcount = 0
@@ -19871,10 +19807,7 @@ def deleteDriveFileACL(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -19906,8 +19839,8 @@ def deleteDriveFileACL(users):
         break
     Indent.Decrement()
 
-# gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <DriveFilePermissionIDEntity>
-def wipeDriveFileACLs(users):
+# gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionIDEntity>
+def deleteDriveFilePermissions(users):
 
   def _callbackDeletePermissionId(request_id, response, exception):
     ri = request_id.splitlines()
@@ -19937,15 +19870,15 @@ def wipeDriveFileACLs(users):
   fileIdSelection = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   permissionIds = getEntityList(OB_DRIVE_FILE_PERMISSION_ID_ENTITY)
-  checkForExtraneousArguments()
   permissionIdsLists = permissionIds if isinstance(permissionIds, dict) else None
+  checkForExtraneousArguments()
   i = 0
   count = len(users)
   for user in users:
     i += 1
     origUser = user
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
+    if jcount == 0:
       continue
     try:
       callGAPI(drive.about(), u'get',
@@ -19953,9 +19886,6 @@ def wipeDriveFileACLs(users):
                fields=u'user/emailAddress')
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
-    if jcount == 0:
       continue
     Indent.Increment()
     bcount = 0
@@ -19995,10 +19925,7 @@ def showDriveFileACLs(users):
   count = len(users)
   for user in users:
     i += 1
-    user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-    if not drive:
-      continue
-    entityPerformActionNumItems(Entity.USER, user, jcount, Entity.DRIVE_FILE_OR_FOLDER_ACL, i, count)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
       continue
     Indent.Increment()
@@ -20022,7 +19949,7 @@ def showDriveFileACLs(users):
         if result:
           Indent.Increment()
           for permission in result[DRIVE_PERMISSIONS_LIST]:
-            _showPermission(permission)
+            _showDriveFilePermission(permission)
           Indent.Decrement()
       except GAPI_fileNotFound:
         entityItemValueActionFailedWarning(Entity.USER, user, entityType, fileName, PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -23731,7 +23658,7 @@ CALENDAR_SUBCOMMANDS = {
   u'showacl':	{CMD_ACTION: Action.SHOW, CMD_FUNCTION: doCalendarShowACLs},
   u'addevent':	{CMD_ACTION: Action.ADD, CMD_FUNCTION: doCalendarAddEvent},
   u'deleteevent':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doCalendarDeleteEvent},
-  u'wipe':	{CMD_ACTION: Action.WIPE, CMD_FUNCTION: doCalendarWipeEvents},
+  u'wipe':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doCalendarWipeEvents},
   }
 
 # Calendar sub-command aliases
@@ -23800,10 +23727,9 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
     },
   u'wipe':
-    {CMD_ACTION: Action.WIPE,
+    {CMD_ACTION: Action.DELETE,
      CMD_FUNCTION:
-       {u'acls':	doCalendarWipeACLs,
-        u'events':	doCalendarWipeEvents,
+       {u'events':	doCalendarWipeEvents,
        },
     },
   }
@@ -23852,7 +23778,7 @@ PRINTER_SUBCOMMANDS = {
   u'delete':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterDeleteACL},
   u'showacl':	{CMD_ACTION: Action.SHOW, CMD_FUNCTION: doPrinterShowACL},
   u'sync':	{CMD_ACTION: Action.SYNC, CMD_FUNCTION: doPrinterSyncACL},
-  u'wipe':	{CMD_ACTION: Action.WIPE, CMD_FUNCTION: doPrinterWipeACL},
+  u'wipe':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterWipeACL},
   }
 
 # Printer sub-command aliases
@@ -23965,7 +23891,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_GROUP:	addUserToGroups,
         CL_OB_LABEL:	addLabel,
         CL_OB_LICENSE:	addLicense,
-        CL_OB_DRIVEFILEPERMISSIONS:	addDriveFilePermissions,
+        CL_OB_PERMISSIONS:	addDriveFilePermissions,
         CL_OB_SENDAS:	addSendAs,
         CL_OB_SITEACLS:	processUserSiteACLs,
        },
@@ -24050,6 +23976,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         CL_OB_LABEL:	deleteLabel,
         CL_OB_LICENSE:	deleteLicense,
         CL_OB_MESSAGES:	processMessages,
+        CL_OB_PERMISSIONS:	deleteDriveFilePermissions,
         CL_OB_PHOTO:	deletePhoto,
         CL_OB_SENDAS:	deleteSendAs,
         CL_OB_SITEACLS:	processUserSiteACLs,
@@ -24325,15 +24252,6 @@ USER_COMMANDS_WITH_OBJECTS = {
         u'licence':	CL_OB_LICENSE,
         CL_OB_SITE:	CL_OB_SITES,
         CL_OB_SITEACL:	CL_OB_SITEACLS,
-       },
-    },
-  u'wipe':
-    {CMD_ACTION: Action.WIPE,
-     CMD_FUNCTION:
-       {CL_OB_DRIVEFILEACLS:	wipeDriveFileACLs,
-       },
-     CMD_OBJ_ALIASES:
-       {CL_OB_DRIVEFILEACL:	CL_OB_DRIVEFILEACLS,
        },
     },
   }

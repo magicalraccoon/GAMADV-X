@@ -74,7 +74,6 @@ class GamAction(object):
   UPDATE = u'upda'
   UPLOAD = u'uplo'
   WATCH = u'watc'
-  WIPE = u'wipe'
   # Usage:
   # ACTION_NAMES[1] n Items - Delete 10 Users
   # Item xxx ACTION_NAMES[0] - User xxx Deleted
@@ -130,7 +129,6 @@ class GamAction(object):
     UPDATE: [u'Updated', u'Update'],
     UPLOAD: [u'Uploaded', u'Upload'],
     WATCH: [u'Watched', u'Watch'],
-    WIPE: [u'Wiped', u'Wipe'],
     }
   #
   MODIFIER_TO = u'to'

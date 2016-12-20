@@ -1,3 +1,34 @@
+4.39.00
+
+For calendar/calendars add/update/delete acl, the scope can be specified in a new form to make it consistent with other commands.
+    <ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+    gam calendars <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
+    gam calendars <CalendarEntity> update acl <CalendarACLRole> <ACLScope>
+    gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] <ACLScope>
+
+Updated calendars update/delete/move/info event to allow queries. You specify event queries or event IDs.
+    gam calendars <CalendarEntity> update event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> <EventAttributes>+
+    gam calendars <CalendarEntity> delete event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> [doit] [notifyattendees]
+    gam calendars <CalendarEntity> move event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> to <CalendarItem> [notifyattendees]
+    gam calendars <CalendarEntity> info event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity>
+
+Added primary, role <CalendarACLRole>, showdeleted, showhidden and permissions to gam print/show calendars.
+    <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
+    gam <UserTypeEntity> show calendars [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
+    gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]] [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
+By default, information for all visible, non-deleted calendars is shown.
+primary limits the selection to the user's primary calendar.
+role <CalendarACLRole> limits the selection to those calendars where the user's role is at least <CalendarACLRole>.
+showdeleted adds deleted calendars to the selection.
+showhidden adds hidden calendars to the selection.
+permissions adds permission information for user owned calendars to the output.
+
+Renamed command to batch delete drivefileacls.
+    Old: gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
+    New: gam <UserTypeEntity> delete permissions <DriveFileEntity> <PermissionIDEntity>
+
+Eliminated command gam calendars <CalendarEntity> wipe acls
+
 4.38.05
 
 Allow = in gam config. The = is optional but must be surrounded by spaces if included.
@@ -53,8 +84,6 @@ Always show role as commenter rather than role as reader with additionalRoles co
 Improve message/thread error handling when ids argument is used.
 
 4.37.04
-
-Fix gam calendars <CalendarEntity> wipe acls to avoid trying to delete owner ACL.
 
 Expanded csvkmd to take a subkeyfield, this is used to support wipe drivefileacls.
     <CrOSTypeEntity> ::=
@@ -1708,7 +1737,6 @@ Add additional command to manage calendar ACLs.
     gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <CalendarACLEntity>
     gam calendars <CalendarEntity> info acl|acls <CalendarACLEntity>
     gam calendars <CalendarEntity> show acls
-    gam calendars <CalendarEntity> wipe acls
 
 Reorganize gam so that it is importable on Mac OS/Linux.
 This isn't elegant but it's a start; you can say:

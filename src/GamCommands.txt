@@ -66,7 +66,7 @@ If an item contains spaces, it should be surrounded by " or '.
 ## Named items
 
 <AccessToken> ::= <String>
-<ACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
+<ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
 <CalendarColorIndex> ::== <Number in range 1-24>
 <CalendarItem> ::= <EmailAddress>|<String>
 <ClientID> ::= <String>
@@ -137,7 +137,6 @@ If an item contains spaces, it should be surrounded by " or '.
 <ResourceID> ::= <String>
 <SchemaName> ::= <String>
 <Section> ::= <String>
-<SiteACLRole> ::= editor|invite|owner|reader|writer
 <SiteItem> ::= [<domainName>/]<Site>
 <StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Tag> ::= <String>
@@ -157,7 +156,7 @@ Items, separated by spaces, without spaces or commas in the items themselves: "i
 Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
 Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
 
-<ACLList> ::== '<ACLScope>(,<ACLScope>)*'
+<ACLScopeList> ::== '<ACLScope>(,<ACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
 <CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
 <ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
@@ -184,7 +183,6 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <ProductIDList> ::= '(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*'
 <ResourceIDList> ::= '<ResourceID>(,<ResourceID>)*'
 <SchemaNameList> ::= '<SchemaName>(,<SchemaName>)*'
-<SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
 <SiteList> ::= '<SiteItem>(,<SiteItem>)*'
 <SKUIDList> ='<SKUID>(,<SKUID>)*'
 <ThreadIDList> ::= '<ThreadID>(,<ThreadID>)*'
@@ -259,7 +257,7 @@ Specify a collection of items by directly specifying them; the item type is dete
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
 
-<ACLEntity>::= <ACLList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <CalendarEntity> ::= <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactEntity> ::= <ContactIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactGroupEntity> ::= <ContactGroupList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -412,49 +410,76 @@ gam audit monitor list <EmailAddress>
 # Calendars
 
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
+<ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+<ACLScopeList> ::== '<ACLScope>(,<ACLScope>)*'
+<ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLEntity>
-gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLEntity>
-gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <ACLEntity>
-gam calendars <CalendarEntity> info acl|acls <ACLEntity>
+gam calendars <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
+gam calendars <CalendarEntity> update acl <CalendarACLRole> <ACLScope>
+gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] <ACLScope>
+
+gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLScopeEntity>
+gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLScopeEntity>
+gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <ACLScopeEntity>
+gam calendars <CalendarEntity> info acl|acls <ACLScopeEntity>
 gam calendars <CalendarEntity> show acls
-gam calendars <CalendarEntity> wipe acls
 
 <EventAttributes> ::=
-	(anyonecanaddself)|(guestscantinviteothers)|(guestscantseeothers)|(notifyattendees)|
-	(available)|(visibility default|public|prvate)|(tentative)|
-	(attendee <EmailAddress>)|(optionalattendee <EmailAddress>)|
-	(description <String>)|(summary <String>)|(location <String>)|(id <String>)|
-	(source <String> <URL>)|
-	(privateproperty <PropertyKey> <PropertyValue>)|(sharedproperty <PropertyKey> <PropertyValue>)|
+	(anyonecanaddself)|
+	(attendee <EmailAddress>)|
+	(available)|
+	(colorindex|colorid <EventColorIndex>))|
+	(description <String>)|
+	(end (allday <Date>)|<Time>)|
+	(guestscantinviteothers)|
+	(guestscantseeothers)|
+	(id <String>)|
+	(location <String>)|
+	(noreminders|(reminder email|popup|sms <Number>))|
+	(notifyattendees)|
+	(optionalattendee <EmailAddress>)|
+	(privateproperty <PropertyKey> <PropertyValue>)|
 	(recurrence <RRULE, EXRULE, RDATE and EXDATE line>)|
-	(start allday <Date>)|(start <Time>)|(end allday <Date>)|(end <Time>)|(timezone <Timezone>)|
-	(noreminders|(reminder email|popup|sms <Number>)|(reminder <Number> email|popup|sms))|
-	(colorindex|colorid <EventColorIndex>)
+	(reminder <Number> email|popup|sms))|
+	(sharedproperty <PropertyKey> <PropertyValue>)|
+	(source <String> <URL>)|
+	(start (allday <Date>)|<Time>)|
+	(summary <String>)|
+	(tentative)|
+	(timezone <Timezone>)|
+	(visibility default|public|prvate)
 
 gam calendars <CalendarEntity> add event <EventAttributes>+
-gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>+
-gam calendars <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
-gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
-gam calendars <CalendarEntity> info event <EventIDEntity>
-gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Number>]
-	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
-gam calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
-	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* (q|query|eventquery <QueryCalendar>)* [maxattendees <Number>]
-	[start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
+gam calendars <CalendarEntity> update event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> <EventAttributes>+
+gam calendars <CalendarEntity> delete event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> [doit] [notifyattendees]
+gam calendars <CalendarEntity> move event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> to <CalendarItem> [notifyattendees]
+gam calendars <CalendarEntity> info event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity>
 gam calendars <CalendarEntity> wipe events
+
+<EventDisplayProperties> ::=
+	(alwaysincludeemail)|
+	(end|endtime|timemax <Time>)|
+	(icaluid <String>)|
+	(maxattendees <Integer>)|
+	(orderby starttime|updated)|
+	(privateextendedproperty <String>)*|
+	(sharedextendedproperty <String>)*|
+	(showdeleted)|
+	(showhiddeninvitations)|
+	(singleevents)|
+	(start|starttime|timemin <Time>)|
+	(updatedmin <Time>)
+	
+gam calendars <CalendarEntity> show events (q|query|eventquery <QueryCalendar>)*[alwaysincludeemail] <EventDisplayProperties>*
+gam calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] (q|query|eventquery <QueryCalendar>)* <EventDisplayProperties>*
 
 gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> del|delete <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar <CalendarItem> del|delete [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar <CalendarItem> showacl
 
 gam calendar <CalendarItem> addevent <EventAttributes>+
-gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
+gam calendar <CalendarItem> deleteevent (q|query|eventquery <QueryCalendar>)* (id|eventid <EventID>)* [doit] [notifyattendees]
 gam calendar <CalendarItem> wipe
 
 # ChromeOS Devices
@@ -983,6 +1008,8 @@ gam print schema|schemas [todrive [<ToDriveAttributes>]]
 
 <SiteAttributes> ::=
 	(name <String>)|(summary <String>)|(theme <String>)|(categories <String>)|(sourcelink <URI>])
+<SiteACLRole> ::= editor|invite|owner|reader|writer
+<SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
 
 gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
@@ -992,10 +1019,10 @@ gam [<UserTypeEntity>] print sites [todrive [<ToDriveAttributes>]] [domain|domai
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive [<ToDriveAttributes>]] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 
-gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
-gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLEntity>
-gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLEntity>
-gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLEntity>
+gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
+gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
+gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLScopeEntity>
+gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLScopeEntity>
 gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 
 # Users
@@ -1119,8 +1146,6 @@ gam <UserTypeEntity> remove calendars <CalendarEntity>
 gam <UserTypeEntity> show calsettings
 
 gam <UserTypeEntity> info calendars <CalendarEntity>|primary
-gam <UserTypeEntity> show calendars
-gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> update calattendees [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [dryrun] [start|starttime|timemin <Time>] [end|endtime|timemax <Time>] [allevents]
 
@@ -1142,6 +1167,9 @@ gam <UserTypeEntity> info calendar <CalendarItem>|primary
 gam <UserTypeEntity> add calendars <CalendarEntity> <CalendarAttributes>*
 gam <UserTypeEntity> update calendars <CalendarEntity>|primary <CalendarAttributes>+
 gam <UserTypeEntity> delete|del calendars <CalendarEntity>
+
+gam <UserTypeEntity> show calendars [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
+gam <UserTypeEntity> print calendars [todrive [<ToDriveAttributes>]] [primary] [role <CalendarACLRole>] [showdeleted] [showhidden] [permissions]
 
 # Users - Drive
 
@@ -1265,8 +1293,8 @@ gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <DriveFilePermissionI
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [removeexpiration <Boolean>] [transferownership <Boolean>] [showtitles]
 gam <UserTypeEntity> delete|del drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
 gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
-gam <UserTypeEntity> add drivefilepermissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendmail] [emailmessage <String>]
-gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <DriveFilePermissionIDEntity>
+gam <UserTypeEntity> add permissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendmail] [emailmessage <String>]
+gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionIDEntity>
 
 # Users - Deprovision
 
