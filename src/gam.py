@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.01'
+__version__ = u'4.39.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -612,6 +612,7 @@ GAPI_INVALID_SCOPE_VALUE = u'invalidScopeValue'
 GAPI_INVALID_SHARING_REQUEST = u'invalidSharingRequest'
 GAPI_LOGIN_REQUIRED = u'loginRequired'
 GAPI_MEMBER_NOT_FOUND = u'memberNotFound'
+GAPI_NOT_A_CALENDAR_USER = u'notACalendarUser'
 GAPI_NOT_FOUND = u'notFound'
 GAPI_NOT_IMPLEMENTED = u'notImplemented'
 GAPI_ORGUNIT_NOT_FOUND = u'orgunitNotFound'
@@ -641,6 +642,7 @@ GCP_USER_IS_NOT_AUTHORIZED = u'User is not authorized.'
 GAPI_DEFAULT_RETRY_REASONS = [GAPI_QUOTA_EXCEEDED, GAPI_RATE_LIMIT_EXCEEDED, GAPI_USER_RATE_LIMIT_EXCEEDED, GAPI_BACKEND_ERROR, GAPI_INTERNAL_ERROR, GAPI_BAD_GATEWAY]
 GAPI_ACTIVITY_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 GAPI_CALENDAR_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
+GAPI_CALENDAR_USER_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR, GAPI_NOT_A_CALENDAR_USER]
 GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_BAD_REQUEST]
 GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
@@ -3824,6 +3826,8 @@ class GAPI_memberNotFound(Exception):
   pass
 class GAPI_invalidMessageId(Exception):
   pass
+class GAPI_notACalendarUser(Exception):
+  pass
 class GAPI_notFound(Exception):
   pass
 class GAPI_notImplemented(Exception):
@@ -3896,6 +3900,7 @@ GAPI_REASON_EXCEPTION_MAP = {
   GAPI_INVALID_SHARING_REQUEST: GAPI_invalidSharingRequest,
   GAPI_LOGIN_REQUIRED: GAPI_loginRequired,
   GAPI_MEMBER_NOT_FOUND: GAPI_memberNotFound,
+  GAPI_NOT_A_CALENDAR_USER: GAPI_notACalendarUser,
   GAPI_NOT_FOUND: GAPI_notFound,
   GAPI_NOT_IMPLEMENTED: GAPI_notImplemented,
   GAPI_ORGUNIT_NOT_FOUND: GAPI_orgunitNotFound,
@@ -17161,7 +17166,7 @@ def _processCalendarList(user, i, count, calId, j, jcount, cal, function, **kwar
   userDefined = True
   try:
     result = callGAPI(cal.calendarList(), function,
-                      throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DUPLICATE, GAPI_CANNOT_CHANGE_OWN_ACL],
+                      throw_reasons=GAPI_CALENDAR_USER_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DUPLICATE, GAPI_CANNOT_CHANGE_OWN_ACL],
                       **kwargs)
     if function == u'get':
       _showCalendar(result, j, jcount)
@@ -17173,6 +17178,9 @@ def _processCalendarList(user, i, count, calId, j, jcount, cal, function, **kwar
     entityItemValueActionFailedWarning(Entity.USER, user, Entity.CALENDAR, calId, PHRASE_DUPLICATE, j, jcount)
   except GAPI_cannotChangeOwnAcl:
     entityItemValueActionFailedWarning(Entity.USER, user, Entity.CALENDAR, calId, PHRASE_NOT_ALLOWED, j, jcount)
+  except GAPI_notACalendarUser as e:
+    entityItemValueActionFailedWarning(Entity.USER, user, Entity.CALENDAR, calId, e.message, j, jcount)
+    userDefined = False
   except (GAPI_serviceNotAvailable, GAPI_authError):
     entityServiceNotApplicableWarning(Entity.USER, user, i, count)
     userDefined = False
@@ -17340,7 +17348,7 @@ def printShowCalendars(users, csvFormat):
       continue
     try:
       result = callGAPIpages(cal.calendarList(), u'list', u'items',
-                             throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                             throw_reasons=GAPI_CALENDAR_USER_THROW_REASONS,
                              minAccessRole=minAccessRole, showDeleted=showDeleted, showHidden=showHidden)
       if primary:
         jcount = 0
@@ -17371,6 +17379,8 @@ def printShowCalendars(users, csvFormat):
             if showPermissions:
               flattenJSON(_getPermissions(cal, userCalendar), key=u'permissions', flattened=row)
             addRowTitlesToCSVfile(flattenJSON(userCalendar, flattened=row), csvRows, titles)
+    except GAPI_notACalendarUser as e:
+      entityActionFailedWarning(Entity.USER, user, e.message, i, count)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
   if csvFormat:
@@ -17389,7 +17399,7 @@ def showCalSettings(users):
       continue
     try:
       feed = callGAPIpages(cal.settings(), u'list', u'items',
-                           throw_reasons=GAPI_CALENDAR_THROW_REASONS)
+                           throw_reasons=GAPI_CALENDAR_USER_THROW_REASONS)
       jcount = len(feed)
       printEntityKVList(Entity.USER, user, [Entity.Plural(Entity.CALENDAR_SETTINGS), None], i, count)
       if jcount > 0:
@@ -17401,6 +17411,8 @@ def showCalSettings(users):
           printKeyValueList([attr, value])
         printBlankLine()
         Indent.Decrement()
+    except GAPI_notACalendarUser as e:
+      entityActionFailedWarning(Entity.USER, user, e.message, i, count)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
 
@@ -17611,7 +17623,7 @@ def transferSecCals(users):
       continue
     try:
       source_calendars = callGAPIpages(source_cal.calendarList(), u'list', u'items',
-                                       throw_reasons=GAPI_CALENDAR_THROW_REASONS,
+                                       throw_reasons=GAPI_CALENDAR_USER_THROW_REASONS,
                                        minAccessRole=u'owner', showHidden=True, fields=u'nextPageToken,items(id)')
       jcount = len(source_calendars)
       Action.Set(Action.TRANSFER)
@@ -17644,6 +17656,8 @@ def transferSecCals(users):
               entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), j, jcount)
             except (GAPI_notFound, GAPI_invalid):
               entityUnknownWarning(Entity.CALENDAR, calendarId, j, jcount)
+    except GAPI_notACalendarUser as e:
+      entityActionFailedWarning(Entity.USER, user, e.message, i, count)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
     Indent.Decrement()

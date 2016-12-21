@@ -1,3 +1,7 @@
+4.39.02
+
+Handle suspended/no-calendar-access user in calendar commands.
+
 4.39.01
 
 Use patch API rather than update API for gam update customer.
