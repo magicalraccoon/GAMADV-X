@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.02'
+__version__ = u'4.39.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -177,8 +177,6 @@ CSVFILE_QUEUE_VALUES = u'values'
 CSVFILE_QUEUE_EOF = u'eof'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
-# Disable GAM update check
-GM_NO_UPDATE_CHECK = u'nouc'
 # Index of <UserTypeEntity> in command line
 GM_ENTITY_CL_INDEX = u'enin'
 # csvfile keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <MatchPattern>)* [datafield <FieldName>(:<FieldName>*) [delimiter <String>]]
@@ -196,7 +194,7 @@ GM_MAP_ROLE_NAME_TO_ID = u'rn2i'
 # Dictionary mapping User ID to Name
 GM_MAP_USER_ID_TO_NAME = u'ui2n'
 # oauth2.txt.lock lockfile
-GM_OAUTH2_TXT_LOCK = 'oalk'
+GM_OAUTH2_TXT_LOCK = u'oalk'
 # GAM cache directory. If no_cache is True, this variable will be set to None
 GM_CACHE_DIR = u'gacd'
 # Reset GAM cache directory after discovery
@@ -214,7 +212,6 @@ GM_Globals = {
   GM_OAUTH2SERVICE_JSON_DATA: None,
   GM_OAUTH2_CLIENT_ID: None,
   GM_LAST_UPDATE_CHECK_TXT: u'',
-  GM_NO_UPDATE_CHECK: False,
   GM_PARSER: None,
   GM_GAM_CFG_PATH: u'',
   GM_GAM_CFG_FILE: u'',
@@ -3272,7 +3269,7 @@ def SetGlobalVariables():
       sys.stderr = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
   if not GM_Globals[GM_CSVFILE]:
     _setCSVFile(u'-', u'a', GC_Values[GC_CHARSET], True, False)
-  if not GM_Globals[GM_NO_UPDATE_CHECK]:
+  if not GC_Values[GC_NO_UPDATE_CHECK]:
     doGAMCheckForUpdates()
 # If no select/options commands were executed or some were and there are more arguments on the command line,
 # warn if the json files are missing and return True
