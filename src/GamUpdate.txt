@@ -1,3 +1,9 @@
+4.39.04
+
+On initial run build drive_dir if it doesn't exist.
+
+Fix error message in gam oauth create regarding no browser to reference no_browser in gam.cfg not nobrowser.txt.
+
 4.39.03
 
 Fix error where gam update checking was performed on every call.

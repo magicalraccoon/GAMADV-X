@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.03'
+__version__ = u'4.39.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -82,8 +82,8 @@ Your browser has been opened to visit:
 
     {address}
 
-If your browser is on a different machine then press CTRL+C and
-create a file called nobrowser.txt in the same folder as GAM.
+If your browser is on a different machine then press CTRL+C,
+set no_browser = true in gam.cfg and re-run this command.
 """
 
 oauth2client.tools._GO_TO_LINK_MESSAGE = """
@@ -3161,6 +3161,7 @@ def SetGlobalVariables():
       GM_Globals[GM_PARSER] = ConfigParser.SafeConfigParser(defaults=collections.OrderedDict(sorted(GC_Defaults.items(), key=lambda t: t[0])))
       _checkMakeDir(GC_CONFIG_DIR)
       _checkMakeDir(GC_CACHE_DIR)
+      _checkMakeDir(GC_DRIVE_DIR)
       for itemName in GC_VAR_INFO:
         if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
           srcFile = os.path.expanduser(_stripStringQuotes(GM_Globals[GM_PARSER].get(ConfigParser.DEFAULTSECT, itemName, raw=True)))
