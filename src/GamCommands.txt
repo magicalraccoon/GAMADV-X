@@ -833,6 +833,7 @@ gam delete groups <GroupEntity>
 	customreplyto|
 	defaultmessagedenynotificationtext|
 	description|
+	directmemberscount|
 	email|
 	id|
 	includeinglobaladdresslist|gal|
