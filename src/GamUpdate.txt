@@ -1,3 +1,11 @@
+4.39.06
+
+Changed gam print groups output when any of members/memberscount/managers/managerscount/owners/ownerscount are specified.
+When members/managers/owners are specified, there will be two columns per role: Members,MembersCount,Managers,ManagersCount,Owners,OwnersCount
+When memberscount/managerscount/ownerscount are specified, there will be one column per role: MembersCount,ManagersCount,OwnersCount
+
+Use batch processing to get licenses more quickly in gam info user.
+
 4.39.05
 
 Added directmemberscount to <GroupFieldName>; if this field is specified in gam print groups, it shows the number of entries in a group.

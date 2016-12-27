@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.05'
+__version__ = u'4.39.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1784,15 +1784,6 @@ GOOGLE_DRIVE_STORAGE_4TB_SKU = GOOGLE_DRIVE_STORAGE_PRODUCT+u'-4TB'
 GOOGLE_DRIVE_STORAGE_8TB_SKU = GOOGLE_DRIVE_STORAGE_PRODUCT+u'-8TB'
 GOOGLE_DRIVE_STORAGE_16TB_SKU = GOOGLE_DRIVE_STORAGE_PRODUCT+u'-16TB'
 
-GOOGLE_USER_SKUS = {
-  GOOGLE_APPS_FOR_BUSINESS_SKU: GOOGLE_APPS_PRODUCT,
-  GOOGLE_APPS_FOR_GOVERNMENT_SKU: GOOGLE_APPS_PRODUCT,
-  GOOGLE_APPS_FOR_POSTINI_SKU: GOOGLE_APPS_PRODUCT,
-  GOOGLE_APPS_LITE_SKU: GOOGLE_APPS_PRODUCT,
-  GOOGLE_APPS_UNLIMITED_SKU: GOOGLE_APPS_PRODUCT,
-  GOOGLE_VAULT_SKU: GOOGLE_VAULT_PRODUCT,
-  GOOGLE_VAULT_FORMER_EMPLOYEE_SKU: GOOGLE_VAULT_PRODUCT,
-  }
 GOOGLE_SKUS = {
   GOOGLE_APPS_FOR_BUSINESS_SKU: GOOGLE_APPS_PRODUCT,
   GOOGLE_APPS_FOR_GOVERNMENT_SKU: GOOGLE_APPS_PRODUCT,
@@ -12362,11 +12353,17 @@ def doPrintGroups():
           if not membersCountOnly:
             membersList.append(member_email)
       if members:
-        row[u'Members'] = membersCount if membersCountOnly else delimiter.join(membersList)
+        row[u'MembersCount'] = membersCount
+        if not membersCountOnly:
+          row[u'Members'] = delimiter.join(membersList)
       if managers:
-        row[u'Managers'] = managersCount if managersCountOnly else delimiter.join(managersList)
+        row[u'ManagersCount'] = managersCount
+        if not managersCountOnly:
+          row[u'Managers'] = delimiter.join(managersList)
       if owners:
-        row[u'Owners'] = ownersCount if ownersCountOnly else delimiter.join(ownersList)
+        row[u'OwnersCount'] = ownersCount
+        if not ownersCountOnly:
+          row[u'Owners'] = delimiter.join(ownersList)
     if isinstance(groupSettings, dict):
       for key in groupSettings:
         if key in [u'kind', u'etag', u'email', u'name', u'description']:
@@ -12533,19 +12530,16 @@ def doPrintGroups():
           invalidChoiceExit(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP.keys()+GROUP_ATTRIBUTES.keys())
     elif myarg in [u'members', u'memberscount']:
       rolesList.append(Entity.ROLE_MEMBER)
-      addTitlesToCSVfile([u'Members',], titles)
       members = True
       if myarg == u'memberscount':
         membersCountOnly = True
     elif myarg in [u'managers', u'managerscount']:
       rolesList.append(Entity.ROLE_MANAGER)
-      addTitlesToCSVfile([u'Managers',], titles)
       managers = True
       if myarg == u'managerscount':
         managersCountOnly = True
     elif myarg in [u'owners', u'ownerscount']:
       rolesList.append(Entity.ROLE_OWNER)
-      addTitlesToCSVfile([u'Owners',], titles)
       owners = True
       if myarg == u'ownerscount':
         ownersCountOnly = True
@@ -12567,6 +12561,19 @@ def doPrintGroups():
     gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(rolesList)))
   rolesOrSettings = roles or getSettings
+  if roles:
+    if members:
+      addTitlesToCSVfile([u'MembersCount',], titles)
+      if not membersCountOnly:
+        addTitlesToCSVfile([u'Members',], titles)
+    if managers:
+      addTitlesToCSVfile([u'ManagersCount',], titles)
+      if not managersCountOnly:
+        addTitlesToCSVfile([u'Managers',], titles)
+    if owners:
+      addTitlesToCSVfile([u'OwnersCount',], titles)
+      if not ownersCountOnly:
+        addTitlesToCSVfile([u'Owners',], titles)
   if entitySelection is None:
     printGettingAccountEntitiesInfo(Entity.GROUP, qualifier=queryQualifier(groupQuery(domain, usemember)))
     page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
@@ -14820,6 +14827,11 @@ def doInfoUser():
 def infoUsers(entityList):
   from gamlib import gluprop as UProp
 
+  def _callbackGetLicense(request_id, response, exception):
+    if exception is not None:
+      if response and u'skuId' in response:
+        licenses.append(response[u'skuId'])
+
   cd = buildGAPIObject(DIRECTORY_API)
   getSchemas = getAliases = getGroups = getLicenses = True
   formatJSON = False
@@ -14828,7 +14840,7 @@ def infoUsers(entityList):
   fieldsList = []
   groups = collections.deque()
   licenses = []
-  skus = sorted(GOOGLE_USER_SKUS)
+  skus = sorted(GOOGLE_SKUS)
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'noaliases':
@@ -14894,15 +14906,15 @@ def infoUsers(entityList):
                                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
                                userKey=user[u'primaryEmail'], fields=u'nextPageToken,groups(name,email)')
       if getLicenses:
+        svcargs = dict([(u'userId', None), (u'productId', None), (u'skuId', None), (u'fields', u'skuId')]+GM_Globals[GM_EXTRA_ARGS_LIST])
+        dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackGetLicense)
         for skuId in skus:
-          try:
-            result = callGAPI(lic.licenseAssignments(), u'get',
-                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
-                              userId=user[u'primaryEmail'], productId=GOOGLE_SKUS[skuId], skuId=skuId)
-            if result:
-              licenses.append(result[u'skuId'])
-          except GAPI_notFound:
-            continue
+          svcparms = svcargs.copy()
+          svcparms[u'userId'] = user[u'primaryEmail']
+          svcparms[u'productId'] = GOOGLE_SKUS[skuId]
+          svcparms[u'skuId'] = skuId
+          dbatch.add(lic.licenseAssignments().get(**svcparms))
+        dbatch.execute()
       if formatJSON:
         if getGroups:
           user[u'groups'] = list(groups)
