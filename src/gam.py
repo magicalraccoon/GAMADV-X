@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.06'
+__version__ = u'4.39.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -699,6 +699,7 @@ OB_COURSE_ID = u'CourseID'
 OB_CROS_DEVICE_ENTITY = u'CrOSDeviceEntity'
 OB_CROS_ENTITY = u'CrOSEntity'
 OB_CUSTOMER_ID = u'CustomerID'
+OB_DELIMITER = u'Delimiter'
 OB_DOMAIN_ALIAS = u'DomainAlias'
 OB_DOMAIN_NAME = u'DomainName'
 OB_DOMAIN_NAME_ENTITY = u'DomainNameEntity'
@@ -2220,10 +2221,18 @@ def getCharSet():
     return getString(OB_CHAR_SET)
   return GC_Values[GC_CHARSET]
 
-def getDelimiter():
-  if checkArgumentPresent([u'delimiter',]):
-    return getString(OB_STRING)
-  return None
+def getDelimiter(checkForArgument=False):
+  if checkForArgument and not checkArgumentPresent([u'delimiter',]):
+    return None
+  if CLArgs.ArgumentsRemaining():
+    argstr = CLArgs.Current().decode(u'string_escape')
+    if argstr:
+      if len(argstr) == 1:
+        CLArgs.Advance()
+        return argstr
+      invalidArgumentExit(u'{0} for {1}'.format(integerLimits(1, 1, PHRASE_STRING_LENGTH), OB_DELIMITER))
+    emptyArgumentExit(OB_DELIMITER)
+  missingArgumentExit(OB_DELIMITER)
 
 def getMatchFields(fieldNames):
   matchFields = {}
@@ -2873,7 +2882,7 @@ class UnicodeDictWriter(csv.DictWriter, object):
 def openCSVFileReader(filename):
   encoding = getCharSet()
   if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
-    delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    delimiter = getDelimiter()
   else:
     delimiter = GC_Values[GC_CSV_INPUT_COLUMN_DELIMITER]
   if checkArgumentPresent([u'fields',]):
@@ -3251,7 +3260,7 @@ def SetGlobalVariables():
       writeHeader = False if checkArgumentPresent([u'noheader',]) else True
       encoding = getCharSet()
       if checkArgumentPresent(COLUMN_DELIMITER_ARGUMENT):
-        GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER] = getString(OB_STRING, minLen=1, maxLen=1)
+        GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER] = getDelimiter()
       _setCSVFile(filename, mode, encoding, writeHeader, multi)
     elif myarg == u'stdout':
       sys.stdout = _setSTDFile(filename, u'a' if checkArgumentPresent([u'append',]) else u'w')
@@ -4763,7 +4772,7 @@ def splitEntityList(entity, dataDelimiter, shlexSplit):
 def getEntitiesFromFile(shlexSplit):
   filename = getString(OB_FILE_NAME)
   encoding = getCharSet()
-  dataDelimiter = getDelimiter()
+  dataDelimiter = getDelimiter(True)
   entitySet = set()
   entityList = []
   f = openFile(filename)
@@ -4791,7 +4800,7 @@ def getEntitiesFromCSVFile(shlexSplit):
     if fieldName not in csvFile.fieldnames:
       csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True, checkForCharset=True)
   matchFields = getMatchFields(csvFile.fieldnames)
-  dataDelimiter = getDelimiter()
+  dataDelimiter = getDelimiter(True)
   entitySet = set()
   entityList = []
   for row in csvFile:
@@ -4827,7 +4836,7 @@ def getEntitiesFromCSVbyField():
       keyValue = getString(OB_STRING)
     else:
       keyValue = keyField
-    keyDelimiter = getDelimiter()
+    keyDelimiter = getDelimiter(True)
     return (keyField, keyPattern, keyValue, keyDelimiter)
 
   def getKeyList(row, keyField, keyPattern, keyValue, keyDelimiter, matchFields):
@@ -4855,7 +4864,7 @@ def getEntitiesFromCSVbyField():
     for dataField in dataFields:
       if dataField not in csvFile.fieldnames:
         csvFieldErrorExit(dataField, csvFile.fieldnames, backupArg=True)
-    dataDelimiter = getDelimiter()
+    dataDelimiter = getDelimiter(True)
   else:
     GM_Globals[GM_CSV_DATA_FIELD] = None
     dataFields = []
@@ -5648,7 +5657,7 @@ def doList(entityList, entityType):
     addTitleToCSVfile(dataField, titles)
   else:
     entityItemLists = None
-  dataDelimiter = getDelimiter()
+  dataDelimiter = getDelimiter(True)
   checkForExtraneousArguments()
   for entity in entityList:
     entityEmail = normalizeEmailAddressOrUID(entity)
@@ -7255,7 +7264,7 @@ def doPrintDataTransfers():
     elif myarg == u'status':
       status = getChoice(DATA_TRANSFER_STATUS_MAP, mapChoice=True)
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       unknownArgumentExit()
   try:
@@ -12504,7 +12513,7 @@ def doPrintGroups():
     elif myarg in [u'convertcrnl', u'converttextnl', u'convertfooternl']:
       convertCRNL = True
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     elif myarg == u'settings':
       getSettings = sortHeaders = True
     elif myarg == u'allfields':
@@ -13931,7 +13940,7 @@ def printShowSites(entityList, entityType, csvFormat):
     elif myarg in [u'convertcrnl', u'converttextnl', u'convertsummarynl']:
       convertCRNL = True
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       unknownArgumentExit()
   sitesManager = SitesManager()
@@ -14828,7 +14837,7 @@ def infoUsers(entityList):
   from gamlib import gluprop as UProp
 
   def _callbackGetLicense(request_id, response, exception):
-    if exception is not None:
+    if exception is None:
       if response and u'skuId' in response:
         licenses.append(response[u'skuId'])
 
@@ -15209,7 +15218,7 @@ def doPrintUsers(entityList=None):
       else:
         projection = u'custom'
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     elif myarg in PROJECTION_CHOICES_MAP:
       projection = myarg
       sortHeaders = True
@@ -15806,7 +15815,7 @@ def doPrintCourses():
     elif myarg in [u'alias', u'aliases']:
       showAliases = True
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     elif myarg == u'show':
       showMembers = getChoice([u'all', u'students', u'teachers'])
     else:
@@ -16427,7 +16436,7 @@ def doPrintPrinters():
     elif myarg == u'extrafields':
       extra_fields = getString(OB_STRING)
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       unknownArgumentExit()
   printers = callGCP(cp.printers(), u'list',
@@ -16872,7 +16881,7 @@ def doPrintPrintJobs():
     elif myarg in [u'printer', u'printerid']:
       printerId = getString(OB_PRINTER_ID)
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       getPrintjobListParameters(myarg, parameters)
   if printerId:
@@ -18449,7 +18458,7 @@ def printDriveFileList(users):
         else:
           query = ME_IN_OWNERS
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       unknownArgumentExit()
   if not fileIdSelection and maxdepth != -1:
@@ -20459,7 +20468,7 @@ def printShowTokens(entityType, users, csvFormat):
     elif myarg == u'clientid':
       clientId = commonClientIds(getString(OB_CLIENT_ID))
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     elif not entityType:
       CLArgs.Backup()
       entityType, users = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
@@ -21739,7 +21748,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     elif myarg == u'delimiter':
-      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+      delimiter = getDelimiter()
     else:
       unknownArgumentExit()
   if query:
