@@ -1,3 +1,7 @@
+4.39.08
+
+Added shownoneditable argument to gam print aliases; this will show noneditable aliases in a column labelled NonEditableAlias.
+
 4.39.07
 
 Fixed my coding mistake in gam info user that prevented licences from being printed.

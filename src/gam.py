@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.07'
+__version__ = u'4.39.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -7977,27 +7977,36 @@ def infoAliases(entityList):
       pass
     entityUnknownWarning(Entity.ALIAS_EMAIL, aliasEmail, i, count)
 
-# gam print aliases|nicknames [todrive]
+# gam print aliases|nicknames [todrive] [shownoneditable]
 def doPrintAliases():
   cd = buildGAPIObject(DIRECTORY_API)
   todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'Alias', u'Target', u'TargetType'])
+  titlesList = [u'Alias', u'Target', u'TargetType']
+  userFields = [u'primaryEmail', u'aliases']
+  groupFields = [u'email', u'aliases']
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif myarg == u'shownoneditable':
+      titlesList.insert(1, u'NonEditableAlias')
+      userFields.append(u'nonEditableAliases')
+      groupFields.append(u'nonEditableAliases')
     else:
       unknownArgumentExit()
+  titles, csvRows = initializeTitlesCSVfile(titlesList)
   printGettingAccountEntitiesInfo(Entity.USER_ALIAS)
   page_message = getPageMessage(showTotal=False, showFirstLastItems=True)
   try:
     entityList = callGAPIpages(cd.users(), u'list', u'users',
                                page_message=page_message, message_attribute=u'primaryEmail',
                                throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                               customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,users(primaryEmail,aliases)', maxResults=GC_Values[GC_USER_MAX_RESULTS])
+                               customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,users({0})'.format(u','.join(userFields)), maxResults=GC_Values[GC_USER_MAX_RESULTS])
     for user in entityList:
       for alias in user.get(u'aliases', []):
         csvRows.append({u'Alias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
+      for alias in user.get(u'nonEditableAliases', []):
+        csvRows.append({u'NonEditableAlias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   printGettingAccountEntitiesInfo(Entity.GROUP_ALIAS)
@@ -8006,10 +8015,12 @@ def doPrintAliases():
     entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                                page_message=page_message, message_attribute=u'email',
                                throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                               customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,groups(email,aliases)')
+                               customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,groups({0})'.format(u','.join(groupFields)))
     for group in entityList:
       for alias in group.get(u'aliases', []):
         csvRows.append({u'Alias': alias, u'Target': group[u'email'], u'TargetType': u'Group'})
+      for alias in group.get(u'nonEditableAliases', []):
+        csvRows.append({u'NonEditableAlias': alias, u'Target': group[u'email'], u'TargetType': u'Group'})
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Aliases', todrive)
