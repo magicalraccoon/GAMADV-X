@@ -381,7 +381,7 @@ gam update aliases|nicknames <EmailAddressEntity> user|group|target <UniqueID>|<
 gam delete aliases|nicknames [user|group|target] <EmailAddressEntity>
 
 gam info alias|nickname <EmailAddress>
-gam print aliases|nicknames [todrive [<ToDriveAttributes>]]
+gam print aliases|nicknames [todrive [<ToDriveAttributes>]] [shownoneditable]
 gam info aliases|nicknames <EmailAddressEntity>
 
 gam whatis <EmailItem> [noinfo]
