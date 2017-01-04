@@ -812,7 +812,7 @@ gam update group <GroupItem> add [member|manager|owner] [notsuspended] <UserType
 gam update group <GroupItem> delete|remove [member|manager|owner] <UserTypeEntity>
 gam update group <GroupItem> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
 gam update group <GroupItem> update [member|manager|owner] <UserTypeEntity>
-gam update group <GroupItem> clear [member] [manager] [owner]
+gam update group <GroupItem> clear [member] [manager] [owner] [suspended]
 gam delete group <GroupItem>
 
 gam update groups <GroupEntity> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*
@@ -820,7 +820,7 @@ gam update groups <GroupEntity> add [member|manager|owner] [notsuspended] <UserT
 gam update groups <GroupEntity> delete|remove [member|manager|owner] <UserTypeEntity>
 gam update groups <GroupEntity> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
 gam update groups <GroupEntity> update [member|manager|owner] <UserTypeEntity>
-gam update groups <GroupEntity> clear [member] [manager] [owner]
+gam update groups <GroupEntity> clear [member] [manager] [owner] [suspended]
 gam delete groups <GroupEntity>
 
 <GroupFieldName> ::=

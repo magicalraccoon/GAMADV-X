@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.08'
+__version__ = u'4.39.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11824,7 +11824,7 @@ UPDATE_GROUP_SUBCMDS = [u'add', u'clear', u'delete', u'remove', u'sync', u'updat
 # gam update groups <GroupEntity> delete|remove [member|manager|owner] <UserTypeEntity>
 # gam update groups <GroupEntity> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
 # gam update groups <GroupEntity> update [member|manager|owner] <UserTypeEntity>
-# gam update groups <GroupEntity> clear [member] [manager] [owner]
+# gam update groups <GroupEntity> clear [member] [manager] [owner] [suspended]
 def doUpdateGroups():
   updateGroups(getEntityList(OB_GROUP_ENTITY))
 
@@ -11833,7 +11833,7 @@ def doUpdateGroups():
 # gam update group <GroupItem> delete|remove [member|manager|owner] <UserTypeEntity>
 # gam update group <GroupItem> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
 # gam update group <GroupItem> update [member|manager|owner] <UserTypeEntity>
-# gam update group <GroupItem> clear [member] [manager] [owner]
+# gam update group <GroupItem> clear [member] [manager] [owner] [suspended]
 def doUpdateGroup():
   updateGroups(getStringReturnInList(OB_GROUP_ITEM))
 
@@ -12100,9 +12100,18 @@ def updateGroups(entityList):
       if group:
         _batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
   else: #clear
+    suspended = False
+    fields = [u'email',]
     rolesList = []
     while CLArgs.ArgumentsRemaining():
-      rolesList.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
+      myarg = getArgument()
+      if myarg in GROUP_ROLES_MAP:
+        rolesList.append(GROUP_ROLES_MAP[myarg])
+      elif myarg == u'suspended':
+        suspended = True
+        fields.append(u'status')
+      else:
+        unknownArgumentExit()
     Action.Set(Action.REMOVE)
     if rolesList:
       roles = u','.join(sorted(set(rolesList)))
@@ -12112,10 +12121,21 @@ def updateGroups(entityList):
     count = len(entityList)
     for group in entityList:
       i += 1
-      group = checkGroupExists(cd, group, i, count)
-      if group:
-        removeMembers = getUsersToModify(CL_ENTITY_GROUP, group, memberRole=roles)
+      group = normalizeEmailAddressOrUID(group)
+      printGettingAllEntityItemsForWhom(roles, group, qualifier=[u'', u' (Suspended)'][suspended], entityType=Entity.GROUP)
+      page_message = getPageMessageForWhom(noNL=True)
+      try:
+        result = callGAPIpages(cd.members(), u'list', u'members',
+                               page_message=page_message,
+                               throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
+                               groupKey=group, roles=roles, fields=u'nextPageToken,members({0})'.format(u','.join(fields)), maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
+        if not suspended:
+          removeMembers = [member[u'email'] for member in result]
+        else:
+          removeMembers = [member[u'email'] for member in result if member[u'status'] == u'SUSPENDED']
         _batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, Entity.ROLE_MEMBER)
+      except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_invalid, GAPI_forbidden):
+        entityUnknownWarning(Entity.GROUP, group, i, count)
 
 # gam delete groups <GroupEntity>
 def doDeleteGroups():

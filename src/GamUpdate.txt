@@ -1,3 +1,9 @@
+4.39.09
+
+Added suspended argument to gam update group clear so that only suspended members of a group are removed.
+    gam update group <GroupItem> clear [member] [manager] [owner] [suspended]
+    gam update groups <GroupEntity> clear [member] [manager] [owner] [suspended]
+
 4.39.08
 
 Added shownoneditable argument to gam print aliases; this will show noneditable aliases in a column labelled NonEditableAlias.
