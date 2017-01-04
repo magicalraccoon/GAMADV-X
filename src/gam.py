@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.09'
+__version__ = u'4.39.10'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19157,6 +19157,8 @@ def transferDriveFiles(users):
                 target_parents.append({u'id': target_top_folder})
               else:
                 target_parents.append({u'id': parent[u'id']})
+          if not target_parents:
+            target_parents.append({u'id': target_top_folder})
           callGAPI(target_drive.files(), DRIVE_PATCH_FILE,
                    soft_errors=True, retry_reasons=[GAPI_NOT_FOUND],
                    fileId=file_id, body={u'parents': target_parents})
