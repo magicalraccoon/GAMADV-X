@@ -1,3 +1,7 @@
+4.39.11
+
+Fixed gam create project.
+
 4.39.10
 
 Fixed gam transfer drive to move orphaned files of the source user to the proper folder of the target user.

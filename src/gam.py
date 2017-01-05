@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.10'
+__version__ = u'4.39.11'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6178,7 +6178,7 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
     break
 
   serveman = googleapiclient.discovery.build(u'servicemanagement', u'v1', http=http, cache_discovery=False)
-  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com', u'audit-json.googleapis.com',
+  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com',
           u'calendar-json.googleapis.com', u'classroom.googleapis.com', u'contacts-json.googleapis.com',
           u'drive', u'gmail-json.googleapis.com', u'groupsmigration-json.googleapis.com',
           u'groupssettings-json.googleapis.com', u'licensing-json.googleapis.com', u'plus-json.googleapis.com',
