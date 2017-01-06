@@ -6582,8 +6582,7 @@ def doReport():
                 if item[u'name'] in [u'start_time', u'end_time']:
                   val = item.get(u'intValue')
                   if val is not None:
-                    dtval = datetime.datetime.fromtimestamp(int(val), GC_Values[GC_TIMEZONE])
-                    item[u'dateTimeValue'] = formatLocalTime(dtval.replace(dtval.year-1969).isoformat())
+                    item[u'dateTimeValue'] = datetime.datetime.fromtimestamp(int(val)-62135596800, GC_Values[GC_TIMEZONE]).isoformat()
                     item.pop(u'intValue')
                 if u'value' in item:
                   item[u'value'] = NL_SPACES_PATTERN.sub(u'', item[u'value'])
