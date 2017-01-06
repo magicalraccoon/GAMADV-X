@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.12'
+__version__ = u'4.39.13'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6579,6 +6579,12 @@ def doReport():
             activity_row = flattenJSON(activity, time_objects=REPORT_ACTIVITIES_TIME_OBJECTS)
             for event in events:
               for item in event.get(u'parameters', []):
+                if item[u'name'] in [u'start_time', u'end_time']:
+                  val = item.get(u'intValue')
+                  if val is not None:
+                    dtval = datetime.datetime.fromtimestamp(int(val), GC_Values[GC_TIMEZONE])
+                    item[u'dateTimeValue'] = formatLocalTime(dtval.replace(dtval.year-1969).isoformat())
+                    item.pop(u'intValue')
                 if u'value' in item:
                   item[u'value'] = NL_SPACES_PATTERN.sub(u'', item[u'value'])
               row = flattenJSON(event)
