@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.11'
+__version__ = u'4.39.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -15797,7 +15797,28 @@ def infoCourses(entityList):
     except GAPI_forbidden:
       APIAccessDeniedExit()
 
-# gam print courses [todrive] [alias|aliases] [teacher <UserItem>] [student <UserItem>] [delimiter <String>] [show all|students|teachers]
+COURSE_ARGUMENT_TO_PROPERTY_MAP = {
+  u'alternatelink': u'alternateLink',
+  u'coursegroupemail': u'courseGroupEmail',
+  u'coursematerialsets': u'courseMaterialSets',
+  u'coursestate': u'courseState',
+  u'creationtime': u'creationTime',
+  u'description': u'description',
+  u'descriptionheading': u'descriptionHeading',
+  u'enrollmentcode': u'enrollmentCode',
+  u'guardiansenabled': u'guardiansEnabled',
+  u'id': u'id',
+  u'name': u'name',
+  u'ownerid': u'ownerId',
+  u'room': u'room',
+  u'section': u'section',
+  u'teacherfolder': u'teacherFolder',
+  u'teachergroupemail': u'teacherGroupEmail',
+  u'updatetime': u'updateTime',
+  }
+
+# gam print courses [todrive [<ToDriveAttributes>]] [alias|aliases] [teacher <UserItem>] [student <UserItem>]
+#	[delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
 def doPrintCourses():
 
   def _saveParticipants(course, participants, role):
@@ -15829,6 +15850,7 @@ def doPrintCourses():
 
   croom = buildGAPIObject(CLASSROOM_API)
   todrive = {}
+  fieldsList = []
   titles, csvRows = initializeTitlesCSVfile([u'id',])
   teacherId = None
   studentId = None
@@ -15849,15 +15871,26 @@ def doPrintCourses():
       delimiter = getDelimiter()
     elif myarg == u'show':
       showMembers = getChoice([u'all', u'students', u'teachers'])
+    elif myarg == u'fields':
+      if not fieldsList:
+        fieldsList = [u'id',]
+      fieldNameList = getString(OB_FIELD_NAME_LIST)
+      for field in fieldNameList.lower().replace(u',', u' ').split():
+        if field in COURSE_ARGUMENT_TO_PROPERTY_MAP:
+          fieldsList.append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
+        else:
+          CLArgs.Backup()
+          invalidChoiceExit(COURSE_ARGUMENT_TO_PROPERTY_MAP)
     else:
       unknownArgumentExit()
+  fields = u'nextPageToken,courses({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
   printGettingAccountEntitiesInfo(Entity.COURSE)
   try:
     page_message = getPageMessage(noNL=True)
     all_courses = callGAPIpages(croom.courses(), u'list', u'courses',
                                 page_message=page_message,
                                 throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST],
-                                teacherId=teacherId, studentId=studentId)
+                                teacherId=teacherId, studentId=studentId, fields=fields)
   except (GAPI_notFound, GAPI_forbidden, GAPI_badRequest):
     if (not studentId) and teacherId:
       entityUnknownWarning(Entity.TEACHER, teacherId)

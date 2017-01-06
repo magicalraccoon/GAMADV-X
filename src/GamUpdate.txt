@@ -1,3 +1,29 @@
+4.39.12
+
+Added <CourseFieldName> argument to gam print courses.
+
+<CourseFieldName> ::=
+	alternatelink|
+	coursegroupemail|
+	coursematerialsets|
+	coursestate|
+	creationtime|
+	description|
+	descriptionheading|
+	enrollmentcode|
+	guardiansenabled|
+	id|
+	name|
+	ownerid|
+	room|
+	section|
+	teacherfolder|
+	teachergroupemail|
+	updatetime
+<CourseFieldNameList> ::= '<CourseFieldName>(,<CourseFieldName>)*'
+
+gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
+
 4.39.11
 
 Fixed gam create project.

@@ -691,6 +691,26 @@ gam <UserTypeEntity> print gal [todrive [<ToDriveAttributes>]] [query <QueryCont
 	(section <string>)|
 	(state|status active|archived|provisioned|declined)
 
+<CourseFieldName> ::=
+	alternatelink|
+	coursegroupemail|
+	coursematerialsets|
+	coursestate|
+	creationtime|
+	description|
+	descriptionheading|
+	enrollmentcode|
+	guardiansenabled|
+	id|
+	name|
+	ownerid|
+	room|
+	section|
+	teacherfolder|
+	teachergroupemail|
+	updatetime
+<CourseFieldNameList> ::= '<CourseFieldName>(,<CourseFieldName>)*'
+
 gam create course id|alias <CourseAlias> [teacher <UserItem>] <CourseAttributes>*
 gam update course <CourseID> <CourseAttributes>+
 gam delete course <CourseID>
@@ -706,7 +726,7 @@ gam courses <CourseEntity> delete alias <CourseAliasEntity>
 
 gam info course <CourseID>
 gam info courses <CourseEntity>
-gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers]
+gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
 
 gam course <CourseID> add teachers|students <UserItem>
 gam course <CourseID> delete|remove teachers|students <UserItem>
