@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.13'
+__version__ = u'4.39.14'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6582,7 +6582,7 @@ def doReport():
                 if item[u'name'] in [u'start_time', u'end_time']:
                   val = item.get(u'intValue')
                   if val is not None:
-                    item[u'dateTimeValue'] = datetime.datetime.fromtimestamp(int(val)-62135596800, GC_Values[GC_TIMEZONE]).isoformat()
+                    item[u'dateTimeValue'] = datetime.datetime.fromtimestamp(int(val)-62135683200, GC_Values[GC_TIMEZONE]).isoformat()
                     item.pop(u'intValue')
                 if u'value' in item:
                   item[u'value'] = NL_SPACES_PATTERN.sub(u'', item[u'value'])
