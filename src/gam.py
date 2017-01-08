@@ -18085,7 +18085,7 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
 
   def _makeFilePaths(localPaths, fplist, filePaths, name):
     for k, v in localPaths.items():
-      fplist.append(filePathInfo[u'ids'][k])
+      fplist.append(filePathInfo[u'ids'].get(k, u''))
       if not v:
         fp = fplist[:]
         fp.reverse()
