@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.14'
+__version__ = u'4.39.15'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5035,6 +5035,24 @@ def getEntityList(item, listOptional=False, shlexSplit=False):
   if entitySelector:
     return getEntitySelection(entitySelector, shlexSplit)
   return convertEntityToList(getString(item, optional=listOptional, minLen=0), shlexSplit=shlexSplit)
+
+def getUserObjectEntity(clObject, itemType):
+  entity = {u'item': itemType, u'list': getEntityList(clObject), u'dict': None}
+  if isinstance(entity[u'list'], dict):
+    entity[u'dict'] = entity[u'list']
+  return entity
+
+def _validateDelegatorGetObjectList(user, i, count, entity):
+  if entity[u'dict']:
+    entityList = entity[u'dict'][user]
+  else:
+    entityList = entity[u'list']
+  jcount = len(entityList)
+  delegatorEmail, delegatorName, delegatorDomain = splitEmailAddressOrUID(user)
+  entityPerformActionNumItems(Entity.DELEGATOR, delegatorEmail, jcount, entity[u'item'], i, count)
+  if jcount == 0:
+    setSysExitRC(NO_ENTITIES_FOUND)
+  return (delegatorEmail, delegatorName, delegatorDomain, entityList, jcount)
 
 def getTodriveParameters():
   def invalidTodriveDestExit(entityType, message):
@@ -22056,68 +22074,69 @@ def delegateTo(users, checkForTo=True):
       if not continueWithUser:
         break
 
-# gam <UserTypeEntity> delete|del delegate|delegates <UserEntity>>
+# gam <UserTypeEntity> delete delegate|delegates <UserEntity>>
 def deleteDelegate(users):
-  emailSettings = getEmailSettingsObject()
-  delegates = getEntityList(OB_USER_ENTITY, listOptional=True)
-  userDelegateLists = delegates if isinstance(delegates, dict) else None
+  emailSettings = buildGAPIObject(EMAIL_SETTINGS_API)
+  delegateEntity = getUserObjectEntity(OB_USER_ENTITY, Entity.DELEGATE)
   checkForExtraneousArguments()
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if userDelegateLists:
-      delegates = userDelegateLists[user]
-    delegatorEmail, delegatorName, emailSettings.domain = splitEmailAddressOrUID(user)
-    jcount = len(delegates)
-    entityPerformActionNumItems(Entity.DELEGATOR, delegatorEmail, jcount, Entity.DELEGATE, i, count)
+    delegatorEmail, delegatorName, delegatorDomain, delegates, jcount = _validateDelegatorGetObjectList(user, i, count, delegateEntity)
+    Indent.Increment()
     j = 0
     for delegate in delegates:
       j += 1
-      delegateEmail = addDomainToEmailAddressOrUID(delegate, emailSettings.domain)
+      delegateEmail = addDomainToEmailAddressOrUID(delegate, delegatorDomain)
       if not delegateEmail:
-        Indent.Increment()
         entityItemValueActionFailedWarning(Entity.DELEGATOR, delegatorEmail, Entity.DELEGATE, delegate, PHRASE_DOES_NOT_EXIST, j, jcount)
-        Indent.Decrement()
         continue
       try:
-        callGData(emailSettings, u'DeleteDelegate',
-                  throw_errors=GDATA_EMAILSETTINGS_THROW_LIST,
-                  delegate=delegateEmail, delegator=delegatorName)
-        Indent.Increment()
+        callGAPI(emailSettings.delegates(), u'delete',
+                 throw_reasons=[GAPI_NOT_FOUND, GAPI_SERVICE_NOT_AVAILABLE, GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID_INPUT],
+                 v=u'2.0', delegator=delegatorName, domainName=delegatorDomain, delegate=delegateEmail)
         entityItemValueActionPerformed(Entity.DELEGATOR, delegatorEmail, Entity.DELEGATE, delegateEmail, j, jcount)
-        Indent.Decrement()
-      except GData_doesNotExist:
-        entityUnknownWarning(Entity.DELEGATOR, delegatorEmail, i, count)
-        break
-      except (GData_serviceNotApplicable, GData_invalidDomain):
+      except (GAPI_notFound, GAPI_serviceNotAvailable, GAPI_domainNotFound):
         entityServiceNotApplicableWarning(Entity.DELEGATOR, delegatorEmail, i, count)
         break
-      except GData_nameNotValid:
-        Indent.Increment()
-        entityItemValueActionFailedWarning(Entity.DELEGATOR, delegatorEmail, Entity.DELEGATE, delegateEmail, PHRASE_DOES_NOT_EXIST, j, jcount)
-        Indent.Decrement()
+      except GAPI_invalidInput as e:
+        entityItemValueActionFailedWarning(Entity.DELEGATOR, delegatorEmail, Entity.DELEGATE, delegateEmail, e.message, j, jcount)
+    Indent.Decrement()
 
-# gam <UserTypeEntity> print delegates|delegate [todrive]
+# gam <UserTypeEntity> print delegates|delegate [todrive [<ToDriveAttributes>]]
 def printDelegates(users):
   printShowDelegates(users, True)
 
-# gam <UserTypeEntity> show delegates|delegate [csv]
+# gam <UserTypeEntity> show delegates|delegate
 def showDelegates(users):
   printShowDelegates(users, False)
 
 def printShowDelegates(users, csvFormat):
-  emailSettings = getEmailSettingsObject()
+
+  def getDelegateFields(delegate):
+    delegateName = u''
+    delegateAddress = u''
+    delegationId = u''
+    delegateStatus = u''
+    for item in delegate[u'apps$property']:
+      if item[u'name'] == u'delegate':
+        delegateName = item[u'value']
+      elif item[u'name'] == u'address':
+        delegateAddress = item[u'value']
+      elif item[u'name'] == u'delegationId':
+        delegationId = item[u'value']
+      elif item[u'name'] == u'status':
+        delegateStatus = item[u'value']
+    return delegateName, delegateAddress, delegationId, delegateStatus
+
+  emailSettings = buildGAPIObject(EMAIL_SETTINGS_API)
   if csvFormat:
     todrive = {}
-    titles, csvRows = initializeTitlesCSVfile([u'Delegator', u'Delegate', u'Delegate Email', u'Delegate ID', u'Status'])
-  else:
-    csvStyle = False
+    titles, csvRows = initializeTitlesCSVfile([u'Delegator', u'Delegate', u'Delegate Email', u'Delegation ID', u'Status'])
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
-    if not csvFormat and myarg == u'csv':
-      csvStyle = True
-    elif csvFormat and myarg == u'todrive':
+    if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
@@ -22125,37 +22144,40 @@ def printShowDelegates(users, csvFormat):
   count = len(users)
   for user in users:
     i += 1
-    delegatorEmail, delegatorName, emailSettings.domain = splitEmailAddressOrUID(user)
+    delegatorEmail, delegatorName, delegatorDomain = splitEmailAddressOrUID(user)
     if csvFormat:
       printGettingAllEntityItemsForWhom(Entity.DELEGATE, delegatorEmail, i, count)
-    result = _processEmailSettings(user, i, count, emailSettings, u'GetDelegates',
-                                   delegator=delegatorName)
-    if result is not None:
-      jcount = len(result) if (result) else 0
-      if not csvFormat and not csvStyle:
-        entityPerformActionNumItems(Entity.DELEGATOR, delegatorEmail, jcount, Entity.DELEGATE, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
-        if not csvStyle:
+    try:
+      result = callGAPI(emailSettings.delegates(), u'get',
+                        throw_reasons=[GAPI_NOT_FOUND, GAPI_SERVICE_NOT_AVAILABLE, GAPI_DOMAIN_NOT_FOUND],
+                        v=u'2.0', delegator=delegatorName, domainName=delegatorDomain)
+      if result is not None and u'feed' in result and u'entry' in result[u'feed']:
+        delegates = result[u'feed'][u'entry']
+        jcount = len(delegates)
+        if not csvFormat:
+          entityPerformActionNumItems(Entity.DELEGATOR, delegatorEmail, jcount, Entity.DELEGATE, i, count)
+        if jcount == 0:
+          setSysExitRC(NO_ENTITIES_FOUND)
+          continue
+        if not csvFormat:
           Indent.Increment()
           j = 0
-          for delegate in result:
+          for delegate in delegates:
             j += 1
-            printEntity(Entity.DELEGATE, delegate[u'delegate'], j, jcount)
+            delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
+            printEntity(Entity.DELEGATE, delegateName, j, jcount)
             Indent.Increment()
-            printKeyValueList([u'Delegate Email', delegate[u'address']])
-            printKeyValueList([u'Delegate ID', delegate[u'delegationId']])
-            printKeyValueList([u'Status', delegate[u'status']])
+            printKeyValueList([u'Delegate Email', delegateAddress])
+            printKeyValueList([u'Delegation ID', delegationID])
+            printKeyValueList([u'Status', delegateStatus])
             Indent.Decrement()
           Indent.Decrement()
         else:
-          for delegate in result:
-            printKeyValueList([u'{0},{1},{2}'.format(delegatorEmail, delegate[u'address'], delegate[u'status'])])
-      else:
-        for delegate in result:
-          csvRows.append({u'Delegator': delegatorEmail, u'Delegate': delegate[u'delegate'], u'Delegate Email': delegate[u'address'], u'Delegate ID': delegate[u'delegationId'], u'Status': delegate[u'status']})
+          for delegate in delegates:
+            delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
+            csvRows.append({u'Delegator': delegatorEmail, u'Delegate': delegateName, u'Delegate Email': delegateAddress, u'Delegation ID': delegationID, u'Status': delegateStatus})
+    except (GAPI_notFound, GAPI_serviceNotAvailable, GAPI_domainNotFound):
+      entityServiceNotApplicableWarning(Entity.DELEGATOR, delegatorEmail, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Delegates', todrive)
 

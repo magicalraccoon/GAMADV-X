@@ -1,3 +1,10 @@
+4.39.15
+
+Start transition of delegate handling from GData to GAPI.
+Dropped csv argument from gam show delegates; use gam print delegates to get CSV format.
+    gam <UserTypeEntity> show delegates|delegate
+    gam <UserTypeEntity> print delegates [todrive [<ToDriveAttributes>]]
+
 4.39.14
 
 Date change in 4.39.13 was off by one day, corrected.
