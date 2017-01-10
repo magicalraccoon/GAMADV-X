@@ -1,3 +1,7 @@
+4.39.16
+
+Allow newlines in calendar event descriptions.
+
 4.39.15
 
 Start transition of delegate handling from GData to GAPI.

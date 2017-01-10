@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.15'
+__version__ = u'4.39.16'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -8753,7 +8753,7 @@ def getCalendarEventAttributes():
     elif myarg == u'anyonecanaddself':
       body[u'anyoneCanAddSelf'] = True
     elif myarg == u'description':
-      body[u'description'] = getString(OB_STRING)
+      body[u'description'] = getString(OB_STRING).replace(u'\\n', u'\n')
     elif myarg == u'start':
       body[u'start'] = getEventTime()
     elif myarg == u'end':
