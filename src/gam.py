@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.16'
+__version__ = u'4.39.17'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6211,7 +6211,7 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
     while True:
       try:
         callGAPI(serveman.services(), u'enable',
-                 throw_reasons=[GAPI_FAILED_PRECONDITION],
+                 throw_reasons=[GAPI_FAILED_PRECONDITION, GAPI_FORBIDDEN],
                  serviceName=api, body={u'consumerId': project_name})
         entityActionPerformed(Entity.API, api, i, count)
         break
@@ -6219,6 +6219,10 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
         entityActionFailedWarning(Entity.API, api, e.message, i, count)
         sys.stderr.write(u'\nPlease resolve error as described above\n\n')
         raw_input(u'Press enter once resolved and we will try enabling the API again.')
+      except GAPI_forbidden as e:
+        entityActionFailedWarning(Entity.API, api, e.message, i, count)
+        break
+
   Indent.Decrement()
   iam = googleapiclient.discovery.build(u'iam', u'v1', http=http, cache_discovery=False)
   print u'Creating Service Account'
