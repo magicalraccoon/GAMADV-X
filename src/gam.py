@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.17'
+__version__ = u'4.39.18'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4453,7 +4453,7 @@ GROUP_ROLES_MAP = {
   }
 
 # Turn the entity into a list of Users/CrOS devices
-def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False):
+def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False, groupUserMembersOnly=True):
   def _addGroupMembersToUsers(group, domains, recursive):
     doNotExist = 0
     try:
@@ -4526,10 +4526,10 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           result = callGAPIpages(cd.members(), u'list', u'members',
                                  page_message=page_message,
                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
-                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
+                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
           for member in result:
             email = member[u'email']
-            if email not in entitySet:
+            if ((not groupUserMembersOnly) or (member[u'type'] == u'USER')) and email not in entitySet:
               entitySet.add(email)
               entityList.append(email)
         except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
@@ -4940,7 +4940,7 @@ def mapEntityType(entityType, typeMap):
     return typeMap[entityType]
   return entityType
 
-def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=False, userAllowed=True, typeMap=None, checkNotSuspended=False):
+def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=False, userAllowed=True, typeMap=None, checkNotSuspended=False, groupUserMembersOnly=True):
   selectorChoices = CL_ENTITY_SELECTORS[:]
   if userAllowed:
     selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
@@ -5000,7 +5000,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
   if entityType:
     if entityType not in CL_CROS_ENTITIES:
       return (CL_ENTITY_USERS,
-              getUsersToModify(entityType, getString(OB_USER_ENTITY, minLen=0), checkNotSuspended=checkNotSuspended))
+              getUsersToModify(entityType, getString(OB_USER_ENTITY, minLen=0), checkNotSuspended=checkNotSuspended, groupUserMembersOnly=groupUserMembersOnly))
     else:
       return (CL_ENTITY_CROS,
               getUsersToModify(entityType, getString(OB_CROS_ENTITY, minLen=0)))
@@ -12063,7 +12063,7 @@ def updateGroups(entityList):
   elif CL_subCommand == u'add':
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Entity.ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
-    _, addMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
+    _, addMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended, groupUserMembersOnly=False)
     groupMemberLists = addMembers if isinstance(addMembers, dict) else None
     checkForExtraneousArguments()
     i = 0
@@ -12077,7 +12077,7 @@ def updateGroups(entityList):
         _batchAddMembersToGroup(cd, group, i, count, addMembers, role)
   elif CL_subCommand in [u'delete', u'remove']:
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Entity.ROLE_MEMBER, mapChoice=True) # Argument ignored
-    _, removeMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
+    _, removeMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, groupUserMembersOnly=False)
     groupMemberLists = removeMembers if isinstance(removeMembers, dict) else None
     checkForExtraneousArguments()
     i = 0
@@ -12092,7 +12092,7 @@ def updateGroups(entityList):
   elif CL_subCommand == u'sync':
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Entity.ROLE_MEMBER, mapChoice=True)
     checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
-    _, syncMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended)
+    _, syncMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended, groupUserMembersOnly=False)
     groupMemberLists = syncMembers if isinstance(syncMembers, dict) else None
     if not groupMemberLists:
       syncMembersSet = set()
@@ -12109,12 +12109,12 @@ def updateGroups(entityList):
           syncMembersSet.add(convertUserUIDtoEmailAddress(member))
       group = checkGroupExists(cd, group, i, count)
       if group:
-        currentMembersSet = set(getUsersToModify(CL_ENTITY_GROUP, group, memberRole=role))
+        currentMembersSet = set(getUsersToModify(CL_ENTITY_GROUP, group, memberRole=role, groupUserMembersOnly=False))
         _batchAddMembersToGroup(cd, group, i, count, list(syncMembersSet-currentMembersSet), role)
         _batchRemoveMembersFromGroup(cd, group, i, count, list(currentMembersSet-syncMembersSet), role)
   elif CL_subCommand == u'update':
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Entity.ROLE_MEMBER, mapChoice=True)
-    _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
+    _, updateMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, groupUserMembersOnly=False)
     groupMemberLists = updateMembers if isinstance(updateMembers, dict) else None
     checkForExtraneousArguments()
     i = 0
@@ -16566,7 +16566,7 @@ def getPrinterScopeList(getEntityListArg):
     scopeList = [scope,]
     printerScopeLists = None
   else:
-    _, scopeList = getEntityToModify(defaultEntityType=CL_ENTITY_USERS)
+    _, scopeList = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, groupUserMembersOnly=False)
     printerScopeLists = scopeList if isinstance(scopeList, dict) else None
     if not printerScopeLists:
       scopeList = normalizeScopeList(scopeList)

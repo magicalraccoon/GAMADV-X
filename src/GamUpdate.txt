@@ -1,3 +1,10 @@
+4.39.18
+
+group <GroupName> should only return users except when updating groups or printer ACLs. Previously, group <GroupName> returned
+all members (users and groups) which would cause errors when executing commands like: gam group <GroupName> ...
+Previously, this command would print all group members: gam group <GroupName> print
+Now, it will only print the users; use this command to get the list of member (user and group) email addresses:  gam print group-members group <GroupName> email
+
 4.39.17
 
 Handle enable API error in gam create project.
