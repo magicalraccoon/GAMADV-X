@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.18'
+__version__ = u'4.39.19'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -15845,8 +15845,18 @@ COURSE_ARGUMENT_TO_PROPERTY_MAP = {
   }
 
 # gam print courses [todrive [<ToDriveAttributes>]] [alias|aliases] [teacher <UserItem>] [student <UserItem>]
-#	[delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
+#	[delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
 def doPrintCourses():
+
+  def _processFieldsList(fList):
+    fieldNameList = getString(OB_FIELD_NAME_LIST)
+    for field in fieldNameList.lower().replace(u',', u' ').split():
+      if field in COURSE_ARGUMENT_TO_PROPERTY_MAP:
+        if field != u'id':
+          fList.append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
+      else:
+        CLArgs.Backup()
+        invalidChoiceExit(COURSE_ARGUMENT_TO_PROPERTY_MAP)
 
   def _saveParticipants(course, participants, role):
     jcount = len(participants)
@@ -15878,6 +15888,7 @@ def doPrintCourses():
   croom = buildGAPIObject(CLASSROOM_API)
   todrive = {}
   fieldsList = []
+  skipFieldsList = []
   titles, csvRows = initializeTitlesCSVfile([u'id',])
   teacherId = None
   studentId = None
@@ -15901,13 +15912,9 @@ def doPrintCourses():
     elif myarg == u'fields':
       if not fieldsList:
         fieldsList = [u'id',]
-      fieldNameList = getString(OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in COURSE_ARGUMENT_TO_PROPERTY_MAP:
-          fieldsList.append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
-        else:
-          CLArgs.Backup()
-          invalidChoiceExit(COURSE_ARGUMENT_TO_PROPERTY_MAP)
+      _processFieldsList(fieldsList)
+    elif myarg == u'skipfields':
+      _processFieldsList(skipFieldsList)
     else:
       unknownArgumentExit()
   fields = u'nextPageToken,courses({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
@@ -15930,6 +15937,8 @@ def doPrintCourses():
       return
     all_courses = collections.deque()
   for course in all_courses:
+    for field in skipFieldsList:
+      course.pop(field, None)
     addRowTitlesToCSVfile(flattenJSON(course, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
   if showAliases or showMembers:
     if showAliases:
