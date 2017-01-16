@@ -643,6 +643,8 @@ GAPI_CALENDAR_USER_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR,
 GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_BAD_REQUEST]
 GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
+GAPI_GROUP_GET_RETRY_REASONS = [GAPI_INVALID, GAPI_SYSTEM_ERROR]
+GAPI_GROUP_GET_THROW_REASONS = [GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST]
 GAPI_USER_GET_THROW_REASONS = [GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR]
 #
 DRIVE_API_VERSION = u'v2'
@@ -12128,7 +12130,7 @@ def updateGroups(entityList):
         _batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
   else: #clear
     suspended = False
-    fields = [u'email',u'id']
+    fields = [u'email', u'id']
     rolesList = []
     while CLArgs.ArgumentsRemaining():
       myarg = getArgument()
@@ -12890,20 +12892,26 @@ def doPrintGroupMembers():
               row[u'name'] = mbinfo[u'name'][u'fullName']
               del mbinfo[u'name'][u'fullName']
             addRowTitlesToCSVfile(flattenJSON(mbinfo, flattened=row), csvRows, titles)
+            continue
           except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
-            csvRows.append(row)
-        else:
-          if membernames and memberType == u'GROUP':
+            pass
+        elif memberType == u'GROUP':
+          if membernames:
             try:
-              mbinfo = callGAPI(cd.groups(), u'get',
-                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                                groupKey=member[u'id'], fields=u'name')
-              row[u'name'] = mbinfo[u'name']
-            except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
+              row[u'name'] = callGAPI(cd.groups(), u'get',
+                                      throw_reasons=GAPI_GROUP_GET_THROW_REASONS, retry_reasons=GAPI_GROUP_GET_RETRY_REASONS,
+                                      groupKey=member[u'id'], fields=u'name')[u'name']
+            except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest):
               pass
-          csvRows.append(row)
-      else:
-        csvRows.append(row)
+        elif memberType == u'CUSTOMER':
+          if membernames:
+            try:
+              row[u'name'] = callGAPI(cd.customers(), u'get',
+                                      throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                                      customerKey=GC_Values[GC_CUSTOMER_ID], fields=u'customerDomain')[u'customerDomain']
+            except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
+              pass
+      csvRows.append(row)
   sortCSVTitles(GROUPMEMBERS_DEFAULT_FIELDS, titles)
   if recursive:
     removeTitlesFromCSVfile([u'level', u'subgroup'], titles)
