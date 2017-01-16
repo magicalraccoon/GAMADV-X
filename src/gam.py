@@ -4526,7 +4526,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           result = callGAPIpages(cd.members(), u'list', u'members',
                                  page_message=page_message,
                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
-                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
+                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,id,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
           for member in result:
             email = member.get(u'email', member[u'id'])
             if ((not groupUserMembersOnly) or (member[u'type'] == u'USER')) and email not in entitySet:
@@ -12128,7 +12128,7 @@ def updateGroups(entityList):
         _batchUpdateMembersInGroup(cd, group, i, count, updateMembers, role)
   else: #clear
     suspended = False
-    fields = [u'email',]
+    fields = [u'email',u'id']
     rolesList = []
     while CLArgs.ArgumentsRemaining():
       myarg = getArgument()
