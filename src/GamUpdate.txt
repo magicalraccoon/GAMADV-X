@@ -1,3 +1,7 @@
+4.39.20
+
+Handle group member of type customer when processing groups.
+
 4.39.19
 
 Added skipfields <CourseFieldNameList> argument to gam print courses to allow deselection of specific fields to print.

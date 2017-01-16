@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.19'
+__version__ = u'4.39.20'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4464,8 +4464,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                              throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
                              groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
       for member in result:
-        email = member[u'email']
         if member[u'type'] == u'USER':
+          email = member[u'email']
           if domains:
             _, domain = splitEmailAddress(email)
             if domain not in domains:
@@ -4473,8 +4473,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           if email not in entitySet:
             entitySet.add(email)
             entityList.append(email)
-        elif recursive:
-          doNotExist += _addGroupMembersToUsers(email, domains, recursive)
+        elif recursive and member[u'type'] == u'GROUP':
+          doNotExist += _addGroupMembersToUsers(member[u'email'], domains, recursive)
     except (GAPI_groupNotFound, GAPI_invalid, GAPI_forbidden):
       entityUnknownWarning(Entity.GROUP, group)
       doNotExist += 1
@@ -4528,7 +4528,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
                                  groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
           for member in result:
-            email = member[u'email']
+            email = member.get(u'email', member[u'id'])
             if ((not groupUserMembersOnly) or (member[u'type'] == u'USER')) and email not in entitySet:
               entitySet.add(email)
               entityList.append(email)
@@ -12157,9 +12157,9 @@ def updateGroups(entityList):
                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID, GAPI_FORBIDDEN],
                                groupKey=group, roles=roles, fields=u'nextPageToken,members({0})'.format(u','.join(fields)), maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
         if not suspended:
-          removeMembers = [member[u'email'] for member in result]
+          removeMembers = [member.get(u'email', member[u'id']) for member in result]
         else:
-          removeMembers = [member[u'email'] for member in result if member[u'status'] == u'SUSPENDED']
+          removeMembers = [member.get(u'email', member[u'id']) for member in result if member[u'status'] == u'SUSPENDED']
         _batchRemoveMembersFromGroup(cd, group, i, count, removeMembers, Entity.ROLE_MEMBER)
       except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_invalid, GAPI_forbidden):
         entityUnknownWarning(Entity.GROUP, group, i, count)
@@ -12347,13 +12347,7 @@ def infoGroups(entityList):
         printKeyValueList([Entity.Plural(Entity.MEMBER), u'({0})'.format(len(members))])
         Indent.Increment()
         for member in members:
-          try:
-            printKeyValueList([member[u'role'].lower(), u'{0} ({1})'.format(member[u'email'], member[u'type'].lower())])
-          except KeyError:
-            try:
-              printKeyValueList([u'Member', u'{0} ({1})'.format(member[u'email'], member[u'type'].lower())])
-            except KeyError:
-              printKeyValueList([u'Member', u' {0} ({1})'.format(member[u'id'], member[u'type'].lower())])
+          printKeyValueList([member[u'role'].lower(), u'{0} ({1})'.format(member.get(u'email', member[u'id']), member[u'type'].lower())])
         Indent.Decrement()
         printKeyValueList([u'Total users in group', len(members)])
       Indent.Decrement()
@@ -12740,7 +12734,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
           member[u'level'] = level
           member[u'subgroup'] = groupEmail
           membersList.append(member)
-        else:
+        elif member[u'type'] == u'GROUP':
           getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
   except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
     entityUnknownWarning(Entity.GROUP, groupEmail, i, count)
@@ -12882,7 +12876,7 @@ def doPrintGroupMembers():
         row[u'level'] = member[u'level']
         row[u'subgroup'] = member[u'subgroup']
       for title in fieldsList:
-        row[title] = member[title]
+        row[title] = member.get(title, u'')
       if userFieldsList:
         if membernames:
           row[u'name'] = u'Unknown'
