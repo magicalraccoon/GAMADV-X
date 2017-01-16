@@ -12908,7 +12908,7 @@ def doPrintGroupMembers():
             try:
               row[u'name'] = callGAPI(cd.customers(), u'get',
                                       throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                                      customerKey=GC_Values[GC_CUSTOMER_ID], fields=u'customerDomain')[u'customerDomain']
+                                      customerKey=member[u'id'], fields=u'customerDomain')[u'customerDomain']
             except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
               pass
       csvRows.append(row)
