@@ -1,3 +1,9 @@
+4.39.21
+
+When specifiying multivalued schema field values, empty values can be suppressed by using the multinonempty option.
+This is most useful when updating users from a CSV file where users have different numbers of values for a multivalued schema field.
+    <SchemaName>.<FieldName> [multivalued|multivalue|value|multinonempty [type work|home|other|(custom <String>)]] <String>)
+
 4.39.20
 
 Handle group member of type customer when processing groups.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.20'
+__version__ = u'4.39.21'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1056,7 +1056,7 @@ ID_ARGUMENT = [u'id',]
 LOGO_ARGUMENT = [u'logo',]
 MODE_ARGUMENT = [u'mode',]
 MOVE_ADD_ARGUMENT = [u'move', u'add',]
-MULTIVALUE_ARGUMENT = [u'multivalued', u'multivalue', u'value',]
+MULTIVALUE_ARGUMENT = [u'multivalued', u'multivalue', u'value', u'multinonempty']
 NOINFO_ARGUMENT = [u'noinfo',]
 NORMALIZE_ARGUMENT = [u'normalize',]
 NOTIFYATTENDEES_ARGUMENT = [u'notifyattendees',]
@@ -14560,17 +14560,19 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       up = u'customSchemas'
       body.setdefault(up, {})
       body[up].setdefault(schemaName, {})
-      if checkArgumentPresent(MULTIVALUE_ARGUMENT):
+      multivalue = checkArgumentPresent(MULTIVALUE_ARGUMENT)
+      if multivalue:
         body[up][schemaName].setdefault(fieldName, [])
         typeKeywords = UProp.PROPERTIES[up][UProp.TYPE_KEYWORDS]
         clTypeKeyword = typeKeywords[UProp.PTKW_CL_TYPE_KEYWORD]
         schemaValue = {}
         if checkArgumentPresent([clTypeKeyword,]):
           getKeywordAttribute(UProp, typeKeywords, schemaValue)
-        schemaValue[u'value'] = getString(OB_STRING)
-        body[up][schemaName][fieldName].append(schemaValue)
+        schemaValue[u'value'] = getString(OB_STRING, minLen=0)
+        if schemaValue[u'value'] or multivalue != u'multinonempty':
+          body[up][schemaName][fieldName].append(schemaValue)
       else:
-        body[up][schemaName][fieldName] = getString(OB_STRING)
+        body[up][schemaName][fieldName] = getString(OB_STRING, minLen=0)
     else:
       unknownArgumentExit()
   if need_password:
