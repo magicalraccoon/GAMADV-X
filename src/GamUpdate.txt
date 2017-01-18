@@ -1,3 +1,7 @@
+4.39.23
+
+Update http2lib/cacerts.txt
+
 4.39.22
 
 Apply Jay's fix to correct gam create project problem.
