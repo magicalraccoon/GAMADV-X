@@ -1,3 +1,7 @@
+4.39.22
+
+Apply Jay's fix to correct gam create project problem.
+
 4.39.21
 
 When specifiying multivalued schema field values, empty values can be suppressed by using the multinonempty option.
