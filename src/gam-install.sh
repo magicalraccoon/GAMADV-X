@@ -74,10 +74,11 @@ case $gamos in
     gamos="linux"
     case $gamarch in
       x86_64) gamfile="linux-x86_64.tar.xz";;
-      i?86) gamfile="linux-i686.tar.xz";;
-      arm*) gamfile="linux-armv7l.tar.xz";;
+#      i?86) gamfile="linux-i686.tar.xz";;
+#      arm*) gamfile="linux-armv7l.tar.xz";;
       *)
-        echo_red "ERROR: this installer currently only supports i386, x86_64 and arm Linux. Looks like you're running on $gamarch. Exiting."
+#        echo_red "ERROR: this installer currently only supports i386, x86_64 and arm Linux. Looks like you're running on $gamarch. Exiting."
+        echo_red "ERROR: this installer currently only supports x86_64 Linux. Looks like you're running on $gamarch. Exiting."
         exit
     esac
     ;;
