@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.23'
+__version__ = u'4.39.24'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1003,6 +1003,7 @@ CL_OB_NOTE = u'note'
 CL_OB_NOTIFICATION = u'notification'
 CL_OB_ORG = u'org'
 CL_OB_ORGS = u'orgs'
+CL_OB_ORGTREE = u'orgtree'
 CL_OB_OWNERSHIP = u'ownership'
 CL_OB_PERMISSIONS = u'permissions'
 CL_OB_PHOTO = u'photo'
@@ -7811,6 +7812,51 @@ def doPrintOrgs():
       row[fieldsTitles[field]] = orgUnit.get(field, u'')
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Orgs', todrive)
+
+# gam show orgtree [from_parent <OrgUnitItem>]
+def doShowOrgTree():
+  def addOrgUnitToTree(orgPathList, i, n, tree):
+    if orgPathList[i] not in tree:
+      tree[orgPathList[i]] = {}
+    if i < n:
+      addOrgUnitToTree(orgPathList, i+1, n, tree[orgPathList[i]])
+
+  def printOrgUnit(parentOrgUnit, tree):
+    printKeyValueList([parentOrgUnit])
+    Indent.Increment()
+    for childOrgUnit in sorted(tree[parentOrgUnit]):
+      printOrgUnit(childOrgUnit, tree[parentOrgUnit])
+    Indent.Decrement()
+
+  cd = buildGAPIObject(DIRECTORY_API)
+  listType = u'all'
+  orgUnitPath = u'/'
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'fromparent':
+      orgUnitPath = getOrgUnitItem()
+    else:
+      unknownArgumentExit()
+  printGettingAccountEntitiesInfo(Entity.ORGANIZATIONAL_UNIT)
+  try:
+    orgs = callGAPI(cd.orgunits(), u'list',
+                    throw_reasons=[GAPI_ORGUNIT_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+                    customerId=GC_Values[GC_CUSTOMER_ID], type=listType, orgUnitPath=orgUnitPath, fields=u'organizationUnits(orgUnitPath)')
+  except GAPI_orgunitNotFound:
+    entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST)
+    return
+  except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
+    accessErrorExit(cd)
+  if (not orgs) or (u'organizationUnits' not in orgs):
+    printGettingAccountEntitiesDoneInfo(0)
+    return
+  printGettingAccountEntitiesDoneInfo(len(orgs[u'organizationUnits']))
+  orgUnits = {}
+  for orgUnit in orgs[u'organizationUnits']:
+    orgPath = orgUnit['orgUnitPath'].split(u'/')
+    addOrgUnitToTree(orgPath, 1, len(orgPath)-1, orgUnits)
+  for org in sorted(orgUnits):
+    printOrgUnit(org, orgUnits)
 
 ALIAS_TARGET_TYPES = [u'user', u'group', u'target',]
 
@@ -23668,6 +23714,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
        {CL_OB_CONTACTS:	doShowDomainContacts,
         CL_OB_GAL:	doShowGAL,
         CL_OB_GUARDIANS: doShowGuardians,
+        CL_OB_ORGTREE:	doShowOrgTree,
         CL_OB_SCHEMAS:	doShowUserSchemas,
         CL_OB_SITES:	doShowDomainSites,
         CL_OB_SITEACLS:	doProcessDomainSiteACLs,
@@ -23675,6 +23722,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_OBJ_ALIASES:
        {CL_OB_CONTACT:	CL_OB_CONTACTS,
         CL_OB_GUARDIAN:	CL_OB_GUARDIANS,
+        u'outree':	CL_OB_ORGTREE,
         CL_OB_SCHEMA:	CL_OB_SCHEMAS,
         CL_OB_SITE:	CL_OB_SITES,
         CL_OB_SITEACL:	CL_OB_SITEACLS,

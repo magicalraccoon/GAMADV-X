@@ -1,3 +1,9 @@
+4.39.24
+
+Added command gam show orgtree to show a tree of organization units. The from_parent argument lets you specify
+a particular starting point.
+    gam show orgtree [from_parent <OrgUnitItem>]
+
 4.39.23
 
 Update http2lib/cacerts.txt
