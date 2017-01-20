@@ -949,17 +949,24 @@ gam info notification|notifications [unread|read|unreadonly]
 # Organizational Units
 
 <OrgUnitFieldName> ::=
-	description|id|inherit|name|orgunitpath|parent|parentid|inherit
+	description|
+	id|orgunitid|
+	inherit|blockinheritance|
+	name|
+	parentid|parentorgunitid|
+	parent|parentorgunitpath|
+	path|orgunitpath
+<OrgUnitFieldNameList> ::= '<OrgUnitFieldName>(,<OrgUnitFieldName>)*'
 
-gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
-gam update org|ou <OrgUnitItem> [name <Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
+gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)] [buildpath]
+gam update org|ou <OrgUnitItem> [name <Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)]
 gam update org|ou <OrgUnitItem> add|move <CrOSTypeEntity>|<UserTypeEntity>
 gam delete org|ou <OrgUnitItem>
 gam info org|ou <OrgUnitItem> [nousers] [children|child]
-gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitItem>] [allfields|<OrgUnitFieldName>*]
+gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitItem>] [allfields|<OrgUnitFieldName*>|(fields <OrgUnitFieldNameList>)]
 gam show orgtree [from_parent <OrgUnitItem>]
 
-gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
+gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)]
 gam update orgs|ous <OrgUnitEntity> add|move <CrOSTypeEntity>|<UserTypeEntity>
 gam delete orgs|ous <OrgUnitEntity>
 gam info orgs|ous <OrgUnitEntity> [nousers] [children|child]

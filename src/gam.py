@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.24'
+__version__ = u'4.39.25'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1100,6 +1100,7 @@ PHRASE_DUPLICATE = u'Duplicate'
 PHRASE_EITHER = u'Either'
 PHRASE_ENTITY_DOES_NOT_EXIST = u'{0} does not exist'
 PHRASE_ERROR = u'error'
+PHRASE_EXISTS = u'Exists'
 PHRASE_EXPECTED = u'Expected'
 PHRASE_FAILED_TO_PARSE_AS_JSON = u'Failed to parse as JSON'
 PHRASE_FIELD_NOT_FOUND_IN_SCHEMA = u'Field {0} not found in schema {1}'
@@ -7441,12 +7442,29 @@ def doInfoInstance():
   _printAdminSetting(adm.ssoGeneral(), SINGLE_SIGN_ON_SETTINGS_MAP)
   _printAdminSetting(adm.ssoSigningKey(), SINGLE_SIGN_ON_SIGNING_KEY_MAP)
 
-# gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit] [noinherit]
+# gam create org|ou <Name> [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)] [buildpath]
 def doCreateOrg():
+
+  def _createOrg(body, parentPath, fullPath):
+    try:
+      callGAPI(cd.orgunits(), u'insert',
+               throw_reasons=[GAPI_INVALID_PARENT_ORGUNIT, GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+               customerId=GC_Values[GC_CUSTOMER_ID], body=body, fields=u'')
+      entityActionPerformed(Entity.ORGANIZATIONAL_UNIT, fullPath)
+    except GAPI_invalidParentOrgunit:
+      entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, fullPath, Entity.PARENT_ORGANIZATIONAL_UNIT, parentPath, PHRASE_ENTITY_DOES_NOT_EXIST.format(Entity.Singular(Entity.PARENT_ORGANIZATIONAL_UNIT)))
+      return False
+    except (GAPI_invalidOrgunit, GAPI_backendError):
+      entityDuplicateWarning(Entity.ORGANIZATIONAL_UNIT, fullPath)
+    except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
+      checkEntityAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, fullPath)
+    return True
+
   cd = buildGAPIObject(DIRECTORY_API)
   name = getOrgUnitItem(pathOnly=True, absolutePath=False)
   parent = u''
   body = {}
+  buildPath = False
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'description':
@@ -7457,107 +7475,109 @@ def doCreateOrg():
       body[u'blockInheritance'] = True
     elif myarg == u'inherit':
       body[u'blockInheritance'] = False
+    elif myarg in [u'blockinheritance', u'inheritanceblocked']:
+      body[u'blockInheritance'] = getBoolean()
+    elif myarg == u'buildpath':
+      buildPath = True
     else:
       unknownArgumentExit()
   if parent.startswith(u'id:'):
-    body[u'parentOrgUnitId'] = parent
-    body[u'name'] = name
-    orgUnitPath = parent+u'/'+name
+    parentPath = None
+    try:
+      parentPath = callGAPI(cd.orgunits(), u'get',
+                            throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+                            customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=parent, fields=u'orgUnitPath')[u'orgUnitPath']
+    except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
+      pass
+    except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
+      errMsg = accessErrorMessage(cd)
+      if errMsg:
+        systemErrorExit(INVALID_DOMAIN_RC, errMsg)
+    if not parentPath and not buildPath:
+      entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, name, Entity.PARENT_ORGANIZATIONAL_UNIT, parent, PHRASE_ENTITY_DOES_NOT_EXIST.format(Entity.Singular(Entity.PARENT_ORGANIZATIONAL_UNIT)))
+      return
+    parent = parentPath
+  if parent == u'/':
+    orgUnitPath = parent+name
   else:
-    if parent == u'/':
-      orgUnitPath = parent+name
-    else:
-      orgUnitPath = parent+u'/'+name
-    if orgUnitPath.count(u'/') > 1:
-      body[u'parentOrgUnitPath'], body[u'name'] = orgUnitPath.rsplit(u'/', 1)
-    else:
-      body[u'parentOrgUnitPath'] = u'/'
-      body[u'name'] = orgUnitPath[1:]
-    parent = body[u'parentOrgUnitPath']
-  try:
-    callGAPI(cd.orgunits(), u'insert',
-             throw_reasons=[GAPI_INVALID_PARENT_ORGUNIT, GAPI_INVALID_ORGUNIT, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-             customerId=GC_Values[GC_CUSTOMER_ID], body=body)
-    entityActionPerformed(Entity.ORGANIZATIONAL_UNIT, orgUnitPath)
-  except GAPI_invalidParentOrgunit:
-    entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.PARENT_ORGANIZATIONAL_UNIT, parent, PHRASE_ENTITY_DOES_NOT_EXIST.format(Entity.Singular(Entity.PARENT_ORGANIZATIONAL_UNIT)))
-  except (GAPI_invalidOrgunit, GAPI_backendError):
-    entityDuplicateWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath)
-  except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
-    accessErrorExit(cd)
+    orgUnitPath = parent+u'/'+name
+  if orgUnitPath.count(u'/') > 1:
+    body[u'parentOrgUnitPath'], body[u'name'] = orgUnitPath.rsplit(u'/', 1)
+  else:
+    body[u'parentOrgUnitPath'] = u'/'
+    body[u'name'] = orgUnitPath[1:]
+  parent = body[u'parentOrgUnitPath']
+  if _createOrg(body, parent, orgUnitPath) or not buildPath:
+    return
+  description = body.pop(u'description', None)
+  fullPath = u'/'
+  getPath = u''
+  orgNames = orgUnitPath.split(u'/')
+  n = len(orgNames)-1
+  for i in range(1, n+1):
+    body[u'parentOrgUnitPath'] = fullPath
+    if fullPath != u'/':
+      fullPath += u'/'
+    fullPath += orgNames[i]
+    if getPath != u'':
+      getPath += u'/'
+    getPath += orgNames[i]
+    try:
+      callGAPI(cd.orgunits(), u'get',
+               throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=getPath, fields=u'')
+      printKeyValueList([Entity.Singular(Entity.ORGANIZATIONAL_UNIT), fullPath, PHRASE_EXISTS])
+    except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
+      body[u'name'] = orgNames[i]
+      if i == n and description:
+        body[u'description'] = description
+      if not _createOrg(body, body[u'parentOrgUnitPath'], fullPath):
+        return
+    except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
+      checkEntityAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, fullPath)
 
 def checkOrgUnitPathExists(cd, orgUnitPath, i=0, count=0):
   if orgUnitPath == u'/':
     return orgUnitPath
   orgUnitPath = makeOrgUnitPathRelative(orgUnitPath)
   try:
-    result = callGAPI(cd.orgunits(), u'get',
-                      throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-                      customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath, fields=u'orgUnitPath')
-    return result[u'orgUnitPath']
+    return callGAPI(cd.orgunits(), u'get',
+                    throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
+                    customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath, fields=u'orgUnitPath')[u'orgUnitPath']
   except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
-    entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
-    return None
+    pass
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
-    accessErrorExit(cd)
+    errMsg = accessErrorMessage(cd)
+    if errMsg:
+      systemErrorExit(INVALID_DOMAIN_RC, errMsg)
+  entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
+  return None
 
-# gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit]
+# gam update orgs|ous <OrgUnitEntity> [<Name>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)]
 # gam update orgs|ous <OrgUnitEntity> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrgs():
   updateOrgs(getEntityList(OB_ORGUNIT_ENTITY, shlexSplit=True))
 
-# gam update org|ou <OrgUnitItem> [<Name>] [description <String>]  [parent <OrgUnitItem>] [inherit|noinherit]
+# gam update org|ou <OrgUnitItem> [<Name>] [description <String>]  [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)]
 # gam update org|ou <OrgUnitItem> add|move <CrosTypeEntity>|<UserTypeEntity>
 def doUpdateOrg():
   updateOrgs([getOrgUnitItem()])
 
 def updateOrgs(entityList):
 
-  _MOVE_CROS_REASON_TO_MESSAGE_MAP = {GAPI_RESOURCE_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
   def _callbackMoveCrOSesToOrgUnit(request_id, response, exception):
     ri = request_id.splitlines()
     if exception is None:
       entityItemValueActionPerformed(Entity.ORGANIZATIONAL_UNIT, ri[RI_ENTITY], Entity.CROS_DEVICE, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
     else:
       http_status, reason, message = checkGAPIError(exception)
-      errMsg = getHTTPError(_MOVE_CROS_REASON_TO_MESSAGE_MAP, http_status, reason, message)
-      entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, ri[RI_ENTITY], Entity.CROS_DEVICE, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
-
-  def _batchMoveCrOSesToOrgUnit(cd, orgUnitPath, i, count, CrOSList):
-    Action.Set(Action.ADD)
-    jcount = len(CrOSList)
-    entityPerformActionNumItems(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, jcount, Entity.CROS_DEVICE, i, count)
-    Indent.Increment()
-    body = {u'orgUnitPath': orgUnitPath}
-    bcount = 0
-    if GC_Values[GC_BATCH_SIZE] > 1:
-      dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
-    j = 0
-    for deviceId in CrOSList:
-      j += 1
-      if GC_Values[GC_BATCH_SIZE] > 1:
-        dbatch.add(cd.chromeosdevices().patch(**dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', deviceId), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
-                   request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
-        bcount += 1
-        if bcount == GC_Values[GC_BATCH_SIZE]:
-          dbatch.execute()
-          dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
-          bcount = 0
+      if reason in [GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN]:
+        checkEntityItemValueAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, ri[RI_ENTITY], Entity.CROS_DEVICE, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
       else:
-        try:
-          callGAPI(cd.chromeosdevices(), u'patch',
-                   throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                   customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=body)
-          entityItemValueActionPerformed(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.CROS_DEVICE, deviceId, j, jcount)
-        except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
-          checkEntityItemValueAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.CROS_DEVICE, deviceId, j, jcount)
-        except GAPI_invalid as e:
-          entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.CROS_DEVICE, deviceId, e.message, j, jcount)
-    if bcount > 0:
-      dbatch.execute()
-    Indent.Decrement()
+        errMsg = getHTTPError({}, http_status, reason, message)
+        entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, ri[RI_ENTITY], Entity.CROS_DEVICE, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
-  _MOVE_USER_REASON_TO_MESSAGE_MAP = {GAPI_USER_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
+  _MOVE_USER_REASON_TO_MESSAGE_MAP = {GAPI_USER_NOT_FOUND: PHRASE_DOES_NOT_EXIST, GAPI_DOMAIN_NOT_FOUND: PHRASE_SERVICE_NOT_APPLICABLE, GAPI_FORBIDDEN: PHRASE_SERVICE_NOT_APPLICABLE}
   def _callbackMoveUsersToOrgUnit(request_id, response, exception):
     ri = request_id.splitlines()
     if exception is None:
@@ -7566,41 +7586,6 @@ def updateOrgs(entityList):
       http_status, reason, message = checkGAPIError(exception)
       errMsg = getHTTPError(_MOVE_USER_REASON_TO_MESSAGE_MAP, http_status, reason, message)
       entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, ri[RI_ENTITY], Entity.USER, ri[RI_ITEM], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
-
-  def _batchMoveUsersToOrgUnit(cd, orgUnitPath, i, count, UserList):
-    Action.Set(Action.ADD)
-    jcount = len(UserList)
-    entityPerformActionNumItems(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, jcount, Entity.USER, i, count)
-    Indent.Increment()
-    body = {u'orgUnitPath': orgUnitPath}
-    bcount = 0
-    if GC_Values[GC_BATCH_SIZE] > 1:
-      dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
-    j = 0
-    for user in UserList:
-      j += 1
-      user = normalizeEmailAddressOrUID(user)
-      if GC_Values[GC_BATCH_SIZE] > 1:
-        dbatch.add(cd.users().patch(**dict([(u'userKey', user), (u'body', body)]+GM_Globals[GM_EXTRA_ARGS_LIST])),
-                   request_id=batchRequestID(orgUnitPath, i, count, j, jcount, user))
-        bcount += 1
-        if bcount == GC_Values[GC_BATCH_SIZE]:
-          dbatch.execute()
-          dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
-          bcount = 0
-      else:
-        try:
-          callGAPI(cd.users(), u'patch',
-                   throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-                   userKey=user, body=body)
-          entityItemValueActionPerformed(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.USER, user, j, jcount)
-        except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden):
-          entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.USER, user, PHRASE_SERVICE_NOT_APPLICABLE, j, jcount)
-        except GAPI_invalid as e:
-          entityItemValueActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, Entity.USER, user, e.message, j, jcount)
-    if bcount > 0:
-      dbatch.execute()
-    Indent.Decrement()
 
   cd = buildGAPIObject(DIRECTORY_API)
   if checkArgumentPresent(MOVE_ADD_ARGUMENT):
@@ -7615,11 +7600,46 @@ def updateOrgs(entityList):
       if orgItemLists:
         items = orgItemLists[orgUnitPath]
       orgUnitPath = checkOrgUnitPathExists(cd, orgUnitPath, i, count)
-      if orgUnitPath:
-        if entityType == CL_ENTITY_USERS:
-          _batchMoveUsersToOrgUnit(cd, orgUnitPath, i, count, items)
-        else:
-          _batchMoveCrOSesToOrgUnit(cd, orgUnitPath, i, count, items)
+      if not orgUnitPath:
+        continue
+      jcount = len(items)
+      entityPerformActionNumItems(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, jcount, [Entity.CROS_DEVICE, Entity.USER][entityType == CL_ENTITY_USERS], i, count)
+      Indent.Increment()
+      if entityType == CL_ENTITY_USERS:
+        svcargs = dict([(u'userKey', None), (u'body', {u'orgUnitPath': orgUnitPath}), (u'fields', u'')]+GM_Globals[GM_EXTRA_ARGS_LIST])
+        dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
+        bcount = 0
+        j = 0
+        for user in items:
+          j += 1
+          svcparms = svcargs.copy()
+          svcparms[u'userKey'] = normalizeEmailAddressOrUID(user)
+          dbatch.add(cd.users().patch(**svcparms), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, svcparms[u'userKey']))
+          bcount += 1
+          if bcount >= GC_Values[GC_BATCH_SIZE]:
+            dbatch.execute()
+            dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveUsersToOrgUnit)
+            bcount = 0
+        if bcount > 0:
+          dbatch.execute()
+      else:
+        svcargs = dict([(u'customerId', GC_Values[GC_CUSTOMER_ID]), (u'deviceId', None), (u'body', {u'orgUnitPath': orgUnitPath}), (u'fields', u'')]+GM_Globals[GM_EXTRA_ARGS_LIST])
+        dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
+        bcount = 0
+        j = 0
+        for deviceId in items:
+          j += 1
+          svcparms = svcargs.copy()
+          svcparms[u'deviceId'] = deviceId
+          dbatch.add(cd.chromeosdevices().patch(**svcparms), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
+          bcount += 1
+          if bcount >= GC_Values[GC_BATCH_SIZE]:
+            dbatch.execute()
+            dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackMoveCrOSesToOrgUnit)
+            bcount = 0
+        if bcount > 0:
+          dbatch.execute()
+      Indent.Decrement()
   else:
     body = {}
     while CLArgs.ArgumentsRemaining():
@@ -7638,6 +7658,8 @@ def updateOrgs(entityList):
         body[u'blockInheritance'] = True
       elif myarg == u'inherit':
         body[u'blockInheritance'] = False
+      elif myarg in [u'blockinheritance', u'inheritanceblocked']:
+        body[u'blockInheritance'] = getBoolean()
       else:
         unknownArgumentExit()
     i = 0
@@ -7647,12 +7669,12 @@ def updateOrgs(entityList):
       try:
         callGAPI(cd.orgunits(), u'update',
                  throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-                 customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), body=body)
+                 customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), body=body, fields=u'')
         entityActionPerformed(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
       except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
         entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
       except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
-        accessErrorExit(cd)
+        checkEntityAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, orgUnitPath)
 
 # gam delete orgs|ous <OrgUnitEntity>
 def doDeleteOrgs():
@@ -7673,14 +7695,16 @@ def deleteOrgs(entityList):
       orgUnitPath = makeOrgUnitPathAbsolute(orgUnitPath)
       callGAPI(cd.orgunits(), u'delete',
                throw_reasons=[GAPI_CONDITION_NOT_MET, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath))
+               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), fields=u'')
       entityActionPerformed(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, i, count)
     except GAPI_conditionNotMet:
       entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_HAS_CHILD_ORGS.format(Entity.Plural(Entity.ORGANIZATIONAL_UNIT)), i, count)
     except (GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
-      accessErrorExit(cd)
+      checkEntityAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, orgUnitPath)
+
+ORG_FIELD_INFO_ORDER = [u'orgUnitId', u'name', u'description', u'parentOrgUnitPath', u'parentOrgUnitId', u'blockInheritance']
 
 # gam info orgs|ous <OrgUnitEntity> [nousers] [children|child]
 def doInfoOrgs():
@@ -7718,12 +7742,12 @@ def infoOrgs(entityList):
       result = callGAPI(cd.orgunits(), u'get',
                         throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
                         customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=orgUnitPath)
-      printEntity(Entity.ORGANIZATIONAL_UNIT, result[u'name'], i, count)
+      printEntity(Entity.ORGANIZATIONAL_UNIT, result[u'orgUnitPath'], i, count)
       Indent.Increment()
-      for key, value in result.iteritems():
-        if key in [u'kind', u'etag']:
-          continue
-        printKeyValueList([key, value])
+      for field in ORG_FIELD_INFO_ORDER:
+        value = result.get(field, None)
+        if value is not None:
+          printKeyValueList([field, value])
       if getUsers:
         orgUnitPath = result[u'orgUnitPath']
         Entity.SetGetting(Entity.USER)
@@ -7747,23 +7771,28 @@ def infoOrgs(entityList):
     except (GAPI_invalidInput, GAPI_invalidOrgunit, GAPI_orgunitNotFound, GAPI_backendError):
       entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST, i, count)
     except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired, GAPI_resourceNotFound, GAPI_forbidden):
-      accessErrorExit(cd)
+      checkEntityAFDNEorAccessErrorExit(cd, Entity.ORGANIZATIONAL_UNIT, orgUnitPath)
 
 # CL argument: [API field name, CSV field title]
 #
 ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
-  u'description': [u'description', u'Description'],
-  u'id': [u'orgUnitId', u'ID'],
+  u'blockinheritance': [u'blockInheritance', u'InheritanceBlocked'],
+  u'inheritanceblocked': [u'blockInheritance', u'InheritanceBlocked'],
   u'inherit': [u'blockInheritance', u'InheritanceBlocked'],
+  u'description': [u'description', u'Description'],
+  u'orgunitid': [u'orgUnitId', u'ID'],
+  u'id': [u'orgUnitId', u'ID'],
+  u'name': [u'name', u'Name'],
   u'orgunitpath': [u'orgUnitPath', u'Path'],
   u'path': [u'orgUnitPath', u'Path'],
-  u'name': [u'name', u'Name'],
-  u'parent': [u'parentOrgUnitPath', u'Parent'],
+  u'parentorgunitid': [u'parentOrgUnitId', u'ParentID'],
   u'parentid': [u'parentOrgUnitId', u'ParentID'],
+  u'parentorgunitpath': [u'parentOrgUnitPath', u'Parent'],
+  u'parent': [u'parentOrgUnitPath', u'Parent'],
   }
 ORG_FIELD_PRINT_ORDER = [u'orgunitpath', u'id', u'name', u'description', u'parent', u'parentid', u'inherit']
 
-# gam print orgs|ous [todrive] [from_parent <OrgUnitItem>] [toplevelonly] [allfields|<OrgUnitFieldName>*]
+# gam print orgs|ous [todrive] [from_parent <OrgUnitItem>] [toplevelonly] [allfields|<OrgUnitFieldName>*|(fields <OrgUnitFieldNameList>)]
 def doPrintOrgs():
   cd = buildGAPIObject(DIRECTORY_API)
   listType = u'all'
@@ -7788,6 +7817,14 @@ def doPrintOrgs():
         addFieldTitleToCSVfile(field, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP:
       addFieldTitleToCSVfile(myarg, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
+    elif myarg == u'fields':
+      fieldNameList = getString(OB_FIELD_NAME_LIST)
+      for field in fieldNameList.lower().replace(u',', u' ').split():
+        if field in ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP:
+          addFieldTitleToCSVfile(field, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles)
+        else:
+          CLArgs.Backup()
+          invalidChoiceExit(ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP.keys())
     else:
       unknownArgumentExit()
   if not fieldsList:
@@ -7799,7 +7836,7 @@ def doPrintOrgs():
                     customerId=GC_Values[GC_CUSTOMER_ID], type=listType, orgUnitPath=orgUnitPath, fields=u'organizationUnits({0})'.format(u','.join(set(fieldsList))))
   except GAPI_orgunitNotFound:
     entityActionFailedWarning(Entity.ORGANIZATIONAL_UNIT, orgUnitPath, PHRASE_DOES_NOT_EXIST)
-    orgs = []
+    return
   except (GAPI_badRequest, GAPI_invalidCustomerId, GAPI_loginRequired):
     accessErrorExit(cd)
   if (not orgs) or (u'organizationUnits' not in orgs):
