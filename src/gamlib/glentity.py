@@ -34,7 +34,6 @@ class GamEntity(object):
 # Keys into NAMES; arbitrary values but must be unique
   ACCESS_TOKEN = u'atok'
   ACCOUNT = u'acct'
-  ACL = u'acl '
   ACTION = u'actn'
   ACTIVITY = u'actv'
   ADMINISTRATOR = u'admi'
@@ -50,6 +49,7 @@ class GamEntity(object):
   AUDIT_MONITOR_REQUEST = u'audm'
   BACKUP_VERIFICATION_CODE = u'buvc'
   CALENDAR = u'cale'
+  CALENDAR_ACL = u'cacl'
   CALENDAR_SETTINGS = u'cset'
   CLIENT_SECRETS_JSON_FILE = u'clis'
   CONFIG_FILE = u'conf'
@@ -124,6 +124,7 @@ class GamEntity(object):
   PHOTO = u'phot'
   POP_ENABLED = u'popa'
   PRINTER = u'prin'
+  PRINTER_ACL = u'pacl'
   PRINTJOB = u'prjo'
   PRODUCT = u'prod'
   PROFILE_SHARING_ENABLED = u'prof'
@@ -142,6 +143,7 @@ class GamEntity(object):
   SERVICE = u'serv'
   SIGNATURE = u'sign'
   SITE = u'site'
+  SITE_ACL = u'sacl'
   SKU = u'sku '
   SNIPPETS_ENABLED = u'snip'
   SSO_KEY = u'ssok'
@@ -170,7 +172,6 @@ class GamEntity(object):
   _NAMES = {
     ACCESS_TOKEN: [u'Access Tokens', u'Access Token'],
     ACCOUNT: [u'G Suite Accounts', u'G Suite Account'],
-    ACL: [u'ACLs', u'ACL'],
     ACTION: [u'Actions', u'Action'],
     ACTIVITY: [u'Activities', u'Activity'],
     ADMINISTRATOR: [u'Administrators', u'Administrator'],
@@ -186,6 +187,7 @@ class GamEntity(object):
     AUDIT_MONITOR_REQUEST: [u'Audit Monitor Requests', u'Audit Monitor Request'],
     BACKUP_VERIFICATION_CODE: [u'Backup Verification Codes', u'Backup Verification Code'],
     CALENDAR: [u'Calendars', u'Calendar'],
+    CALENDAR_ACL: [u'Calendar ACLs', u'Calendar ACL'],
     CALENDAR_SETTINGS: [u'Calendar Settings', u'Calendar Settings'],
     CLIENT_SECRETS_JSON_FILE: [u'Client Secrets File', u'Client Secrets File'],
     CONFIG_FILE: [u'Config File', u'Config File'],
@@ -260,6 +262,7 @@ class GamEntity(object):
     PHOTO: [u'Photos', u'Photo'],
     POP_ENABLED: [u'POP Enabled', u'POP Enabled'],
     PRINTER: [u'Printers', u'Printer'],
+    PRINTER_ACL: [u'Printer ACLs', u'Printer ACL'],
     PRINTJOB: [u'Print Jobs', u'Print Job'],
     PRODUCT: [u'Products', u'Product'],
     PROFILE_SHARING_ENABLED: [u'Profile Sharing Enabled', u'Profile Sharing Enabled'],
@@ -278,6 +281,7 @@ class GamEntity(object):
     SERVICE: [u'Services', u'Service'],
     SIGNATURE: [u'Signatures', u'Signature'],
     SITE: [u'Sites', u'Site'],
+    SITE_ACL: [u'Site ACLs', u'Site ACL'],
     SKU: [u'SKUs', u'SKU'],
     SNIPPETS_ENABLED: [u'Preview Snippets Enabled', u'Preview Snippets Enabled'],
     SSO_KEY: [u'SSO Key', u'SSO Key'],

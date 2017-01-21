@@ -1,3 +1,21 @@
+4.39.26
+
+The csv argument has been dropped from gam printer <PrinterIDEntity> showacls. A new command has been added to
+output printer ACLs to a CSV file.
+    gam printer|printers <PrinterIDEntity> showacls
+    gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
+
+Added fields <ResourceFieldNameList> to gam print resources
+    <ResourceFieldName> ::=
+	description|
+	email|
+	id|
+	name|
+	type
+    <ResourceFieldNameList> ::= '<ResourceFieldName>(,<ResourceFieldName>)*'
+
+    gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
+
 4.39.25
 
 Added buildpath argument to gam create org.

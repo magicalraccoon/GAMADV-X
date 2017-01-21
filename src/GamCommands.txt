@@ -66,7 +66,7 @@ If an item contains spaces, it should be surrounded by " or '.
 ## Named items
 
 <AccessToken> ::= <String>
-<ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+<CalendarACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
 <CalendarColorIndex> ::== <Number in range 1-24>
 <CalendarItem> ::= <EmailAddress>|<String>
 <ClientID> ::= <String>
@@ -118,6 +118,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <OrgUnitItem> ::= <OrgUnitID>|<OrgUnitPath>
 <ParameterKey> ::= <String>
 <ParameterValue> ::= <String>
+<PrinterACLScope> ::= <UserTypeEntity>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|everyone
 <PrinterID> ::= <String>
 <PrintJobAge> ::= <Number>[m|h|d]
 <PrintJobID> ::= <String>
@@ -137,6 +138,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <ResourceID> ::= <String>
 <SchemaName> ::= <String>
 <Section> ::= <String>
+<SiteACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain|default
 <SiteItem> ::= [<domainName>/]<Site>
 <StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Tag> ::= <String>
@@ -156,7 +158,7 @@ Items, separated by spaces, without spaces or commas in the items themselves: "i
 Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
 Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
 
-<ACLScopeList> ::== '<ACLScope>(,<ACLScope>)*'
+<CalendarACLScopeList> ::== '<CalendarACLScope>(,<CalendarACLScope>)*'
 <CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
 <CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
 <ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
@@ -178,11 +180,13 @@ Items, separated by spaces, with spaces or commas in the items themselves: "'it 
 <MessageIDList> ::= '<MessageID>(,<MessageID>)*'
 <MobileList> ::= '<MobileId>(,<MobileId>)*'
 <OrgUnitList> ::== '<OrgUnitItem>(,<OrgUnitItem>)*'
+<PrinterACLScopeList> ::== '<PrinterACLScope>(,<PrinterACLScope>)*'
 <PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
 <PrintJobIDList> ::= '<PrintJobID>(,<PrintJobID>)*'
 <ProductIDList> ::= '(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*'
 <ResourceIDList> ::= '<ResourceID>(,<ResourceID>)*'
 <SchemaNameList> ::= '<SchemaName>(,<SchemaName>)*'
+<SiteACLScopeList> ::== '<SiteACLScope>(,<SiteACLScope>)*'
 <SiteList> ::= '<SiteItem>(,<SiteItem>)*'
 <SKUIDList> ='<SKUID>(,<SKUID>)*'
 <ThreadIDList> ::= '<ThreadID>(,<ThreadID>)*'
@@ -257,8 +261,7 @@ Specify a collection of items by directly specifying them; the item type is dete
 <CSVDataSelector> ::= csvdata <FieldName>
 <FileSelector> ::= (file <FileName> [charset <Charset>])|(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>])
 
-<ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
-<CalendarEntity> ::= <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactEntity> ::= <ContactIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactGroupEntity> ::= <ContactGroupList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <CourseAliasEntity> ::= <CourseAliasList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -278,10 +281,12 @@ Specify a collection of items by directly specifying them; the item type is dete
 <MessageIDEntity> ::= <MessageIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <MobileEntity> ::= <MobileItem> | <MobileList> | <FileSelector> | <CSVkmdSelector>
 <OrgUnitEntity> ::= <OrgUnitList> | <FileSelector> | <CSVkmdSelector>
+<PrinterACLScopeEntity>::= <PrinterACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <PrinterIDEntity> ::= <PrinterIDList> | <FileSelector> | <CSVkmdSelector>
 <PrintJobEntity> ::= <PrintJobIDList> | <FileSelector> | <CSVkmdSelector>
 <ResourceEntity> ::= <ResourceIDList> | <FileSelector> | <CSVkmdSelector>
 <SchemaEntity> ::= <SchemaNameList> | <FileSelector> | <CSVkmdSelector>
+<SiteACLScopeEntity>::= <SiteACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <SiteEntity> ::= <SiteList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ThreadIDEntity> ::= <ThreadIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <UserEntity> ::= <UserList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -692,6 +697,7 @@ gam <UserTypeEntity> print gal [todrive [<ToDriveAttributes>]] [query <QueryCont
 	(state|status active|archived|provisioned|declined)
 
 <CourseFieldName> ::=
+	aliases|
 	alternatelink|
 	coursegroupemail|
 	coursematerialsets|
@@ -706,8 +712,10 @@ gam <UserTypeEntity> print gal [todrive [<ToDriveAttributes>]] [query <QueryCont
 	ownerid|
 	room|
 	section|
+	students|
 	teacherfolder|
 	teachergroupemail|
+	teachers|
 	updatetime
 <CourseFieldNameList> ::= '<CourseFieldName>(,<CourseFieldName>)*'
 
@@ -726,8 +734,8 @@ gam courses <CourseEntity> delete alias <CourseAliasEntity>
 
 gam info course <CourseID>
 gam info courses <CourseEntity>
-gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>]
-	[show all|students|teachers] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
+gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>]
+	[delimiter <String>] [alias|aliases] [show all|students|teachers] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
 
 gam course <CourseID> add teachers|students <UserItem>
 gam course <CourseID> delete|remove teachers|students <UserItem>
@@ -997,40 +1005,32 @@ gam info orgs|ous <OrgUnitEntity> [nousers] [children|child]
 	(uuid <String>)
 
 gam printer register
-gam update printer <PrinterID> <PrinterAttributes>+
-gam delete printer <PrinterID>
-gam info printer <PrinterID> [everything]
-gam print printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>] [delimiter <String>]
 
-gam update printers <PrinterIDEntity> <PrinterAttributes>+
-gam delete printers <PrinterIDEntity>
-gam info printers <PrinterIDEntity> [everything]
+gam update printer|printers <PrinterIDEntity> <PrinterAttributes>+
+gam delete printer|printers <PrinterIDEntity>
+gam info printer|printers <PrinterIDEntity> [everything]
+gam print printer|printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>] [delimiter <String>]
 
-gam printer <PrinterID> add user|manager|owner <EmailAddress>|[domain:]<DomainName>|public
-gam printer <PrinterID> delete <EmailAddress>|[domain:]<DomainName>|public
-gam printer <PrinterID> showacl [csv] [todrive [<ToDriveAttributes>]]
-gam printer <PrinterID> sync user|manager|owner <UserTypeEntity>|[domain:]<DomainName>|public
-gam printer <PrinterID> wipe user|manager|owner
+<PrinterACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain
+<PrinterACLScopeList> ::== '<PrinterACLScope>(,<PrinterACLScope>)*'
+<PrinterACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam printers <PrinterIDEntity> add user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
-gam printers <PrinterIDEntity> delete <UserTypeEntity>|domain:<DomainName>|public
-gam printers <PrinterIDEntity> showacl [csv] [todrive [<ToDriveAttributes>]]
-gam printers <PrinterIDEntity> sync user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
-gam printers <PrinterIDEntity> wipe user|manager|owner
+gam printer|printers <PrinterIDEntity> add user|manager|owner <PrinterACLScopeEntity>
+gam printer|printers <PrinterIDEntity> delete <PrinterACLScopeEntity>
+gam printer|printers <PrinterIDEntity> sync user|manager|owner <PrinterACLScopeEntity>
+gam printer|printers <PrinterIDEntity> wipe user|manager|owner
+gam printer|printers <PrinterIDEntity> showacls
+gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
 
 # Printjobs
 
+gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
+gam printjob|printjobs <PrintJobEntity> cancel
+gam printjob|printjobs <PrintJobEntity> delete
+gam printjob|printjobs <PrintJobEntity> resubmit <PrinterID>
+
 <PrintJobOrderByFieldName> ::=
 	create_time|status|title
-
-gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
-gam printjob <PrintJobID> cancel
-gam printjob <PrintJobID> delete
-gam printjob <PrintJobID> resubmit <PrinterID>
-
-gam printjobs <PrintJobEntity> cancel
-gam printjobs <PrintJobEntity> delete
-gam printjobs <PrintJobEntity> resubmit <PrinterID>
 
 gam printjob|printjobs <PrinterID>|any fetch
 	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
@@ -1039,7 +1039,7 @@ gam printjob|printjobs <PrinterID>|any fetch
 	[owner|user <EmailAddress>]
 	[limit <Number>] [drivedir|(targetfolder <FilePath>)]
 
-gam print printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterID>]
+gam print printjob|printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterID>]
 	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
 	[status <PrintJobStatus>]
 	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
@@ -1057,7 +1057,13 @@ gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mob
 
 # Resources
 
-<ResourceFieldName> ::= description|email|id|name|type
+<ResourceFieldName> ::=
+	description|
+	email|
+	id|
+	name|
+	type
+<ResourceFieldNameList> ::= '<ResourceFieldName>(,<ResourceFieldName>)*'
 
 gam create resource <ResourceID> <Name> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
@@ -1068,7 +1074,7 @@ gam update resources <ResourceEntity> [name <Name>] [description <String>] [type
 gam delete resources <ResourceEntity>
 gam info resources <ResourceEntity>
 
-gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*] [convertcrnl]
+gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
 
 # Schemas
 
@@ -1105,10 +1111,10 @@ gam [<UserTypeEntity>] print sites [todrive [<ToDriveAttributes>]] [domain|domai
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive [<ToDriveAttributes>]] [maxresults <Number>] [updated_min yyyy-mm-dd] [updated_max yyyy-mm-dd]
 
-gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
-gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
-gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLScopeEntity>
-gam [<UserTypeEntity>] info siteacls <SiteEntity> <ACLScopeEntity>
+gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <SiteACLScopeEntity>
+gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <SiteACLScopeEntity>
+gam [<UserTypeEntity>] delete siteacls <SiteEntity> <SiteACLScopeEntity>
+gam [<UserTypeEntity>] info siteacls <SiteEntity> <SiteACLScopeEntity>
 gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 
 # Users

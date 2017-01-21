@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.39.25'
+__version__ = u'4.39.26'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -8601,7 +8601,7 @@ def _validateCalendarGetRuleIDs(calendarId, i, count, ruleIds, ruleIdLists):
   calRuleIds = ruleIdLists[calendarId] if ruleIdLists else ruleIds
   calendarId = convertUserUIDtoEmailAddress(calendarId)
   jcount = len(calRuleIds)
-  entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+  entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.CALENDAR_ACL, i, count)
   if jcount == 0:
     setSysExitRC(NO_ENTITIES_FOUND)
   return (calendarId, calRuleIds, jcount)
@@ -8628,17 +8628,17 @@ def _processCalendarACLs(cal, function, calendarId, i, count, j, jcount, ruleId,
     callGAPI(cal.acl(), function,
              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID, GAPI_INVALID_SCOPE_VALUE, GAPI_ILLEGAL_ACCESS_ROLE_FOR_DEFAULT, GAPI_CANNOT_CHANGE_OWNER_ACL],
              **kwargs)
-    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), j, jcount)
+    entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, role), j, jcount)
   except (GAPI_notFound, GAPI_invalid):
     if not checkCalendarExists(cal, calendarId):
       entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
       result = False
     else:
-      entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, j, jcount)
+      entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, j, jcount)
   except (GAPI_invalidScopeValue, GAPI_illegalAccessRoleForDefault) as e:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), e.message, j, jcount)
+    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, role), e.message, j, jcount)
   except GAPI_cannotChangeOwnerAcl:
-    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
+    entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, role), PHRASE_CAN_NOT_CHANGE_OWNER_ACL, j, jcount)
   return result
 
 # gam calendars <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
@@ -8765,13 +8765,13 @@ def doCalendarInfoACLs(cal, calendarList):
         result = callGAPI(cal.acl(), u'get',
                           throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                           calendarId=calendarId, ruleId=ruleId, fields=u'id,role')
-        printEntityItemValue(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(result[u'id'], result[u'role']), j, jcount)
+        printEntityItemValue(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(result[u'id'], result[u'role']), j, jcount)
       except (GAPI_notFound, GAPI_invalid):
         if not checkCalendarExists(cal, calendarId):
           entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
           break
         else:
-          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
+          entityItemValueActionFailedWarning(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, None), PHRASE_DOES_NOT_EXIST, j, jcount)
     Indent.Decrement()
 
 # gam calendars <CalendarEntity> show acls
@@ -8788,7 +8788,7 @@ def doCalendarShowACLs(cal, calendarList):
                            throw_reasons=[GAPI_NOT_FOUND],
                            calendarId=calendarId, fields=u'nextPageToken,items(id,role,scope)')
       jcount = len(acls)
-      entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.ACL, i, count)
+      entityPerformActionNumItems(Entity.CALENDAR, calendarId, jcount, Entity.CALENDAR_ACL, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
@@ -8796,7 +8796,7 @@ def doCalendarShowACLs(cal, calendarList):
       j = 0
       for rule in acls:
         j += 1
-        printEntityItemValue(Entity.CALENDAR, calendarId, Entity.ACL, formatACLRule(rule), j, jcount)
+        printEntityItemValue(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLRule(rule), j, jcount)
       Indent.Decrement()
     except GAPI_notFound:
       entityUnknownWarning(Entity.CALENDAR, calendarId, i, count)
@@ -13305,7 +13305,7 @@ RESCAL_ARGUMENT_TO_PROPERTY_MAP = {
 
 RESOURCE_FIELDS_WITH_CRS_NLS = [u'resourceDescription']
 
-# gam print resources [todrive] [allfields] [id] [name] [description] [email] [type] [convertcrnl]
+# gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
 def doPrintResourceCalendars():
   cd = buildGAPIObject(DIRECTORY_API)
   convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
@@ -13325,6 +13325,13 @@ def doPrintResourceCalendars():
         addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in RESCAL_ARGUMENT_TO_PROPERTY_MAP:
       addFieldToCSVfile(myarg, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
+    elif myarg == u'fields':
+      for field in getString(OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
+        if field in RESCAL_ARGUMENT_TO_PROPERTY_MAP:
+          addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
+        else:
+          CLArgs.Backup()
+          invalidChoiceExit(RESCAL_ARGUMENT_TO_PROPERTY_MAP)
     elif myarg in [u'convertcrnl', u'converttextnl']:
       convertCRNL = True
     else:
@@ -14139,6 +14146,13 @@ def printShowSites(entityList, entityType, csvFormat):
       addTitlesToCSVfile([u'Scope', u'Role'], titles)
     writeCSVfile(csvRows, titles, u'Sites', todrive)
 
+SITE_ACTION_TO_MODIFIER_MAP = {
+  Action.ADD: Action.MODIFIER_TO,
+  Action.UPDATE: Action.MODIFIER_IN,
+  Action.DELETE: Action.MODIFIER_FROM,
+  Action.INFO: Action.MODIFIER_FROM,
+  Action.SHOW: Action.MODIFIER_FROM,
+  }
 # gam [<UserTypeEntity>] add siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
 # gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <ACLScopeEntity>
 # gam [<UserTypeEntity>] delete siteacls <SiteEntity> <ACLScopeEntity>
@@ -14162,6 +14176,7 @@ def doProcessSiteACLs(users, entityType):
     ruleIds = getEntityList(OB_ACL_SCOPE_ENTITY)
     ruleIdLists = ruleIds if isinstance(ruleIds, dict) else None
   checkForExtraneousArguments()
+  modifier = SITE_ACTION_TO_MODIFIER_MAP[action]
   sitesManager = SitesManager()
   i = 0
   count = len(users)
@@ -14173,7 +14188,7 @@ def doProcessSiteACLs(users, entityType):
     if not sitesObject:
       continue
     jcount = len(sites)
-    entityPerformActionModifierNumItems(entityType, user, u'{0} {1}'.format(Entity.Plural(Entity.ACL), PHRASE_FOR), jcount, Entity.SITE, i, count)
+    entityPerformActionModifierNumItems(entityType, user, u'{0} {1}'.format(Entity.Plural(Entity.SITE_ACL), modifier), jcount, Entity.SITE, i, count)
     if jcount == 0:
       setSysExitRC(NO_ENTITIES_FOUND)
       continue
@@ -14188,7 +14203,7 @@ def doProcessSiteACLs(users, entityType):
         if ruleIdLists:
           ruleIds = ruleIdLists[site]
         kcount = len(ruleIds)
-        entityPerformActionNumItems(Entity.SITE, domainSite, kcount, Entity.ACL, j, jcount)
+        entityPerformActionNumItems(Entity.SITE, domainSite, kcount, Entity.SITE_ACL, j, jcount)
         if kcount == 0:
           continue
         Indent.Increment()
@@ -14205,9 +14220,9 @@ def doProcessSiteACLs(users, entityType):
                               aclentry=acl, domain=domain, site=site)
               fields = sitesManager.AclEntryToFields(acl)
               if not fields.get(u'inviteLink'):
-                entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.ACL, formatACLRule(fields), k, kcount)
+                entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLRule(fields), k, kcount)
               else:
-                entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.ACL, u'{0} (Link: {1})'.format(formatACLRule(fields), fields[u'inviteLink']), k, kcount)
+                entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.SITE_ACL, u'{0} (Link: {1})'.format(formatACLRule(fields), fields[u'inviteLink']), k, kcount)
             elif action == Action.UPDATE:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
@@ -14219,7 +14234,7 @@ def doProcessSiteACLs(users, entityType):
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               aclentry=acl, domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
               fields = sitesManager.AclEntryToFields(acl)
-              entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.ACL, formatACLRule(fields), k, kcount)
+              entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLRule(fields), k, kcount)
             elif action == Action.DELETE:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
@@ -14229,23 +14244,23 @@ def doProcessSiteACLs(users, entityType):
                         throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
                         retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                         domain=domain, site=site, ruleId=ruleId, extra_headers={u'If-Match': acl.etag})
-              entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.ACL, formatACLScopeRole(ruleId, None), k, kcount)
+              entityItemValueActionPerformed(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLScopeRole(ruleId, None), k, kcount)
             elif action == Action.INFO:
               acl = callGData(sitesObject, u'GetAclEntry',
                               throw_errors=[GDATA_NOT_FOUND, GDATA_FORBIDDEN],
                               retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                               domain=domain, site=site, ruleId=ruleId)
               fields = sitesManager.AclEntryToFields(acl)
-              printEntityItemValue(Entity.SITE, domainSite, Entity.ACL, formatACLRule(fields), k, kcount)
+              printEntityItemValue(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLRule(fields), k, kcount)
           except GData_notFound:
             if not checkSiteExists(sitesObject, domain, site):
               entityUnknownWarning(Entity.SITE, domainSite, j, jcount)
               break
-            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, k, kcount)
+            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLScopeRole(ruleId, role), PHRASE_DOES_NOT_EXIST, k, kcount)
           except GData_entityExists:
-            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.ACL, formatACLScopeRole(ruleId, role), PHRASE_DUPLICATE, k, kcount)
+            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLScopeRole(ruleId, role), PHRASE_DUPLICATE, k, kcount)
           except (GData_badRequest, GData_forbidden) as e:
-            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.ACL, formatACLScopeRole(ruleId, role), e.message, k, kcount)
+            entityItemValueActionFailedWarning(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLScopeRole(ruleId, role), e.message, k, kcount)
         Indent.Decrement()
       else:
         try:
@@ -14254,7 +14269,7 @@ def doProcessSiteACLs(users, entityType):
                                 retry_errors=[GDATA_INTERNAL_SERVER_ERROR],
                                 domain=domain, site=site)
           kcount = len(acls)
-          entityPerformActionNumItems(Entity.SITE, domainSite, kcount, Entity.ACL, j, jcount)
+          entityPerformActionNumItems(Entity.SITE, domainSite, kcount, Entity.SITE_ACL, j, jcount)
           if kcount == 0:
             continue
           Indent.Increment()
@@ -14262,7 +14277,7 @@ def doProcessSiteACLs(users, entityType):
           for acl in acls:
             k += 1
             fields = sitesManager.AclEntryToFields(acl)
-            printEntityItemValue(Entity.SITE, domainSite, Entity.ACL, formatACLRule(fields), k, kcount)
+            printEntityItemValue(Entity.SITE, domainSite, Entity.SITE_ACL, formatACLRule(fields), k, kcount)
           Indent.Decrement()
         except GData_notFound:
           entityUnknownWarning(Entity.SITE, domainSite, j, jcount)
@@ -16636,36 +16651,25 @@ def doPrintPrinters():
     addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Printers', todrive)
 
-def normalizeScopeList(rawScopeList):
+def normalizePrinterScopeList(rawScopeList):
   scopeList = []
   for scope in rawScopeList:
     scope = scope.lower()
     if scope != u'public':
-      if scope.startswith(u'domain:'):
+      if scope == u'domain':
+        scope = u'/hd/domain/{0}'.format(GC_Values[GC_DOMAIN])
+      elif scope.startswith(u'domain:'):
         scope = u'/hd/domain/{0}'.format(scope[7:])
       else:
         scope = normalizeEmailAddressOrUID(scope, noUid=True)
     scopeList.append(scope)
   return scopeList
 
-def getPrinterScopeList(getEntityListArg):
-  if not getEntityListArg:
-    scope = getString(OB_EMAIL_ADDRESS).lower()
-    if scope != u'public':
-      if scope.find(u'@') == -1:
-        if scope.startswith(u'domain:'):
-          scope = u'/hd/domain/{0}'.format(scope[7:])
-        else:
-          scope = u'/hd/domain/{0}'.format(scope)
-      else:
-        scope = normalizeEmailAddressOrUID(scope, noUid=True)
-    scopeList = [scope,]
-    printerScopeLists = None
-  else:
-    _, scopeList = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, groupUserMembersOnly=False)
-    printerScopeLists = scopeList if isinstance(scopeList, dict) else None
-    if not printerScopeLists:
-      scopeList = normalizeScopeList(scopeList)
+def getPrinterACLScopeEntity():
+  _, scopeList = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, groupUserMembersOnly=False)
+  printerScopeLists = scopeList if isinstance(scopeList, dict) else None
+  if not printerScopeLists:
+    scopeList = normalizePrinterScopeList(scopeList)
   return scopeList, printerScopeLists
 
 def _batchAddACLsToPrinter(cp, printerId, i, count, scopeList, role):
@@ -16704,19 +16708,18 @@ def _batchAddACLsToPrinter(cp, printerId, i, count, scopeList, role):
 
 PRINTER_ROLE_MAP = {u'manager': Entity.ROLE_MANAGER, u'owner': Entity.ROLE_OWNER, u'user': Entity.ROLE_USER,}
 
-# gam printers <PrinterIDEntity> add user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
-# gam printer <PrinterID> add user|manager|owner <EmailAddress>|<DomainName>|public
-def doPrinterAddACL(printerIdList, getEntityListArg):
+# gam printer|printers <PrinterIDEntity> add user|manager|owner <PrinterACLScopeEntity>
+def doPrinterAddACL(printerIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   role = getChoice(PRINTER_ROLE_MAP, mapChoice=True)
-  scopeList, printerScopeLists = getPrinterScopeList(getEntityListArg)
+  scopeList, printerScopeLists = getPrinterACLScopeEntity()
   checkForExtraneousArguments()
   i = 0
   count = len(printerIdList)
   for printerId in printerIdList:
     i += 1
     if printerScopeLists:
-      scopeList = normalizeScopeList(printerScopeLists[printerId])
+      scopeList = normalizePrinterScopeList(printerScopeLists[printerId])
     _batchAddACLsToPrinter(cp, printerId, i, count, scopeList, role)
 
 def _batchDeleteACLsFromPrinter(cp, printerId, i, count, scopeList, role):
@@ -16744,18 +16747,17 @@ def _batchDeleteACLsFromPrinter(cp, printerId, i, count, scopeList, role):
       break
   Indent.Decrement()
 
-# gam printers <PrinterIDEntity> delete <UserTypeEntity>|domain:<DomainName>|public
-# gam printer <PrinterID> delete <EmailAddress>|<DomainName>|public
-def doPrinterDeleteACL(printerIdList, getEntityListArg):
+# gam printer|printers <PrinterIDEntity> delete <PrinterACLScopeEntity>
+def doPrinterDeleteACLs(printerIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
-  scopeList, printerScopeLists = getPrinterScopeList(getEntityListArg)
+  scopeList, printerScopeLists = getPrinterACLScopeEntity()
   checkForExtraneousArguments()
   i = 0
   count = len(printerIdList)
   for printerId in printerIdList:
     i += 1
     if printerScopeLists:
-      scopeList = normalizeScopeList(printerScopeLists[printerId])
+      scopeList = normalizePrinterScopeList(printerScopeLists[printerId])
     _batchDeleteACLsFromPrinter(cp, printerId, i, count, scopeList, Entity.SCOPE)
 
 def getPrinterScopeListsForRole(cp, printerId, i, count, role):
@@ -16777,27 +16779,25 @@ def getPrinterScopeListsForRole(cp, printerId, i, count, role):
     entityActionFailedWarning(Entity.PRINTER, printerId, PHRASE_DOES_NOT_EXIST, i, count)
     return None
 
-# gam printers <PrinterIDEntity> sync user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
-# gam printer <PrinterID> sync user|manager|owner <EmailAddress>|<DomainName>|public
-def doPrinterSyncACL(printerIdList, getEntityListArg):
+# gam printer|printers <PrinterIDEntity> sync user|manager|owner <PrinterACLScopeEntity>
+def doPrinterSyncACLs(printerIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   role = getChoice(PRINTER_ROLE_MAP, mapChoice=True)
-  scopeList, printerScopeLists = getPrinterScopeList(getEntityListArg)
+  scopeList, printerScopeLists = getPrinterACLScopeEntity()
   checkForExtraneousArguments()
   i = 0
   count = len(printerIdList)
   for printerId in printerIdList:
     i += 1
     if printerScopeLists:
-      scopeList = normalizeScopeList(printerScopeLists[printerId])
+      scopeList = normalizePrinterScopeList(printerScopeLists[printerId])
     currentScopeList = getPrinterScopeListsForRole(cp, printerId, i, count, role)
     if currentScopeList is not None:
       _batchAddACLsToPrinter(cp, printerId, i, count, list(set(scopeList) - set(currentScopeList)), role)
       _batchDeleteACLsFromPrinter(cp, printerId, i, count, list(set(currentScopeList) - set(scopeList)), role)
 
-# gam printers <PrinterIDEntity> wipe user|manager|owner
-# gam printer <PrinterID> wipe user|manager|owner
-def doPrinterWipeACL(printerIdList, getEntityListArg):
+# gam printer|printers <PrinterIDEntity> wipe user|manager|owner
+def doPrinterWipeACLs(printerIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   role = getChoice(PRINTER_ROLE_MAP, mapChoice=True)
   checkForExtraneousArguments()
@@ -16809,19 +16809,23 @@ def doPrinterWipeACL(printerIdList, getEntityListArg):
     if currentScopeList is not None:
       _batchDeleteACLsFromPrinter(cp, printerId, i, count, currentScopeList, role)
 
-# gam printers <PrinterIDEntity> showacl [csv] [todrive]
-# gam printer <PrinterID> showacl [csv] [todrive]
-def doPrinterShowACL(printerIdList, getEntityListArg):
+# gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
+def doPrinterPrintACLs(printerIdList):
+  doPrinterPrintShowACLs(printerIdList, True)
+
+# gam printer|printers <PrinterIDEntity> showacls
+def doPrinterShowACLs(printerIdList):
+  doPrinterPrintShowACLs(printerIdList, False)
+
+def doPrinterPrintShowACLs(printerIdList, csvFormat):
   cp = buildGAPIObject(CLOUDPRINT_API)
-  csvFormat = False
-  todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'id',])
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile([u'id',])
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'todrive':
+    if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'csv':
-      csvFormat = True
     else:
       unknownArgumentExit()
   i = 0
@@ -16837,7 +16841,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
       except KeyError:
         jcount = 0
       if not csvFormat:
-        entityPerformActionNumItems(Entity.PRINTER, printerId, jcount, Entity.ACL, i, count)
+        entityPerformActionNumItems(Entity.PRINTER, printerId, jcount, Entity.PRINTER_ACL, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
@@ -16859,8 +16863,7 @@ def doPrinterShowACL(printerIdList, getEntityListArg):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'PrinterACLs', todrive)
 
-# gam printjobs <PrintJobEntity> cancel
-# gam printjob <PrintJobID> cancel
+# gam printjob|printjobs <PrintJobEntity> cancel
 def doPrintJobCancel(jobIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   checkForExtraneousArguments()
@@ -16877,8 +16880,7 @@ def doPrintJobCancel(jobIdList):
     except GCP_unknownJobId:
       entityActionFailedWarning(Entity.PRINTJOB, jobId, PHRASE_DOES_NOT_EXIST, i, count)
 
-# gam printjobs <PrintJobEntity> delete
-# gam printjob <PrintJobID> delete
+# gam printjob|printjobs <PrintJobEntity> delete
 def doPrintJobDelete(jobIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   checkForExtraneousArguments()
@@ -16894,8 +16896,7 @@ def doPrintJobDelete(jobIdList):
     except GCP_unknownJobId:
       entityActionFailedWarning(Entity.PRINTJOB, jobId, PHRASE_DOES_NOT_EXIST, i, count)
 
-# gam printjobs <PrintJobEntity> resubmit <PrinterID>
-# gam printjob <PrintJobID> resubmit <PrinterID>
+# gam printjob|printjobs <PrintJobEntity> resubmit <PrinterID>
 def doPrintJobResubmit(jobIdList):
   cp = buildGAPIObject(CLOUDPRINT_API)
   printerId = getString(OB_PRINTER_ID)
@@ -17834,7 +17835,7 @@ def transferSecCals(users):
                                        minAccessRole=u'owner', showHidden=True, fields=u'nextPageToken,items(id)')
       jcount = len(source_calendars)
       Action.Set(Action.TRANSFER)
-      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.ACL, i, count)
+      entityPerformActionNumItems(Entity.USER, user, jcount, Entity.CALENDAR_ACL, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
@@ -17849,7 +17850,7 @@ def transferSecCals(users):
             result = callGAPI(source_cal.acl(), u'insert',
                               throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                               calendarId=calendarId, body=addBody, fields=u'id,role')
-            entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(result[u'id'], result[u'role']), j, jcount)
+            entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(result[u'id'], result[u'role']), j, jcount)
           except (GAPI_notFound, GAPI_invalid):
             entityUnknownWarning(Entity.CALENDAR, calendarId, j, jcount)
             continue
@@ -17860,7 +17861,7 @@ def transferSecCals(users):
               callGAPI(target_cal.acl(), u'delete',
                        throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
                        calendarId=calendarId, ruleId=ruleId)
-              entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.ACL, formatACLScopeRole(ruleId, None), j, jcount)
+              entityItemValueActionPerformed(Entity.CALENDAR, calendarId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, None), j, jcount)
             except (GAPI_notFound, GAPI_invalid):
               entityUnknownWarning(Entity.CALENDAR, calendarId, j, jcount)
     except GAPI_notACalendarUser as e:
@@ -24004,32 +24005,30 @@ def processCoursesCommands():
 # Printer command sub-commands
 PRINTER_SUBCOMMANDS = {
   u'add':	{CMD_ACTION: Action.ADD, CMD_FUNCTION: doPrinterAddACL},
-  u'delete':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterDeleteACL},
-  u'showacl':	{CMD_ACTION: Action.SHOW, CMD_FUNCTION: doPrinterShowACL},
-  u'sync':	{CMD_ACTION: Action.SYNC, CMD_FUNCTION: doPrinterSyncACL},
-  u'wipe':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterWipeACL},
+  u'delete':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterDeleteACLs},
+  u'printacls':	{CMD_ACTION: Action.SHOW, CMD_FUNCTION: doPrinterPrintACLs},
+  u'showacls':	{CMD_ACTION: Action.SHOW, CMD_FUNCTION: doPrinterShowACLs},
+  u'sync':	{CMD_ACTION: Action.SYNC, CMD_FUNCTION: doPrinterSyncACLs},
+  u'wipe':	{CMD_ACTION: Action.DELETE, CMD_FUNCTION: doPrinterWipeACLs},
   }
 
 # Printer sub-command aliases
 PRINTER_SUBCOMMAND_ALIASES = {
   u'del':	u'delete',
+  u'printacl':	u'printacls',
+  u'showacl':	u'showacls',
   u'remove':	u'delete',
   }
 
-def executePrinterCommands(printerIdList, getEntityListArg):
+def processPrintersCommands():
+  printerIdList = getEntityList(OB_PRINTER_ID_ENTITY)
   if printerIdList[0] == u'register':
     Action.Set(Action.REGISTER)
     doPrinterRegister()
     return
   CL_subCommand = getChoice(PRINTER_SUBCOMMANDS, choiceAliases=PRINTER_SUBCOMMAND_ALIASES)
   Action.Set(PRINTER_SUBCOMMANDS[CL_subCommand][CMD_ACTION])
-  PRINTER_SUBCOMMANDS[CL_subCommand][CMD_FUNCTION](printerIdList, getEntityListArg)
-
-def processPrinterCommands():
-  executePrinterCommands(getStringReturnInList(OB_PRINTER_ID), False)
-
-def processPrintersCommands():
-  executePrinterCommands(getEntityList(OB_PRINTER_ID_ENTITY), True)
+  PRINTER_SUBCOMMANDS[CL_subCommand][CMD_FUNCTION](printerIdList)
 
 # Printjob command sub-commands
 PRINTJOB_SUBCOMMANDS = {
@@ -24040,16 +24039,11 @@ PRINTJOB_SUBCOMMANDS = {
   u'submit':	{CMD_ACTION: Action.SUBMIT, CMD_FUNCTION: doPrintJobSubmit},
   }
 
-def executePrintjobCommands(jobPrinterIdList):
+def processPrintjobsCommands():
+  jobPrinterIdList = getEntityList(OB_PRINTER_ID_ENTITY)
   CL_subCommand = getChoice(PRINTJOB_SUBCOMMANDS)
   Action.Set(PRINTJOB_SUBCOMMANDS[CL_subCommand][CMD_ACTION])
   PRINTJOB_SUBCOMMANDS[CL_subCommand][CMD_FUNCTION](jobPrinterIdList)
-
-def processPrintjobCommands():
-  executePrintjobCommands(getStringReturnInList(OB_JOB_OR_PRINTER_ID))
-
-def processPrintjobsCommands():
-  executePrintjobCommands(getEntityList(OB_PRINTER_ID_ENTITY))
 
 # Commands
 COMMANDS_MAP = {
@@ -24059,15 +24053,15 @@ COMMANDS_MAP = {
   u'calendars':	processCalendarsCommands,
   u'course':	processCourseCommands,
   u'courses':	processCoursesCommands,
-  u'printer':	processPrinterCommands,
   u'printers':	processPrintersCommands,
-  u'printjob':	processPrintjobCommands,
   u'printjobs':	processPrintjobsCommands,
   }
 
 # Commands aliases
 COMMANDS_ALIASES = {
   u'oauth2':	u'oauth',
+  u'printer':	u'printers',
+  u'printjob':	u'printjobs',
   u'site':	u'sites',
   }
 

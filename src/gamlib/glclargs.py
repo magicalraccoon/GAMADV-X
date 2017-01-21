@@ -81,6 +81,10 @@ class GamCLArgs(object):
   def ResetLocation(self, offset):
     self.argvI = self.argvIsave+offset
 
+# Set argument location
+  def SetLocation(self, location):
+    self.argvI = location
+
 # Concatenate list members, any item containing spaces is enclosed in ''
   def QuotedArgumentList(self, items):
     qstr = u''

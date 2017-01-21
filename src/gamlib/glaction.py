@@ -24,6 +24,7 @@ class GamAction(object):
 
 # Keys into NAMES; arbitrary values but must be unique
   ADD = u'add '
+  ADD_OWNERSHIP = u'adow'
   ARCHIVE = u'arch'
   BACKUP = u'back'
   CANCEL = u'canc'
@@ -60,6 +61,7 @@ class GamAction(object):
   REPORT = u'repo'
   RESTORE = u'rest'
   RESUBMIT = u'resu'
+  RETAIN = u'reta'
   SAVE = u'save'
   SET = u'set '
   SHOW = u'show'
@@ -80,6 +82,7 @@ class GamAction(object):
   # These values can be translated into other languages
   _NAMES = {
     ADD: [u'Added', u'Add'],
+    ADD_OWNERSHIP: [u'Ownership Added', u'Add Ownership'],
     ARCHIVE: [u'Archived', u'Archive'],
     BACKUP: [u'Backed up', u'Backup'],
     CANCEL: [u'Cancelled', u'Cancel'],
@@ -115,6 +118,7 @@ class GamAction(object):
     REPORT: [u'Reported', u'Report'],
     RESTORE: [u'Restored', u'Restore'],
     RESUBMIT: [u'Resubmitted', u'Resubmit'],
+    RETAIN: [u'Retained', u'Retain'],
     SAVE: [u'Saved', u'Save'],
     SET: [u'Set', u'Set'],
     SHOW: [u'Shown', u'Show'],
@@ -131,8 +135,10 @@ class GamAction(object):
     WATCH: [u'Watched', u'Watch'],
     }
   #
-  MODIFIER_TO = u'to'
+  MODIFIER_FOR = u'for'
   MODIFIER_FROM = u'from'
+  MODIFIER_IN = u'in'
+  MODIFIER_TO = u'to'
   MODIFIER_WITH = u'with'
   MODIFIER_WITH_CONTENT_FROM = u'with content from'
   PREFIX_NOT = u'Not'
@@ -154,7 +160,10 @@ class GamAction(object):
     return u'{0} {1}'.format(self._NAMES[self.action][1], self.SUFFIX_FAILED)
 
   def NotPerformed(self):
-    return u'{0} {1}'.format(self.PREFIX_NOT, self._NAMES[self.action][0])
+    actionWords = self._NAMES[self.action][0].split(u' ')
+    if len(actionWords) != 2:
+      return u'{0} {1}'.format(self.PREFIX_NOT, self._NAMES[self.action][0])
+    return u'{0} {1} {2}'.format(actionWords[0], self.PREFIX_NOT, actionWords[1])
 
   def PerformedName(self, action):
     return self._NAMES[action][0]
