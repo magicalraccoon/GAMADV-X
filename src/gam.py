@@ -6497,6 +6497,8 @@ def doReport():
                                maxResults=maxResults)
           while feed:
             user_report = feed.popleft()
+            if u'entity' not in user_report:
+              continue
             row = {u'email': user_report[u'entity'][u'userEmail'], u'date': try_date}
             for item in user_report.get(u'parameters', {}):
               name = item[u'name']

@@ -16,6 +16,8 @@ Added fields <ResourceFieldNameList> to gam print resources
 
     gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
 
+Handle bad data from Google in gam report users.
+
 4.39.25
 
 Added buildpath argument to gam create org.
