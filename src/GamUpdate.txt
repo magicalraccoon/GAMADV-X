@@ -1,9 +1,309 @@
+4.40.00
+
+Added classroom_max_results to gam.cfg
+    classroom_max_results
+	When retrieving lists of Google Classroom items from API, how many should be retrieved in each chunk
+	Default: 0 (Google defined limit)
+
+Added convertcrnl argument to gam print orgs, it causes \n to be converted to \\n in description, otherwise \n is not changed in that field.
+gam print orgs|ous [todrive [<ToDriveAttributes>]] [toplevelonly] [from_parent <OrgUnitItem>] [allfields|<OrgUnitFieldName>*|(fields <OrgUnitFieldNameList>)] [convertcrnl]
+
+SKU Google-Apps-Unlimited renamed to Google-Apps-Enterprise.
+
+Added multiprocess subargument to redirect csv/stdout/stderr arguments to allow the multiple processes started by gam csv to write intelligently to a redirected CSV/stdout/stderr file.
+You can redirect stdout and stderr to null and stderr can be redirected to stdout.
+<Redirect> ::=
+	redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>] |
+	redirect stdout <FileName> [multiprocess] [append] |
+	redirect stdout null |
+	redirect stderr <FileName> [multiprocess] [append] |
+	redirect stderr stdout |
+	redirect stderr null
+Examples:
+    gam redirect stdout UserInfo.txt multiprocess csv Users.csv gam info user ~User
+The output from each of the gam info user ~User commands will be combined into the single file UserInfo.txt
+    gam redirect csv UserDelegates.csv multiprocess csv Users.csv gam user ~User print delegates
+The output from each of the gam user ~User print delegates commands will be combined into the single file UserDelegates.csv.
+
+Added show_multi_info to gam.cfg.
+    show_multi_info
+	Enable/disable showing multiprocess info in redirected stdout/stderr
+	Default: False
+Example:
+$ gam config show_multiprocess_info true redirect stdout ./Users.txt multiprocess csv Users.csv gam info user ~primaryEmail
+$ more Users.txt
+stdout:      0, Start: 2017-01-26T11:35:00.897773-08:00, Cmd: /Users/admin/gam config show_multiprocess_info true redirect stdout ./Users.txt multiprocess csv Users.csv gam info user ~primaryEmail
+stdout:      1, Start: 2017-01-26T11:35:00.902709-08:00, Cmd: gam info user testuser1
+User: testuser1@domain.com (1/1)
+  Settings:
+    First Name: Test
+    Last Name: User1
+    Full Name: Test User1
+...
+stdout:      1,   End: 2017-01-26T11:35:02.656837-08:00
+stdout:      2, Start: 2017-01-26T11:35:00.910729-08:00, Cmd: gam info user testuser2
+User: testuser2@domain.com@ (1/1)
+  Settings:
+    First Name: Test
+    Last Name: User2
+    Full Name: Test User2
+...
+stdout:      2,   End: 2017-01-26T11:35:02.849646-08:00
+stdout:      0,   End: 2017-01-26T11:35:02.907141-08:00
+
+The gam printer and gam printers commands have been combined; both forms can handle multiple printerIDs.
+    gam print|printers <PrinterIDEntity> add user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
+    gam print|printers <PrinterIDEntity> delete <UserTypeEntity>|domain:<DomainName>|public
+    gam print|printers <PrinterIDEntity> sync user|manager|owner <UserTypeEntity>|domain:<DomainName>|public
+
+Added new forms of commands to manage multiple users.
+    gam <UserTypeEntity> update users <UserAttrubutes> [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+    gam <UserTypeEntity> delete users
+    gam <UserEntity> undelete users [org|ou <OrgUnitPath>]
+    gam <UserTypeEntity> info users [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
+The existing forms are:
+    gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+    gam delete users <UserTypeEntity>
+    gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
+    gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
+
+Gam calendar processing has been rewritten to expand its capabilities.
+Previous versions could:
+Manage a users list of calendars
+Manage access to a users primary calendar
+Transfer ownership of all of a users calendars to another user
+Add and delete events in a users primary calendar
+Provide limited event selection: keyword matching only
+Replace attendees in a users primary calendar for all events within a datetime range
+
+This version can:
+Manage a users list of calendars
+Create, modify and remove calendars for a user
+Manage access to any calendar a user owns
+Transfer ownership of a selection of a users calendars to another user
+Add, update, delete and display events in any calendar for which a user has access
+Provide expanded event selection: keyword matching, date selection, field matching, attendee matching
+Replace attendees for selected events in any calendar for which a user has access
+
+Calendar command syntax has changed, here are the differences:
+ACL scopes require : between the scope type and scope value.
+Old: <CalendarACLScope> ::= [user] <EmailAddress>|group <EmailAddress>|domain [<DomainName>]|default
+New: <CalendarACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
+
+Old: gam calendar <CalendarItem> add <CalendarACLRole> <CalendarACLScope>
+Adv: gam user <CalendarItem> add calendaracls primary <CalendarACLRole> <CalendarACLScope>
+
+Old: gam calendar <CalendarItem> update <CalendarACLRole> <CalendarACLScope>
+Adv: gam user <CalendarItem> update calendaracls primary <CalendarACLRole> <CalendarACLScope>
+
+Old: gam calendar <CalendarItem> del|delete <CalendarACLRole> <CalendarACLScope>
+Adv: gam user <CalendarItem> delete calendaracls primary <CalendarACLRole>] <CalendarACLScope>
+
+Old: gam calendar <CalendarItem> showacl
+Adv: gam user <CalendarItem> show calendaracls primary
+
+Old: gam calendar <CalendarItem> addevent <EventAttributes>+
+Adv: gam user <CalendarItem> add event primary [id <String>] <EventAddAttributes>+
+
+Old: gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* <EventSelectProperty>* [doit] [notifyattendees]
+Adv: gam user <CalendarItem> delete events primary <EventEntity> [doit] [notifyattendees]
+
+Old: gam calendar <CalendarItem> wipe
+Adv: gam user <CalendarItem> wipe events primary
+
+Old: gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+Adv: gam <UserTypeEntity> update calattendees primary [<EventEntity>] [anyorganizer] [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [doit]
+
+<CalendarSelectProperties> ::=
+        (minaccessrole <CalendarACLRole>)|showdeleted|showhidden
+
+<CalendarAddEntity> ::= <EmailAddressList> | resource <ResourceID> | resources <ResourceIDList> | (calendars <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>)
+<CalendarEntity> ::= allcalendars | primary | EmailAddressList> | resource <ResourceID> | resources <ResourceIDList> | (calendars <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>) | <CalendarSelectProperties>+
+<CalendarPrintShowEntity> ::= allcalendars | primary | <CalendarSelectProperties>+
+
+<CalendarAttributes> ::=
+        (backgroundcolor <ColorHex>)|
+        (colorindex|colorid <CalendarColorIndex>)|
+        (foregroundcolor <ColorHex>)|
+        (hidden <Boolean>)|
+        (notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))|
+        (reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
+        (selected <Boolean>)|
+        (summary <String>)
+
+Manage a users list of calendars
+
+gam <UserTypeEntity> add calendars <CalendarAddEntity> <CalendarAttributes>*
+gam <UserTypeEntity> update calendars <CalendarEntity> <CalendarAttributes>+
+gam <UserTypeEntity> delete calendars <CalendarEntity>
+
+gam <UserTypeEntity> info calendars <CalendarEntity>
+gam <UserTypeEntity> show calendars <CalendarPrintShowEntity> [permissions]
+gam <UserTypeEntity> print calendars <CalendarPrintShowEntity> [todrive [<ToDriveAttributes>]] [permissions]
+
+gam <UserTypeEntity> show calsettings
+
+<CalendarSettings> ::==
+        (summary <String>)|(description <String>)|(location <String>)|(timezone <String>)
+
+Create, modify and remove calendars for a user
+
+gam <UserTypeEntity> create calendar <CalendarSettings>
+gam <UserTypeEntity> modify calendars <CalendarEntity> <CalendarSettings>
+gam <UserTypeEntity> remove calendars <CalendarEntity>
+
+<CalendarACLRole> ::=
+        editor|freebusy|freebusyreader|owner|reader|writer
+
+<CalendarACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
+<CalendarACLScopeList> ::== '<CalendarACLScope>(,<CalendarACLScope>)*'
+<CalendarACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+
+Manage access to any calendar a user owns
+
+gam <UserTypeEntity> add calendaracls <CalendarEntity> <CalendarACLRole> <CalendarACLScopeEntity>
+gam <UserTypeEntity> update calendaracls <CalendarEntity> <CalendarACLRole> <CalendarACLScopeEntity>
+gam <UserTypeEntity> delete calendaracls <CalendarEntity> <CalendarACLRole>] <CalendarACLScopeEntity>
+
+gam <UserTypeEntity> info calendaracls <CalendarEntity> <CalendarACLScopeEntity>
+gam <UserTypeEntity> show calendaracls <CalendarEntity>
+gam <UserTypeEntity> print calendaracls <CalendarEntity> [todrive [<ToDriveAttributes>]]
+
+Transfer ownership of a selection of a users calendars to another user
+
+gam <UserTypeEntity> transfer calendars <UserItem> <CalendarEntity> [keepuser] [retainrole <CalendarACLRole>]
+
+<EventSelectProperties:> ::=
+        (endtime|timemax <Time>)|
+        (query <QueryCalendar>)|
+        (privateextendedproperty <String>)|
+        (sharedextendedproperty <Syting>)|
+        showdeletedevents|
+        showhiddeninvitations|
+        singleevents|
+        (starttime|timemin <Time>)|
+        (updatedmin <Time>)
+
+<EventMatchProperties:> ::=
+        (matchfield attendees <EmailAddressList>)|
+        (matchfield creatoremail <RegularExpression>)|
+        (matchfield creatorname <RegularExpression>)|
+        (matchfield description <RegularExpression>)|
+        (matchfield location <RegularExpression>)|
+        (matchfield organizeremail <RegularExpression>)|
+        (matchfield organizername <RegularExpression>)|
+        (matchfield summary <RegularExpression>)
+
+<EventEntity> ::=
+        (events <EventIdList> | <FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector> | <CSVDataSelector>)|
+        (<EventSelectProperties>+ <EventMatchProperties>*)
+
+<EventAddAttributes> ::=
+        (anyonecanaddself <Boolean>)|
+        (attendee <EmailAddress>)|
+        available|
+        (colorindex|colorid <EventColorIndex>))|
+        (description <String>)|
+        (end (allday <Date>)|<Time>)|
+        (guestscaninviteothers <Boolean>)|
+        guestscantinviteothers|
+        (guestscanseeotherguests <Boolean>)|
+        guestscantseeothers|
+        (location <String>)|
+        (noreminders|(reminder email|popup|sms <Number>))|
+        notifyattendees|
+        (optionalattendee <EmailAddress>)|
+        (privateproperty <PropertyKey> <PropertyValue>)|
+        (recurrence <RRULE, EXRULE, RDATE and EXDATE line>)|
+        (reminder <Number> email|popup|sms))|
+        (sendnotifications <Boolean>)|
+        (sharedproperty <PropertyKey> <PropertyValue>)|
+        (source <String> <URL>)|
+        (start (allday <Date>)|<Time>)|
+        (status confirmed|tentative|cancelled)|
+        (summary <String>)|
+        tentative
+        (timezone <Timezone>)|
+        (transparency opaque|transparent)|
+        (visibility default|public|prvate)
+
+Note!!!
+The following attributes are equivalent:
+        available = transparency transparent
+        guestscantinviteothers = guestscaninviteothers False
+        guestscantseeothers = guestscanseeotherguests False
+        tentative = status tentative
+
+<EventUpdateAttributes> ::=
+        <EventAddAttributes>|
+        (clearprivateproperty <PropertyKey>)|
+        (clearsharedproperty <PropertyKey>)
+
+Add update and delete events in any calendar for which a user has access
+
+gam <UserTypeEntity> add event <CalendarEntity> [id <String>] <EventAddAttributes>+
+gam <UserTypeEntity> update events <CalendarEntity> <EventEntity> <EventUpdateAttributes>+
+gam <UserTypeEntity> delete events <CalendarEntity> <EventEntity> [doit] [notifyattendees]
+gam <UserTypeEntity> wipe events <CalendarEntity>
+gam <UserTypeEntity> move events <CalendarItem> <CalendarEntity> <EventEntity> [notifyattendees]
+gam <UserTypeEntity> update calattendees <CalendarEntity> <EventEntity> [anyorganizer][csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [doit]
+
+<EventDisplayProperties> ::=
+        (alwaysincludeemail)|
+        (icaluid <String>)|
+        (maxattendees <Integer>)|
+        (orderby starttime|updated)|
+        (timezone <TimeZone>)
+
+gam <UserTypeEntity> info events <CalendarEntity> <EventEntity>
+gam <UserTypeEntity> show events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) <EventDisplayProperties>*
+gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
+
+gam resource calendar processing has been rewritten.
+
+# Resource Calendars
+
+<ResourceID> ::= <String>
+<ResourceIDList> ::= '<ResourceID>(,<ResourceID>)*'
+<ResourceEntity> ::= <ResourceIDList> | <FileSelector> | <CSVkmdSelector>
+
+<ResourceFieldName> ::=
+	acls|
+	description|
+	email|
+	id|
+	name|
+	type
+<ResourceFieldNameList> ::= '<ResourceFieldName>(,<ResourceFieldName>)*'
+
+gam create resource <ResourceID> <Name> [description <String>] [type <String>]
+gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
+gam delete resource <ResourceID>
+gam info resource <ResourceID>
+
+gam update resources <ResourceEntity> [name <Name>] [description <String>] [type <String>]
+gam delete resources <ResourceEntity>
+gam info resources <ResourceEntity>
+
+gam show resources [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
+gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
+
+gam resource <ResourceID> add calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resource <ResourceID> update calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resource <ResourceID> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
+gam resource <ResourceID> info calendaracls <CalendarACLScopeEntity>
+
+gam resources <ResourceEntity> add calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resources <ResourceEntity> update calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resources <ResourceEntity> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
+gam resources <ResourceEntity> info calendaracls <CalendarACLScopeEntity>
+
 4.39.26
 
 The csv argument has been dropped from gam printer <PrinterIDEntity> showacls. A new command has been added to
 output printer ACLs to a CSV file.
-    gam printer|printers <PrinterIDEntity> showacls
-    gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
+    gam printers <PrinterIDEntity> showacls
+    gam printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
 
 Added fields <ResourceFieldNameList> to gam print resources
     <ResourceFieldName> ::=
@@ -129,7 +429,7 @@ Added fields <CourseFieldNameList> argument to gam print courses to allow select
 	updatetime
 <CourseFieldNameList> ::= '<CourseFieldName>(,<CourseFieldName>)*'
 
-gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
+    gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers] [fields <CourseFieldNameList>]
 
 4.39.11
 
@@ -173,7 +473,7 @@ Fix error message in gam oauth create regarding no browser to reference no_brows
 
 4.39.03
 
-Fix error where gam update checking was performed on every call.
+Fix problem where gam update checking was performed on every call.
 
 4.39.02
 
@@ -186,16 +486,16 @@ Use patch API rather than update API for gam update customer.
 4.39.00
 
 For calendar/calendars add/update/delete acl, the scope can be specified in a new form to make it consistent with other commands.
-    <ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
-    gam calendars <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
-    gam calendars <CalendarEntity> update acl <CalendarACLRole> <ACLScope>
-    gam calendars <CalendarEntity> del|delete acl [<CalendarACLRole>] <ACLScope>
+    <ACLScope> ::= <EmailAddress>|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+    gam calendar <CalendarEntity> add acl <CalendarACLRole> <ACLScope>
+    gam calendar <CalendarEntity> update acl <CalendarACLRole> <ACLScope>
+    gam calendar <CalendarEntity> del|delete acl [<CalendarACLRole>] <ACLScope>
 
 Updated calendars update/delete/move/info event to allow queries. You specify event queries or event IDs.
-    gam calendars <CalendarEntity> update event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> <EventAttributes>+
-    gam calendars <CalendarEntity> delete event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> [doit] [notifyattendees]
-    gam calendars <CalendarEntity> move event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> to <CalendarItem> [notifyattendees]
-    gam calendars <CalendarEntity> info event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity>
+    gam calendar <CalendarEntity> update event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> <EventAttributes>+
+    gam calendar <CalendarEntity> delete event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> [doit] [notifyattendees]
+    gam calendar <CalendarEntity> move event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity> to <CalendarItem> [notifyattendees]
+    gam calendar <CalendarEntity> info event (q|query|eventquery <QueryCalendar>)+|<EventIDEntity>
 
 Added primary, role <CalendarACLRole>, showdeleted, showhidden and permissions to gam print/show calendars.
     <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
@@ -212,7 +512,7 @@ Renamed command to batch delete drivefileacls.
     Old: gam <UserTypeEntity> wipe drivefileacls <DriveFileEntity> <PermissionIDEntity>
     New: gam <UserTypeEntity> delete permissions <DriveFileEntity> <PermissionIDEntity>
 
-Eliminated command gam calendars <CalendarEntity> wipe acls
+Eliminated command gam calendar <CalendarEntity> wipe acls
 
 4.38.05
 
@@ -574,9 +874,9 @@ Example, delete all events with "Bob" and "Carol" or "Ted and Alice" in them.
     gam calendar testcal delete event query "Bob Carol" query "Ted Alice" doit
 The doit argument is required to actually perform the deletions.
 
-Added notifyattendees argument to gam calendars delete/move event.
-    gam calendars <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
-    gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
+Added notifyattendees argument to gam calendar delete/move event.
+    gam calendar <CalendarEntity> delete event <EventIDEntity> [notifyattendees]
+    gam calendar <CalendarEntity> move event <EventIDEntity> to <CalendarItem> [notifyattendees]
 
 Added support for newline characters in the unstructured field of a user's address.
 $ gam update user testuser address type home unstructured "123 Main Street\nAnytown, CA 12345\nUSA" primary
@@ -1132,11 +1432,11 @@ Added userfields to gam print group-members to allow output of additional user f
 
 4.20.08
 
-Expand gam calendars show events and add gam calendars print events.
-    gam calendars <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+Expand gam calendar show events and add gam calendar print events.
+    gam calendar <CalendarEntity> show events [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
 	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
-    gam calendars <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
+    gam calendar <CalendarEntity> print events [todrive] [alwaysincludeemail] [showdeleted] [showhiddeninvitations] [singleevents]
 	[icaluid <String>] (privateextendedproperty <String>)* (sharedextendedproperty <String>)* [q|query <String>] [maxattendees <Number>]
 	[starttime|timemin <Time>] [endtime|timemax <Time>] [updatedmin <Time>] [orderby starttime|updated]
 
@@ -1905,23 +2205,23 @@ Most already were but the following commands wrote to stdout:
     gam <UserTypeEntity> get drivefile
 
 Add additional commands to manage calendar events.
-    gam calendars <CalendarEntity> add event <EventAttributes>
-    gam calendars <CalendarEntity> update event <EventIDEntity> <EventAttributes>
-    gam calendars <CalendarEntity> delete event <EventIDEntity>
-    gam calendars <CalendarEntity> move event <EventIDEntity> to <CalendarItem>
-    gam calendars <CalendarEntity> info event <EventIDEntity>
-    gam calendars <CalendarEntity> show events
-    gam calendars <CalendarEntity> wipe events
+    gam calendar <CalendarEntity> add event <EventAttributes>
+    gam calendar <CalendarEntity> update event <EventIDEntity> <EventAttributes>
+    gam calendar <CalendarEntity> delete event <EventIDEntity>
+    gam calendar <CalendarEntity> move event <EventIDEntity> to <CalendarItem>
+    gam calendar <CalendarEntity> info event <EventIDEntity>
+    gam calendar <CalendarEntity> show events
+    gam calendar <CalendarEntity> wipe events
 
 Add additional command to manage calendar ACLs.
-    gam calendars <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-    gam calendars <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-    gam calendars <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-    gam calendars <CalendarEntity> add acls <CalendarACLRole> <CalendarACLEntity>
-    gam calendars <CalendarEntity> update acls <CalendarACLRole> <CalendarACLEntity>
-    gam calendars <CalendarEntity> del|delete acls [<CalendarACLRole>] <CalendarACLEntity>
-    gam calendars <CalendarEntity> info acl|acls <CalendarACLEntity>
-    gam calendars <CalendarEntity> show acls
+    gam calendar <CalendarEntity> add acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendar <CalendarEntity> update acl <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendar <CalendarEntity> del|delete acl ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+    gam calendar <CalendarEntity> add acls <CalendarACLRole> <CalendarACLEntity>
+    gam calendar <CalendarEntity> update acls <CalendarACLRole> <CalendarACLEntity>
+    gam calendar <CalendarEntity> del|delete acls [<CalendarACLRole>] <CalendarACLEntity>
+    gam calendar <CalendarEntity> info acl|acls <CalendarACLEntity>
+    gam calendar <CalendarEntity> show acls
 
 Reorganize gam so that it is importable on Mac OS/Linux.
 This isn't elegant but it's a start; you can say:
