@@ -1,3 +1,9 @@
+4.40.01
+
+Housecleaning.
+Improve handling member of type CUSTOMER in groups.
+Handle errors when updating a users photo.
+
 4.40.00
 
 Added classroom_max_results to gam.cfg

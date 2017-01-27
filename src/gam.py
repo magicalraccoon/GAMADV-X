@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.00'
+__version__ = u'4.40.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1740,7 +1740,9 @@ def validateEmailAddressOrUID(emailAddressOrUID):
 # foo@ -> foo@domain
 # foo@bar.com -> foo@bar.com
 # @domain -> domain
-def normalizeEmailAddressOrUID(emailAddressOrUID, noUid=False):
+def normalizeEmailAddressOrUID(emailAddressOrUID, noUid=False, checkForCustomerId=False):
+  if checkForCustomerId and (emailAddressOrUID == GC_Values[GC_CUSTOMER_ID]):
+    return emailAddressOrUID
   if not noUid:
     cg = UID_PATTERN.match(emailAddressOrUID)
     if cg:
@@ -2781,7 +2783,7 @@ def closeFile(f):
     return False
 
 # Read a file
-def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, encoding=None):
+def readFile(filename, mode=u'rU', continueOnError=False, displayError=True, encoding=None):
   try:
     if filename != u'-':
       if not encoding:
@@ -2920,7 +2922,7 @@ def openCSVFileReader(filename):
     fieldnames = shlexSplitList(getString(OB_FIELD_NAME_LIST))
   else:
     fieldnames = None
-  f = openFile(filename)
+  f = openFile(filename, mode=u'rb')
   csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter))
   return (f, csvFile)
 
@@ -2993,7 +2995,7 @@ def SetGlobalVariables():
     srcFile = os.path.join(oldGamPath, srcFile)
     if not os.path.isfile(srcFile):
       return
-    data = readFile(srcFile, mode=u'rU', continueOnError=True, displayError=False)
+    data = readFile(srcFile, continueOnError=True, displayError=False)
     if (data is not None) and writeFile(dstFile, data, continueOnError=True):
       printKeyValueList([Action.PerformedName(Action.COPY), srcFile, PHRASE_TO, dstFile])
 
@@ -3080,7 +3082,7 @@ def SetGlobalVariables():
 
   def _readGamCfgFile(config, fileName, action=None):
     try:
-      with open(fileName, u'rb') as f:
+      with open(fileName, u'rU') as f:
         config.readfp(f)
       if action:
         printKeyValueList([Entity.Singular(Entity.CONFIG_FILE), fileName, action])
@@ -6031,7 +6033,7 @@ PROFILE_SCOPE = u'profile'
 
 # gam oauth|oauth2 create|request [<EmailAddress>]
 def doOAuthRequest():
-  cs_data = readFile(GC_Values[GC_CLIENT_SECRETS_JSON], mode=u'rb', continueOnError=True, displayError=True)
+  cs_data = readFile(GC_Values[GC_CLIENT_SECRETS_JSON], continueOnError=True, displayError=True)
   if not cs_data:
     invalidClientSecretsJsonExit()
   try:
@@ -7506,7 +7508,7 @@ def doUpdateInstance():
 # gam update instance logo <FileName>
       logoFile = getString(OB_FILE_NAME)
       checkForExtraneousArguments()
-      logoImage = readFile(logoFile)
+      logoImage = readFile(logoFile, mode=u'rb')
       callGData(adminSettingsObject, u'UpdateDomainLogo',
                 throw_errors=[GDATA_INVALID_DOMAIN, GDATA_INVALID_VALUE],
                 logoImage=logoImage)
@@ -7629,7 +7631,7 @@ def doCreateOrg():
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'description':
-      body[u'description'] = getString(OB_STRING).replace(u'\\n', u'\n')
+      body[u'description'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     elif myarg == u'parent':
       parent = getOrgUnitItem()
     elif myarg == u'noinherit':
@@ -7808,7 +7810,7 @@ def updateOrgs(entityList):
       if myarg == u'name':
         body[u'name'] = getString(OB_STRING)
       elif myarg == u'description':
-        body[u'description'] = getString(OB_STRING).replace(u'\\n', u'\n')
+        body[u'description'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
       elif myarg == u'parent':
         parent = getOrgUnitItem()
         if parent.startswith(u'id:'):
@@ -11268,7 +11270,7 @@ def doCreateGroup():
     if myarg == u'name':
       body[u'name'] = getString(OB_STRING)
     elif myarg == u'description':
-      body[u'description'] = getString(OB_STRING).replace(u'\\n', u'\n')
+      body[u'description'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     else:
       getGroupAttrValue(myarg, gs_body)
   body.setdefault(u'name', body[u'email'])
@@ -11339,7 +11341,7 @@ def doUpdateGroups():
     for member in addMembers:
       j += 1
       svcparms = svcargs.copy()
-      member = normalizeEmailAddressOrUID(member)
+      member = normalizeEmailAddressOrUID(member, checkForCustomerId=True)
       if member.find(u'@') != -1:
         svcparms[u'body'][u'email'] = member
         svcparms[u'body'].pop(u'id', None)
@@ -11388,7 +11390,7 @@ def doUpdateGroups():
     for member in removeUpdateMembers:
       j += 1
       svcparms = svcargs.copy()
-      svcparms[u'memberKey'] = normalizeEmailAddressOrUID(member)
+      svcparms[u'memberKey'] = normalizeEmailAddressOrUID(member, checkForCustomerId=True)
       dbatch.add(method(**svcparms), request_id=batchRequestID(group, i, count, j, jcount, svcparms[u'memberKey'], role))
       bcount += 1
       if bcount >= GC_Values[GC_BATCH_SIZE]:
@@ -12460,7 +12462,7 @@ def doCreateResourceCalendar():
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'description':
-      body[u'resourceDescription'] = getString(OB_STRING).replace(u'\\n', u'\n')
+      body[u'resourceDescription'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     elif myarg == u'type':
       body[u'resourceType'] = getString(OB_STRING)
     else:
@@ -12493,7 +12495,7 @@ def updateResourceCalendars(entityList):
     if myarg == u'name':
       body[u'resourceName'] = getString(OB_STRING)
     elif myarg == u'description':
-      body[u'resourceDescription'] = getString(OB_STRING).replace(u'\\n', u'\n')
+      body[u'resourceDescription'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     elif myarg == u'type':
       body[u'resourceType'] = getString(OB_STRING)
     else:
@@ -15255,13 +15257,13 @@ def getCourseAttribute(myarg, body):
   if myarg == u'name':
     body[u'name'] = getString(OB_STRING)
   elif myarg == u'section':
-    body[u'section'] = getString(OB_STRING)
+    body[u'section'] = getString(OB_STRING, minLen=0)
   elif myarg == u'heading':
-    body[u'descriptionHeading'] = getString(OB_STRING)
+    body[u'descriptionHeading'] = getString(OB_STRING, minLen=0)
   elif myarg == u'description':
-    body[u'description'] = getString(OB_STRING).replace(u'\\n', u'\n')
+    body[u'description'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
   elif myarg == u'room':
-    body[u'room'] = getString(OB_STRING)
+    body[u'room'] = getString(OB_STRING, minLen=0)
   elif myarg in [u'state', u'status']:
     body[u'courseState'] = getChoice(COURSE_STATE_OPTIONS_MAP, mapChoice=True)
   else:
@@ -16503,10 +16505,9 @@ def doPrintJobFetch(printerIdList):
       elif parameters[u'older_or_newer'] < 0:
         if createTime < parameters[u'age']:
           continue
-      fileUrl = job[u'fileUrl']
       jobId = job[u'id']
       fileName = os.path.join(targetFolder, u'{0}-{1}'.format(cleanFilename(job[u'title']), jobId))
-      _, content = cp._http.request(fileUrl, method='GET')
+      _, content = cp._http.request(job[u'fileUrl'], method='GET')
       if writeFile(fileName, content, continueOnError=True):
 #        ticket = callGCP(cp.jobs(), u'getticket',
 #                         jobid=jobId, use_cjt=True)
@@ -16604,7 +16605,7 @@ def doPrintJobSubmit(printerIdList):
     mimetype = mimetypes.guess_type(filepath)[0]
     if mimetype is None:
       mimetype = u'application/octet-stream'
-    filecontent = readFile(filepath)
+    filecontent = readFile(filepath, mode=u'rb')
     form_files[u'content'] = {u'filename': content, u'content': filecontent, u'mimetype': mimetype}
 #  result = callGCP(cp.printers(), u'submit',
 #                   body=body)
@@ -16790,7 +16791,7 @@ def _getCalendarSelectProperty(myarg, kwargs):
 def initCalendarEntity():
   return {u'list': [], u'kwargs': {}, u'dict': None, u'all': False, u'primary': False, u'resourceIds': []}
 
-def getCalendarEntity(defaultIsPrimary=True, noSelectionKwargs=None):
+def getCalendarEntity(default=u'primary', noSelectionKwargs=None):
 
   def _noSelectionMade():
     return not calendarEntity[u'list'] and not calendarEntity[u'kwargs'] and calendarEntity[u'dict'] is None and not calendarEntity[u'all'] and not calendarEntity[u'primary'] and not calendarEntity[u'resourceIds']
@@ -16825,10 +16826,7 @@ def getCalendarEntity(defaultIsPrimary=True, noSelectionKwargs=None):
       break
   if _noSelectionMade():
     if not noSelectionKwargs:
-      if defaultIsPrimary:
-        calendarEntity[u'primary'] = True
-      else:
-        calendarEntity[u'all'] = True
+      calendarEntity[default] = True
     else:
       calendarEntity[u'all'] = True
       calendarEntity[u'kwargs'].update(noSelectionKwargs)
@@ -17337,7 +17335,7 @@ def printShowCalendarACLs(users, csvFormat):
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile(None)
-  calendarEntity = getCalendarEntity(defaultIsPrimary=False)
+  calendarEntity = getCalendarEntity(default=u'all')
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
@@ -18373,7 +18371,7 @@ def getDriveFileAttribute(body, parameters, myarg, updateCmd, kwargs):
     body[DRIVE_FILE_MODIFIED_DATE_TIME] = getFullTime()
     kwargs[u'setModifiedDate'] = True
   elif myarg == u'description':
-    body[u'description'] = getString(OB_STRING)
+    body[u'description'] = getString(OB_STRING, minLen=0)
   elif myarg == u'mimetype':
     body[u'mimeType'] = getChoice(MIMETYPE_CHOICES_MAP, mapChoice=True)
   elif myarg == u'parentid':
@@ -20939,22 +20937,29 @@ def updatePhoto(users):
     filename = filename.replace(u'#username#', userName)
     if p.match(filename):
       try:
-        _, f = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]).request(filename, u'GET')
-        image_data = str(f)
+        status, image_data = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]).request(filename, u'GET')
+        if status[u'status'] != u'200':
+          entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, PHRASE_NOT_ALLOWED, i, count)
+          continue
+        if status[u'content-location'] != filename:
+          entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, PHRASE_NOT_FOUND, i, count)
+          continue
       except (httplib2.HttpLib2Error, httplib2.ServerNotFoundError, httplib2.CertificateValidationUnsupported) as e:
         entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, e, i, count)
         continue
     else:
-      image_data = readFile(filename, continueOnError=True, displayError=True)
+      image_data = readFile(filename, mode=u'rb', continueOnError=True, displayError=True)
       if image_data is None:
         entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, e.strerror, i, count)
         continue
     body = {u'photoData': base64.urlsafe_b64encode(image_data)}
     try:
       callGAPI(cd.users().photos(), u'update',
-               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN],
+               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID_INPUT],
                userKey=user, body=body, fields=u'')
       entityItemValueActionPerformed(Entity.USER, user, Entity.PHOTO, filename, i, count)
+    except GAPI_invalidInput as e:
+      entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden):
       entityUnknownWarning(Entity.USER, user, i, count)
 
