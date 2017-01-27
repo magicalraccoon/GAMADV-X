@@ -3458,7 +3458,7 @@ def getGDataOAuthToken(gdataObj, credentials=None):
   try:
     credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
   except httplib2.ServerNotFoundError as e:
-    systemErrorExit(NETWORK_ERROR_RC, e)
+    systemErrorExit(NETWORK_ERROR_RC, e.message)
   except oauth2client.client.AccessTokenRefreshError as e:
     return handleOAuthTokenError(e, False)
   gdataObj.additional_headers[u'Authorization'] = u'Bearer {0}'.format(credentials.access_token)
@@ -4229,7 +4229,7 @@ def getAPIversionHttpService(api):
         http.cache = None
       return (api_version, http, service, cred_family)
     except httplib2.ServerNotFoundError as e:
-      systemErrorExit(NETWORK_ERROR_RC, e)
+      systemErrorExit(NETWORK_ERROR_RC, e.message)
     except googleapiclient.errors.UnknownApiNameOrVersion:
       pass
   disc_file, discovery = readDiscoveryFile(api_version)
@@ -4251,7 +4251,7 @@ def buildGAPIObject(api):
   try:
     service._http = credentials.authorize(http)
   except httplib2.ServerNotFoundError as e:
-    systemErrorExit(NETWORK_ERROR_RC, e)
+    systemErrorExit(NETWORK_ERROR_RC, e.message)
   except oauth2client.client.AccessTokenRefreshError as e:
     return handleOAuthTokenError(e, False)
   if not GC_Values[GC_DOMAIN]:
@@ -4271,7 +4271,7 @@ def buildGAPIServiceObject(api, user):
   try:
     service._http = credentials.authorize(http)
   except httplib2.ServerNotFoundError as e:
-    systemErrorExit(NETWORK_ERROR_RC, e)
+    systemErrorExit(NETWORK_ERROR_RC, e.message)
   except oauth2client.client.AccessTokenRefreshError as e:
     return (userEmail, handleOAuthTokenError(e, True))
   return (userEmail, service)
@@ -4309,7 +4309,7 @@ def getGDataUserCredentials(api, user, i, count):
     credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
     return (userEmail, credentials)
   except httplib2.ServerNotFoundError as e:
-    systemErrorExit(NETWORK_ERROR_RC, e)
+    systemErrorExit(NETWORK_ERROR_RC, e.message)
   except oauth2client.client.AccessTokenRefreshError as e:
     handleOAuthTokenError(e, True)
     entityUnknownWarning(Entity.USER, userEmail, i, count)
@@ -6275,7 +6275,7 @@ def checkServiceAccount(users):
         credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
         result = u'PASS'
       except httplib2.ServerNotFoundError as e:
-        systemErrorExit(NETWORK_ERROR_RC, e)
+        systemErrorExit(NETWORK_ERROR_RC, e.message)
       except oauth2client.client.HttpAccessTokenRefreshError:
         result = u'FAIL'
         all_scopes_pass = False
@@ -20945,7 +20945,7 @@ def updatePhoto(users):
           entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, PHRASE_NOT_FOUND, i, count)
           continue
       except (httplib2.HttpLib2Error, httplib2.ServerNotFoundError, httplib2.CertificateValidationUnsupported) as e:
-        entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, e, i, count)
+        entityItemValueActionFailedWarning(Entity.USER, user, Entity.PHOTO, filename, e.message, i, count)
         continue
     else:
       image_data = readFile(filename, mode=u'rb', continueOnError=True, displayError=True)
