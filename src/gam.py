@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.02'
+__version__ = u'4.40.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2838,6 +2838,18 @@ def writeFileReturnError(filename, data, mode=u'wb'):
     return (True, None)
   except IOError as e:
     return (False, e)
+
+# Delete a file
+def deleteFile(filename, continueOnError=False, displayError=True):
+  if os.path.isfile(filename):
+    try:
+      os.remove(filename)
+    except OSError as e:
+      if continueOnError:
+        if displayError:
+          stderrWarningMsg(e)
+        return
+      systemErrorExit(FILE_ERROR_RC, e)
 #
 class UTF8Recoder(object):
   """
@@ -3193,6 +3205,9 @@ def SetGlobalVariables():
       if not multi:
         GM_Globals[stdtype][GM_REDIRECT_FD] = openFile(filename, mode)
       else:
+        if mode == u'w':
+          deleteFile(filename)
+          mode = u'a'
         GM_Globals[stdtype][GM_REDIRECT_FD] = None
     GM_Globals[stdtype][GM_REDIRECT_NAME] = filename
     GM_Globals[stdtype][GM_REDIRECT_MODE] = mode
@@ -5537,7 +5552,7 @@ def terminateCSVFileQueueHandler(mpQueue, mpQueueHandler):
 def StdQueueHandler(stdData, tzinfo, showMultiInfo, mpQueue):
 
   PROCESS_START_MSG = u'{0}: {1:6d}, Start: {2}, Cmd: {3}\n'
-  PROCESS_END_MSG = u'{0}: {1:6d},   End: {2}\n'
+  PROCESS_END_MSG = u'{0}: {1:6d},   End: {2}, RC: {3}\n'
   def _quotedArgumentList(items):
     qstr = u''
     for item in items:
@@ -5551,11 +5566,12 @@ def StdQueueHandler(stdData, tzinfo, showMultiInfo, mpQueue):
   def _writePidData(pid, data):
     if pid != 0 and showMultiInfo:
       fd.write(pidData[pid])
-    if data:
-      fd.write(data.getvalue())
-      data.close()
+    if data[0]:
+      fd.write(data[0].getvalue())
+      data[0].close()
     if showMultiInfo:
-      fd.write(PROCESS_END_MSG.format(stdData[GM_REDIRECT_QUEUE], pid, datetime.datetime.now(tzinfo).isoformat()))
+      fd.write(PROCESS_END_MSG.format(stdData[GM_REDIRECT_QUEUE], pid, datetime.datetime.now(tzinfo).isoformat(), data[1]))
+    fd.flush()
     if pid != 0:
       del pidData[pid]
 
@@ -5607,11 +5623,11 @@ def ProcessGAMCommandQueue(pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, ar
       mpQueueStderr.put((pid, REDIRECT_QUEUE_START, args))
     else:
       GM_Globals[GM_STDERR][GM_REDIRECT_FD] = GM_Globals[GM_STDOUT][GM_REDIRECT_FD]
-  ProcessGAMCommand(args)
+  sysRC = ProcessGAMCommand(args)
   if mpQueueStdout:
-    mpQueueStdout.put((pid, REDIRECT_QUEUE_END, GM_Globals[GM_STDOUT][GM_REDIRECT_FD]))
+    mpQueueStdout.put((pid, REDIRECT_QUEUE_END, [GM_Globals[GM_STDOUT][GM_REDIRECT_FD], sysRC]))
   if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
-    mpQueueStderr.put((pid, REDIRECT_QUEUE_END, GM_Globals[GM_STDERR][GM_REDIRECT_FD]))
+    mpQueueStderr.put((pid, REDIRECT_QUEUE_END, [GM_Globals[GM_STDERR][GM_REDIRECT_FD], sysRC]))
 
 def MultiprocessGAMCommands(items):
   import multiprocessing
@@ -5659,10 +5675,10 @@ def MultiprocessGAMCommands(items):
   if mpQueueCSVFile:
     terminateCSVFileQueueHandler(mpQueueCSVFile, mpQueueHandlerCSVFile)
   if mpQueueStdout:
-    mpQueueStdout.put((0, REDIRECT_QUEUE_END, GM_Globals[GM_STDOUT][GM_REDIRECT_FD]))
+    mpQueueStdout.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_STDOUT][GM_REDIRECT_FD], GM_Globals[GM_SYSEXITRC]]))
     terminateStdQueueHandler(mpQueueStdout, mpQueueHandlerStdout)
-  if mpQueueStderr and GM_Globals[GM_STDERR][GM_REDIRECT_NAME] != u'stdout':
-    mpQueueStderr.put((0, REDIRECT_QUEUE_END, GM_Globals[GM_STDERR][GM_REDIRECT_FD]))
+  if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
+    mpQueueStderr.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_STDERR][GM_REDIRECT_FD], GM_Globals[GM_SYSEXITRC]]))
     terminateStdQueueHandler(mpQueueStderr, mpQueueHandlerStderr)
 
 # gam batch <FileName>|- [charset <Charset>]
@@ -6205,11 +6221,7 @@ def doOAuthDelete():
     else:
       revokeCredentials(OAUTH2_FAM_LIST)
       revokeCredentials(OAUTH2_PREV_FAM_LIST)
-      if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
-        try:
-          os.remove(GC_Values[GC_OAUTH2_TXT])
-        except OSError as e:
-          stderrWarningMsg(e)
+      deleteFile(GC_Values[GC_OAUTH2_TXT], continueOnError=True)
     entityActionPerformed(entityType, entityName)
 
 # gam oauth|oauth2 info [<AccessToken>]
@@ -7968,7 +7980,7 @@ ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
   }
 ORG_FIELD_PRINT_ORDER = [u'orgunitpath', u'id', u'name', u'description', u'parent', u'parentid', u'inherit']
 
-# gam print orgs|ous [todrive [<ToDriveAttributes>]] [from_parent <OrgUnitItem>] [toplevelonly] [allfields|<OrgUnitFieldName>*|(fields <OrgUnitFieldNameList>)]
+# gam print orgs|ous [todrive [<ToDriveAttributes>]] [from_parent <OrgUnitItem>] [toplevelonly] [allfields|<OrgUnitFieldName>*|(fields <OrgUnitFieldNameList>)] [convertcrnl]
 def doPrintOrgs():
   cd = buildGAPIObject(DIRECTORY_API)
   convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
@@ -24920,7 +24932,7 @@ USER_COMMANDS_ALIASES = {
   }
 
 def openRedirectedSTDFileIfNotMultiprocessing(stdtype):
-  if GM_Globals[stdtype][GM_REDIRECT_MULTIPROCESS] and GM_Globals[stdtype][GM_REDIRECT_FD] is None:
+  if GM_Globals[stdtype].get(GM_REDIRECT_MULTIPROCESS, False) and GM_Globals[stdtype][GM_REDIRECT_FD] is None:
     if GM_Globals[stdtype][GM_REDIRECT_NAME] == u'-':
       GM_Globals[stdtype][GM_REDIRECT_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
     else:

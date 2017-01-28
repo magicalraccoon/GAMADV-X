@@ -1,3 +1,8 @@
+4.40.03
+
+Fix error with redirect stdout multiprocess.
+Add return code to stdout/stderr end lines when show_multiprocess_info is true.
+
 4.40.02
 
 Improved performance of gam modify/spam messages by using new batchModify API function.
