@@ -153,6 +153,14 @@ member_max_results
 	When retrieving lists of Google Group members from API, how many should be retrieved in each chunk
 	Default: 200
 	Environment variable: GAM_MEMBER_MAX_RESULTS
+message_batch_size
+	When deleting or modifying Gmail messages, how many should be processed in each batch
+	Default: 1000
+	Environment variable: GAM_MESSAGE_BATCH_SIZE
+message_max_results
+	When retrieving lists of Gmail messages from API, how many should be retrieved in each chunk
+	Default: 1000
+	Environment variable: GAM_MESSAGE_MAX_RESULTS
 no_browser
 	If no_browser is True, GAM won't open a browser if todrive is set when creating CSV files
 	and GAM prints a link and waits for the verification code when oauth2.txt is being created
@@ -245,6 +253,8 @@ Section: DEFAULT
   email_batch_size = 100
   extra_args =
   member_max_results = 200
+  message_batch_size = 1000
+  message_max_results = 1000
   no_browser = false
   no_cache = false
   no_update_check = false
@@ -356,6 +366,8 @@ drive_max_results = 1000
 email_batch_size = 100
 extra_args =
 member_max_results = 200
+message_batch_size = 1000
+message_max_results = 1000
 no_browser = false
 no_cache = false
 no_update_check = false

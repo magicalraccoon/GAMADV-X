@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.01'
+__version__ = u'4.40.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -293,6 +293,10 @@ GC_EMAIL_BATCH_SIZE = u'email_batch_size'
 GC_EXTRA_ARGS = u'extra_args'
 # When retrieving lists of Google Group members from API, how many should be retrieved in each chunk
 GC_MEMBER_MAX_RESULTS = u'member_max_results'
+# When deleting or modifying Gmail messages, how many should be processed in each batch
+GC_MESSAGE_BATCH_SIZE = u'message_batch_size'
+# When retrieving lists of Gmail messages from API, how many should be retrieved in each chunk
+GC_MESSAGE_MAX_RESULTS = u'message_max_results'
 # If no_browser is False, writeCSVfile won't open a browser when todrive is set
 # and doOAuthRequest prints a link and waits for the verification code when oauth2.txt is being created
 GC_NO_BROWSER = u'no_browser'
@@ -353,6 +357,8 @@ GC_Defaults = {
   GC_EMAIL_BATCH_SIZE: 100,
   GC_EXTRA_ARGS: u'',
   GC_MEMBER_MAX_RESULTS: 200,
+  GC_MESSAGE_BATCH_SIZE: 1000,
+  GC_MESSAGE_MAX_RESULTS: 1000,
   GC_NO_BROWSER: FALSE,
   GC_NO_CACHE: FALSE,
   GC_NO_UPDATE_CHECK: FALSE,
@@ -415,6 +421,8 @@ GC_VAR_INFO = {
   GC_EMAIL_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_EMAIL_BATCH_SIZE', GC_VAR_LIMITS: (1, 100)},
   GC_EXTRA_ARGS: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_SIGFILE: FN_EXTRA_ARGS_TXT, GC_VAR_SFFT: (u'', FN_EXTRA_ARGS_TXT)},
   GC_MEMBER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_MEMBER_MAX_RESULTS', GC_VAR_LIMITS: (1, 10000)},
+  GC_MESSAGE_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_MESSAGE_BATCH_SIZE', GC_VAR_LIMITS: (1, 1000)},
+  GC_MESSAGE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_MESSAGE_MAX_RESULTS', GC_VAR_LIMITS: (1, 10000)},
   GC_NO_BROWSER: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'nobrowser.txt', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_NO_CACHE: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'nocache.txt', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_NO_UPDATE_CHECK: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'noupdatecheck.txt', GC_VAR_SFFT: (FALSE, TRUE)},
@@ -1126,6 +1134,7 @@ PHRASE_API_ERROR_SETTINGS = u'API error, some settings not set'
 PHRASE_AS = u'as'
 PHRASE_AUTHORIZED = u'Authorized'
 PHRASE_BAD_REQUEST = u'Bad Request'
+PHRASE_BATCH = u'Batch'
 PHRASE_CAN_NOT_BE_DOWNLOADED = u'Can not be downloaded'
 PHRASE_CHECKING = u'Checking'
 PHRASE_COMPLETE = u'Complete'
@@ -5097,7 +5106,7 @@ def _validateUserGetObjectList(user, i, count, entity):
     setSysExitRC(NO_ENTITIES_FOUND)
   return (user, gmail, entityList, jcount)
 
-def _validateUserGetMessageList(user, entity):
+def _validateUserGetMessageIds(user, entity):
   if entity:
     if entity[u'dict']:
       entityList = entity[u'dict'][user]
@@ -5108,7 +5117,7 @@ def _validateUserGetMessageList(user, entity):
   user, gmail = buildGAPIServiceObject(GMAIL_API, user)
   if not gmail:
     return (user, None, None)
-  return (user, gmail, [{u'id': messageId} for messageId in entityList])
+  return (user, gmail, entityList)
 
 def _validateDelegatorGetObjectList(user, i, count, entity):
   if entity[u'dict']:
@@ -7777,7 +7786,7 @@ def updateOrgs(entityList):
           j += 1
           svcparms = svcargs.copy()
           svcparms[u'userKey'] = normalizeEmailAddressOrUID(user)
-          dbatch.add(cd.users().patch(**svcparms), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, svcparms[u'userKey']))
+          dbatch.add(cd.users().patch(**svcparms), request_id=batchRequestID(orgUnitPath, 0, 0, j, jcount, svcparms[u'userKey']))
           bcount += 1
           if bcount >= GC_Values[GC_BATCH_SIZE]:
             dbatch.execute()
@@ -7794,7 +7803,7 @@ def updateOrgs(entityList):
           j += 1
           svcparms = svcargs.copy()
           svcparms[u'deviceId'] = deviceId
-          dbatch.add(cd.chromeosdevices().patch(**svcparms), request_id=batchRequestID(orgUnitPath, i, count, j, jcount, deviceId))
+          dbatch.add(cd.chromeosdevices().patch(**svcparms), request_id=batchRequestID(orgUnitPath, 0, 0, j, jcount, deviceId))
           bcount += 1
           if bcount >= GC_Values[GC_BATCH_SIZE]:
             dbatch.execute()
@@ -15652,7 +15661,7 @@ def _batchAddParticipantsToCourse(croom, courseId, i, count, addParticipants, ro
     else:
       svcparms[u'body'][attribute] = addCourseIdScope(participant)
       cleanItem = removeCourseIdScope(svcparms[u'body'][attribute])
-    dbatch.add(service.create(**svcparms), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
+    dbatch.add(service.create(**svcparms), request_id=batchRequestID(noScopeCourseId, 0, 0, j, jcount, cleanItem, role))
     bcount += 1
     if bcount >= GC_Values[GC_BATCH_SIZE]:
       dbatch.execute()
@@ -15704,7 +15713,7 @@ def _batchRemoveParticipantsFromCourse(croom, courseId, i, count, removeParticip
     else:
       svcparms[attribute] = addCourseIdScope(participant)
       cleanItem = removeCourseIdScope(svcparms[attribute])
-    dbatch.add(service.delete(**svcparms), request_id=batchRequestID(noScopeCourseId, i, count, j, jcount, cleanItem, role))
+    dbatch.add(service.delete(**svcparms), request_id=batchRequestID(noScopeCourseId, 0, 0, j, jcount, cleanItem, role))
     bcount += 1
     if bcount >= GC_Values[GC_BATCH_SIZE]:
       dbatch.execute()
@@ -20756,7 +20765,7 @@ def addUserToGroups(users):
       j += 1
       svcparms = svcargs.copy()
       svcparms[u'groupKey'] = normalizeEmailAddressOrUID(group)
-      dbatch.add(cd.members().insert(**svcparms), request_id=batchRequestID(svcparms[u'groupKey'], i, count, j, jcount, user, role))
+      dbatch.add(cd.members().insert(**svcparms), request_id=batchRequestID(svcparms[u'groupKey'], 0, 0, j, jcount, user, role))
       bcount += 1
       if bcount >= GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
@@ -20811,7 +20820,7 @@ def deleteUserFromGroups(users):
       j += 1
       svcparms = svcargs.copy()
       svcparms[u'groupKey'] = normalizeEmailAddressOrUID(group)
-      dbatch.add(cd.members().delete(**svcparms), request_id=batchRequestID(svcparms[u'groupKey'], i, count, j, jcount, user, role))
+      dbatch.add(cd.members().delete(**svcparms), request_id=batchRequestID(svcparms[u'groupKey'], 0, 0, j, jcount, user, role))
       bcount += 1
       if bcount >= GC_Values[GC_BATCH_SIZE]:
         dbatch.execute()
@@ -21654,7 +21663,7 @@ def deleteLabel(users):
         j += 1
         svcparms = svcargs.copy()
         svcparms[u'id'] = del_me[u'id']
-        dbatch.add(gmail.users().labels().delete(**svcparms), request_id=batchRequestID(user, i, count, j, jcount, del_me[u'name']))
+        dbatch.add(gmail.users().labels().delete(**svcparms), request_id=batchRequestID(user, 0, 0, j, jcount, del_me[u'name']))
         bcount += 1
         if bcount == 10:
           dbatch.execute()
@@ -21776,7 +21785,7 @@ def archiveMessages(users):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail, listResult = _validateUserGetMessageList(user, messageEntity)
+    user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
     if not gmail:
       continue
     try:
@@ -21786,8 +21795,9 @@ def archiveMessages(users):
         listResult = callGAPIpages(gmail.users().messages(), u'list', u'messages',
                                    page_message=page_message, maxItems=[0, maxToProcess][quick],
                                    throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                   userId=u'me', q=query, maxResults=500)
-      jcount = len(listResult)
+                                   userId=u'me', q=query, fields=u'nextPageToken,messages(id)', maxResults=GC_Values[GC_MESSAGE_MAX_RESULTS])
+        messageIds = [message[u'id'] for message in listResult]
+      jcount = len(messageIds)
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(Entity.USER, user, entityType, jcount, PHRASE_NO_ENTITIES_MATCHED.format(Entity.Plural(entityType)), i, count)
         setSysExitRC(NO_ENTITIES_FOUND)
@@ -21802,9 +21812,8 @@ def archiveMessages(users):
       entityPerformActionNumItems(Entity.USER, user, jcount, entityType, i, count)
       Indent.Increment()
       j = 0
-      for message in listResult:
+      for messageId in messageIds:
         j += 1
-        messageId = message[u'id']
         try:
           message = callGAPI(gmail.users().messages(), u'get',
                              throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT],
@@ -21892,32 +21901,24 @@ def processMessagesThreads(users, entityType):
             parent_label = parent_label[:parent_label.rfind(u'/')]
     return labelIds
 
-  def _deleteMessageBatch(gmail, user, i, count, messageIds, mcount, jcount):
-    try:
-      callGAPI(gmail.users().messages(), u'batchDelete',
-               throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_INVALID_MESSAGE_ID],
-               userId=u'me', body={u'ids': messageIds}, fields=u'')
-      entityItemValueActionPerformed(Entity.USER, user, entityType, u'{0} of {1}'.format(mcount, jcount), i, count)
-    except (GAPI_serviceNotAvailable, GAPI_badRequest):
-      pass
-    except GAPI_invalidMessageId:
-      entityItemValueActionFailedWarning(Entity.USER, user, entityType, u'{0} of {1}'.format(mcount, jcount), PHRASE_INVALID_MESSAGE_ID, i, count)
-
-  def _batchDeleteMessages(gmail, user, jcount, messageIds, i, count):
+  def _batchDeleteModifyMessages(gmail, function, user, jcount, messageIds, body):
     mcount = 0
-    delMessageIds = []
-    bcount = 0
-    for message in messageIds:
-      delMessageIds.append(message[u'id'])
-      bcount += 1
-      if bcount == GC_Values[GC_EMAIL_BATCH_SIZE]:
+    bcount = min(jcount-mcount, GC_Values[GC_MESSAGE_BATCH_SIZE])
+    while bcount > 0:
+      body[u'ids'] = messageIds[mcount:mcount+bcount]
+      try:
+        callGAPI(gmail.users().messages(), function,
+                 throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_INVALID_MESSAGE_ID],
+                 userId=u'me', body=body, fields=u'')
+        for messageId in body[u'ids']:
+          mcount += 1
+          entityItemValueActionPerformed(Entity.USER, user, entityType, messageId, mcount, jcount)
+      except (GAPI_serviceNotAvailable, GAPI_badRequest):
         mcount += bcount
-        _deleteMessageBatch(gmail, user, i, count, delMessageIds, mcount, jcount)
-        delMessageIds = []
-        bcount = 0
-    if bcount > 0:
-      mcount += bcount
-      _deleteMessageBatch(gmail, user, i, count, delMessageIds, mcount, jcount)
+      except GAPI_invalidMessageId:
+        entityItemValueActionFailedWarning(Entity.USER, user, entityType, PHRASE_BATCH, u'{0} ({1}-{2}/{3})'.format(PHRASE_INVALID_MESSAGE_ID, mcount+1, mcount+bcount, jcount))
+        mcount += bcount
+      bcount = min(jcount-mcount, GC_Values[GC_MESSAGE_BATCH_SIZE])
 
   _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI_NOT_FOUND: PHRASE_DOES_NOT_EXIST, GAPI_INVALID_MESSAGE_ID: PHRASE_INVALID_MESSAGE_ID}
   def _handleProcessGmailError(exception, ri):
@@ -21932,17 +21933,17 @@ def processMessagesThreads(users, entityType):
     else:
       _handleProcessGmailError(exception, ri)
 
-  def _batchProcessMessagesThreads(service, function, user, jcount, messageIds, i, count, **kwargs):
+  def _batchProcessMessagesThreads(service, function, user, jcount, messageIds, **kwargs):
     svcargs = dict([(u'userId', u'me'), (u'id', None), (u'fields', u'')]+kwargs.items()+GM_Globals[GM_EXTRA_ARGS_LIST])
     method = getattr(service, function)
     dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackProcessMessage)
     bcount = 0
     j = 0
-    for message in messageIds:
+    for messageId in messageIds:
       j += 1
       svcparms = svcargs.copy()
-      svcparms[u'id'] = message[u'id']
-      dbatch.add(method(**svcparms), request_id=batchRequestID(user, i, count, j, jcount, svcparms[u'id']))
+      svcparms[u'id'] = messageId
+      dbatch.add(method(**svcparms), request_id=batchRequestID(user, 0, 0, j, jcount, svcparms[u'id']))
       bcount += 1
       if bcount == GC_Values[GC_EMAIL_BATCH_SIZE]:
         dbatch.execute()
@@ -21958,9 +21959,11 @@ def processMessagesThreads(users, entityType):
   labelNameMap = {}
   doIt = quick = False
   maxToProcess = 1
-  function = {Action.DELETE: u'delete', Action.MODIFY: u'modify', Action.SPAM: u'modify', Action.TRASH: u'trash', Action.UNTRASH: u'untrash'}[Action.Get()]
+  function = {Action.DELETE: u'delete', Action.MODIFY: u'modify', Action.SPAM: u'spam', Action.TRASH: u'trash', Action.UNTRASH: u'untrash'}[Action.Get()]
   addLabelNames = []
+  addLabelIds = []
   removeLabelNames = []
+  removeLabelIds = []
   messageEntity = None
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -22003,11 +22006,15 @@ def processMessagesThreads(users, entityType):
     missingArgumentExit(u'query|matchlabel|ids')
   listType = [u'threads', u'messages'][entityType == Entity.MESSAGE]
   includeSpamTrash = Action.Get() in [Action.DELETE, Action.MODIFY, Action.UNTRASH]
+  if function == u'spam':
+    function = u'modify'
+    addLabelIds = [u'SPAM',]
+    removeLabelIds = [u'INBOX',]
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    user, gmail, listResult = _validateUserGetMessageList(user, messageEntity)
+    user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
     if not gmail:
       continue
     service = [gmail.users().threads(), gmail.users().messages()][entityType == Entity.MESSAGE]
@@ -22025,13 +22032,14 @@ def processMessagesThreads(users, entityType):
         listResult = callGAPIpages(service, u'list', listType,
                                    page_message=page_message, maxItems=[0, maxToProcess][quick],
                                    throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, maxResults=500)
+                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType), maxResults=GC_Values[GC_MESSAGE_MAX_RESULTS])
+        messageIds = [message[u'id'] for message in listResult]
       else:
         # Need to get authorization set up for batch
         callGAPI(gmail.users(), u'getProfile',
                  throw_reasons=GAPI_GMAIL_THROW_REASONS,
                  userId=u'me', fields=u'')
-      jcount = len(listResult)
+      jcount = len(messageIds)
       if jcount == 0:
         entityNumEntitiesActionNotPerformedWarning(Entity.USER, user, entityType, jcount, PHRASE_NO_ENTITIES_MATCHED.format(Entity.Plural(entityType)), i, count)
         setSysExitRC(NO_ENTITIES_FOUND)
@@ -22046,15 +22054,15 @@ def processMessagesThreads(users, entityType):
       entityPerformActionNumItems(Entity.USER, user, jcount, entityType, i, count)
       Indent.Increment()
       if function == u'delete' and entityType == Entity.MESSAGE:
-        _batchDeleteMessages(gmail, user, jcount, listResult, i, count)
+        _batchDeleteModifyMessages(gmail, u'batchDelete', user, jcount, messageIds, {u'ids': []})
+      elif function == u'modify' and entityType == Entity.MESSAGE:
+        _batchDeleteModifyMessages(gmail, u'batchModify', user, jcount, messageIds, {u'ids': [], u'addLabelIds': addLabelIds, u'removeLabelIds': removeLabelIds})
       else:
-        if Action.Get() == Action.SPAM:
-          kwargs = {u'body': {u'addLabelIds': [u'SPAM'], u'removeLabelIds': [u'INBOX']}}
-        elif addLabelNames or removeLabelNames:
+        if addLabelIds or removeLabelIds:
           kwargs = {u'body': {u'addLabelIds': addLabelIds, u'removeLabelIds': removeLabelIds}}
         else:
           kwargs = {}
-        _batchProcessMessagesThreads(service, function, user, jcount, listResult, i, count, **kwargs)
+        _batchProcessMessagesThreads(service, function, user, jcount, messageIds, **kwargs)
       Indent.Decrement()
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
@@ -22306,16 +22314,16 @@ def printShowMessagesThreads(users, entityType, csvFormat):
     else:
       _handlePrintGmailError(exception, ri)
 
-  def _batchPrintShowMessagesThreads(service, user, jcount, messageIds, i, count, callback):
+  def _batchPrintShowMessagesThreads(service, user, jcount, messageIds, callback):
     svcargs = dict([(u'userId', u'me'), (u'id', None), (u'format', [u'metadata', u'full'][show_body])]+GM_Globals[GM_EXTRA_ARGS_LIST])
     dbatch = googleapiclient.http.BatchHttpRequest(callback=callback)
     bcount = 0
     j = 0
-    for message in messageIds:
+    for messageId in messageIds:
       j += 1
       svcparms = svcargs.copy()
-      svcparms[u'id'] = message[u'id']
-      dbatch.add(service.get(**svcparms), request_id=batchRequestID(user, i, count, j, jcount, svcparms[u'id']))
+      svcparms[u'id'] = messageId
+      dbatch.add(service.get(**svcparms), request_id=batchRequestID(user, 0, 0, j, jcount, svcparms[u'id']))
       bcount += 1
       if maxToProcess and j == maxToProcess:
         break
@@ -22405,7 +22413,7 @@ def printShowMessagesThreads(users, entityType, csvFormat):
   count = len(users)
   for user in users:
     i += 1
-    user, gmail, listResult = _validateUserGetMessageList(user, messageEntity)
+    user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
     if not gmail:
       continue
     service = [gmail.users().threads(), gmail.users().messages()][entityType == Entity.MESSAGE]
@@ -22420,13 +22428,14 @@ def printShowMessagesThreads(users, entityType, csvFormat):
         listResult = callGAPIpages(service, u'list', listType,
                                    page_message=page_message, maxItems=[0, maxToProcess][quick],
                                    throw_reasons=GAPI_GMAIL_THROW_REASONS,
-                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, maxResults=500)
+                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType), maxResults=GC_Values[GC_MESSAGE_MAX_RESULTS])
+        messageIds = [message[u'id'] for message in listResult]
       else:
         # Need to get authorization set up for batch
         callGAPI(gmail.users(), u'getProfile',
                  throw_reasons=GAPI_GMAIL_THROW_REASONS,
                  userId=u'me', fields=u'')
-      jcount = len(listResult)
+      jcount = len(messageIds)
       if jcount == 0:
         if not csvFormat:
           entityNumEntitiesActionNotPerformedWarning(Entity.USER, user, entityType, jcount, PHRASE_NO_ENTITIES_MATCHED.format(Entity.Plural(entityType)), i, count)
@@ -22441,10 +22450,10 @@ def printShowMessagesThreads(users, entityType, csvFormat):
         jcount = maxToProcess
       if not csvFormat:
         Indent.Increment()
-        _batchPrintShowMessagesThreads(service, user, jcount, listResult, i, count, [_callbackShowThread, _callbackShowMessage][entityType == Entity.MESSAGE])
+        _batchPrintShowMessagesThreads(service, user, jcount, messageIds, [_callbackShowThread, _callbackShowMessage][entityType == Entity.MESSAGE])
         Indent.Decrement()
       else:
-        _batchPrintShowMessagesThreads(service, user, jcount, listResult, i, count, [_callbackPrintThread, _callbackPrintMessage][entityType == Entity.MESSAGE])
+        _batchPrintShowMessagesThreads(service, user, jcount, messageIds, [_callbackPrintThread, _callbackPrintMessage][entityType == Entity.MESSAGE])
     except (GAPI_serviceNotAvailable, GAPI_badRequest):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
   if csvFormat:

@@ -1,3 +1,17 @@
+4.40.02
+
+Improved performance of gam modify/spam messages by using new batchModify API function.
+
+Added message_batch_size to gam.cfg
+    message_batch_size
+	When deleting or modifying Gmail messages, how many should be processed in each batch
+	Default: 1000
+
+Added message_max_results to gam.cfg
+    message_max_results
+	When retrieving lists of Gmail messages from API, how many should be retrieved in each chunk
+	Default: 1000
+
 4.40.01
 
 Housecleaning.
