@@ -3333,7 +3333,7 @@ def SetGlobalVariables():
     myarg = getChoice([u'csv', u'stdout', u'stderr'])
     filename = re.sub(r'{{Section}}', sectionName, getString(OB_FILE_NAME, checkBlank=True))
     if myarg == u'csv':
-      multi = checkArgumentPresent([u'multiprocess',])
+      multi = True if checkArgumentPresent([u'multiprocess',]) else False
       mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
       writeHeader = False if checkArgumentPresent([u'noheader',]) else True
       encoding = getCharSet()
@@ -3344,7 +3344,7 @@ def SetGlobalVariables():
       if filename.lower() == u'null':
         _setSTDFile(GM_STDOUT, u'null', u'w', False)
       else:
-        multi = checkArgumentPresent([u'multiprocess',])
+        multi = True if checkArgumentPresent([u'multiprocess',]) else False
         mode = u'a' if checkArgumentPresent([u'append',]) else u'w'
         _setSTDFile(GM_STDOUT, filename, mode, multi)
         if GM_Globals[GM_CSVFILE].get(GM_REDIRECT_NAME) == u'-':
@@ -3353,7 +3353,7 @@ def SetGlobalVariables():
       if filename.lower() == u'null':
         _setSTDFile(GM_STDERR, u'null', u'w', False)
       elif filename.lower() != u'stdout':
-        multi = checkArgumentPresent([u'multiprocess',])
+        multi = True if checkArgumentPresent([u'multiprocess',]) else False
         mode = u'a' if checkArgumentPresent([u'append',]) else u'w'
         _setSTDFile(GM_STDERR, filename, mode, multi)
       else:
@@ -5551,8 +5551,7 @@ def terminateCSVFileQueueHandler(mpQueue, mpQueueHandler):
 
 def StdQueueHandler(stdData, tzinfo, showMultiInfo, mpQueue):
 
-  PROCESS_START_MSG = u'{0}: {1:6d}, Start: {2}, Cmd: {3}\n'
-  PROCESS_END_MSG = u'{0}: {1:6d},   End: {2}, RC: {3}\n'
+  PROCESS_MSG = u'{0}: {1:6d}, {2:>5s}: {3}, RC: {4:3d}, Cmd: {5}\n'
   def _quotedArgumentList(items):
     qstr = u''
     for item in items:
@@ -5565,15 +5564,13 @@ def StdQueueHandler(stdData, tzinfo, showMultiInfo, mpQueue):
 
   def _writePidData(pid, data):
     if pid != 0 and showMultiInfo:
-      fd.write(pidData[pid])
+      fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], data[1], pidData[pid][u'cmd']))
     if data[0]:
       fd.write(data[0].getvalue())
       data[0].close()
     if showMultiInfo:
-      fd.write(PROCESS_END_MSG.format(stdData[GM_REDIRECT_QUEUE], pid, datetime.datetime.now(tzinfo).isoformat(), data[1]))
+      fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'End', datetime.datetime.now(tzinfo).isoformat(), data[1], pidData[pid][u'cmd']))
     fd.flush()
-    if pid != 0:
-      del pidData[pid]
 
   resetDefaultEncodingToUTF8()
   if stdData[GM_REDIRECT_NAME]:
@@ -5584,16 +5581,16 @@ def StdQueueHandler(stdData, tzinfo, showMultiInfo, mpQueue):
   while True:
     pid, dataType, dataItem = mpQueue.get()
     if dataType == REDIRECT_QUEUE_START:
-      if pid != 0:
-        pidData[pid] = PROCESS_START_MSG.format(stdData[GM_REDIRECT_QUEUE], pid, datetime.datetime.now(tzinfo).isoformat(), _quotedArgumentList(dataItem))
-      elif showMultiInfo:
-        fd.write(PROCESS_START_MSG.format(stdData[GM_REDIRECT_QUEUE], pid, datetime.datetime.now(tzinfo).isoformat(), _quotedArgumentList(dataItem)))
+      pidData[pid] = {u'queue': stdData[GM_REDIRECT_QUEUE], u'start': datetime.datetime.now(tzinfo).isoformat(), u'cmd': _quotedArgumentList(dataItem)}
+      if pid == 0 and showMultiInfo:
+        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], 0, pidData[pid][u'cmd']))
     elif dataType == REDIRECT_QUEUE_END:
       _writePidData(pid, dataItem)
+      del pidData[pid]
     else:
       break
   for pid in pidData:
-    _writePidData(pid, None)
+    _writePidData(pid, [None, 0])
   if fd not in [sys.stdout, sys.stderr]:
     fd.close()
 
@@ -5655,6 +5652,7 @@ def MultiprocessGAMCommands(items):
       mpQueueStderr.put((0, REDIRECT_QUEUE_START, CLArgs.AllArguments()))
     else:
       mpQueueStderr = mpQueueStdout
+      GM_Globals[GM_STDERR][GM_REDIRECT_FD] = GM_Globals[GM_STDOUT][GM_REDIRECT_FD]
   else:
     mpQueueStderr = None
   writeStderr(u'Using %s processes...\n' % num_worker_threads)
@@ -6490,21 +6488,21 @@ def doWhatIs():
 
   cd = buildGAPIObject(DIRECTORY_API)
   email = getEmailAddress()
-  show_info = not checkArgumentPresent(NOINFO_ARGUMENT)
-  if not show_info:
+  showInfo = False if checkArgumentPresent(NOINFO_ARGUMENT) else True
+  if not showInfo:
     checkForExtraneousArguments()
   try:
     result = callGAPI(cd.users(), u'get',
                       throw_reasons=GAPI_USER_GET_THROW_REASONS,
                       userKey=email, fields=u'id,primaryEmail')
     if (result[u'primaryEmail'].lower() == email) or (result[u'id'] == email):
-      if show_info:
+      if showInfo:
         infoUsers(entityList=[email])
       else:
         _showEmailType(Entity.USER, email)
       setSysExitRC(ENTITY_IS_A_USER_RC)
     else:
-      if show_info:
+      if showInfo:
         infoAliases(entityList=[email])
       else:
         _showEmailType(Entity.USER_ALIAS, email)
@@ -6521,13 +6519,13 @@ def doWhatIs():
                       throw_reasons=GAPI_GROUP_GET_THROW_REASONS,
                       groupKey=email, fields=u'id,email')
     if (result[u'email'].lower() == email) or (result[u'id'] == email):
-      if show_info:
+      if showInfo:
         infoGroups(entityList=[email])
       else:
         _showEmailType(Entity.GROUP, email)
       setSysExitRC(ENTITY_IS_A_GROUP_RC)
     else:
-      if show_info:
+      if showInfo:
         infoAliases(entityList=[email])
       else:
         _showEmailType(Entity.GROUP_ALIAS, email)
@@ -11466,7 +11464,7 @@ def doUpdateGroups():
       entityActionPerformedMessage(Entity.GROUP, group, errMsg, i, count)
   elif CL_subCommand == u'add':
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Entity.ROLE_MEMBER, mapChoice=True)
-    checkNotSuspended = checkArgumentPresent(NOTSUSPENDED_ARGUMENT)
+    checkNotSuspended = True if checkArgumentPresent(NOTSUSPENDED_ARGUMENT) else False
     _, addMembers = getEntityToModify(defaultEntityType=CL_ENTITY_USERS, checkNotSuspended=checkNotSuspended, groupUserMembersOnly=False)
     groupMemberLists = addMembers if isinstance(addMembers, dict) else None
     checkForExtraneousArguments()
@@ -20507,7 +20505,7 @@ def deleteDriveFileACLs(users):
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   isEmail, permissionId = getPermissionId()
-  showTitles = checkArgumentPresent(SHOWTITLES_ARGUMENT)
+  showTitles = True if checkArgumentPresent(SHOWTITLES_ARGUMENT) else False
   checkForExtraneousArguments()
   if isEmail:
     permissionId = validateUserGetPermissionId(permissionId)
@@ -24935,6 +24933,8 @@ def openRedirectedSTDFileIfNotMultiprocessing(stdtype):
   if GM_Globals[stdtype].get(GM_REDIRECT_MULTIPROCESS, False) and GM_Globals[stdtype][GM_REDIRECT_FD] is None:
     if GM_Globals[stdtype][GM_REDIRECT_NAME] == u'-':
       GM_Globals[stdtype][GM_REDIRECT_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
+    elif stdtype == GM_STDERR and GM_Globals[stdtype][GM_REDIRECT_NAME] == u'stdout':
+      GM_Globals[stdtype][GM_REDIRECT_FD] = sys.stdout
     else:
       GM_Globals[stdtype][GM_REDIRECT_FD] = openFile(GM_Globals[stdtype][GM_REDIRECT_NAME], GM_Globals[stdtype][GM_REDIRECT_MODE])
 

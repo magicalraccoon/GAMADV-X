@@ -1,7 +1,12 @@
+4.40.04
+
+More cleanup of redirect stdout/stderr multiprocess.
+Add return code to stdout/stderr Start lines when show_multiprocess_info is true.
+
 4.40.03
 
 Fix error with redirect stdout multiprocess.
-Add return code to stdout/stderr end lines when show_multiprocess_info is true.
+Add return code to stdout/stderr End lines when show_multiprocess_info is true.
 
 4.40.02
 
