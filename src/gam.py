@@ -21129,7 +21129,7 @@ def addUserToGroups(users):
     jcount = len(groupKeys)
     entityPerformActionModifierNumItemsModifier(Entity.USER, user, Action.MODIFIER_TO, jcount, Entity.GROUP, u'{0} {1}'.format(PHRASE_AS, body[u'role'].lower()), i, count)
     Indent.Increment()
-    svcargs = dict([(u'groupKey', None), (u'body', body), (u'fields', u'')]+GM_Globals[GM_EXTRA_ARGS_LIST])
+    svcargs = dict([(u'groupKey', None), (u'body', body), (u'fields', u'email')]+GM_Globals[GM_EXTRA_ARGS_LIST])
     dbatch = googleapiclient.http.BatchHttpRequest(callback=_callbackAddUserToGroups)
     bcount = 0
     j = 0
