@@ -5310,7 +5310,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     return
   csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   redirectCSVtoMultiprocessStdout = False
-  if GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME] == u'-':
+  if not todrive and GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME] == u'-':
     if GM_Globals[GM_STDOUT].get(GM_REDIRECT_FD):
       redirectCSVtoMultiprocessStdout = True
     else:
@@ -10255,22 +10255,22 @@ def showUserContacts(users):
 # gam print contacts [todrive [<ToDriveAttributes>]] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min <Date>]
 #	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def doPrintDomainContacts():
-  _printShowContacts([GC_Values[GC_DOMAIN],], Entity.DOMAIN, True)
+  _printShowContacts([GC_Values[GC_DOMAIN]], Entity.DOMAIN, True)
 
 # gam show contacts [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min <Date>]
 #	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def doShowDomainContacts():
-  _printShowContacts([GC_Values[GC_DOMAIN],], Entity.DOMAIN, False)
+  _printShowContacts([GC_Values[GC_DOMAIN]], Entity.DOMAIN, False)
 
 # gam print [todrive [<ToDriveAttributes>]] [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min <Date>]
 #	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def doPrintGAL():
-  _printShowContacts([GC_Values[GC_DOMAIN],], Entity.DOMAIN, True, False)
+  _printShowContacts([GC_Values[GC_DOMAIN]], Entity.DOMAIN, True, False)
 
 # gam show gal [query <QueryContact>] [emailmatchpattern <RegularExpression>] [updated_min <Date>]
 #	[basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 def doShowGAL():
-  _printShowContacts([GC_Values[GC_DOMAIN],], Entity.DOMAIN, False, False)
+  _printShowContacts([GC_Values[GC_DOMAIN]], Entity.DOMAIN, False, False)
 
 # gam <UserTypeEntity> create contactgroup <ContactGroupAttributes>+
 def createUserContactGroup(users):
@@ -12743,18 +12743,37 @@ def doPrintResourceCalendars():
   _doPrintShowResourceCalendars(True)
 
 # Calendar commands utilities
-def normalizeCalendarId(calendarId, user):
-  if calendarId.lower() != u'primary':
-    return normalizeEmailAddressOrUID(calendarId)
+def normalizeCalendarId(calId, user):
+  if calId.lower() != u'primary':
+    return normalizeEmailAddressOrUID(calId)
   return user
 
-def checkCalendarExists(cal, calendarId):
+def checkCalendarExists(cal, calId, showMessage=False):
+  if cal is None:
+    cal = buildGAPIObject(CALENDAR_API)
   try:
     return callGAPI(cal.calendars(), u'get',
-                    throw_reasons=[GAPI_NOT_FOUND],
-                    calendarId=calendarId, fields=u'id')[u'id']
-  except GAPI_notFound:
+                    throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND],
+                    calendarId=calId, fields=u'id')[u'id']
+  except (GAPI_serviceNotAvailable, GAPI_authError, GAPI_notACalendarUser, GAPI_notFound) as e:
+    if showMessage:
+      entityActionFailedWarning(Entity.CALENDAR, calId, e.message)
     return None
+
+def validateCalendar(calId, i=0, count=0):
+  calId, cal = buildGAPIServiceObject(CALENDAR_API, calId)
+  if not cal:
+    return (calId, None)
+  try:
+    callGAPI(cal.calendars(), u'get',
+             throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND],
+             calendarId=calId, fields=u'')
+    return (calId, cal)
+  except (GAPI_notACalendarUser, GAPI_notFound) as e:
+    entityActionFailedWarning(Entity.CALENDAR, calId, e.message, i, count)
+  except (GAPI_serviceNotAvailable, GAPI_authError):
+    entityServiceNotApplicableWarning(Entity.CALENDAR, calId, i, count)
+  return (calId, None)
 
 CALENDAR_ACL_ROLES_MAP = {
   u'editor': u'writer',
@@ -12965,10 +12984,16 @@ def doCalendarsInfoACLs(cal, calIds):
       continue
     _infoCalendarACLs(cal, Entity.CALENDAR, calId, i, count, ruleIds, jcount)
 
-# gam calendars <CalendarEntity> show acls
-# gam calendar <CalendarItem> showacl
-def doCalendarsShowACLs(cal, calIds):
-  checkForExtraneousArguments()
+def _doCalendarsPrintShowACLs(cal, calIds, csvFormat):
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile(None)
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    else:
+      unknownArgumentExit()
   i = 0
   count = len(calIds)
   for calId in calIds:
@@ -12979,18 +13004,37 @@ def doCalendarsShowACLs(cal, calIds):
                            throw_reasons=[GAPI_NOT_FOUND],
                            calendarId=calId, fields=u'nextPageToken,items(id,role,scope)')
       jcount = len(acls)
-      entityPerformActionNumItems(Entity.CALENDAR, calId, jcount, Entity.CALENDAR_ACL, i, count)
+      if not csvFormat:
+        entityPerformActionNumItems(Entity.CALENDAR, calId, jcount, Entity.CALENDAR_ACL, i, count)
       if jcount == 0:
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
-      Indent.Increment()
-      j = 0
-      for rule in acls:
-        j += 1
-        printEntityItemValue(Entity.CALENDAR, calId, Entity.CALENDAR_ACL, formatACLRule(rule), j, jcount)
-      Indent.Decrement()
+      if not csvFormat:
+        Indent.Increment()
+        j = 0
+        for rule in acls:
+          j += 1
+          printEntityItemValue(Entity.CALENDAR, calId, Entity.CALENDAR_ACL, formatACLRule(rule), j, jcount)
+        Indent.Decrement()
+      else:
+        for rule in acls:
+          addRowTitlesToCSVfile(flattenJSON(rule, flattened={u'calendarId': calId}), csvRows, titles)
     except GAPI_notFound:
       entityUnknownWarning(Entity.CALENDAR, calId, i, count)
+  if csvFormat:
+    sortCSVTitles([u'calendarId', ], titles)
+    writeCSVfile(csvRows, titles, u'Calendar ACLs', todrive)
+
+# gam calendars <CalendarEntity> print acls
+def doCalendarsPrintACLs(cal, calIds):
+  checkForExtraneousArguments()
+  _doCalendarsPrintShowACLs(cal, calIds, True)
+
+# gam calendars <CalendarEntity> show acls
+# gam calendar <CalendarItem> showacl
+def doCalendarsShowACLs(cal, calIds):
+  checkForExtraneousArguments()
+  _doCalendarsPrintShowACLs(cal, calIds, False)
 
 LIST_EVENTS_DISPLAY_PROPERTIES = {
   u'alwaysincludeemail': (u'alwaysIncludeEmail', {GC_VAR_TYPE: GC_TYPE_BOOLEAN}),
@@ -13198,9 +13242,7 @@ def _validateCalendarGetEventIDs(origUser, user, cal, calId, j, jcount, calendar
   if user:
     calId = normalizeCalendarId(calId, user)
   else:
-    calId, cal = buildGAPIServiceObject(CALENDAR_API, calId)
-    if not cal:
-      return (calId, None, None, 0)
+    calId = normalizeEmailAddressOrUID(calId)
   if not calEventIds:
     fieldList = [u'id',]
     for match in calendarEventEntity[u'matches']:
@@ -13263,9 +13305,7 @@ def _validateCalendarGetEvents(user, cal, calId, j, jcount, calendarEventEntity,
   if user:
     calId = normalizeCalendarId(calId, user)
   else:
-    calId, cal = buildGAPIServiceObject(CALENDAR_API, calId)
-    if not cal:
-      return (calId, None, None, 0)
+    calId = normalizeEmailAddressOrUID(calId)
   try:
     eventIdsSet = set()
     eventsList = collections.deque()
@@ -13366,9 +13406,7 @@ def doCalendarsAddEvent(cal, calIds):
   count = len(calIds)
   for calId in calIds:
     i += 1
-    calId, cal = buildGAPIServiceObject(CALENDAR_API, calId)
-    if not cal:
-      continue
+    calId = normalizeEmailAddressOrUID(calId)
     if eventRecurrenceTimeZoneRequired and not _setEventRecurrenceTimeZone(cal, calId, body):
       continue
     try:
@@ -13483,6 +13521,8 @@ def doCalendarsMoveEvents(cal, calIds):
       sendNotifications = True
     else:
       unknownArgumentExit()
+  if not checkCalendarExists(cal, newCalId, True):
+    return
   i = 0
   count = len(calIds)
   for calId in calIds:
@@ -13578,13 +13618,19 @@ def doCalendarsPrintEvents(cal, calIds):
 def doCalendarsShowEvents(cal, calIds):
   _calendarsPrintShowEvents(cal, calIds, False)
 
-def _normalizeResourceIdGetRuleIds(cd, resourceId, i, count, ACLScopeEntity):
+def _validateResourceId(resourceId, i, count):
+  cd = buildGAPIObject(DIRECTORY_API)
   try:
-    calId = callGAPI(cd.resources().calendars(), u'get',
-                     throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                     customer=GC_Values[GC_CUSTOMER_ID], calendarResourceId=resourceId, fields=u'resourceEmail')[u'resourceEmail']
+    return callGAPI(cd.resources().calendars(), u'get',
+                    throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
+                    customer=GC_Values[GC_CUSTOMER_ID], calendarResourceId=resourceId, fields=u'resourceEmail')[u'resourceEmail']
   except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
     checkEntityAFDNEorAccessErrorExit(cd, Entity.RESOURCE_CALENDAR, resourceId, i, count)
+    return None
+
+def _normalizeResourceIdGetRuleIds(resourceId, i, count, ACLScopeEntity):
+  calId = _validateResourceId(resourceId, i, count)
+  if not calId:
     return (None, None, 0)
   if ACLScopeEntity[u'dict']:
     ruleIds = ACLScopeEntity[u'dict'][resourceId]
@@ -13599,7 +13645,6 @@ def _normalizeResourceIdGetRuleIds(cd, resourceId, i, count, ACLScopeEntity):
 # gam resource <ResourceID> add calendaracls <CalendarACLRole> <ACLScopeEntity>
 # gam resources <ResourceEntity> add calendaracls <CalendarACLRole> <ACLScopeEntity>
 def doResourceAddCalendarACLs(entityList):
-  cd = buildGAPIObject(DIRECTORY_API)
   cal = buildGAPIObject(CALENDAR_API)
   role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
@@ -13608,13 +13653,12 @@ def doResourceAddCalendarACLs(entityList):
   count = len(entityList)
   for resourceId in entityList:
     i += 1
-    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(cd, resourceId, i, count, ACLScopeEntity)
+    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(resourceId, i, count, ACLScopeEntity)
     if jcount == 0:
       continue
     _addCalendarACLs(cal, Entity.RESOURCE_CALENDAR, calId, i, count, role, ruleIds, jcount)
 
 def _resourceUpdateDeleteCalendarACLs(entityList, function, role, body):
-  cd = buildGAPIObject(DIRECTORY_API)
   cal = buildGAPIObject(CALENDAR_API)
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
   checkForExtraneousArguments()
@@ -13622,7 +13666,7 @@ def _resourceUpdateDeleteCalendarACLs(entityList, function, role, body):
   count = len(entityList)
   for resourceId in entityList:
     i += 1
-    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(cd, resourceId, i, count, ACLScopeEntity)
+    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(resourceId, i, count, ACLScopeEntity)
     if jcount == 0:
       continue
     _updateDeleteCalendarACLs(cal, function, Entity.RESOURCE_CALENDAR, calId, i, count, role, body, ruleIds, jcount)
@@ -13644,7 +13688,6 @@ def doResourceDeleteCalendarACLs(entityList):
 # gam resource <ResourceID> info calendaracls <CalendarACLScopeEntity>
 # gam resources <ResourceEntity> info calendaracls <CalendarACLScopeEntity>
 def doResourceInfoCalendarACLs(entityList):
-  cd = buildGAPIObject(DIRECTORY_API)
   cal = buildGAPIObject(CALENDAR_API)
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
   checkForExtraneousArguments()
@@ -13652,10 +13695,66 @@ def doResourceInfoCalendarACLs(entityList):
   count = len(entityList)
   for resourceId in entityList:
     i += 1
-    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(cd, resourceId, i, count, ACLScopeEntity)
+    calId, ruleIds, jcount = _normalizeResourceIdGetRuleIds(resourceId, i, count, ACLScopeEntity)
     if jcount == 0:
       continue
     _infoCalendarACLs(cal, Entity.RESOURCE_CALENDAR, calId, i, count, ruleIds, jcount)
+
+def _doResourcePrintShowCalendarACLs(entityList, csvFormat):
+  cal = buildGAPIObject(CALENDAR_API)
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile(None)
+  while CLArgs.ArgumentsRemaining():
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    else:
+      unknownArgumentExit()
+  i = 0
+  count = len(entityList)
+  for resourceId in entityList:
+    i += 1
+    calId = _validateResourceId(resourceId, i, count)
+    if not calId:
+      continue
+    try:
+      acls = callGAPIpages(cal.acl(), u'list', u'items',
+                           throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
+                           calendarId=calId, fields=u'nextPageToken,items(id,role,scope)')
+      jcount = len(acls)
+      if not csvFormat:
+        entityPerformActionNumItems(Entity.RESOURCE_CALENDAR, resourceId, jcount, Entity.CALENDAR_ACL, i, count)
+      if jcount == 0:
+        setSysExitRC(NO_ENTITIES_FOUND)
+        continue
+      if not csvFormat:
+        Indent.Increment()
+        j = 0
+        for rule in acls:
+          j += 1
+          printEntityItemValue(Entity.RESOURCE_CALENDAR, resourceId, Entity.CALENDAR_ACL, formatACLRule(rule), j, jcount)
+        Indent.Decrement()
+      else:
+        for rule in acls:
+          addRowTitlesToCSVfile(flattenJSON(rule, flattened={u'resourceId': resourceId, u'resourceEmail': calId}), csvRows, titles)
+    except GAPI_notFound:
+      entityUnknownWarning(Entity.RESOURCE_CALENDAR, calId, i, count)
+    except GAPI_forbidden as e:
+      entityActionFailedWarning(Entity.RESOURCE_CALENDAR, calId, e.message, i, count)
+  if csvFormat:
+    sortCSVTitles([u'resourceId', u'resourceEmail'], titles)
+    writeCSVfile(csvRows, titles, u'Resource Calendar ACLs', todrive)
+
+# gam resource <ResourceID> print calendaracls [todrive [<ToDriveAttributes>]]
+# gam resources <ResourceEntity> print calendaracls [todrive [<ToDriveAttributes>]]
+def doResourcePrintCalendarACLs(entityList):
+  _doResourcePrintShowCalendarACLs(entityList, True)
+
+# gam resource <ResourceID> show calendaracls
+# gam resources <ResourceEntity> show calendaracls
+def doResourceShowCalendarACLs(entityList):
+  _doResourcePrintShowCalendarACLs(entityList, False)
 
 def _showSchema(schema, i=0, count=0):
   printEntity(Entity.USER_SCHEMA, schema[u'schemaName'], i, count)
@@ -17576,7 +17675,7 @@ def _validateUserGetCalendarIds(user, i, count, calendarEntity, itemType=None, m
     calIds = calendarEntity[u'dict'][user][:]
   else:
     calIds = calendarEntity[u'list'][:]
-  user, cal = buildGAPIServiceObject(CALENDAR_API, user)
+  user, cal = validateCalendar(user, i, count)
   if not cal:
     return (user, None, None, 0)
   if calendarEntity[u'resourceIds']:
@@ -17889,7 +17988,7 @@ def _printShowCalendars(users, csvFormat):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildGAPIServiceObject(CALENDAR_API, user)
+    user, cal = validateCalendar(user, i, count)
     if not cal:
       continue
     try:
@@ -17918,16 +18017,17 @@ def _printShowCalendars(users, csvFormat):
         Indent.Decrement()
       else:
         for calendar in calendars:
-          row = {u'primaryEmail': user}
+          row = {u'primaryEmail': user, u'calendarId': calendar[u'id']}
           if showPermissions:
             flattenJSON(_getPermissions(cal, calendar), key=u'permissions', flattened=row)
+          calendar.pop(u'id', None)
           addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row), csvRows, titles)
     except GAPI_notACalendarUser as e:
       entityActionFailedWarning(Entity.USER, user, e.message, i, count)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
   if csvFormat:
-    sortCSVTitles([u'primaryEmail', u'id'], titles)
+    sortCSVTitles([u'primaryEmail', u'calendarId'], titles)
     writeCSVfile(csvRows, titles, u'Calendars', todrive)
 
 # gam <UserTypeEntity> print calendars [allcalendars] [primary] <CalendarSelectProperties>* [todrive [<ToDriveAttributes>]] [permissions]
@@ -17945,7 +18045,7 @@ def showCalSettings(users):
   count = len(users)
   for user in users:
     i += 1
-    user, cal = buildGAPIServiceObject(CALENDAR_API, user)
+    user, cal = validateCalendar(user, i, count)
     if not cal:
       continue
     try:
@@ -18123,18 +18223,8 @@ def transferCalendars(users):
       retainSourceRoleBody[u'role'] = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
     else:
       unknownArgumentExit()
-  targetUser, targetCal = buildGAPIServiceObject(CALENDAR_API, targetUser)
+  targetUser, targetCal = validateCalendar(targetUser)
   if not targetCal:
-    return
-  try:
-    callGAPI(targetCal.calendars(), u'get',
-             throw_reasons=GAPI_CALENDAR_THROW_REASONS,
-             calendarId=u'primary', fields=u'')
-  except GAPI_notACalendarUser as e:
-    entityActionFailedWarning(Entity.USER, targetUser, e.message, 0, 0)
-    return
-  except (GAPI_serviceNotAvailable, GAPI_authError):
-    entityServiceNotApplicableWarning(Entity.USER, targetUser, 0, 0)
     return
   targetRoleBody = {u'role': u'owner', u'scope': {u'type': u'user', u'value': targetUser}}
   i = 0
@@ -18338,6 +18428,8 @@ def moveCalendarEvents(users):
       sendNotifications = True
     else:
       unknownArgumentExit()
+  if not checkCalendarExists(None, newCalId, True):
+    return
   i = 0
   count = len(users)
   for user in users:
@@ -24692,6 +24784,8 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
         CL_OB_EVENTS:	CL_OB_EVENT,
        },
     },
@@ -24703,6 +24797,8 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
         CL_OB_EVENT:	CL_OB_EVENTS,
        },
     },
@@ -24714,6 +24810,8 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
         CL_OB_EVENT:	CL_OB_EVENTS,
        },
     },
@@ -24725,6 +24823,8 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
         CL_OB_EVENT:	CL_OB_EVENTS,
        },
     },
@@ -24740,10 +24840,14 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
   u'print':
     {CMD_ACTION: Action.PRINT,
      CMD_FUNCTION:
-       {CL_OB_EVENTS:	doCalendarsPrintEvents,
+       {CL_OB_ACLS:	doCalendarsPrintACLs,
+        CL_OB_EVENTS:	doCalendarsPrintEvents,
        },
      CMD_OBJ_ALIASES:
-       {CL_OB_EVENT:	CL_OB_EVENTS,
+       {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
+        CL_OB_EVENT:	CL_OB_EVENTS,
        },
     },
   u'show':
@@ -24754,6 +24858,8 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {CL_OB_ACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACL:	CL_OB_ACLS,
+        CL_OB_CALENDARACLS:	CL_OB_ACLS,
         CL_OB_EVENT:	CL_OB_EVENTS,
        },
     },
@@ -24887,6 +24993,24 @@ RESOURCE_SUBCOMMANDS_WITH_OBJECTS = {
        {CL_OB_CALENDARACL:	CL_OB_CALENDARACLS,
        },
     },
+  u'print':
+    {CMD_ACTION: Action.PRINT,
+     CMD_FUNCTION:
+       {CL_OB_CALENDARACLS:	doResourcePrintCalendarACLs,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_CALENDARACL:	CL_OB_CALENDARACLS,
+       },
+    },
+  u'show':
+    {CMD_ACTION: Action.SHOW,
+     CMD_FUNCTION:
+       {CL_OB_CALENDARACLS:	doResourceShowCalendarACLs,
+       },
+     CMD_OBJ_ALIASES:
+       {CL_OB_CALENDARACL:	CL_OB_CALENDARACLS,
+       },
+    },
   }
 
 # Resource sub-command aliases
@@ -24896,9 +25020,9 @@ RESOURCE_SUBCOMMAND_ALIASES = {
 
 def executeResourceCommands(resourceEntity):
   CL_subCommand = getChoice(RESOURCE_SUBCOMMANDS_WITH_OBJECTS, choiceAliases=RESOURCE_SUBCOMMAND_ALIASES)
-  CL_objectName = getChoice(RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand], choiceAliases=RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CMD_OBJ_ALIASES])
-  Action.Set(RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CL_objectName][CMD_ACTION])
-  RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CL_objectName][CMD_FUNCTION](resourceEntity)
+  Action.Set(RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CMD_ACTION])
+  CL_objectName = getChoice(RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CMD_FUNCTION], choiceAliases=RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CMD_OBJ_ALIASES])
+  RESOURCE_SUBCOMMANDS_WITH_OBJECTS[CL_subCommand][CMD_FUNCTION][CL_objectName](resourceEntity)
 
 def processResourceCommands():
   executeResourceCommands(getStringReturnInList(OB_RESOURCE_ID))

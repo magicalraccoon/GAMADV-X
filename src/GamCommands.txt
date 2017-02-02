@@ -1,4 +1,4 @@
-# BNF Syntax
+ BNF Syntax
 This document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
 Items on the command line are space separated, when an actual space character is required, it will be indicated by <Space>.
 If an item contains spaces, it should be surrounded by " or '.
@@ -426,6 +426,7 @@ gam calendars <CalendarEntity> delete acls [<CalendarACLRole>] <ACLScopeEntity>
 
 gam calendars <CalendarEntity> info acl|acls <ACLScopeEntity>
 gam calendars <CalendarEntity> show acls
+gam calendars <CalendarEntity> print acls [todrive [<ToDriveAttributes>]]
 
 gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
@@ -1107,10 +1108,16 @@ gam resource <ResourceID> update calendaracls <CalendarACLRole> <CalendarACLScop
 gam resource <ResourceID> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
 gam resource <ResourceID> info calendaracls <CalendarACLScopeEntity>
 
+gam resource <ResourceID> show calendaracls
+gam resource <ResourceID> print calendaracls [todrive [<ToDriveAttributes>]]
+
 gam resources <ResourceEntity> add calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resources <ResourceEntity> update calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resources <ResourceEntity> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
 gam resources <ResourceEntity> info calendaracls <CalendarACLScopeEntity>
+
+gam resources <ResourceEntity> show calendaracls
+gam resources <ResourceEntity> print calendaracls [todrive [<ToDriveAttributes>]]
 
 # Schemas
 

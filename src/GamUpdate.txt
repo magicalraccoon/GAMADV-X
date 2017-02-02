@@ -1,8 +1,12 @@
 4.40.05
 
+Fixed todrive. 
+
+Restore gam calendar/calendars commands.
+The column labelled id in gam print calendars has been changed to calendarId.
+
 Code clean up.
 Documentation updates.
-Restore gam calendar/calendars commands.
 
 4.40.04
 
