@@ -1,3 +1,9 @@
+4.40.05
+
+Code clean up.
+Documentation updates.
+Restore gam calendar/calendars commands.
+
 4.40.04
 
 More cleanup of redirect stdout/stderr multiprocess.
@@ -114,35 +120,6 @@ Transfer ownership of a selection of a users calendars to another user
 Add, update, delete and display events in any calendar for which a user has access
 Provide expanded event selection: keyword matching, date selection, field matching, attendee matching
 Replace attendees for selected events in any calendar for which a user has access
-
-Calendar command syntax has changed, here are the differences:
-ACL scopes require : between the scope type and scope value.
-Old: <CalendarACLScope> ::= [user] <EmailAddress>|group <EmailAddress>|domain [<DomainName>]|default
-New: <CalendarACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
-
-Old: gam calendar <CalendarItem> add <CalendarACLRole> <CalendarACLScope>
-Adv: gam user <CalendarItem> add calendaracls primary <CalendarACLRole> <CalendarACLScope>
-
-Old: gam calendar <CalendarItem> update <CalendarACLRole> <CalendarACLScope>
-Adv: gam user <CalendarItem> update calendaracls primary <CalendarACLRole> <CalendarACLScope>
-
-Old: gam calendar <CalendarItem> del|delete <CalendarACLRole> <CalendarACLScope>
-Adv: gam user <CalendarItem> delete calendaracls primary <CalendarACLRole>] <CalendarACLScope>
-
-Old: gam calendar <CalendarItem> showacl
-Adv: gam user <CalendarItem> show calendaracls primary
-
-Old: gam calendar <CalendarItem> addevent <EventAttributes>+
-Adv: gam user <CalendarItem> add event primary [id <String>] <EventAddAttributes>+
-
-Old: gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* <EventSelectProperty>* [doit] [notifyattendees]
-Adv: gam user <CalendarItem> delete events primary <EventEntity> [doit] [notifyattendees]
-
-Old: gam calendar <CalendarItem> wipe
-Adv: gam user <CalendarItem> wipe events primary
-
-Old: gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
-Adv: gam <UserTypeEntity> update calattendees primary [<EventEntity>] [anyorganizer] [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [doit]
 
 <CalendarSelectProperties> ::=
         (minaccessrole <CalendarACLRole>)|showdeleted|showhidden
@@ -275,8 +252,8 @@ gam <UserTypeEntity> add event <CalendarEntity> [id <String>] <EventAddAttribute
 gam <UserTypeEntity> update events <CalendarEntity> <EventEntity> <EventUpdateAttributes>+
 gam <UserTypeEntity> delete events <CalendarEntity> <EventEntity> [doit] [notifyattendees]
 gam <UserTypeEntity> wipe events <CalendarEntity>
-gam <UserTypeEntity> move events <CalendarItem> <CalendarEntity> <EventEntity> [notifyattendees]
-gam <UserTypeEntity> update calattendees <CalendarEntity> <EventEntity> [anyorganizer][csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [doit]
+gam <UserTypeEntity> move events <CalendarEntity> <EventEntity> to <CalendarItem> [notifyattendees]
+gam <UserTypeEntity> update calattendees <CalendarEntity> <EventEntity> [anyorganizer] [csv <FileName>] (replace <EmailAddress> <EmailAddress>)* [doit]
 
 <EventDisplayProperties> ::=
         (alwaysincludeemail)|
