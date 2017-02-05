@@ -60,6 +60,10 @@ PROPERTIES = {
     {CLASS: PC_BOOLEAN, TITLE: u'Is a Super Admin',},
   u'isDelegatedAdmin':
     {CLASS: PC_BOOLEAN, TITLE: u'Is Delegated Admin',},
+  u'isEnrolledIn2Sv':
+    {CLASS: PC_BOOLEAN, TITLE: u'2-step enrolled',},
+  u'isEnforcedIn2Sv':
+    {CLASS: PC_BOOLEAN, TITLE: u'2-step enforced',},
   u'agreedToTerms':
     {CLASS: PC_BOOLEAN, TITLE: u'Has Agreed to Terms',},
   u'ipWhitelisted':

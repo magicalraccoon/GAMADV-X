@@ -138,6 +138,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <Section> ::= <String>
 <SiteACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain|default
 <SiteItem> ::= [<DomainName>/]<SiteName>
+<S/MIMEID> ::= <String>	
 <StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Tag> ::= <String>
 <ThreadID> ::= <String>
@@ -420,18 +421,18 @@ gam audit monitor list <EmailAddress>
 <ACLScopeList> ::== '<ACLScope>(,<ACLScope>)*'
 <ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam calendars <CalendarEntity> add acls <CalendarACLRole> <ACLScopeEntity>
-gam calendars <CalendarEntity> update acls <CalendarACLRole> <ACLScopeEntity>
-gam calendars <CalendarEntity> delete acls [<CalendarACLRole>] <ACLScopeEntity>
+gam calendar|calendars <CalendarEntity> add acls|calendaracls <CalendarACLRole> <ACLScopeEntity>
+gam calendar|calendars <CalendarEntity> update acls|calendaracls <CalendarACLRole> <ACLScopeEntity>
+gam calendar|calendars <CalendarEntity> delete acls|calendaracls [<CalendarACLRole>] <ACLScopeEntity>
+gam calendar|calendars <CalendarEntity> info acls|calendaracls <ACLScopeEntity>
 
-gam calendars <CalendarEntity> info acl|acls <ACLScopeEntity>
-gam calendars <CalendarEntity> show acls
-gam calendars <CalendarEntity> print acls [todrive [<ToDriveAttributes>]]
+gam calendar|calendars <CalendarEntity> show acls|calendaracls
+gam calendar|calendars <CalendarEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]]
 
-gam calendar <CalendarItem> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> del|delete [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar <CalendarItem> showacl
+gam calendar|calendars <CalendarEntity> add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar|calendars <CalendarEntity> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar|calendars <CalendarEntity> delete [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar|calendars <CalendarEntity> showacl
 
 <EventSelectProperties:> ::=
 	(endtime|timemax <Time>)|
@@ -498,11 +499,12 @@ The following attributes are equivalent:
 	(clearprivateproperty <PropertyKey>)|
 	(clearsharedproperty <PropertyKey>)
 
-gam calendars <UserEntity> add event [id <String>] <EventAddAttributes>+
-gam calendars <UserEntity> update events <EventEntity> <EventUpdateAttributes>+
-gam calendars <UserEntity> delete events <EventEntity> [doit] [notifyattendees]
-gam calendars <UserEntity> wipe events
-gam calendars <UserEntity> move events <EventEntity> to <CalendarItem> [notifyattendees]
+gam calendar|calendars <CalendarEntity> add event [id <String>] <EventAddAttributes>+
+gam calendar|calendars <CalendarEntity> update events <EventEntity> <EventUpdateAttributes>+
+gam calendar|calendars <CalendarEntity> delete events <EventEntity> [doit] [notifyattendees]
+gam calendar|calendars <CalendarEntity> wipe events
+gam calendar|calendars <CalendarEntity> move events <EventEntity> to <CalendarItem> [notifyattendees]
+gam calendar|calendars <CalendarEntity> info events <EventEntity>
 
 <EventDisplayProperties> ::=
 	(alwaysincludeemail)|
@@ -511,13 +513,12 @@ gam calendars <UserEntity> move events <EventEntity> to <CalendarItem> [notifyat
 	(orderby starttime|updated)|
 	(timezone <TimeZone>)
 
-gam calendars <UserEntity> info events <EventEntity>
-gam calendars <UserEntity> show events ([allevents] <EventSelectProperties>*) <EventDisplayProperties>*
-gam calendars <UserEntity> print events [todrive [<ToDriveAttributes>]] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
+gam calendar|calendars <CalendarEntity> show events ([allevents] <EventSelectProperties>*) <EventDisplayProperties>*
+gam calendar|calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
 
-gam calendar <UserItem> addevent <EventAddAttributes>+
-gam calendar <UserItem> deleteevent <EventEntity> [doit] [notifyattendees]
-gam calendar <UserItem> wipe
+gam calendar|calendars <CalendarEntity> addevent <EventAddAttributes>+
+gam calendar|calendars <CalendarEntity> deleteevent <EventEntity> [doit] [notifyattendees]
+gam calendar|calendars <CalendarEntity> wipe
 
 # ChromeOS Devices
 
@@ -1103,21 +1104,21 @@ gam info resources <ResourceEntity>
 gam show resources [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
 gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
 
-gam resource <ResourceID> add calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resource <ResourceID> update calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resource <ResourceID> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
-gam resource <ResourceID> info calendaracls <CalendarACLScopeEntity>
+gam resource <ResourceID> add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resource <ResourceID> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resource <ResourceID> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
+gam resource <ResourceID> info acls|calendaracls <CalendarACLScopeEntity>
 
-gam resource <ResourceID> show calendaracls
-gam resource <ResourceID> print calendaracls [todrive [<ToDriveAttributes>]]
+gam resource <ResourceID> show acls|calendaracls
+gam resource <ResourceID> print acls|calendaracls [todrive [<ToDriveAttributes>]]
 
-gam resources <ResourceEntity> add calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resources <ResourceEntity> update calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resources <ResourceEntity> delete calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
-gam resources <ResourceEntity> info calendaracls <CalendarACLScopeEntity>
+gam resources <ResourceEntity> add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resources <ResourceEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resources <ResourceEntity> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
+gam resources <ResourceEntity> info acls|calendaracls <CalendarACLScopeEntity>
 
-gam resources <ResourceEntity> show calendaracls
-gam resources <ResourceEntity> print calendaracls [todrive [<ToDriveAttributes>]]
+gam resources <ResourceEntity> show acls|calendaracls
+gam resources <ResourceEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]]
 
 # Schemas
 
@@ -1179,6 +1180,8 @@ gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 	ipwhitelisted|
 	isdelegatedadmin|admin|isadmin|
 	ismailboxsetup|
+	is2svenforced|
+	is2svenrolled|
 	lastlogintime|
 	noneditablealiases|aliases|nicknames|
 	notes|note|
@@ -1676,6 +1679,12 @@ gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
 gam <UserTypeEntity> print sendas [todrive [<ToDriveAttributes>]]
+
+gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+gam <UserTypeEntity> update smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>] [default]
+gam <UserTypeEntity> delete smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>]
+gam <UserTypeEntity> show smimes [primaryonly]
+gam <UserTypeEntity> print smimes [todrive] [primaryonly]
 
 gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [html] [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 gam <UserTypeEntity> show signature|sig [format] [primary]

@@ -103,6 +103,7 @@ class GamEntity(object):
   IMAP_ENABLED = u'imap'
   INSTANCE = u'inst'
   ITEM = u'item'
+  ISSUER_CN = u'issu'
   KEYBOARD_SHORTCUTS_ENABLED = u'kbsc'
   LABEL = u'labe'
   LANGUAGE = u'lang'
@@ -145,6 +146,7 @@ class GamEntity(object):
   SITE = u'site'
   SITE_ACL = u'sacl'
   SKU = u'sku '
+  SMIME_ID = u'smid'
   SNIPPETS_ENABLED = u'snip'
   SSO_KEY = u'ssok'
   SSO_SETTINGS = u'ssos'
@@ -240,6 +242,7 @@ class GamEntity(object):
     GUARDIAN_INVITATION: [u'Guardian Invitations', u'Guardian Invitation'],
     IMAP_ENABLED: [u'IMAP Enabled', u'IMAP Enabled'],
     INSTANCE: [u'Instances', u'Instance'],
+    ISSUER_CN: [u'Issuer CNs', u'Issuer CN'],
     ITEM: [u'Items', u'Item'],
     KEYBOARD_SHORTCUTS_ENABLED: [u'Keyboard Shortcuts Enabled', u'Keyboard Shortcuts Enabled'],
     LABEL: [u'Labels', u'Label'],
@@ -283,6 +286,7 @@ class GamEntity(object):
     SITE: [u'Sites', u'Site'],
     SITE_ACL: [u'Site ACLs', u'Site ACL'],
     SKU: [u'SKUs', u'SKU'],
+    SMIME_ID: [u'S/MIME Certificate IDs', u'S/MIME Certificate ID'],
     SNIPPETS_ENABLED: [u'Preview Snippets Enabled', u'Preview Snippets Enabled'],
     SSO_KEY: [u'SSO Key', u'SSO Key'],
     SSO_SETTINGS: [u'SSO Settings', u'SSO Settings'],

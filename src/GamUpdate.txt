@@ -1,3 +1,16 @@
+4.40.06
+
+Added support for reporting user's two step verification status.
+Additional work on calendars.
+Additional code cleanup.
+
+Added S/MIME support thanks to Jay. You must be a G Suite Enterprise customer to use these commands.
+    gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+    gam <UserTypeEntity> update smime [id <SmimeID>] [sendas|sendasemail <EmailAddress>] [default]
+    gam <UserTypeEntity> delete smime [id <SmimeID>] [sendas|sendasemail <EmailAddress>]
+    gam <UserTypeEntity> show smimes [primaryonly]
+    gam <UserTypeEntity> print smimes [todrive [<ToDriveAttributes>]] [primaryonly]
+
 4.40.05
 
 Fixed todrive. 
