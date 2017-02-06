@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.08'
+__version__ = u'4.40.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -25574,14 +25574,18 @@ USER_COMMANDS_ALIASES = {
   u'utf8':	u'unicode',
   }
 
-def openRedirectedSTDFileIfNotMultiprocessing(stdtype):
-  if GM_Globals[stdtype].get(GM_REDIRECT_MULTIPROCESS, False) and GM_Globals[stdtype][GM_REDIRECT_FD] is None:
-    if GM_Globals[stdtype][GM_REDIRECT_NAME] == u'-':
-      GM_Globals[stdtype][GM_REDIRECT_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
-    elif stdtype == GM_STDERR and GM_Globals[stdtype][GM_REDIRECT_NAME] == u'stdout':
-      GM_Globals[stdtype][GM_REDIRECT_FD] = sys.stdout
-    else:
-      GM_Globals[stdtype][GM_REDIRECT_FD] = openFile(GM_Globals[stdtype][GM_REDIRECT_NAME], GM_Globals[stdtype][GM_REDIRECT_MODE])
+def openRedirectedSTDFilesIfNotMultiprocessing():
+  def openRedirectedSTDFile(stdtype):
+    if GM_Globals[stdtype].get(GM_REDIRECT_MULTIPROCESS, False) and GM_Globals[stdtype][GM_REDIRECT_FD] is None:
+      if GM_Globals[stdtype][GM_REDIRECT_NAME] == u'-':
+        GM_Globals[stdtype][GM_REDIRECT_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
+      elif stdtype == GM_STDERR and GM_Globals[stdtype][GM_REDIRECT_NAME] == u'stdout':
+        GM_Globals[stdtype][GM_REDIRECT_FD] = sys.stdout
+      else:
+        GM_Globals[stdtype][GM_REDIRECT_FD] = openFile(GM_Globals[stdtype][GM_REDIRECT_NAME], GM_Globals[stdtype][GM_REDIRECT_MODE])
+
+  for stdType in [GM_STDOUT, GM_STDERR]:
+    openRedirectedSTDFile(stdType)
 
 # Process GAM command
 def ProcessGAMCommand(args, processGamCfg=True):
@@ -25607,21 +25611,22 @@ def ProcessGAMCommand(args, processGamCfg=True):
       Action.Set(BATCH_CSV_COMMANDS[CL_command][CMD_ACTION])
       BATCH_CSV_COMMANDS[CL_command][CMD_FUNCTION]()
       sys.exit(GM_Globals[GM_SYSEXITRC])
-    openRedirectedSTDFileIfNotMultiprocessing(GM_STDOUT)
-    openRedirectedSTDFileIfNotMultiprocessing(GM_STDERR)
     CL_command = getChoice(MAIN_COMMANDS, defaultChoice=None)
     if CL_command:
+      openRedirectedSTDFilesIfNotMultiprocessing()
       Action.Set(MAIN_COMMANDS[CL_command][CMD_ACTION])
       MAIN_COMMANDS[CL_command][CMD_FUNCTION]()
       sys.exit(GM_Globals[GM_SYSEXITRC])
     CL_command = getChoice(MAIN_COMMANDS_WITH_OBJECTS, defaultChoice=None)
     if CL_command:
+      openRedirectedSTDFilesIfNotMultiprocessing()
       Action.Set(MAIN_COMMANDS_WITH_OBJECTS[CL_command][CMD_ACTION])
       CL_objectName = getChoice(MAIN_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION], choiceAliases=MAIN_COMMANDS_WITH_OBJECTS[CL_command][CMD_OBJ_ALIASES])
       MAIN_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION][CL_objectName]()
       sys.exit(GM_Globals[GM_SYSEXITRC])
     CL_command = getChoice(COMMANDS_MAP, choiceAliases=COMMANDS_ALIASES, defaultChoice=None)
     if CL_command:
+      openRedirectedSTDFilesIfNotMultiprocessing()
       COMMANDS_MAP[CL_command]()
       sys.exit(GM_Globals[GM_SYSEXITRC])
     GM_Globals[GM_ENTITY_CL_INDEX] = CLArgs.Location()
@@ -25633,9 +25638,11 @@ def ProcessGAMCommand(args, processGamCfg=True):
       if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
         doAutoBatch(CL_ENTITY_USER, entityList, CL_command)
       elif CL_command in USER_COMMANDS:
+        openRedirectedSTDFilesIfNotMultiprocessing()
         Action.Set(USER_COMMANDS[CL_command][CMD_ACTION])
         USER_COMMANDS[CL_command][CMD_FUNCTION](entityList)
       else:
+        openRedirectedSTDFilesIfNotMultiprocessing()
         Action.Set(USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_ACTION])
         CL_objectName = getChoice(USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION], choiceAliases=USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_OBJ_ALIASES],
                                   defaultChoice=[CL_OB_USERS, NO_DEFAULT][CL_command != u'print'])
@@ -25645,6 +25652,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
       if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
         doAutoBatch(CL_ENTITY_CROS, entityList, CL_command)
       else:
+        openRedirectedSTDFilesIfNotMultiprocessing()
         Action.Set(CROS_COMMANDS[CL_command][CMD_ACTION])
         CROS_COMMANDS[CL_command][CMD_FUNCTION](entityList)
     sys.exit(GM_Globals[GM_SYSEXITRC])

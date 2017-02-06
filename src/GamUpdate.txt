@@ -1,3 +1,7 @@
+4.40.09
+
+Improve redirect stdout multiprocess with auto_batch.
+
 4.40.08
 
 Handle SSLHandshakeError as a retryable error.
