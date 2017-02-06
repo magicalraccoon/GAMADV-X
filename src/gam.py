@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.07'
+__version__ = u'4.40.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3579,7 +3579,7 @@ def callGData(service, function,
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GDATA_SERVICE_NOT_APPLICABLE in throw_errors)
       raise GDATA_ERROR_CODE_EXCEPTION_MAP[GDATA_SERVICE_NOT_APPLICABLE](e.message)
-    except socket.error as e:
+    except (httplib2.SSLHandshakeError, socket.error) as e:
       if n != retries:
         waitOnFailure(n, retries, e.errno, e.strerror)
         continue
@@ -3977,7 +3977,7 @@ def callGAPI(service, function,
       raise GAPI_REASON_EXCEPTION_MAP[GAPI_SERVICE_NOT_AVAILABLE](e.message)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
-    except socket.error as e:
+    except (httplib2.SSLHandshakeError, socket.error) as e:
       if n != retries:
         waitOnFailure(n, retries, e.errno, e.strerror)
         continue

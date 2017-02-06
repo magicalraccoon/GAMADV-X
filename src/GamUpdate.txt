@@ -1,3 +1,7 @@
+4.40.08
+
+Handle SSLHandshakeError as a retryable error.
+
 4.40.07
 
 Previously, auto_batch processing was disabled for info, show and print because the output from the
