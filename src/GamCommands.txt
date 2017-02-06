@@ -116,6 +116,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <OrgUnitItem> ::= <OrgUnitID>|<OrgUnitPath>
 <ParameterKey> ::= <String>
 <ParameterValue> ::= <String>
+<Password> ::= <String>
 <PrinterACLScope> ::= <UserTypeEntity>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|everyone
 <PrinterID> ::= <String>
 <PrintJobAge> ::= <Number>[m|h|d]
@@ -1218,7 +1219,7 @@ gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 	(organization|organizations clear|([type domain_only|school|unknown|work] [customtype <String>] [name <String>] [title <String>] [department <String>] [symbol <String>]
 		[costcenter <String>]  [location <String>] [description <String>] [domain <String>] notprimary|primary))|
 	(org|ou|orgunitpath <OrgUnitPath>)
-	(password random|<String>)|
+	(password random|<Password>)|
 	(phone|phones clear|([type work|home|other|work_fax|home_fax|other_fax|main|company_main|assistant|mobile|work_mobile|pager|work_pager|car|radio|callback|isdn|telex|tty_tdd|grand_central|(custom <String>)
 		[value <String>] notprimary|primary))|
 	(relation|relations clear|(spouse|child|mother|father|parent|brother|sister|friend|relative|domestic_partner|manager|assistant|referred_by|partner|<String> <String>))|
@@ -1684,7 +1685,7 @@ gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sen
 gam <UserTypeEntity> update smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>] [default]
 gam <UserTypeEntity> delete smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>]
 gam <UserTypeEntity> show smimes [primaryonly]
-gam <UserTypeEntity> print smimes [todrive] [primaryonly]
+gam <UserTypeEntity> print smimes [todrive [<ToDriveAttributes>]] [primaryonly]
 
 gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [html] [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
 gam <UserTypeEntity> show signature|sig [format] [primary]
