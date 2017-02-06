@@ -1,3 +1,11 @@
+4.40.07
+
+Previously, auto_batch processing was disabled for info, show and print because the output from the
+multiple processes was mixed together. With the introduction of redirect csv/stdout multiprocess in 4.40.00,
+this restriction has been eliminated. The following template illustrates the proper form of the command.
+    gam config num_threads 10 auto_batch_min 1 redirect csv ./output.csv multiprocess all users print ...
+    gam config num_threads 10 auto_batch_min 1 redirect stdout ./output.txt multiprocess all users show ...
+
 4.40.06
 
 Added support for reporting user's two step verification status.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.06'
+__version__ = u'4.40.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -25089,8 +25089,6 @@ CROS_COMMANDS = {
   u'update':	{CMD_ACTION: Action.UPDATE, CMD_FUNCTION: updateCrOSDevices},
   }
 
-CROS_NO_AUTO_BATCH_COMMANDS = [u'info', u'list', u'print']
-
 # <UserTypeEntity> commands
 USER_COMMANDS = {
   u'arrows':	{CMD_ACTION: Action.SET, CMD_FUNCTION: setArrows},
@@ -25563,8 +25561,6 @@ USER_COMMANDS_WITH_OBJECTS = {
     },
   }
 
-USER_NO_AUTO_BATCH_COMMANDS = [u'info', u'list', u'print', u'show']
-
 # User commands aliases
 USER_COMMANDS_ALIASES = {
   u'del':	u'delete',
@@ -25634,7 +25630,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
       usageErrorExit(PHRASE_UNKNOWN_COMMAND_SELECTOR)
     if entityType == CL_ENTITY_USERS:
       CL_command = getChoice(USER_COMMANDS.keys()+USER_COMMANDS_WITH_OBJECTS.keys(), choiceAliases=USER_COMMANDS_ALIASES)
-      if (CL_command not in USER_NO_AUTO_BATCH_COMMANDS) and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
+      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
         doAutoBatch(CL_ENTITY_USER, entityList, CL_command)
       elif CL_command in USER_COMMANDS:
         Action.Set(USER_COMMANDS[CL_command][CMD_ACTION])
@@ -25646,7 +25642,7 @@ def ProcessGAMCommand(args, processGamCfg=True):
         USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION][CL_objectName](entityList)
     else:
       CL_command = getChoice(CROS_COMMANDS)
-      if (CL_command not in CROS_NO_AUTO_BATCH_COMMANDS) and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
+      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
         doAutoBatch(CL_ENTITY_CROS, entityList, CL_command)
       else:
         Action.Set(CROS_COMMANDS[CL_command][CMD_ACTION])
