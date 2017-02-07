@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.09'
+__version__ = u'4.40.10'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2364,6 +2364,9 @@ def formatLocalTime(dateTimeStr):
 def formatLocalTimestamp(timestamp):
   return datetime.datetime.fromtimestamp(int(timestamp)/1000, GC_Values[GC_TIMEZONE]).isoformat()
 
+def formatLocalDatestamp(timestamp):
+  return datetime.datetime.fromtimestamp(int(timestamp)/1000, GC_Values[GC_TIMEZONE]).strftime(u'%Y-%m-%d')
+
 def formatMaxMessageBytes(maxMessageBytes):
   if maxMessageBytes < ONE_KILO_BYTES:
     return maxMessageBytes
@@ -2591,6 +2594,11 @@ def printEntity(entityValueList, i=0, count=0):
   writeStdout(formatKeyValueList(Indent.Spaces(),
                                  formatEntityValueList(entityValueList),
                                  currentCountNL(i, count)))
+
+def printEntitiesCount(entityType, entityList):
+  writeStdout(formatKeyValueList(Indent.Spaces(),
+                                 [Entity.Plural(entityType), None if entityList is None else u'({0})'.format(len(entityList))],
+                                 u'\n'))
 
 def printEntityKVList(entityValueList, infoKVList, i=0, count=0):
   writeStdout(formatKeyValueList(Indent.Spaces(),
@@ -3018,12 +3026,10 @@ def SetGlobalVariables():
       value = os.path.expanduser(os.path.join(_getCfgDirectory(sectionName, GC_CONFIG_DIR), value))
     return value
 
-  def _readGamCfgFile(config, fileName, action=None):
+  def _readGamCfgFile(config, fileName):
     try:
       with open(fileName, u'rU') as f:
         config.readfp(f)
-      if action:
-        printKeyValueList([Entity.Singular(Entity.CONFIG_FILE), fileName, action])
     except (ConfigParser.MissingSectionHeaderError, ConfigParser.ParsingError) as e:
       systemErrorExit(CONFIG_ERROR_RC, formatKeyValueList(u'',
                                                           [Entity.Singular(Entity.CONFIG_FILE), fileName,
@@ -3041,7 +3047,7 @@ def SetGlobalVariables():
       stderrErrorMsg(e)
 
   def _verifyValues(sectionName):
-    printKeyValueList([Entity.Singular(Entity.SECTION), sectionName])
+    printKeyValueList([Entity.Singular(Entity.SECTION), sectionName]) # Do not use printEntity
     Indent.Increment()
     for itemName in sorted(GC_VAR_INFO):
       cfgValue = GM_Globals[GM_PARSER].get(sectionName, itemName, raw=True)
@@ -6173,7 +6179,7 @@ def doOAuthInfo():
       entityActionFailedWarning([Entity.ACCESS_TOKEN, access_token], PHRASE_DOES_NOT_EXIST)
   else:
     if os.path.isfile(GC_Values[GC_OAUTH2_TXT]):
-      printKeyValueList([Entity.Singular(Entity.OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]])
+      printEntity([Entity.OAUTH2_TXT_FILE, GC_Values[GC_OAUTH2_TXT]])
       fam1Credentials = getCredentialsForScope(OAUTH2_FAM1_SCOPES)
       fam2Credentials = getCredentialsForScope(OAUTH2_FAM2_SCOPES)
       if (fam1Credentials and not fam1Credentials.invalid and
@@ -6404,7 +6410,7 @@ def doDeleteProjects():
 # gam whatis <EmailItem> [noinfo]
 def doWhatIs():
   def _showEmailType(entityType, email):
-    printKeyValueList([Entity.Singular(entityType), email])
+    printEntity([entityType, email])
 
   cd = buildGAPIObject(DIRECTORY_API)
   email = getEmailAddress()
@@ -6855,7 +6861,7 @@ def doCreateDomain():
     callGAPI(cd.domains(), u'insert',
              throw_reasons=[GAPI_DUPLICATE, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
              customer=GC_Values[GC_CUSTOMER_ID], body=body, fields=u'')
-    printEntityKVList([Entity.DOMAIN, body[u'domainName']], [Action.PerformedName(Action.ADD)])
+    entityActionPerformed([Entity.DOMAIN, body[u'domainName']])
   except GAPI_duplicate:
     entityDuplicateWarning(Entity.DOMAIN, body[u'domainName'])
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
@@ -7332,8 +7338,8 @@ def doCreateDataTransfer():
                     body=body, fields=u'id')
   entityActionPerformed([Entity.TRANSFER_REQUEST, None])
   Indent.Increment()
-  printKeyValueList([Entity.Singular(Entity.TRANSFER_ID), result[u'id']])
-  printKeyValueList([Entity.Singular(Entity.SERVICE), serviceName])
+  printEntity([Entity.TRANSFER_ID, result[u'id']])
+  printEntity([Entity.SERVICE, serviceName])
   printKeyValueList([PHRASE_FROM, old_owner])
   printKeyValueList([PHRASE_TO, new_owner])
   Indent.Decrement()
@@ -7848,15 +7854,12 @@ def _doInfoOrgs(entityList):
             printKeyValueList([field, convertCRsNLs(value)])
       if getUsers:
         orgUnitPath = result[u'orgUnitPath']
-        Entity.SetGetting(Entity.USER)
-        page_message = getPageMessage(showFirstLastItems=True)
         users = callGAPIpages(cd.users(), u'list', u'users',
-                              page_message=page_message, message_attribute=u'primaryEmail',
                               throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID_INPUT, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
                               customer=GC_Values[GC_CUSTOMER_ID], query=orgUnitPathQuery(orgUnitPath),
                               fields=u'nextPageToken,users(primaryEmail,orgUnitPath)',
                               maxResults=GC_Values[GC_USER_MAX_RESULTS])
-        printKeyValueList([Entity.Plural(Entity.USER), None])
+        printEntitiesCount(Entity.USER, users)
         Indent.Increment()
         orgUnitPath = orgUnitPath.lower()
         for user in users:
@@ -8269,7 +8272,7 @@ def _showFileURLs(request):
 def _showMailboxActivityRequestStatus(request, i, count, showFiles=False):
   printEntity([Entity.REQUEST_ID, request[u'requestId']], i, count)
   Indent.Increment()
-  printKeyValueList([Entity.Singular(Entity.USER), request[u'userEmailAddress']])
+  printEntity([Entity.USER, request[u'userEmailAddress']])
   printKeyValueList([u'Status', request[u'status']])
   printKeyValueList([u'Request Date', request[u'requestDate']])
   printKeyValueList([u'Requested By', request[u'adminEmailAddress']])
@@ -8362,7 +8365,7 @@ def doStatusActivityRequests():
 def _showMailboxExportRequestStatus(request, i, count, showFilter=False, showDates=False, showFiles=False):
   printEntity([Entity.REQUEST_ID, request[u'requestId']], i, count)
   Indent.Increment()
-  printKeyValueList([Entity.Singular(Entity.USER), request[u'userEmailAddress']])
+  printEntity([Entity.USER, request[u'userEmailAddress']])
   printKeyValueList([u'Status', request[u'status']])
   printKeyValueList([u'Request Date', request[u'requestDate']])
   printKeyValueList([u'Requested By', request[u'adminEmailAddress']])
@@ -9933,7 +9936,7 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
           Indent.Decrement()
       Indent.Decrement()
   if contactGroupIDs is not None and CONTACT_GROUPS in fields:
-    printKeyValueList([Entity.Plural(Entity.CONTACT_GROUP), None])
+    printEntitiesCount(Entity.CONTACT_GROUP, None)
     Indent.Increment()
     for group in fields[CONTACT_GROUPS]:
       if group in contactGroupIDs:
@@ -11597,7 +11600,7 @@ def infoGroups(entityList):
         continue
       printEntity([Entity.GROUP, group], i, count)
       Indent.Increment()
-      printKeyValueList([Entity.Singular(Entity.GROUP_SETTINGS), None])
+      printEntity([Entity.GROUP_SETTINGS, None])
       Indent.Increment()
       for key, value in basic_info.items():
         if key in [u'kind', u'etag', u'email', u'aliases']:
@@ -11625,19 +11628,19 @@ def infoGroups(entityList):
       if getAliases:
         aliases = basic_info.get(u'aliases', [])
         if aliases:
-          printKeyValueList([Entity.Plural(Entity.EMAIL_ALIAS), u'({0})'.format(len(aliases))])
+          printEntitiesCount(Entity.EMAIL_ALIAS, aliases)
           Indent.Increment()
           for alias in aliases:
             printKeyValueList([alias])
           Indent.Decrement()
       if getGroups:
-        printKeyValueList([Entity.Plural(Entity.GROUP), u'({0})'.format(len(groups))])
+        printEntitiesCount(Entity.GROUP, groups)
         Indent.Increment()
         for groupm in groups:
           printKeyValueList([groupm[u'name'], groupm[u'email']])
         Indent.Decrement()
       if getUsers:
-        printKeyValueList([Entity.Plural(Entity.MEMBER), u'({0})'.format(len(members))])
+        printEntitiesCount(Entity.MEMBER, members)
         Indent.Increment()
         for member in members:
           printKeyValueList([member.get(u'role', Entity.ROLE_MEMBER).lower(), u'{0} ({1})'.format(member.get(u'email', member[u'id']), member[u'type'].lower())])
@@ -15570,13 +15573,13 @@ def infoUsers(entityList):
               printKeyValueList([alias])
             Indent.Decrement()
       if groups:
-        printKeyValueList([Entity.Plural(Entity.GROUP), u'({0})'.format(len(groups))])
+        printEntitiesCount(Entity.GROUP, groups)
         Indent.Increment()
         for group in groups:
           printKeyValueList([group[u'name'], group[u'email']])
         Indent.Decrement()
       if licenses:
-        printKeyValueList([Entity.Plural(Entity.LICENSE), u'({0})'.format(len(licenses))])
+        printEntitiesCount(Entity.LICENSE, licenses)
         Indent.Increment()
         for u_license in licenses:
           printKeyValueList([u_license])
@@ -23061,7 +23064,7 @@ def _printFilter(user, userFilter, labels):
 def _showFilter(userFilter, j, jcount, labels):
   printEntity([Entity.FILTER, userFilter[u'id']], j, jcount)
   Indent.Increment()
-  printKeyValueList([Entity.Plural(Entity.CRITERIA), None])
+  printEntitiesCount(Entity.CRITERIA, None)
   Indent.Increment()
   if u'criteria' in userFilter:
     for item in userFilter[u'criteria']:
@@ -23076,7 +23079,7 @@ def _showFilter(userFilter, j, jcount, labels):
   else:
     printKeyValueList([ERROR, PHRASE_NO_FILTER_CRITERIA.format(Entity.Singular(Entity.FILTER))])
   Indent.Decrement()
-  printKeyValueList([Entity.Plural(Entity.ACTION), None])
+  printEntitiesCount(Entity.ACTION, None)
   Indent.Increment()
   if u'action' in userFilter:
     for labelId in userFilter[u'action'].get(u'addLabelIds', []):
@@ -23089,7 +23092,7 @@ def _showFilter(userFilter, j, jcount, labels):
         printKeyValueList([FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]])
     Indent.Decrement()
     if userFilter[u'action'].get(u'forward'):
-      printKeyValueList([Entity.Singular(Entity.FORWARDING_ADDRESS), userFilter[u'action'][u'forward']])
+      printEntity([Entity.FORWARDING_ADDRESS, userFilter[u'action'][u'forward']])
   else:
     printKeyValueList([ERROR, PHRASE_NO_FILTER_ACTIONS.format(Entity.Singular(Entity.FILTER))])
     Indent.Decrement()
@@ -24090,7 +24093,7 @@ def deleteSmime(users):
 def _printShowSmimes(users, csvFormat):
   if csvFormat:
     todrive = {}
-    titles, csvRows = initializeTitlesCSVfile([u'User',])
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'id', u'isDefault', u'issuerCn', u'expiration', u'encryptedKeyPassword', u'pem'])
   primaryonly = False
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -24299,11 +24302,11 @@ def _showVacation(user, i, count, result, formatReply):
     printKeyValueList([u'Contacts Only', result[u'restrictToContacts']])
     printKeyValueList([u'Domain Only', result[u'restrictToDomain']])
     if u'startTime' in result:
-      printKeyValueList([u'Start Date', datetime.datetime.fromtimestamp(int(result[u'startTime'])/1000, GC_Values[GC_TIMEZONE]).strftime(u'%Y-%m-%d')])
+      printKeyValueList([u'Start Date', formatLocalDatestamp(result[u'startTime'])])
     else:
       printKeyValueList([u'Start Date', u'Started'])
     if u'endTime' in result:
-      printKeyValueList([u'End Date', datetime.datetime.fromtimestamp(int(result[u'endTime'])/1000, GC_Values[GC_TIMEZONE]).strftime(u'%Y-%m-%d')])
+      printKeyValueList([u'End Date', formatLocalDatestamp(result[u'endTime'])])
     else:
       printKeyValueList([u'End Date', u'Not specified'])
     printKeyValueList([u'Subject', result.get(u'responseSubject', u'None')])
