@@ -1,3 +1,8 @@
+4.40.11
+
+G Suite Enterprise SKU changed from Google-Apps-Enterprise to 1010020020.
+Improve redirect csv/stdout/stderr.
+
 4.40.10
 
 Code clean up.
