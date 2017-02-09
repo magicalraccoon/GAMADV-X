@@ -25603,9 +25603,12 @@ def adjustRedirectedSTDFilesIfNotMultiprocessing():
     rdFd = stdData[GM_REDIRECT_FD]
     rdMultiFd = stdData[GM_REDIRECT_MULTI_FD]
     if rdFd and rdMultiFd and rdFd != rdMultiFd:
-      rdFd.write(rdMultiFd.getvalue())
-      rdMultiFd.close()
-      stdData[GM_REDIRECT_MULTI_FD] = rdFd
+      try:
+        rdFd.write(rdMultiFd.getvalue())
+        rdMultiFd.close()
+        stdData[GM_REDIRECT_MULTI_FD] = rdFd
+      except IOError as e:
+        systemErrorExit(FILE_ERROR_RC, e)
 
   adjustRedirectedSTDFile(GM_Globals[GM_STDOUT])
   if GM_Globals[GM_STDERR][GM_REDIRECT_NAME] != u'stdout':
@@ -25684,16 +25687,24 @@ def ProcessGAMCommand(args, processGamCfg=True):
     sys.exit(GM_Globals[GM_SYSEXITRC])
   except KeyboardInterrupt:
     setSysExitRC(KEYBOARD_INTERRUPT_RC)
+    adjustRedirectedSTDFilesIfNotMultiprocessing()
   except socket.error as e:
     printErrorMessage(SOCKET_ERROR_RC, formatExceptionMessage(e))
+    adjustRedirectedSTDFilesIfNotMultiprocessing()
   except MemoryError:
     printErrorMessage(MEMORY_ERROR_RC, MESSAGE_GAM_OUT_OF_MEMORY)
+    adjustRedirectedSTDFilesIfNotMultiprocessing()
   except SystemExit as e:
     GM_Globals[GM_SYSEXITRC] = e.code
+    try:
+      adjustRedirectedSTDFilesIfNotMultiprocessing()
+    except SystemExit:
+      pass
   except Exception:
     from traceback import print_exc
     print_exc(file=sys.stderr)
     setSysExitRC(UNKNOWN_ERROR_RC)
+    adjustRedirectedSTDFilesIfNotMultiprocessing()
   return GM_Globals[GM_SYSEXITRC]
 
 # gam loop <FileName>|- [charset <String>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAM argument list>
