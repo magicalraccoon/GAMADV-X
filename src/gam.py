@@ -1358,22 +1358,22 @@ def convertUTF8(data):
   return data
 
 def writeStdout(data):
-  if GM_Globals[GM_STDOUT].get(GM_REDIRECT_MULTI_FD):
-    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].write(data)
-  else:
-    sys.stdout.write(data)
+  try:
+    GM_Globals[GM_STDOUT].get(GM_REDIRECT_MULTI_FD, sys.stdout).write(data)
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, e)
 
 def writeStderr(data):
-  if GM_Globals[GM_STDERR].get(GM_REDIRECT_MULTI_FD):
-    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].write(data)
-  else:
-    sys.stderr.write(data)
+  try:
+    GM_Globals[GM_STDERR].get(GM_REDIRECT_MULTI_FD, sys.stderr).write(data)
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, e)
 
 def flushStderr():
-  if GM_Globals[GM_STDERR].get(GM_REDIRECT_MULTI_FD):
-    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].flush()
-  else:
-    sys.stderr.flush()
+  try:
+    GM_Globals[GM_STDERR].get(GM_REDIRECT_MULTI_FD, sys.stderr).flush()
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, e)
 
 class _DeHTMLParser(HTMLParser):
   def __init__(self):
@@ -3113,9 +3113,9 @@ def SetGlobalVariables():
 
   def _setSTDFile(stdtype, filename, mode, multi):
     if filename == u'null':
-      GM_Globals[stdtype][GM_REDIRECT_FD] = GM_Globals[stdtype][GM_REDIRECT_MULTI_FD] = open(os.devnull, mode)
+      GM_Globals[stdtype][GM_REDIRECT_FD] = open(os.devnull, mode)
     elif filename == u'-':
-      GM_Globals[stdtype][GM_REDIRECT_FD] = GM_Globals[stdtype][GM_REDIRECT_MULTI_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
+      GM_Globals[stdtype][GM_REDIRECT_FD] = [sys.stderr, sys.stdout][stdtype == GM_STDOUT]
     else:
       if filename.startswith(u'./') or filename.startswith(u'.\\'):
         filename = os.path.join(os.getcwd(), filename[2:])
@@ -3123,14 +3123,11 @@ def SetGlobalVariables():
         filename = os.path.expanduser(filename)
       if not os.path.isabs(filename):
         filename = os.path.join(GC_Values[GC_DRIVE_DIR], filename)
-      if multi and mode == u'w':
+      if multi and mode == u'wb':
         deleteFile(filename)
-        mode = u'a'
+        mode = u'ab'
       GM_Globals[stdtype][GM_REDIRECT_FD] = openFile(filename, mode)
-      if not multi:
-        GM_Globals[stdtype][GM_REDIRECT_MULTI_FD] = GM_Globals[stdtype][GM_REDIRECT_FD]
-      else:
-        GM_Globals[stdtype][GM_REDIRECT_MULTI_FD] = StringIO.StringIO()
+    GM_Globals[stdtype][GM_REDIRECT_MULTI_FD] = GM_Globals[stdtype][GM_REDIRECT_FD] if not multi else StringIO.StringIO()
     GM_Globals[stdtype][GM_REDIRECT_NAME] = filename
     GM_Globals[stdtype][GM_REDIRECT_MODE] = mode
     GM_Globals[stdtype][GM_REDIRECT_MULTIPROCESS] = multi
@@ -3264,29 +3261,34 @@ def SetGlobalVariables():
       _setCSVFile(filename, mode, encoding, writeHeader, multi)
     elif myarg == u'stdout':
       if filename.lower() == u'null':
-        _setSTDFile(GM_STDOUT, u'null', u'w', False)
+        multi = True if checkArgumentPresent([u'multiprocess',]) else False
+        _setSTDFile(GM_STDOUT, u'null', u'wb', multi)
       else:
         multi = True if checkArgumentPresent([u'multiprocess',]) else False
-        mode = u'a' if checkArgumentPresent([u'append',]) else u'w'
+        mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
         _setSTDFile(GM_STDOUT, filename, mode, multi)
         if GM_Globals[GM_CSVFILE].get(GM_REDIRECT_NAME) == u'-':
           GM_Globals[GM_CSVFILE] = {}
     else: # myarg == u'stderr'
       if filename.lower() == u'null':
-        _setSTDFile(GM_STDERR, u'null', u'w', False)
+        multi = True if checkArgumentPresent([u'multiprocess',]) else False
+        _setSTDFile(GM_STDERR, u'null', u'wb', multi)
       elif filename.lower() != u'stdout':
         multi = True if checkArgumentPresent([u'multiprocess',]) else False
-        mode = u'a' if checkArgumentPresent([u'append',]) else u'w'
+        mode = u'ab' if checkArgumentPresent([u'append',]) else u'wb'
         _setSTDFile(GM_STDERR, filename, mode, multi)
       else:
+        multi = True if checkArgumentPresent([u'multiprocess',]) else False
+        if  not GM_Globals[GM_STDOUT]:
+          _setSTDFile(GM_STDOUT, u'-', u'wb', multi)
         GM_Globals[GM_STDERR] = GM_Globals[GM_STDOUT].copy()
         GM_Globals[GM_STDERR][GM_REDIRECT_NAME] = u'stdout'
   if not GM_Globals[GM_STDOUT]:
-    _setSTDFile(GM_STDOUT, u'-', u'w', False)
+    _setSTDFile(GM_STDOUT, u'-', u'wb', False)
   if not GM_Globals[GM_STDERR]:
-    _setSTDFile(GM_STDERR, u'-', u'w', False)
+    _setSTDFile(GM_STDERR, u'-', u'wb', False)
   if not GM_Globals[GM_CSVFILE]:
-    _setCSVFile(u'-', GM_Globals[GM_STDOUT].get(GM_REDIRECT_MODE, u'w')+u'b', GC_Values[GC_CHARSET], True, False)
+    _setCSVFile(u'-', GM_Globals[GM_STDOUT].get(GM_REDIRECT_MODE, u'wb'), GC_Values[GC_CHARSET], True, False)
   if not GC_Values[GC_NO_UPDATE_CHECK]:
     doGAMCheckForUpdates()
 # If no select/options commands were executed or some were and there are more arguments on the command line,
@@ -5224,7 +5226,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     GM_Globals[GM_CSVFILE][GM_REDIRECT_QUEUE].put((REDIRECT_QUEUE_TITLES, titles[u'list']))
     GM_Globals[GM_CSVFILE][GM_REDIRECT_QUEUE].put((REDIRECT_QUEUE_DATA, csvRows))
     return
-  csv.register_dialect(u'nixstdout', lineterminator=u'\n')
+  csv.register_dialect(u'nixstdout', lineterminator=u'\n' if todrive or not GM_Globals[GM_WINDOWS] else u'\r\n')
   redirectCSVtoMultiprocessStdout = False
   if not todrive and GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME] == u'-':
     if GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD]:
@@ -5233,11 +5235,13 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME] = GM_Globals[GM_STDOUT][GM_REDIRECT_NAME]
   if todrive or redirectCSVtoMultiprocessStdout:
     csvFile = StringIO.StringIO()
+  else:
+    csvFile = openFile(GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME], GM_Globals[GM_CSVFILE][GM_REDIRECT_MODE])
+  if todrive:
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
                             dialect=u'nixstdout',
                             quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE][GM_REDIRECT_COLUMN_DELIMITER]))
   else:
-    csvFile = openFile(GM_Globals[GM_CSVFILE][GM_REDIRECT_NAME], GM_Globals[GM_CSVFILE][GM_REDIRECT_MODE])
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
                                dialect=u'nixstdout', encoding=GM_Globals[GM_CSVFILE][GM_REDIRECT_ENCODING],
                                quoting=csv.QUOTE_MINIMAL, delimiter=str(GM_Globals[GM_CSVFILE][GM_REDIRECT_COLUMN_DELIMITER]))
@@ -5491,17 +5495,30 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
     return qstr
 
   def _writePidData(pid, data):
-    if pid != 0 and showMultiInfo:
-      stdData[GM_REDIRECT_FD].write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], data[0], pidData[pid][u'cmd']))
-    if data[1] is not None:
-      stdData[GM_REDIRECT_FD].write(data[1].getvalue())
-      data[1].close()
-    if showMultiInfo:
-      stdData[GM_REDIRECT_FD].write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'End', datetime.datetime.now(tzinfo).isoformat(), data[0], pidData[pid][u'cmd']))
-    stdData[GM_REDIRECT_FD].flush()
+    try:
+      if pid != 0 and showMultiInfo:
+        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], data[0], pidData[pid][u'cmd']))
+      if data[1] is not None:
+        fd.write(data[1])
+      if showMultiInfo:
+        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'End', datetime.datetime.now(tzinfo).isoformat(), data[0], pidData[pid][u'cmd']))
+      fd.flush()
+    except IOError as e:
+      systemErrorExit(FILE_ERROR_RC, e)
 
   resetDefaultEncodingToUTF8()
   pidData = {}
+  if GM_Globals[GM_WINDOWS]:
+    if stdData[GM_REDIRECT_NAME] == u'null':
+      fd = open(os.devnull, stdData[GM_REDIRECT_MODE])
+    elif stdData[GM_REDIRECT_NAME] == u'-':
+      fd = [sys.stderr, sys.stdout][stdData[GM_REDIRECT_QUEUE] == u'stdout']
+    elif stdData[GM_REDIRECT_NAME] == u'stdout'and stdData[GM_REDIRECT_QUEUE] == u'stderr':
+      fd = sys.stdout
+    else:
+      fd = openFile(stdData[GM_REDIRECT_NAME], stdData[GM_REDIRECT_MODE])
+  else:
+    fd = stdData[GM_REDIRECT_FD]
   while True:
     pid, dataType, dataItem = mpQueue.get()
     if dataType == REDIRECT_QUEUE_START:
@@ -5515,7 +5532,7 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
       break
   for pid in pidData:
     _writePidData(pid, [0, None])
-  if stdData[GM_REDIRECT_FD] not in [sys.stdout, sys.stderr]:
+  if fd not in [sys.stdout, sys.stderr]:
     stdData[GM_REDIRECT_FD].close()
 
 def initializeStdQueueHandler(stdData, tzinfo, showMultiInfo):
@@ -5534,31 +5551,38 @@ def ProcessGAMCommandMulti(pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, ar
   initializeLogging()
   GM_Globals[GM_PID] = pid
   GM_Globals[GM_CSVFILE] = {}
-  GM_Globals[GM_STDOUT] = {GM_REDIRECT_NAME: u'', GM_REDIRECT_FD: None, GM_REDIRECT_MULTI_FD: None}
-  GM_Globals[GM_STDERR] = {GM_REDIRECT_NAME: u'', GM_REDIRECT_FD: None, GM_REDIRECT_MULTI_FD: None}
   if mpQueueCSVFile:
     GM_Globals[GM_CSVFILE][GM_REDIRECT_QUEUE] = mpQueueCSVFile
   if mpQueueStdout:
-    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD] = StringIO.StringIO()
+    GM_Globals[GM_STDOUT] = {GM_REDIRECT_NAME: u'', GM_REDIRECT_FD: None, GM_REDIRECT_MULTI_FD: StringIO.StringIO()}
     mpQueueStdout.put((pid, REDIRECT_QUEUE_START, args))
+  else:
+    GM_Globals[GM_STDOUT] = {}
   if mpQueueStderr:
     if mpQueueStderr is not mpQueueStdout:
-      GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD] = StringIO.StringIO()
+      GM_Globals[GM_STDERR] = {GM_REDIRECT_NAME: u'', GM_REDIRECT_FD: None, GM_REDIRECT_MULTI_FD: StringIO.StringIO()}
       mpQueueStderr.put((pid, REDIRECT_QUEUE_START, args))
     else:
       GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD] = GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD]
+  else:
+    GM_Globals[GM_STDERR] = {}
   sysRC = ProcessGAMCommand(args)
   if mpQueueStdout:
-    mpQueueStdout.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD]]))
+    mpQueueStdout.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].getvalue()]))
+    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].close()
   if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
-    mpQueueStderr.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD]]))
+    mpQueueStderr.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].getvalue()]))
+    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].close()
 
 def MultiprocessGAMCommands(items):
   import multiprocessing
   if not items:
     return
   num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
-  pool = multiprocessing.Pool(processes=num_worker_threads)
+  try:
+    pool = multiprocessing.Pool(processes=num_worker_threads)
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, e)
   if GM_Globals[GM_CSVFILE][GM_REDIRECT_MULTIPROCESS]:
     mpQueueCSVFile, mpQueueHandlerCSVFile = initializeCSVFileQueueHandler()
   else:
@@ -5594,10 +5618,12 @@ def MultiprocessGAMCommands(items):
   if mpQueueCSVFile:
     terminateCSVFileQueueHandler(mpQueueCSVFile, mpQueueHandlerCSVFile)
   if mpQueueStdout:
-    mpQueueStdout.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD]]))
+    mpQueueStdout.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].getvalue()]))
+    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].close()
     terminateStdQueueHandler(mpQueueStdout, mpQueueHandlerStdout)
   if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
-    mpQueueStderr.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD]]))
+    mpQueueStderr.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].getvalue()]))
+    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].close()
     terminateStdQueueHandler(mpQueueStderr, mpQueueHandlerStderr)
 
 # gam batch <FileName>|- [charset <Charset>]
