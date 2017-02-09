@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.11'
+__version__ = u'4.40.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -25600,8 +25600,8 @@ USER_COMMANDS_ALIASES = {
 
 def adjustRedirectedSTDFilesIfNotMultiprocessing():
   def adjustRedirectedSTDFile(stdData):
-    rdFd = stdData[GM_REDIRECT_FD]
-    rdMultiFd = stdData[GM_REDIRECT_MULTI_FD]
+    rdFd = stdData.get(GM_REDIRECT_FD)
+    rdMultiFd = stdData.get(GM_REDIRECT_MULTI_FD)
     if rdFd and rdMultiFd and rdFd != rdMultiFd:
       try:
         rdFd.write(rdMultiFd.getvalue())
@@ -25611,7 +25611,7 @@ def adjustRedirectedSTDFilesIfNotMultiprocessing():
         systemErrorExit(FILE_ERROR_RC, e)
 
   adjustRedirectedSTDFile(GM_Globals[GM_STDOUT])
-  if GM_Globals[GM_STDERR][GM_REDIRECT_NAME] != u'stdout':
+  if GM_Globals[GM_STDERR].get(GM_REDIRECT_NAME) != u'stdout':
     adjustRedirectedSTDFile(GM_Globals[GM_STDERR])
   else:
     GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD] = GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD]
