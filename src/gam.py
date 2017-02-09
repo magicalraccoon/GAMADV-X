@@ -101,7 +101,7 @@ GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__
                                                                               sys.version_info[3],
                                                                               platform.platform(), platform.machine())
 GAM_RELEASES = u'https://github.com/{0}/{1}/releases'.format(GIT_USER, GAM)
-GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
+GAM_WIKI = u'https://github.com/{0}/{1}/wiki'.format(GIT_USER, GAM)
 GAM_ALL_RELEASES = u'https://api.github.com/repos/{0}/{1}/releases'.format(GIT_USER, GAM)
 GAM_LATEST_RELEASE = GAM_ALL_RELEASES+u'/latest'
 GAM_LATEST_SOURCE = u'https://raw.githubusercontent.com/{0}/{1}/master/src'.format(GIT_USER, GAM)
