@@ -325,10 +325,10 @@ For redirect csv, the optional arguments must appear in the order shown.
 <Redirect> ::=
 	redirect csv <FileName> [multiprocess] [append] [noheader] [charset <Charset>] [columndelimiter <Character>] |
 	redirect stdout <FileName> [multiprocess] [append] |
-	redirect stdout null
-	redirect stderr <FileName> [multiprocess] [append]
-	redirect stderr stdout
-	redirect stderr null
+	redirect stdout null [multiprocess] |
+	redirect stderr <FileName> [multiprocess] [append] |
+	redirect stderr null [multiprocess] |
+	redirect stderr stdout [multiprocess]
 
 <Select> <Config> <Redirect> must come before all other arguments and in this order,  ... indicates that additional GAM arguments may appear.
 
