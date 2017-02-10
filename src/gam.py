@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.40.12'
+__version__ = u'4.41.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -188,8 +188,9 @@ REDIRECT_QUEUE_END = u'end'
 REDIRECT_QUEUE_EOF = u'eof'
 # File containing time of last GAM update check
 GM_LAST_UPDATE_CHECK_TXT = u'lupc'
-# Index of <UserTypeEntity> in command line
-GM_ENTITY_CL_INDEX = u'enin'
+# Index of start of <UserTypeEntity> in command line
+GM_ENTITY_CL_START = u'ecls'
+GM_ENTITY_CL_DELAY_START = u'eclD'
 # csvfile keyfield <FieldName> [delimiter <String>] (matchfield <FieldName> <MatchPattern>)* [datafield <FieldName>(:<FieldName>*) [delimiter <String>]]
 # { key: [datafieldvalues]}
 GM_CSV_DATA_DICT = u'csdd'
@@ -234,7 +235,8 @@ GM_Globals = {
   GM_CSV_KEY_FIELD: None,
   GM_CSV_SUBKEY_FIELD: None,
   GM_CSV_DATA_FIELD: None,
-  GM_ENTITY_CL_INDEX: 1,
+  GM_ENTITY_CL_START: 1,
+  GM_ENTITY_CL_DELAY_START: 1,
   GM_MAP_ORGUNIT_ID_TO_NAME: None,
   GM_MAP_ROLE_ID_TO_NAME: None,
   GM_MAP_ROLE_NAME_TO_ID: None,
@@ -4530,7 +4532,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       else:
         _showInvalidEntity(Entity.GROUP, group)
         invalid += 1
-  elif entityType in [CL_ENTITY_GROUP_USERS]:
+  elif entityType == CL_ENTITY_GROUP_USERS:
     cd = buildGAPIObject(DIRECTORY_API)
     groups = convertEntityToList(entity)
     recursive = False
@@ -4932,7 +4934,17 @@ def mapEntityType(entityType, typeMap):
     return typeMap[entityType]
   return entityType
 
-def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=False, userAllowed=True, typeMap=None, checkNotSuspended=False, groupUserMembersOnly=True):
+def getEntityArgument(entityList):
+  if entityList is None:
+    return (0, 0, entityList)
+  if isinstance(entityList, dict):
+    clLoc = CLArgs.Location()
+    CLArgs.SetLocation(GM_Globals[GM_ENTITY_CL_DELAY_START])
+    entityList = getUsersToModify(**entityList)
+    CLArgs.SetLocation(clLoc)
+  return (0, len(entityList), entityList)
+
+def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=False, userAllowed=True, typeMap=None, checkNotSuspended=False, groupUserMembersOnly=True, delayGet=False):
   selectorChoices = CL_ENTITY_SELECTORS[:]
   if userAllowed:
     selectorChoices += CL_CSVDATA_ENTITY_SELECTORS
@@ -4947,8 +4959,14 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
       if crosAllowed:
         choices += CL_CROS_ENTITY_SELECTOR_ALL_SUBTYPES
       entityType = CL_ENTITY_SELECTOR_ALL_SUBTYPES_MAP[getChoice(choices)]
-      return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType == CL_ENTITY_ALL_USERS],
-              getUsersToModify(entityType, None))
+      if not delayGet:
+        return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType == CL_ENTITY_ALL_USERS],
+                getUsersToModify(entityType, None))
+      else:
+        GM_Globals[GM_ENTITY_CL_DELAY_START] = CLArgs.Location()
+        buildGAPIObject(DIRECTORY_API)
+        return ([CL_ENTITY_CROS, CL_ENTITY_USERS][entityType == CL_ENTITY_ALL_USERS],
+                {u'entityType': entityType, u'entity': None})
     if userAllowed:
       if entitySelector == CL_ENTITY_SELECTOR_FILE:
         return (CL_ENTITY_USERS,
@@ -4991,11 +5009,38 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
   entityType = mapEntityType(getChoice(entityChoices, choiceAliases=CL_ENTITY_ALIAS_MAP, defaultChoice=defaultEntityType), typeMap)
   if entityType:
     if entityType not in CL_CROS_ENTITIES:
-      return (CL_ENTITY_USERS,
-              getUsersToModify(entityType, getString(OB_USER_ENTITY, minLen=0), checkNotSuspended=checkNotSuspended, groupUserMembersOnly=groupUserMembersOnly))
+      entityClass = CL_ENTITY_USERS
+      entityItem = getString(OB_USER_ENTITY, minLen=0)
     else:
-      return (CL_ENTITY_CROS,
-              getUsersToModify(entityType, getString(OB_CROS_ENTITY, minLen=0)))
+      entityClass = CL_ENTITY_CROS
+      entityItem = getString(OB_CROS_ENTITY, minLen=0)
+    if not delayGet:
+      if entityClass == CL_ENTITY_USERS:
+        return (entityClass,
+                getUsersToModify(entityType, entityItem, checkNotSuspended=checkNotSuspended, groupUserMembersOnly=groupUserMembersOnly))
+      else:
+        return (entityClass,
+                getUsersToModify(entityType, entityItem))
+    else:
+      GM_Globals[GM_ENTITY_CL_DELAY_START] = CLArgs.Location()
+      buildGAPIObject(DIRECTORY_API)
+      if entityClass == CL_ENTITY_USERS:
+        if entityType == CL_ENTITY_GROUP_USERS:
+          # Skip over sub-arguments
+          while CLArgs.ArgumentsRemaining():
+            myarg = getArgument()
+            if myarg in GROUP_ROLES_MAP or myarg in [u'primarydomain', u'domains', u'recursive']:
+              pass
+            elif myarg == u'end':
+              break
+            else:
+              CLArgs.Backup()
+              missingArgumentExit(u'end')
+        return (entityClass,
+                {u'entityType': entityType, u'entity': entityItem, u'checkNotSuspended': checkNotSuspended, u'groupUserMembersOnly': groupUserMembersOnly})
+      else:
+        return (entityClass,
+                {u'entityType': entityType, u'entity': entityItem})
   if returnOnError:
     return (None, None)
   invalidChoiceExit(selectorChoices+entityChoices)
@@ -5524,7 +5569,7 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
     if dataType == REDIRECT_QUEUE_START:
       pidData[pid] = {u'queue': stdData[GM_REDIRECT_QUEUE], u'start': datetime.datetime.now(tzinfo).isoformat(), u'cmd': _quotedArgumentList(dataItem)}
       if pid == 0 and showMultiInfo:
-        stdData[GM_REDIRECT_FD].write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], 0, pidData[pid][u'cmd']))
+        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], 0, pidData[pid][u'cmd']))
     elif dataType == REDIRECT_QUEUE_END:
       _writePidData(pid, dataItem)
       del pidData[pid]
@@ -5533,7 +5578,11 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
   for pid in pidData:
     _writePidData(pid, [0, None])
   if fd not in [sys.stdout, sys.stderr]:
-    stdData[GM_REDIRECT_FD].close()
+    try:
+      fd.close()
+    except IOError:
+      pass
+  stdData[GM_REDIRECT_FD] = None
 
 def initializeStdQueueHandler(stdData, tzinfo, showMultiInfo):
   import multiprocessing
@@ -5570,9 +5619,11 @@ def ProcessGAMCommandMulti(pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, ar
   if mpQueueStdout:
     mpQueueStdout.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].getvalue()]))
     GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].close()
+    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD] = None
   if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
     mpQueueStderr.put((pid, REDIRECT_QUEUE_END, [sysRC, GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].getvalue()]))
     GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].close()
+    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD] = None
 
 def MultiprocessGAMCommands(items):
   import multiprocessing
@@ -5620,10 +5671,12 @@ def MultiprocessGAMCommands(items):
   if mpQueueStdout:
     mpQueueStdout.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].getvalue()]))
     GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD].close()
+    GM_Globals[GM_STDOUT][GM_REDIRECT_MULTI_FD] = None
     terminateStdQueueHandler(mpQueueStdout, mpQueueHandlerStdout)
   if mpQueueStderr and mpQueueStderr is not mpQueueStdout:
     mpQueueStderr.put((0, REDIRECT_QUEUE_END, [GM_Globals[GM_SYSEXITRC], GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].getvalue()]))
     GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD].close()
+    GM_Globals[GM_STDERR][GM_REDIRECT_MULTI_FD] = None
     terminateStdQueueHandler(mpQueueStderr, mpQueueHandlerStderr)
 
 # gam batch <FileName>|- [charset <Charset>]
@@ -5659,11 +5712,11 @@ def doBatch():
   closeFile(f)
   MultiprocessGAMCommands(items)
 
-def doAutoBatch(CL_entityType, CL_entityList, CL_command):
+def doAutoBatch(entityType, entityList, CL_command):
   remaining = CLArgs.Remaining()
   items = collections.deque()
-  for entity in CL_entityList:
-    items.append([GAM_CMD, CL_entityType, entity, CL_command]+remaining)
+  for entity in entityList:
+    items.append([GAM_CMD, entityType, entity, CL_command]+remaining)
   MultiprocessGAMCommands(items)
 
 # Process command line arguments, find substitutions
@@ -5771,7 +5824,7 @@ def _doList(entityList, entityType):
     todrive = getTodriveParameters()
   else:
     todrive = {}
-  if not entityList:
+  if entityList is None:
     entityList = getEntityList(OB_ENTITY)
   if GM_Globals[GM_CSV_DATA_DICT]:
     keyField = GM_Globals[GM_CSV_KEY_FIELD]
@@ -5793,6 +5846,7 @@ def _doList(entityList, entityType):
     entityItemLists = None
   dataDelimiter = getDelimiter(True)
   checkForExtraneousArguments()
+  _, _, entityList = getEntityArgument(entityList)
   for entity in entityList:
     entityEmail = normalizeEmailAddressOrUID(entity)
     if showData:
@@ -6216,6 +6270,7 @@ def doOAuthInfo():
     else:
       invalidOauth2TxtExit()
 
+# gam <UserTypeEntity> check serviceaccount
 def checkServiceAccount(users):
   checkForExtraneousArguments()
   all_scopes_pass = True
@@ -6226,8 +6281,7 @@ def checkServiceAccount(users):
         all_scopes.append(scope)
   all_scopes.sort()
   jcount = len(all_scopes)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = convertUserUIDtoEmailAddress(user)
@@ -6277,6 +6331,7 @@ def getCRMService(login_hint):
                                              cache=GC_Values[GC_CACHE_DIR]))
   return (googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False), http)
 
+# gam create project [<EmailAddress>]
 def doCreateProject():
   login_hint = getEmailAddress(noUid=True, optional=True)
   checkForExtraneousArguments()
@@ -6405,6 +6460,7 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
   raw_input(u'Press Enter when done...')
   print u'That\'s it! Your GAM Project is created and ready to use.'
 
+# gam delete projects [<EmailAddress>]
 def doDeleteProjects():
   # Leave undocumented. Most users should never need.
   # Deletes all projects with ID gam-project-*
@@ -9726,8 +9782,7 @@ def _createContact(users, entityType):
   contactsManager = ContactsManager()
   fields = contactsManager.GetContactFields(entityType)
   contactEntry = contactsManager.FieldsToContact(fields)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count)
@@ -9763,8 +9818,7 @@ def _uppdateContacts(users, entityType):
   contactsManager = ContactsManager()
   entityList = getEntityList(OB_CONTACT_ENTITY)
   update_fields = contactsManager.GetContactFields(entityType)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count)
@@ -9835,8 +9889,7 @@ def _deleteContacts(users, entityType):
   else:
     entityList = getEntityList(OB_CONTACT_ENTITY)
   contactIdLists = entityList if isinstance(entityList, dict) else None
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if contactIdLists:
@@ -9998,8 +10051,7 @@ def _infoContacts(users, entityType, contactFeed=True):
         showContactGroups = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if contactIdLists:
@@ -10069,8 +10121,7 @@ def _printShowContacts(users, entityType, csvFormat, contactFeed=True):
         showContactGroups = True
     else:
       _getContactQueryAttributes(contactQuery, myarg, entityType, True)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count, contactFeed=contactFeed)
@@ -10209,8 +10260,7 @@ def createUserContactGroup(users):
   entityType = Entity.USER
   fields = contactsManager.GetContactGroupFields()
   contactGroup = contactsManager.FieldsToContactGroup(fields)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count)
@@ -10241,8 +10291,7 @@ def updateUserContactGroup(users):
   entityType = Entity.USER
   entityList = getStringReturnInList(OB_CONTACT_GROUP_ITEM)
   update_fields = contactsManager.GetContactGroupFields()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count)
@@ -10301,8 +10350,7 @@ def deleteUserContactGroups(users):
   entityType = Entity.USER
   entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, shlexSplit=True)
   contactGroupIdLists = entityList if isinstance(entityList, dict) else None
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if contactGroupIdLists:
@@ -10360,8 +10408,8 @@ def infoUserContactGroups(users):
   entityType = Entity.USER
   entityList = getEntityList(OB_CONTACT_GROUP_ENTITY, shlexSplit=True)
   contactGroupIdLists = entityList if isinstance(entityList, dict) else None
-  i = 0
-  count = len(users)
+  checkForExtraneousArguments()
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if contactGroupIdLists:
@@ -10425,8 +10473,7 @@ def _printShowContactGroups(users, csvFormat):
     else:
       unknownArgumentExit()
   contactsManager = ContactsManager()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, contactsObject = getContactsObject(entityType, user, i, count)
@@ -10560,8 +10607,7 @@ def updateCrOSDevices(entityList, cd=None):
       ack_wipe = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   if action_body:
     if action_body[u'action'] == u'deprovision' and not ack_wipe:
       stderrWarningMsg(MESSAGE_REFUSING_TO_DEPROVISION_DEVICES.format(count))
@@ -10699,8 +10745,7 @@ def infoCrOSDevices(entityList, cd=None):
     else:
       unknownArgumentExit()
   fields = u','.join(set(fieldsList)).replace(u'.', u'/') if fieldsList else None
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   for deviceId in entityList:
     i += 1
     try:
@@ -10764,6 +10809,7 @@ CROS_ORDERBY_CHOICES_MAP = {
 def doPrintCrOSEntity(entityList):
   getChoice([CL_OB_CROS, CL_OB_CROSES], defaultChoice=None)
   if not CLArgs.ArgumentsRemaining():
+    _, _, entityList = getEntityArgument(entityList)
     for entity in entityList:
       printLine(entity)
     return
@@ -10894,6 +10940,7 @@ def doPrintCrOSDevices(entityList=None):
           invalidChoiceExit(CROS_ARGUMENT_TO_PROPERTY_MAP)
     else:
       unknownArgumentExit()
+  _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList)).replace(u'.', u'/') if fieldsList else None
     printGettingAccountEntitiesInfo(Entity.CROS_DEVICE, qualifier=queryQualifier(query))
@@ -14167,8 +14214,7 @@ def _createSite(users, entityType):
   fields = sitesManager.GetSiteFields()
   if not fields.get(SITE_NAME):
     fields[SITE_NAME] = site
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, sitesObject = getSitesObject(entityType, user, i, count)
@@ -14197,8 +14243,7 @@ def _updateSites(users, entityType):
   sitesManager = SitesManager()
   siteEntity = getSiteEntity()
   updateFields = sitesManager.GetSiteFields()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, sitesObject, sites, jcount = _validateUserGetSites(entityType, user, i, count, siteEntity)
@@ -14321,8 +14366,7 @@ def _infoSites(users, entityType):
     else:
       unknownArgumentExit()
   sitesManager = SitesManager()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, sitesObject, sites, jcount = _validateUserGetSites(entityType, user, i, count, siteEntity)
@@ -14455,8 +14499,7 @@ def _printShowSites(entityList, entityType, csvFormat):
       unknownArgumentExit()
   sitesManager = SitesManager()
   sitesSet = set()
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   if entityType == Entity.USER:
     for user in entityList:
       i += 1
@@ -14541,8 +14584,7 @@ def _processSiteACLs(users, entityType):
   checkForExtraneousArguments()
   modifier = SITE_ACTION_TO_MODIFIER_MAP[action]
   sitesManager = SitesManager()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -14664,8 +14706,7 @@ def _printSiteActivity(users, entityType):
       url_params[u'updated-max'] = getYYYYMMDD()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if siteLists:
@@ -15075,8 +15116,7 @@ def doCreateUser():
 def updateUsers(entityList):
   cd = buildGAPIObject(DIRECTORY_API)
   body, admin_body = getUserAttributes(cd, True)
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   for user in entityList:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -15120,8 +15160,7 @@ def doUpdateUser():
 def deleteUsers(entityList):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   for user in entityList:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -15152,8 +15191,7 @@ def undeleteUsers(entityList):
     userOrgUnitLists = None
   checkForExtraneousArguments()
   body = {u'orgUnitPath': u''}
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   for user in entityList:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -15408,8 +15446,7 @@ def infoUsers(entityList):
   fields = u','.join(set(fieldsList)).replace(u'.', u'/') if fieldsList else None
   if getLicenses:
     lic = buildGAPIObject(LICENSING_API)
-  i = 0
-  count = len(entityList)
+  i, count, entityList = getEntityArgument(entityList)
   for userEmail in entityList:
     i += 1
     userEmail = normalizeEmailAddressOrUID(userEmail)
@@ -15633,6 +15670,7 @@ USERS_ORDERBY_CHOICES_MAP = {
 # gam <UserTypeEntity> print
 def doPrintUserEntity(entityList):
   if not CLArgs.ArgumentsRemaining():
+    _, _, entityList = getEntityArgument(entityList)
     for entity in entityList:
       printLine(normalizeEmailAddressOrUID(entity))
     return
@@ -15739,6 +15777,7 @@ def doPrintUsers(entityList=None):
       email_parts = True
     else:
       unknownArgumentExit()
+  _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
     fields = u'nextPageToken,users({0})'.format(u','.join(set(fieldsList))).replace(u'.', u'/') if fieldsList else None
     printGettingAccountEntitiesInfo(Entity.USER, qualifier=queryQualifier(query))
@@ -17493,8 +17532,7 @@ def deleteASP(users):
   cd = buildGAPIObject(DIRECTORY_API)
   codeId = getString(OB_ASP_ID)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -17512,8 +17550,7 @@ def deleteASP(users):
 def showASPs(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -17543,8 +17580,7 @@ def _showBackupCodes(user, codes, i, count):
 def updateBackupCodes(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -17563,8 +17599,7 @@ def updateBackupCodes(users):
 def deleteBackupCodes(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -17580,8 +17615,7 @@ def deleteBackupCodes(users):
 def showBackupCodes(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -17792,8 +17826,7 @@ def addCalendars(users):
   calendarEntity = getCalendarEntity()
   body = {u'selected': True, u'hidden': False}
   colorRgbFormat = _getCalendarAttributes(body)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
@@ -17809,8 +17842,7 @@ def addCalendars(users):
     Indent.Decrement()
 
 def _updateDeleteCalendars(users, calendarEntity, function, **kwargs):
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
@@ -17842,8 +17874,7 @@ def deleteCalendars(users):
 def infoCalendars(users):
   calendarEntity = getCalendarEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
@@ -17882,8 +17913,7 @@ def _getCalendarSettings(summaryRequired=False):
 def createCalendar(users):
   calendarEntity = initCalendarEntity()
   body = _getCalendarSettings(summaryRequired=True)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, _, _ = _validateUserGetCalendarIds(user, i, count, calendarEntity, showAction=False, setRC=False)
@@ -17900,8 +17930,7 @@ def createCalendar(users):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
 
 def _modifyRemoveCalendars(users, calendarEntity, function, **kwargs):
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
@@ -17969,8 +17998,7 @@ def _printShowCalendars(users, csvFormat):
       primary = True
     elif not _getCalendarSelectProperty(myarg, kwargs):
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal = validateCalendar(user, i, count)
@@ -18026,8 +18054,7 @@ def showCalendars(users):
 # gam <UserTypeEntity> show calsettings
 def showCalSettings(users):
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal = validateCalendar(user, i, count)
@@ -18058,8 +18085,7 @@ def addCalendarACLs(users):
   role = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18073,8 +18099,7 @@ def addCalendarACLs(users):
 def updateDeleteCalendarACLs(users, calendarEntity, function, modifier, role, body):
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18104,8 +18129,7 @@ def infoCalendarACLs(users):
   calendarEntity = getCalendarEntity()
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18129,8 +18153,7 @@ def printShowCalendarACLs(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Entity.CALENDAR_ACL, Action.MODIFIER_FROM, showAction=not csvFormat)
@@ -18169,8 +18192,7 @@ def transferCalendars(users):
   if not targetCal:
     return
   targetRoleBody = {u'role': u'owner', u'scope': {u'type': u'user', u'value': targetUser}}
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     Action.Set(Action.TRANSFER_OWNERSHIP)
@@ -18233,8 +18255,7 @@ def addCalendarEvent(users):
       unknownArgumentExit()
   eventRecurrenceTimeZoneRequired = _checkIfEventRecurrenceTimeZoneRequired(body, parameters)
   sendNotifications = parameters[u'sendNotifications']
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Entity.EVENT, Action.MODIFIER_TO)
@@ -18259,8 +18280,7 @@ def updateCalendarEvents(users):
       pass
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18288,8 +18308,7 @@ def deleteCalendarEvents(users):
       doIt = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18305,8 +18324,7 @@ def deleteCalendarEvents(users):
 def wipeCalendarEvents(users):
   calendarEntity = getCalendarEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Entity.EVENT, Action.MODIFIER_FROM)
@@ -18331,8 +18349,7 @@ def moveCalendarEvents(users):
       unknownArgumentExit()
   if not checkCalendarExists(None, newCalId, True):
     return
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18372,8 +18389,7 @@ def updateCalendarAttendees(users):
       if len(row) >= 2:
         attendee_map[row[0].lower()] = row[1].lower()
     closeFile(f)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
@@ -18437,8 +18453,7 @@ def infoCalendarEvents(users):
   calendarEntity = getCalendarEntity()
   calendarEventEntity = getCalendarEventEntity()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -18465,8 +18480,7 @@ def printShowCalendarEvents(users, csvFormat):
       pass
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Entity.EVENT, Action.MODIFIER_FROM, showAction=not csvFormat)
@@ -18731,8 +18745,7 @@ def printDriveActivity(users):
       drive_ancestorId = getString(OB_DRIVE_FOLDER_ID)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, activity = buildGAPIServiceObject(APPSACTIVITY_API, user)
@@ -18768,8 +18781,7 @@ def printDriveSettings(users):
       unknownArgumentExit()
   dont_show = [u'kind', u'etag', u'selfLink', u'additionalRoleInfo', u'exportFormats', u'features',
                u'importFormats', u'isCurrentAppInstalled', u'maxUploadSizes', u'user']
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive = buildGAPIServiceObject(DRIVE_API, user)
@@ -18980,8 +18992,7 @@ def showDriveFileInfo(users):
   else:
     fields = u'*'
     skip_objects.extend([u'kind', u'etag'])
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19021,8 +19032,7 @@ def showDriveFileRevisions(users):
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19327,8 +19337,7 @@ def printDriveFileList(users):
   orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
     addTitlesToCSVfile([u'paths',], titles)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -19375,8 +19384,8 @@ def printDriveFileList(users):
   if allfields:
     sortCSVTitles([u'Owner', u'id', DRIVE_FILE_NAME], titles)
   writeCSVfile(csvRows, titles,
-               u'{0} {1} Drive Files'.format(CLArgs.Argument(GM_Globals[GM_ENTITY_CL_INDEX]),
-                                             CLArgs.Argument(GM_Globals[GM_ENTITY_CL_INDEX]+1)),
+               u'{0} {1} Drive Files'.format(CLArgs.Argument(GM_Globals[GM_ENTITY_CL_START]),
+                                             CLArgs.Argument(GM_Globals[GM_ENTITY_CL_START]+1)),
                todrive)
 
 # gam <UserTypeEntity> show filepath <DriveFileEntity>
@@ -19384,8 +19393,7 @@ def showDriveFilePath(users):
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19461,8 +19469,7 @@ def showDriveFileTree(users):
     fileIdEntity = initDriveFileEntity()
     cleanFileIDsList(fileIdEntity, [u'root',])
   orderBy = u','.join(orderByList) if orderByList else None
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -19510,8 +19517,7 @@ def addDriveFile(users):
     else:
       getDriveFileAttribute(body, parameters, myarg, False, kwargs)
   Action.Set(Action.CREATE)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, _ = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters)
@@ -19555,8 +19561,7 @@ def updateDriveFile(users):
       body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FILE_NAME)
     else:
       getDriveFileAttribute(body, parameters, myarg, True, kwargs)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19665,8 +19670,7 @@ def copyDriveFile(users):
       parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and {1} = '{2}'".format(MIMETYPE_GA_FOLDER, DRIVE_FILE_NAME, getString(OB_DRIVE_FOLDER_NAME))
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19713,8 +19717,7 @@ def deleteDriveFile(users, function=None):
     function = getChoice(DELETE_DRIVEFILE_CHOICES_MAP, defaultChoice=u'trash', mapChoice=True)
   checkForExtraneousArguments()
   Action.Set(DELETE_DRIVEFILE_FUNCTION_TO_ACTION_MAP[function])
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER)
@@ -19809,8 +19812,7 @@ def getDriveFile(users):
       revisionId = getInteger(minVal=1)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE)
@@ -20044,8 +20046,7 @@ def transferDriveFiles(users):
     entityServiceNotApplicableWarning(Entity.TARGET_USER, targetUser)
     return
   targetPermissionsBody = {u'role': u'owner', u'type': u'user', DRIVE_PERMISSIONS_GROUP_USER_TYPE_VALUE: targetUser}
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     sourceUser, sourceDrive = buildGAPIServiceObject(DRIVE_API, user)
@@ -20163,8 +20164,7 @@ def transferDriveFileOwnership(users):
     filepath = False
   body = {u'role': u'owner'}
   bodyAdd = {u'role': u'writer', u'type': u'user', DRIVE_PERMISSIONS_GROUP_USER_TYPE_VALUE: newOwner}
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FOLDER)
@@ -20313,8 +20313,7 @@ def claimDriveFolderOwnership(users):
     filepath = False
   body = {u'role': u'owner'}
   bodyShare = {u'writersCanShare': False}
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -20445,8 +20444,7 @@ def deleteEmptyDriveFolders(users):
   checkForExtraneousArguments()
   Action.Set(Action.DELETE_EMPTY)
   query = ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive = buildGAPIServiceObject(DRIVE_API, user)
@@ -20486,8 +20484,7 @@ def deleteEmptyDriveFolders(users):
 # gam <UserTypeEntity> empty drivetrash
 def emptyDriveTrash(users):
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive = buildGAPIServiceObject(DRIVE_API, user)
@@ -20580,8 +20577,7 @@ def addDriveFileACL(users):
   if body[u'role'] == u'owner' and body[u'type'] != u'user':
     CLArgs.SetLocation(roleLocation)
     usageErrorExit(PHRASE_INVALID_OWNER_TYPE.format(body[u'role'], body[u'type']))
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
@@ -20648,8 +20644,7 @@ def updateDriveFileACLs(users):
     permissionId = validateUserGetPermissionId(permissionId)
     if not permissionId:
       return
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
@@ -20753,8 +20748,7 @@ def addDriveFilePermissions(users):
       emailMessage = getString(OB_STRING)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -20813,8 +20807,7 @@ def deleteDriveFileACLs(users):
     permissionId = validateUserGetPermissionId(permissionId)
     if not permissionId:
       return
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Entity.DRIVE_FILE_OR_FOLDER_ACL)
@@ -20879,8 +20872,7 @@ def deleteDriveFilePermissions(users):
   permissionIds = getEntityList(OB_DRIVE_FILE_PERMISSION_ID_ENTITY)
   permissionIdsLists = permissionIds if isinstance(permissionIds, dict) else None
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     origUser = user
@@ -20942,8 +20934,7 @@ def _printShowDriveFileACLs(users, csvFormat):
         addTitlesToCSVfile([DRIVE_FILE_NAME], titles)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=[Entity.DRIVE_FILE_OR_FOLDER_ACL, None][csvFormat])
@@ -21003,8 +20994,7 @@ def showDriveFileACLs(users):
 def deleteUsersAliases(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21092,8 +21082,7 @@ def addUserToGroups(users):
   groupKeys = getEntityList(OB_GROUP_ENTITY)
   userGroupLists = groupKeys if isinstance(groupKeys, dict) else None
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if userGroupLists:
@@ -21149,8 +21138,7 @@ def deleteUserFromGroups(users):
     checkForExtraneousArguments()
   else:
     groupKeys = None
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     if groupKeys is None:
@@ -21190,8 +21178,7 @@ def getLicenseParameters(operation):
 # gam <UserTypeEntity> add license <SKUID>
 def addLicense(users):
   lic, parameters = getLicenseParameters(u'insert')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21208,8 +21195,7 @@ def addLicense(users):
 # gam <UserTypeEntity> update license <SKUID> [from] <SKUID>
 def updateLicense(users):
   lic, parameters = getLicenseParameters(u'patch')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21226,8 +21212,7 @@ def updateLicense(users):
 # gam <UserTypeEntity> delete license <SKUID>
 def deleteLicense(users):
   lic, parameters = getLicenseParameters(u'delete')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21248,8 +21233,7 @@ def updatePhoto(users):
   filenamePattern = getString(OB_PHOTO_FILENAME_PATTERN)
   checkForExtraneousArguments()
   p = re.compile(u'^(ht|f)tps?://.*$')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, _ = splitEmailAddressOrUID(user)
@@ -21288,8 +21272,7 @@ def updatePhoto(users):
 def deletePhoto(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21320,8 +21303,7 @@ def getPhoto(users):
       showPhotoData = False
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21353,8 +21335,8 @@ PROFILE_SHARING_CHOICES_MAP = {
 
 def _setShowProfile(users, function, **kwargs):
   cd = buildGAPIObject(DIRECTORY_API)
-  i = 0
-  count = len(users)
+  checkForExtraneousArguments()
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21369,12 +21351,10 @@ def _setShowProfile(users, function, **kwargs):
 # gam <UserTypeEntity> profile share|shared|unshare|unshared
 def setProfile(users):
   body = {u'includeInGlobalAddressList': getChoice(PROFILE_SHARING_CHOICES_MAP, mapChoice=True)}
-  checkForExtraneousArguments()
   _setShowProfile(users, u'patch', body=body)
 
 # gam <UserTypeEntity> show profile
 def showProfile(users):
-  checkForExtraneousArguments()
   _setShowProfile(users, u'get')
 
 # Token commands utilities
@@ -21389,8 +21369,7 @@ def deleteTokens(users):
   checkArgumentPresent(CLIENTID_ARGUMENT, required=True)
   clientId = commonClientIds(getString(OB_CLIENT_ID))
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21439,8 +21418,7 @@ def _printShowTokens(entityType, users, csvFormat):
   if not entityType:
     users = getUsersToModify(CL_ENTITY_ALL_USERS, None)
   fields = u','.join([u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes'])
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21498,8 +21476,7 @@ def doPrintTokens():
 def deprovisionUser(users):
   cd = buildGAPIObject(DIRECTORY_API)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user = normalizeEmailAddressOrUID(user)
@@ -21568,8 +21545,7 @@ def _printShowGmailProfile(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -21698,8 +21674,7 @@ def _printShowGplusProfile(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gplus = buildGAPIServiceObject(GPLUS_API, user)
@@ -21772,8 +21747,7 @@ def addLabel(users):
       body[u'messageListVisibility'] = getChoice(LABEL_MESSAGE_LIST_VISIBILITY_CHOICES)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -21804,8 +21778,7 @@ def updateLabelSettings(users):
       body[u'labelListVisibility'] = getChoice(LABEL_LABEL_LIST_VISIBILITY_CHOICES_MAP, mapChoice=True)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -21849,8 +21822,7 @@ def updateLabels(users):
     else:
       unknownArgumentExit()
   pattern = re.compile(search, re.IGNORECASE)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -21932,8 +21904,7 @@ def deleteLabel(users):
   label = getString(OB_LABEL_NAME)
   label_name_lower = label.lower()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -22001,8 +21972,7 @@ def showLabels(users):
       showCounts = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -22096,8 +22066,7 @@ def archiveMessages(users):
       query += u')'
   else:
     query = None
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
@@ -22309,8 +22278,7 @@ def _processMessagesThreads(users, entityType):
     function = u'modify'
     addLabelIds = [u'SPAM',]
     removeLabelIds = [u'INBOX',]
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
@@ -22708,8 +22676,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     for j, name in enumerate(headersToShow):
       headersToShow[j] = name.lower()
   listType = [u'threads', u'messages'][entityType == Entity.MESSAGE]
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, messageIds = _validateUserGetMessageIds(user, messageEntity)
@@ -22802,8 +22769,7 @@ def setArrows(users):
   emailSettings = getEmailSettingsObject()
   enable = getBoolean()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -22869,8 +22835,7 @@ def delegateTo(users, checkForTo=True):
     checkArgumentPresent(TO_ARGUMENT, required=True)
   delegateEntity = getUserObjectEntity(OB_USER_ENTITY, Entity.DELEGATE)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     delegatorEmail, delegatorName, delegatorDomain, delegates, jcount = _validateDelegatorGetObjectList(user, i, count, delegateEntity)
@@ -22938,8 +22903,7 @@ def deleteDelegate(users):
   emailSettings = buildGAPIObject(EMAIL_SETTINGS_API)
   delegateEntity = getUserObjectEntity(OB_USER_ENTITY, Entity.DELEGATE)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     delegatorEmail, delegatorName, delegatorDomain, delegates, jcount = _validateDelegatorGetObjectList(user, i, count, delegateEntity)
@@ -22991,8 +22955,7 @@ def _printShowDelegates(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     delegatorEmail, delegatorName, delegatorDomain = splitEmailAddressOrUID(user)
@@ -23187,8 +23150,7 @@ def addFilter(users):
     missingChoiceExit(FILTER_ACTION_CHOICES)
   if removeLabelIds:
     body[u'action'][u'removeLabelIds'] = removeLabelIds
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23224,8 +23186,7 @@ def addFilter(users):
 def deleteFilters(users):
   filterIdEntity = getUserObjectEntity(OB_FILTER_ID_ENTITY, Entity.FILTER)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, filterIds, jcount = _validateUserGetObjectList(user, i, count, filterIdEntity)
@@ -23251,8 +23212,7 @@ def deleteFilters(users):
 def infoFilters(users):
   filterIdEntity = getUserObjectEntity(OB_FILTER_ID_ENTITY, Entity.FILTER)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, filterIds, jcount = _validateUserGetObjectList(user, i, count, filterIdEntity)
@@ -23292,8 +23252,7 @@ def _printShowFilters(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23391,8 +23350,7 @@ def setForward(users):
       missingChoiceExit(EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP)
     if not body.get(u'emailAddress'):
       missingArgumentExit(OB_EMAIL_ADDRESS)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23431,8 +23389,7 @@ def _printShowForward(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23484,8 +23441,7 @@ def _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, fu
 def addForwardingAddresses(users):
   emailAddressEntity = getUserObjectEntity(OB_EMAIL_ADDRESS_ENTITY, Entity.FORWARDING_ADDRESS)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, emailAddresses, jcount = _validateUserGetObjectList(user, i, count, emailAddressEntity)
@@ -23504,8 +23460,7 @@ def addForwardingAddresses(users):
 def _deleteInfoForwardingAddreses(users, function, fields):
   emailAddressEntity = getUserObjectEntity(OB_EMAIL_ADDRESS_ENTITY, Entity.FORWARDING_ADDRESS)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, emailAddresses, jcount = _validateUserGetObjectList(user, i, count, emailAddressEntity)
@@ -23538,8 +23493,7 @@ def _printShowForwardingAddresses(users, csvFormat):
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23609,8 +23563,7 @@ def setImap(users):
       body[u'maxFolderSize'] = int(getChoice(EMAILSETTINGS_IMAP_MAX_FOLDER_SIZE_CHOICES))
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23627,8 +23580,7 @@ def setImap(users):
 # gam <UserTypeEntity> show imap|imap4
 def showImap(users):
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23670,8 +23622,7 @@ def setPop(users):
       pass
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23688,8 +23639,7 @@ def setPop(users):
 # gam <UserTypeEntity> show pop|pop3
 def showPop(users):
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23708,8 +23658,7 @@ def setLanguage(users):
   emailSettings = getEmailSettingsObject()
   language = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -23725,8 +23674,7 @@ def setPageSize(users):
   emailSettings = getEmailSettingsObject()
   PageSize = getChoice(VALID_PAGESIZES)
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -23856,8 +23804,7 @@ def _addUpdateSendAs(users, addCmd):
   kwargs = {u'body': body}
   if not addCmd:
     kwargs[u'sendAsEmail'] = emailAddress
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23885,8 +23832,7 @@ def _deleteInfoSendAs(users, function, fields):
         unknownArgumentExit()
   else:
     checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail, emailAddresses, jcount = _validateUserGetObjectList(user, i, count, emailAddressEntity)
@@ -23922,8 +23868,7 @@ def _printShowSendAs(users, csvFormat):
       formatSig = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -23986,8 +23931,7 @@ def addSmime(users):
     missingArgumentExit(u'file')
   smime_data = readFile(smimefile)
   body[u'pkcs12'] = base64.urlsafe_b64encode(smime_data)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24051,8 +23995,7 @@ def updateSmime(users):
       unknownArgumentExit()
   if not setDefault:
     missingArgumentExit(u'default')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24087,8 +24030,7 @@ def deleteSmime(users):
       sendAsEmailBase = getEmailAddress(noUid=True)
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24124,8 +24066,7 @@ def _printShowSmimes(users, csvFormat):
       primaryonly = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24197,8 +24138,7 @@ def setShortCuts(users):
   emailSettings = getEmailSettingsObject()
   enable = getBoolean()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -24227,8 +24167,7 @@ def setSignature(users):
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   body[u'signature'] = _processSignature(tagReplacements, signature, html)
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24260,8 +24199,7 @@ def showSignature(users):
       formatSig = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24289,8 +24227,7 @@ def setSnippets(users):
   emailSettings = getEmailSettingsObject()
   enable = getBoolean()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -24304,8 +24241,7 @@ def setUnicode(users):
   emailSettings = getEmailSettingsObject()
   enable = getBoolean()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -24396,8 +24332,7 @@ def setVacation(users):
       body[responseBodyType] = message
     if not message and not body.get(u'responseSubject'):
       missingArgumentExit(u'message or subject')
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24422,8 +24357,7 @@ def showVacation(users):
       formatReply = True
     else:
       unknownArgumentExit()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
@@ -24442,8 +24376,7 @@ def setWebClips(users):
   emailSettings = getEmailSettingsObject()
   enable = getBoolean()
   checkForExtraneousArguments()
-  i = 0
-  count = len(users)
+  i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
@@ -25658,32 +25591,36 @@ def ProcessGAMCommand(args, processGamCfg=True):
       adjustRedirectedSTDFilesIfNotMultiprocessing()
       COMMANDS_MAP[CL_command]()
       sys.exit(GM_Globals[GM_SYSEXITRC])
-    GM_Globals[GM_ENTITY_CL_INDEX] = CLArgs.Location()
-    entityType, entityList = getEntityToModify(crosAllowed=True, returnOnError=True)
+    GM_Globals[GM_ENTITY_CL_START] = CLArgs.Location()
+    entityType, entityList = getEntityToModify(crosAllowed=True, returnOnError=True, delayGet=True)
     if entityType is None:
       usageErrorExit(PHRASE_UNKNOWN_COMMAND_SELECTOR)
     if entityType == CL_ENTITY_USERS:
       CL_command = getChoice(USER_COMMANDS.keys()+USER_COMMANDS_WITH_OBJECTS.keys(), choiceAliases=USER_COMMANDS_ALIASES)
-      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
-        doAutoBatch(CL_ENTITY_USER, entityList, CL_command)
-      elif CL_command in USER_COMMANDS:
-        adjustRedirectedSTDFilesIfNotMultiprocessing()
+      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0):
+        _, count, entityList = getEntityArgument(entityList)
+        if count > GC_Values[GC_AUTO_BATCH_MIN]:
+          doAutoBatch(CL_ENTITY_USER, entityList, CL_command)
+          sys.exit(GM_Globals[GM_SYSEXITRC])
+      adjustRedirectedSTDFilesIfNotMultiprocessing()
+      if CL_command in USER_COMMANDS:
         Action.Set(USER_COMMANDS[CL_command][CMD_ACTION])
         USER_COMMANDS[CL_command][CMD_FUNCTION](entityList)
       else:
-        adjustRedirectedSTDFilesIfNotMultiprocessing()
         Action.Set(USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_ACTION])
         CL_objectName = getChoice(USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION], choiceAliases=USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_OBJ_ALIASES],
                                   defaultChoice=[CL_OB_USERS, NO_DEFAULT][CL_command != u'print'])
         USER_COMMANDS_WITH_OBJECTS[CL_command][CMD_FUNCTION][CL_objectName](entityList)
     else:
       CL_command = getChoice(CROS_COMMANDS)
-      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(entityList) > GC_Values[GC_AUTO_BATCH_MIN]):
-        doAutoBatch(CL_ENTITY_CROS, entityList, CL_command)
-      else:
-        adjustRedirectedSTDFilesIfNotMultiprocessing()
-        Action.Set(CROS_COMMANDS[CL_command][CMD_ACTION])
-        CROS_COMMANDS[CL_command][CMD_FUNCTION](entityList)
+      if (CL_command != u'list') and (GC_Values[GC_AUTO_BATCH_MIN] > 0):
+        _, count, entityList = getEntityArgument(entityList)
+        if count > GC_Values[GC_AUTO_BATCH_MIN]:
+          doAutoBatch(CL_ENTITY_CROS, entityList, CL_command)
+          sys.exit(GM_Globals[GM_SYSEXITRC])
+      adjustRedirectedSTDFilesIfNotMultiprocessing()
+      Action.Set(CROS_COMMANDS[CL_command][CMD_ACTION])
+      CROS_COMMANDS[CL_command][CMD_FUNCTION](entityList)
     sys.exit(GM_Globals[GM_SYSEXITRC])
   except KeyboardInterrupt:
     setSysExitRC(KEYBOARD_INTERRUPT_RC)

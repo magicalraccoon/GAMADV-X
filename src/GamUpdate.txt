@@ -1,3 +1,15 @@
+4.41.00
+
+Thanks to Kim Nilsson for inspiring the following change.
+Many Gam commands have this form:
+    gam <UserTypeEntity> command arguments
+    gam <CrOSTypeEntity> command arguments
+<UserTypeEntity> and <CrOSTypeEntity> get data either from Google via API calls or from local files.
+Previously, Gam would get the data and then parse the command and arguments; any syntax error terminated processing.
+If the data was coming from Google via API calls, all of the time/bandwidth spent getting the data was wasted.
+Now, if the data is coming from Google via API calls, it is not retrieved unless command/argument processing is successfully completed.
+If auto_batch_min from gam.cfg is greater than zero, the data is retrieved immediately as the data must be passed to the Gam subprocesses.
+
 4.40.12
 
 Fix redirect csv/stdout/stderr file error handling.
