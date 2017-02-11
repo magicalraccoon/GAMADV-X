@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.01'
+__version__ = u'4.41.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1904,7 +1904,7 @@ def getProductAndSKU(sku):
   product = None
   l_sku = sku.lower().replace(u'-', u'').replace(u' ', u'')
   for a_sku, sku_values in SKUS.items():
-    if l_sku == a_sku.lower().replace(u'-', u'') or l_sku in sku_values[u'aliases']:
+    if l_sku == a_sku.lower().replace(u'-', u'') or l_sku in sku_values[u'aliases'] or l_sku == sku_values[u'displayName'].lower().replace(u' ', u''):
       sku = a_sku
       product = sku_values[u'product']
       break
@@ -12305,7 +12305,7 @@ def doPrintLicenses(return_list=False, skus=None):
   products = []
   feed = collections.deque()
   todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId'])
+  titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId', u'skuDisplay'])
   if not return_list:
     while CLArgs.ArgumentsRemaining():
       myarg = getArgument()
@@ -12350,7 +12350,7 @@ def doPrintLicenses(return_list=False, skus=None):
   while feed:
     u_license = feed.popleft()
     if u'skuId' in u_license:
-      u_license[u'skuId'] = _skuIdToDisplayName(u_license[u'skuId'])
+      u_license[u'skuDisplay'] = _skuIdToDisplayName(u_license[u'skuId'])
     row = {}
     for title in u_license:
       if title in [u'kind', u'etags', u'selfLink']:
@@ -15666,7 +15666,7 @@ def infoUsers(entityList):
         printEntitiesCount(Entity.LICENSE, licenses)
         Indent.Increment()
         for u_license in licenses:
-          printKeyValueList([_skuIdToDisplayName(u_license)])
+          printKeyValueList([u_license, _skuIdToDisplayName(u_license)])
         Indent.Decrement()
       Indent.Decrement()
     except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):

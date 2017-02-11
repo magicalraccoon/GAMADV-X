@@ -1,3 +1,7 @@
+4.41.02
+
+Added skuDisplay column to CSV file for gam print licenses to show descriptive name of license SKU.
+
 4.41.01
 
 Add product <ProductID> argument to license commands to allow for future changes by Google.
