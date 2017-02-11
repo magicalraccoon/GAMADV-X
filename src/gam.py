@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.00'
+__version__ = u'4.41.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -812,6 +812,7 @@ OB_PRINTER_ID = u'PrinterID'
 OB_PRINTER_ID_ENTITY = u'PrinterIDEntity'
 OB_PRINTJOB_AGE = u'PrintJobAge'
 OB_PRINTJOB_ID = u'PrintJobID'
+OB_PRODUCT_ID = u'ProductID'
 OB_PRODUCT_ID_LIST = u'ProductIDList'
 OB_PROPERTY_KEY = u'PropertyKey'
 OB_PROPERTY_VALUE = u'PropertyValue'
@@ -1859,33 +1860,53 @@ def getPermissionId():
 # Products/SKUs
 #
 SKUS = {
-  u'Google-Apps-For-Business': {u'product': u'Google-Apps', u'aliases': [u'gafb', u'gafw', u'basic', u'gsuite-basic']},
-  u'Google-Apps-For-Postini': {u'product': u'Google-Apps', u'aliases': [u'gams', u'postini', u'gsuite-gams']},
-  u'Google-Apps-Lite': {u'product': u'Google-Apps', u'aliases': [u'gal', u'lite', u'gsuite-lite']},
-  u'Google-Apps-Unlimited': {u'product': u'Google-Apps', u'aliases': [u'gau', u'unlimited', u'gsuite-business']},
-  u'1010020020': {u'product': u'Google-Apps', u'aliases': [u'gae', u'enterprise', u'gsuite-enterprise']},
-  u'Google-Drive-storage-20GB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-20gb', u'drive20gb', u'20gb']},
-  u'Google-Drive-storage-50GB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-50gb', u'drive50gb', u'50gb']},
-  u'Google-Drive-storage-200GB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-200gb', u'drive200gb', u'200gb']},
-  u'Google-Drive-storage-400GB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-400gb', u'drive400gb', u'400gb']},
-  u'Google-Drive-storage-1TB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-1tb', u'drive1tb', u'1tb']},
-  u'Google-Drive-storage-2TB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-2tb', u'drive2tb', u'2tb']},
-  u'Google-Drive-storage-4TB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-4tb', u'drive4tb', u'4tb']},
-  u'Google-Drive-storage-8TB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-8tb', u'drive8tb', u'8tb']},
-  u'Google-Drive-storage-16TB': {u'product': u'Google-Drive-storage', u'aliases': [u'drive-16tb', u'drive16tb', u'16tb']},
-  u'Google-Vault': {u'product': u'Google-Vault', u'aliases': [u'vault']},
-  u'Google-Vault-Former-Employee': {u'product': u'Google-Vault', u'aliases': [u'vfe']},
-  u'Google-Coordinate': {u'product': u'Google-Coordinate', u'aliases': [u'coordinate']},
-  u'Google-Chrome-Device-Management': {u'product': u'Google-Chrome-Device-Management', u'aliases': [u'chrome', u'cdm']}
+  u'Google-Apps-For-Business': {
+    u'product': u'Google-Apps', u'aliases': [u'gafb', u'gafw', u'basic', u'gsuitebasic'], u'displayName': u'G Suite Basic'},
+  u'Google-Apps-For-Government': {
+    u'product': u'Google-Apps', u'aliases': [u'gafg', u'gsuitegovernment', u'gsuitegov'], u'displayName': u'G Suite Government'},
+  u'Google-Apps-For-Postini': {
+    u'product': u'Google-Apps', u'aliases': [u'gams', u'postini', u'gsuitegams', u'gsuitepostini', u'gsuitemessagesecurity'], u'displayName': u'G Suite Message Security'},
+  u'Google-Apps-Lite': {
+    u'product': u'Google-Apps', u'aliases': [u'gal', u'lite', u'gsuitelite'], u'displayName': u'G Suite Lite'},
+  u'Google-Apps-Unlimited': {
+    u'product': u'Google-Apps', u'aliases': [u'gau', u'unlimited', u'gsuitebusiness'], u'displayName': u'G Suite Business'},
+  u'1010020020': {
+    u'product': u'Google-Apps', u'aliases': [u'gae', u'enterprise', u'gsuiteenterprise'], u'displayName': u'G Suite Enterprise'},
+  u'Google-Drive-storage-20GB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive20gb', u'20gb', u'googledrivestorage20gb'], u'displayName': u'Google Drive Storage 20GB'},
+  u'Google-Drive-storage-50GB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive50gb', u'50gb', u'googledrivestorage50gb'], u'displayName': u'Google Drive Storage 50GB'},
+  u'Google-Drive-storage-200GB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive200gb', u'200gb', u'googledrivestorage200gb'], u'displayName': u'Google Drive Storage 200GB'},
+  u'Google-Drive-storage-400GB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive400gb', u'400gb', u'googledrivestorage400gb'], u'displayName': u'Google Drive Storage 400GB'},
+  u'Google-Drive-storage-1TB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive1tb', u'1tb', u'googledrivestorage1tb'], u'displayName': u'Google Drive Storage 1TB'},
+  u'Google-Drive-storage-2TB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive2tb', u'2tb', u'googledrivestorage2tb'], u'displayName': u'Google Drive Storage 2TB'},
+  u'Google-Drive-storage-4TB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive4tb', u'4tb', u'googledrivestorage4tb'], u'displayName': u'Google Drive Storage 4TB'},
+  u'Google-Drive-storage-8TB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive8tb', u'8tb', u'googledrivestorage8tb'], u'displayName': u'Google Drive Storage 8TB'},
+  u'Google-Drive-storage-16TB': {
+    u'product': u'Google-Drive-storage', u'aliases': [u'drive16tb', u'16tb', u'googledrivestorage16tb'], u'displayName': u'Google Drive Storage 16TB'},
+  u'Google-Vault': {
+    u'product': u'Google-Vault', u'aliases': [u'vault', u'googlevault'], u'displayName': u'Google Vault'},
+  u'Google-Vault-Former-Employee': {
+    u'product': u'Google-Vault', u'aliases': [u'vfe', u'googlevaultformeremployee'], u'displayName': u'Google Vault Former Employee'},
+  u'Google-Coordinate': {
+    u'product': u'Google-Coordinate', u'aliases': [u'coordinate', u'googlecoordinate'], u'displayName': u'Google Coordinate'},
+  u'Google-Chrome-Device-Management': {
+    u'product': u'Google-Chrome-Device-Management', u'aliases': [u'chrome', u'cdm', u'googlechromedevicemanagement'], u'displayName': u'Google Chrome Device Management'}
   }
 
 def getProductAndSKU(sku):
   product = None
-  l_sku = sku.lower()
-  for a_sku, sku_value in SKUS.items():
-    if l_sku == a_sku.lower() or l_sku in sku_value[u'aliases']:
+  l_sku = sku.lower().replace(u'-', u'').replace(u' ', u'')
+  for a_sku, sku_values in SKUS.items():
+    if l_sku == a_sku.lower().replace(u'-', u'') or l_sku in sku_values[u'aliases']:
       sku = a_sku
-      product = sku_value[u'product']
+      product = sku_values[u'product']
       break
   else:
     try:
@@ -1893,6 +1914,9 @@ def getProductAndSKU(sku):
     except AttributeError:
       product = sku
   return (product, sku)
+
+def _skuIdToDisplayName(skuId):
+  return SKUS[skuId][u'displayName'] if skuId in SKUS else skuId
 
 def getGoogleProductList():
   if CLArgs.ArgumentsRemaining():
@@ -12325,6 +12349,8 @@ def doPrintLicenses(return_list=False, skus=None):
         pass
   while feed:
     u_license = feed.popleft()
+    if u'skuId' in u_license:
+      u_license[u'skuId'] = _skuIdToDisplayName(u_license[u'skuId'])
     row = {}
     for title in u_license:
       if title in [u'kind', u'etags', u'selfLink']:
@@ -15640,7 +15666,7 @@ def infoUsers(entityList):
         printEntitiesCount(Entity.LICENSE, licenses)
         Indent.Increment()
         for u_license in licenses:
-          printKeyValueList([u_license])
+          printKeyValueList([_skuIdToDisplayName(u_license)])
         Indent.Decrement()
       Indent.Decrement()
     except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
@@ -21166,6 +21192,8 @@ def getLicenseParameters(operation):
   lic = buildGAPIObject(LICENSING_API)
   parameters = {}
   parameters[LICENSE_PRODUCTID], parameters[LICENSE_SKUID] = getGoogleSKU()
+  if checkArgumentPresent([u'product', u'productid']):
+    parameters[LICENSE_PRODUCTID] = getString(OB_PRODUCT_ID)
   if operation == u'patch':
     checkArgumentPresent(FROM_ARGUMENT)
     oldProductId, parameters[LICENSE_OLDSKUID] = getGoogleSKU()
@@ -21186,7 +21214,7 @@ def addLicense(users):
       callGAPI(lic.licenseAssignments(), u'insert',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BACKEND_ERROR, GAPI_DUPLICATE, GAPI_CONDITION_NOT_MET],
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], body={u'userId': user}, fields=u'')
-      entityActionPerformed([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], i, count)
+      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])], i, count)
     except (GAPI_conditionNotMet, GAPI_duplicate) as e:
       entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
@@ -21203,7 +21231,8 @@ def updateLicense(users):
       callGAPI(lic.licenseAssignments(), u'patch',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_BACKEND_ERROR],
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_OLDSKUID], userId=user, body={u'skuId': parameters[LICENSE_SKUID]}, fields=u'')
-      entityModifierNewValueActionPerformed([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], Action.MODIFIER_FROM, parameters[LICENSE_OLDSKUID], i, count)
+      entityModifierNewValueActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])],
+                                            Action.MODIFIER_FROM, _skuIdToDisplayName(parameters[LICENSE_OLDSKUID]), i, count)
     except GAPI_notFound as e:
       entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_OLDSKUID]], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
@@ -21220,7 +21249,7 @@ def deleteLicense(users):
       callGAPI(lic.licenseAssignments(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_BACKEND_ERROR],
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], userId=user, fields=u'')
-      entityActionPerformed([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], i, count)
+      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])], i, count)
     except GAPI_notFound as e:
       entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):

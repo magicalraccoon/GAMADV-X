@@ -1,3 +1,11 @@
+4.41.01
+
+Add product <ProductID> argument to license commands to allow for future changes by Google.
+Improve license handling courtesy of Jay.
+    gam <UserTypeEntity> add license <SKUID> [product|productid <ProductID>]
+    gam <UserTypeEntity> update license <SKUID> [product|productid <ProductID>] [from] <SKUID>
+    gam <UserTypeEntity> delete license <SKUID> [product|productid <ProductID>]
+
 4.41.00
 
 Thanks to Kim Nilsson for inspiring the following change.
