@@ -1932,7 +1932,7 @@ def getGoogleProduct():
 def getGoogleProductList():
   if CLArgs.ArgumentsRemaining():
     productsList = []
-    for product in shlexSplitList(CLArgs.Current())
+    for product in shlexSplitList(CLArgs.Current()):
       product = _normalizeProduct(product)
       if product not in productsList:
         productsList.append(product)
@@ -1951,7 +1951,7 @@ def getGoogleSKU():
 def getGoogleSKUList():
   if CLArgs.ArgumentsRemaining():
     skusList = []
-    for sku in shlexSplitList(CLArgs.Current())
+    for sku in shlexSplitList(CLArgs.Current()):
       _, sku = getProductAndSKU(sku)
       if sku not in skusList:
         skusList.append(sku)
