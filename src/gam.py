@@ -1901,35 +1901,40 @@ SKUS = {
   }
 
 def getProductAndSKU(sku):
-  product = None
   l_sku = sku.lower().replace(u'-', u'').replace(u' ', u'')
   for a_sku, sku_values in SKUS.items():
     if l_sku == a_sku.lower().replace(u'-', u'') or l_sku in sku_values[u'aliases'] or l_sku == sku_values[u'displayName'].lower().replace(u' ', u''):
-      sku = a_sku
-      product = sku_values[u'product']
-      break
-  else:
-    try:
-      product = re.search(u'^([A-Z,a-z]*-[A-Z,a-z]*)', sku).group(1)
-    except AttributeError:
-      product = sku
+      return (sku_values[u'product'], a_sku)
+  try:
+    product = re.search(u'^([A-Z,a-z]*-[A-Z,a-z]*)', sku).group(1)
+  except AttributeError:
+    product = sku
   return (product, sku)
 
 def _skuIdToDisplayName(skuId):
   return SKUS[skuId][u'displayName'] if skuId in SKUS else skuId
 
+def _normalizeProduct(product):
+  l_product = product.lower().replace(u'-', u'')
+  for a_sku, sku_values in SKUS.items():
+    if l_product == sku_values[u'product'].lower().replace(u'-', u'') or l_product == a_sku.lower().replace(u'-', u'') or l_product in sku_values[u'aliases'] or l_product == sku_values[u'displayName'].lower().replace(u' ', u''):
+      return sku_values[u'product']
+  return product
+
+def getGoogleProduct():
+  if CLArgs.ArgumentsRemaining():
+    product = CLArgs.Current().strip()
+    if product:
+      CLArgs.Advance()
+      return _normalizeProduct(product)
+  missingArgumentExit(OB_PRODUCT_ID)
+
 def getGoogleProductList():
   if CLArgs.ArgumentsRemaining():
-    products = CLArgs.Current().replace(u',', u' ').split()
     productsList = []
-    for product in products:
-      l_product = product.lower()
-      for sku_value in SKUS.items():
-        if l_product == sku_value[u'product'].lower() or l_product in sku_value[u'aliases']:
-          if sku_value[u'product'] not in productsList:
-            productsList.append(sku_value[u'product'])
-          break
-      else:
+    for product in shlexSplitList(CLArgs.Current())
+      product = _normalizeProduct(product)
+      if product not in productsList:
         productsList.append(product)
     CLArgs.Advance()
     return productsList
@@ -1945,9 +1950,8 @@ def getGoogleSKU():
 
 def getGoogleSKUList():
   if CLArgs.ArgumentsRemaining():
-    skus = CLArgs.Current().replace(u',', u' ').split()
     skusList = []
-    for sku in skus:
+    for sku in shlexSplitList(CLArgs.Current())
       _, sku = getProductAndSKU(sku)
       if sku not in skusList:
         skusList.append(sku)
@@ -21193,7 +21197,7 @@ def getLicenseParameters(operation):
   parameters = {}
   parameters[LICENSE_PRODUCTID], parameters[LICENSE_SKUID] = getGoogleSKU()
   if checkArgumentPresent([u'product', u'productid']):
-    parameters[LICENSE_PRODUCTID] = getString(OB_PRODUCT_ID)
+    parameters[LICENSE_PRODUCTID] = getGoogleProduct()
   if operation == u'patch':
     checkArgumentPresent(FROM_ARGUMENT)
     oldProductId, parameters[LICENSE_OLDSKUID] = getGoogleSKU()

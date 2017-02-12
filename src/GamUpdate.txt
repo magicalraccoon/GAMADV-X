@@ -1,3 +1,7 @@
+4.41.03
+
+Additional license SKU cleanup.
+
 4.41.02
 
 Added skuDisplay column to CSV file for gam print licenses to show descriptive name of license SKU.
