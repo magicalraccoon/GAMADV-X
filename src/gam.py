@@ -1915,7 +1915,7 @@ def _skuIdToDisplayName(skuId):
   return SKUS[skuId][u'displayName'] if skuId in SKUS else skuId
 
 def _normalizeProduct(product):
-  l_product = product.lower().replace(u'-', u'')
+  l_product = product.lower().replace(u'-', u'').replace(u' ', u'')
   for a_sku, sku_values in SKUS.items():
     if l_product == sku_values[u'product'].lower().replace(u'-', u'') or l_product == a_sku.lower().replace(u'-', u'') or l_product in sku_values[u'aliases'] or l_product == sku_values[u'displayName'].lower().replace(u' ', u''):
       return sku_values[u'product']
