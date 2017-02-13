@@ -1,13 +1,13 @@
 These are the new commands to support Domain Shared Contacts/User Contacts and User Contact Groups.
 
 <ContactID> ::= <String>
-<ContactIDList> ::= '<ContactID>(,<ContactID>)*'
+<ContactIDList> ::= "<ContactID>(,<ContactID>)*"
 <ContactEntity> ::= <ContactIDList>|<ArgsEntity>|<FileEntity>|<CSVFileEntity>
 
 <ContactGroupID> ::= id:<String>
 <ContactGroupName> ::= <String>
 <ContactGroupItem> ::= <ContactGroupID>|<ContactGroupName>
-<ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
+<ContactGroupList> ::= "<ContactGroupItem>(,<ContactGroupItem>)*"
 <ContactGroupEntity> ::= <ContactGroupList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>
 
 <ContactFieldName> ::=
@@ -49,7 +49,7 @@ These are the new commands to support Domain Shared Contacts/User Contacts and U
 <ContactOrderByFieldName> ::=
 	lastmodified
 
-<ContactFieldNameList> ::= '<ContactFieldName(,<ContactFieldName>)*'
+<ContactFieldNameList> ::= "<ContactFieldName(,<ContactFieldName>)*"
 
 <ContactAttributes> ::=
 	(additionalname|middlename <String>)|
@@ -117,7 +117,7 @@ gam <UserTypeEntity> print contacts [todrive] [idfirst] [query <Query>] [contact
 	[basic|full] [showgroups] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]] [fields <ContactFieldNameList>]
 
 This command will print contacts for testuser@domain.com from the contact group 987654321 display displaying only the name and email information.
-	gam user testuser@domain.com print contacts contactgroup 987654321 fields 'name,emails'
+	gam user testuser@domain.com print contacts contactgroup 987654321 fields "name,emails"
 This command will print contacts for all members of testgroup@domain.com displaying the contact group information.
 	gam group testgroup@domain.com print contacts showgroups
 

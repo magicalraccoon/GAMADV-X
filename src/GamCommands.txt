@@ -1,7 +1,7 @@
  BNF Syntax
 This document describes the GAM command line syntax in  modified BNF, see https://en.wikipedia.org/wiki/Backus-Naur_Form
 Items on the command line are space separated, when an actual space character is required, it will be indicated by <Space>.
-If an item contains spaces, it should be surrounded by " or '.
+If an item contains spaces, it should be surrounded by ".
 
 [] optional item
 () group items
@@ -16,7 +16,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <Number> ::= <Digit>+
 <Hex> ::= <Digit>|a|b|c|d|e|f|A|B|C|D|E|F
 <Space> ::= an actual space character
-<String> ::= a string of characters, surrounded by " or ' if it contains spaces
+<String> ::= a string of characters, surrounded by " if it contains spaces
 <FalseValues>= false|off|no|disabled|0
 <TrueValues> ::= true|on|yes|enabled|1
 
@@ -163,42 +163,42 @@ If an item contains spaces, it should be surrounded by " or '.
 Lists can be in the following formats:
 Items, separated by commas, without spaces or commas in the items themselves: item(,item)*
 Items, separated by spaces, without spaces or commas in the items themselves: "item( item)*"
-Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it em')*"
-Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it em')*"
+Items, separated by commas, with spaces or commas in the items themselves: "'it em'(,'it,em')*"
+Items, separated by spaces, with spaces or commas in the items themselves: "'it em'( 'it,em')*"
 
-<CalendarACLScopeList> ::== '<CalendarACLScope>(,<CalendarACLScope>)*'
-<CalendarList> ::= '<CalendarItem>(,<CalendarItem>)*'
-<CourseAliasList> ::= '<CourseAlias>(,<CourseAlias>)*'
-<ContactGroupList> ::= '<ContactGroupItem>(,<ContactGroupItem>)*'
-<ContactIDList> ::= '<ContactID>(,<ContactID>)*'
-<CourseIDList> ::= '<CourseID>(,<CourseID>)*'
-<CrOSList> ::= '<CrOSID>(,<CrOSID>)*'
-<DomainNameList> ::== '<DomainName>(,<DomainName>)*'
-<DriveFolderIDList> ::= '<DriveFolderID>(,<DriveFolderID>)*'
-<DriveFileList> ::= '<DriveFileItem>(,<DriveFileItem>)*'
-<DriveFilePermissionList> ::= '<DriveFilePermission>(,<DriveFilePermission)*'
-<DriveFilePermissionIDList> ::= '<DriveFilePermissionID>(,<DriveFilePermissionID>)*'
-<EmailAddressList> ::= '<EmailAddress>(,<EmailAddress>)*'
-<EventIDList> ::= '<EventID>(,<EventID>)*'
-<FieldNameList> ::= '<FieldName>(,<FieldName>)*'
-<FileFormatList> ::= '<FileFormat>(,<FileFormat)*'
-<FilterIDList> ::= '<FilterID>(,<FilterID>)*'
-<GroupList> ::= '<GroupItem>(,<GroupItem>)*'
-<LabelNameList> ::= '<LabelName>(,<LabelName)*'
-<MessageIDList> ::= '<MessageID>(,<MessageID>)*'
-<MobileList> ::= '<MobileID>(,<MobileID>)*'
-<OrgUnitList> ::== '<OrgUnitItem>(,<OrgUnitItem>)*'
-<PrinterACLScopeList> ::== '<PrinterACLScope>(,<PrinterACLScope>)*'
-<PrinterIDList> ::= '<PrinterID>(,<PrinterID>)*'
-<PrintJobIDList> ::= '<PrintJobID>(,<PrintJobID>)*'
-<ProductIDList> ::= '(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*'
-<ResourceIDList> ::= '<ResourceID>(,<ResourceID>)*'
-<SchemaNameList> ::= '<SchemaName>(,<SchemaName>)*'
-<SiteACLScopeList> ::== '<SiteACLScope>(,<SiteACLScope>)*'
-<SiteList> ::= '<SiteItem>(,<SiteItem>)*'
-<SKUIDList> ='<SKUID>(,<SKUID>)*'
-<ThreadIDList> ::= '<ThreadID>(,<ThreadID>)*'
-<UserList> ::= '<UserItem>(,<UserItem>)*'
+<CalendarACLScopeList> ::== "<CalendarACLScope>(,<CalendarACLScope>)*"
+<CalendarList> ::= "<CalendarItem>(,<CalendarItem>)*"
+<CourseAliasList> ::= "<CourseAlias>(,<CourseAlias>)*"
+<ContactGroupList> ::= "<ContactGroupItem>(,<ContactGroupItem>)*"
+<ContactIDList> ::= "<ContactID>(,<ContactID>)*"
+<CourseIDList> ::= "<CourseID>(,<CourseID>)*"
+<CrOSList> ::= "<CrOSID>(,<CrOSID>)*"
+<DomainNameList> ::== "<DomainName>(,<DomainName>)*"
+<DriveFolderIDList> ::= "<DriveFolderID>(,<DriveFolderID>)*"
+<DriveFileList> ::= "<DriveFileItem>(,<DriveFileItem>)*"
+<DriveFilePermissionList> ::= "<DriveFilePermission>(,<DriveFilePermission)*"
+<DriveFilePermissionIDList> ::= "<DriveFilePermissionID>(,<DriveFilePermissionID>)*"
+<EmailAddressList> ::= "<EmailAddress>(,<EmailAddress>)*"
+<EventIDList> ::= "<EventID>(,<EventID>)*"
+<FieldNameList> ::= "<FieldName>(,<FieldName>)*"
+<FileFormatList> ::= "<FileFormat>(,<FileFormat)*"
+<FilterIDList> ::= "<FilterID>(,<FilterID>)*"
+<GroupList> ::= "<GroupItem>(,<GroupItem>)*"
+<LabelNameList> ::= "<LabelName>(,<LabelName)*"
+<MessageIDList> ::= "<MessageID>(,<MessageID>)*"
+<MobileList> ::= "<MobileID>(,<MobileID>)*"
+<OrgUnitList> ::== "<OrgUnitItem>(,<OrgUnitItem>)*"
+<PrinterACLScopeList> ::== "<PrinterACLScope>(,<PrinterACLScope>)*"
+<PrinterIDList> ::= "<PrinterID>(,<PrinterID>)*"
+<PrintJobIDList> ::= "<PrintJobID>(,<PrintJobID>)*"
+<ProductIDList> ::= "(<ProductID>|SKUID>)(,<ProductID>|SKUID>)*"
+<ResourceIDList> ::= "<ResourceID>(,<ResourceID>)*"
+<SchemaNameList> ::= "<SchemaName>(,<SchemaName>)*"
+<SiteACLScopeList> ::== "<SiteACLScope>(,<SiteACLScope>)*"
+<SiteList> ::= "<SiteItem>(,<SiteItem>)*"
+<SKUIDList> ="<SKUID>(,<SKUID>)*"
+<ThreadIDList> ::= "<ThreadID>(,<ThreadID>)*"
+<UserList> ::= "<UserItem>(,<UserItem>)*"
 
 ## Collections of ChromeOs Devices
 
@@ -360,7 +360,7 @@ An argument containing exactly ~xxx is replaced by the value of field xxx from t
 An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
 An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
 
-Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
+Example: gam csv Users.csv gam update user "~primaryEmail" address type work unstructured "~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~" primary note text_plain "~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~"
 Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
 
 gam list [todrive [<ToDriveAttributes>]] <EntityList> [data <CrOSTypeEntity>|<UserTypeEntity> [delimiter <String>]]
@@ -426,7 +426,7 @@ gam audit monitor list <EmailAddress>
 
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
 <ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
-<ACLScopeList> ::== '<ACLScope>(,<ACLScope>)*'
+<ACLScopeList> ::== "<ACLScope>(,<ACLScope>)*"
 <ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 gam calendar|calendars <CalendarEntity> add acls|calendaracls <CalendarACLRole> <ACLScopeEntity>
@@ -564,7 +564,7 @@ gam <CrOSTypeEntity> update (<CrOSAttributes>+)|(action deprovision_same_model_r
 	status|
 	supportenddate|
 	willautorenew
-<CrOSFieldNameList> ::= '<CrOSFieldName>(,<CrOSFieldName>)*'
+<CrOSFieldNameList> ::= "<CrOSFieldName>(,<CrOSFieldName>)*"
 
 <CrOSOrderByFieldName> ::=
 	lastsync|location|notes|serialnumber|status|supportenddate|user
@@ -688,7 +688,7 @@ gam delete contacts <ContactEntity>|([query <QueryContact>] [emailmatchpattern <
 	updated|
 	userdefinedfield|
 	website
-<ContactFieldNameList> ::= '<ContactFieldName>(,<ContactFieldName>)*'
+<ContactFieldNameList> ::= "<ContactFieldName>(,<ContactFieldName>)*"
 
 <ContactOrderByFieldName> ::=
 	lastmodified
@@ -756,7 +756,7 @@ gam <UserTypeEntity> print gal [todrive [<ToDriveAttributes>]] [query <QueryCont
 	teachergroupemail|
 	teachers|
 	updatetime
-<CourseFieldNameList> ::= '<CourseFieldName>(,<CourseFieldName>)*'
+<CourseFieldNameList> ::= "<CourseFieldName>(,<CourseFieldName>)*"
 
 gam create course id|alias <CourseAlias> [teacher <UserItem>] <CourseAttributes>*
 gam update course <CourseID> <CourseAttributes>+
@@ -918,7 +918,7 @@ gam delete group|groups <GroupEntity>
 	whocanpostmessage|
 	whocanviewgroup|
 	whocanviewmembership
-<GroupFieldNameList> ::= '<GroupFieldName>(,<GroupFieldName>)*'
+<GroupFieldNameList> ::= "<GroupFieldName>(,<GroupFieldName>)*"
 
 gam info group|groups <GroupEntity> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
@@ -933,7 +933,7 @@ gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member 
 	role|
 	status|
 	type
-<MembersFieldNameList> ::= '<MembersFieldName>(,<MembersFieldName>)*'
+<MembersFieldNameList> ::= "<MembersFieldName>(,<MembersFieldName>)*"
 
 gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
@@ -943,7 +943,7 @@ gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain 
 <GuardianState> ::=
 	complete|
 	pending
-<GuardianStateList> ::= '<GuardianState>(,<GuardianState>)*'
+<GuardianStateList> ::= "<GuardianState>(,<GuardianState>)*"
 
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <StudentItem>
 gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
@@ -996,7 +996,7 @@ gam info notification|notifications [unread|read|unreadonly]
 	parentid|parentorgunitid|
 	parent|parentorgunitpath|
 	path|orgunitpath
-<OrgUnitFieldNameList> ::= '<OrgUnitFieldName>(,<OrgUnitFieldName>)*'
+<OrgUnitFieldNameList> ::= "<OrgUnitFieldName>(,<OrgUnitFieldName>)*"
 
 gam create org|ou <OrgUnitPath> [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)] [buildpath]
 gam update org|ou <OrgUnitItem> [name <String>] [description <String>] [parent <OrgUnitItem>] [inherit|noinherit|(blockinheritance <Boolean>)]
@@ -1046,7 +1046,7 @@ gam info printer|printers <PrinterIDEntity> [everything]
 gam print printer|printers [todrive [<ToDriveAttributes>]] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>] [delimiter <String>]
 
 <PrinterACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain
-<PrinterACLScopeList> ::== '<PrinterACLScope>(,<PrinterACLScope>)*'
+<PrinterACLScopeList> ::== "<PrinterACLScope>(,<PrinterACLScope>)*"
 <PrinterACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 gam printer|printers <PrinterIDEntity> add user|manager|owner <PrinterACLScopeEntity>
@@ -1098,7 +1098,7 @@ gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mob
 	id|
 	name|
 	type
-<ResourceFieldNameList> ::= '<ResourceFieldName>(,<ResourceFieldName>)*'
+<ResourceFieldNameList> ::= "<ResourceFieldName>(,<ResourceFieldName>)*"
 
 gam create resource <ResourceID> <String> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <String>] [description <String>] [type <String>]
@@ -1155,7 +1155,7 @@ gam print schema|schemas [todrive [<ToDriveAttributes>]]
 	(theme <String>)
 
 <SiteACLRole> ::= editor|invite|owner|reader|writer
-<SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
+<SiteACLRoleList> ::= "<SiteACLRole>(,<SiteACLRole>)*"
 
 gam [<UserTypeEntity>] create site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
@@ -1201,7 +1201,7 @@ gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 	suspended|
 	thumbnailphotourl|photo|photourl|
 	websites|website
-<UserFieldNameList> ::= '<UserFieldName>(,<UserFieldName>)*'
+<UserFieldNameList> ::= "<UserFieldName>(,<UserFieldName>)*"
 
 <UserOrderByFieldName> ::=
 	familyname|lastname|givenname|firstname|email
@@ -1342,7 +1342,7 @@ gam <UserTypeEntity> modify calendars <CalendarManageEntity> <CalendarSettings>
 gam <UserTypeEntity> remove calendars <CalendarManageEntity>
 
 <CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain|default
-<CalendarACLScopeList> ::== '<CalendarACLScope>(,<CalendarACLScope>)*'
+<CalendarACLScopeList> ::== "<CalendarACLScope>(,<CalendarACLScope>)*"
 <CalendarACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 Manage access to any calendar a user owns
@@ -1502,8 +1502,8 @@ gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 <DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>;<DriveFileACLRole>
 <DriveFilePermissionID> ::= anyone|anyonewithlink|id:<String>
 <DriveFilePermissionIDorEmail> ::= <DriveFilePermissionID>|<EmailAddress>
-<DriveFilePermissionList> ::= '<DriveFilePermission>(,<DriveFilePermission)*'
-<DriveFilePermissionIDList> ::= '<DriveFilePermissionID>(,<DriveFilePermissionID>)*'
+<DriveFilePermissionList> ::= "<DriveFilePermission>(,<DriveFilePermission)*"
+<DriveFilePermissionIDList> ::= "<DriveFilePermissionID>(,<DriveFilePermissionID>)*"
 
 gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 	(role <DriveFileACLRole>) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [transferownership <Boolean>] [sendemail] [emailmessage <String>] [showtitles]
@@ -1568,7 +1568,7 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 	webcontentlink|
 	webviewlink|
 	writerscanshare
-<DriveFieldNameList> ::= '<DriveFieldName>(,<DriveFieldName>)*'
+<DriveFieldNameList> ::= "<DriveFieldName>(,<DriveFieldName>)*"
 
 <DriveOrderByFieldName> ::=
 	createddate|createdtime|

@@ -98,7 +98,7 @@ contact_max_results
 csv_input_column_delimiter
 	Column delimiter used when reading CSV files; this must be a single character
 	All places where an input CSV file can be specified have an argument columndelimiter <String> that can override this value.
-	Default: ','
+	Default: ","
 	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
 csv_output_convert_cr_nl
 	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
@@ -109,13 +109,13 @@ csv_output_convert_cr_nl
 csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
 	The argument redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>] can override this value.
-	Default: ','
+	Default: ","
 	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
 csv_output_field_delimiter
 	Field list delimiter used when writing CSV output files; this must be a single character
 	With the default value of an empty string:
 	Each of the gam print courses|groups|users  commands has a delimiter <String> argument that can override this value.
-	Default: ' '
+	Default: " "
 	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
 customer_id
 	Google Custmer ID
@@ -243,7 +243,7 @@ Section: DEFAULT
   csv_input_column_delimiter = ,
   csv_output_convert_cr_nl = false
   csv_output_column_delimiter = ,
-  csv_output_field_delimiter = ' '
+  csv_output_field_delimiter = " "
   customer_id =
   debug_level = 0
   device_max_results = 500
@@ -356,7 +356,7 @@ contact_max_results = 100
 csv_input_column_delimiter = ,
 csv_output_convert_cr_nl = false
 csv_output_column_delimiter = ,
-csv_output_field_delimiter = ' '
+csv_output_field_delimiter = " "
 customer_id = 0000000000
 debug_level = 0
 device_max_results = 500
@@ -477,10 +477,10 @@ shared1,admin1
 shared2,admin2
 
 For each of the domains, you want to get user information about the domain administrator.
-	gam csv InfoAdmins.csv gam select ~Section info user '~AdminUser' nolicenses
+	gam csv InfoAdmins.csv gam select ~Section info user "~AdminUser" nolicenses
 
 For each of the domains, you also want to list the Google Drive files for the domain administrator.
-	gam csv InfoAdmins.csv gam select ~Section user '~AdminUser' show filelist id
+	gam csv InfoAdmins.csv gam select ~Section user "~AdminUser" show filelist id
 
 Suppose you have two CSV files, NewFooUsers.csv and NewGooUsers.csv, with the columns: Email,FirstName,LastName,Password.
 You will use these files to create new users in the foo.com and goo.com domains.
@@ -514,17 +514,17 @@ shared2,shared2.org,admin2
 For each of the domains, you want to get user information about the domain administrator. GAM writes this information
 to stdout, so you'll redirect stdout. In the first case, you want all of the output in a single file so stdout is
 redirected to a file before the loop command.
-	gam redirect stdout InfoDomainAdmins.lst append loop InfoDomains.csv gam select ~Section info user '~AdminUser' nolicenses
+	gam redirect stdout InfoDomainAdmins.lst append loop InfoDomains.csv gam select ~Section info user "~AdminUser" nolicenses
 
 In the second case, you want the output for each domain administrator in a separate file so stdout is redirected after
 the loop command.
-	gam loop InfoDomains.csv select ~Section redirect stdout Info-~~Domain~~-Admin.lst info user '~AdminUser' nolicenses
+	gam loop InfoDomains.csv select ~Section redirect stdout Info-~~Domain~~-Admin.lst info user "~AdminUser" nolicenses
 
 For each of the domains, you also want to list the Google Drive files for the domain administrator. GAM writes this information
 to a csv file, so you'll redirect csv output. In the first case, you want all of the output in a single file so csv output is
 redirected to a file before the loop command.
-	gam redirect csv FilesDomainAdmins.csv append loop InfoDomains.csv gam select ~Section user '~AdminUser' show filelist id
+	gam redirect csv FilesDomainAdmins.csv append loop InfoDomains.csv gam select ~Section user "~AdminUser" show filelist id
 
 In the second case, you want the output for each domain administrator in a separate file so csv output is redirected after
 the loop command.
-	gam loop InfoDomains.csv select ~Section redirect csv Files-~~Domain~~-Admin.csv user '~AdminUser' show filelist id
+	gam loop InfoDomains.csv select ~Section redirect csv Files-~~Domain~~-Admin.csv user "~AdminUser" show filelist id
