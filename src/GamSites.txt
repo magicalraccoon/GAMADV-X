@@ -2,13 +2,13 @@ These are the new commands to support Google sites.
 
 <SiteACLRole> ::= editor|invite|owner|reader|writer
 <ACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
-<ACLList> ::== '<ACLScope>(,<ACLScope>)*'
+<ACLList> ::== "<ACLScope>(,<ACLScope>)*"
 <ACLEntity>::= <ACLList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>
 
 <Site> ::= [a-z,0-9,-]+
 <SiteItem> ::= [<domainName>/]<Site>
-<SiteList> ::= '<SiteItem>(,<SiteItem>)*'
-<SiteACLRoleList> ::= '<SiteACLRole>(,<SiteACLRole>)*'
+<SiteList> ::= "<SiteItem>(,<SiteItem>)*"
+<SiteACLRoleList> ::= "<SiteACLRole>(,<SiteACLRole>)*"
 <SiteEntity> ::= <SiteList>|<FileSelector>|<ArgsSelector>|<CSVkmdSelector>|<CSVDataSelector>GAMADV
 <SiteAttributes> ::=
 	(name <String>)|(summary <String>)|(theme <String>)|(categories <String>)|(sourcelink <URI>])
