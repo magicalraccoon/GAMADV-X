@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.03'
+__version__ = u'4.41.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1157,7 +1157,6 @@ PHRASE_DELEGATE_ACCESS_TO = u'Delegate Access to'
 PHRASE_DENIED = u'DENIED'
 PHRASE_DIRECTLY_IN_THE = u' directly in the {0}'
 PHRASE_DOES_NOT_EXIST = u'Does not exist'
-PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'{0}: {1}, Does not exist or has invalid format'
 PHRASE_DOMAIN_NOT_VERIFIED_SECONDARY = u'Domain is not a verified secondary domain'
 PHRASE_DO_NOT_EXIST = u'Do not exist'
 PHRASE_DUPLICATE = u'Duplicate'
@@ -1252,6 +1251,7 @@ MESSAGE_BATCH_CSV_LOOP_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compat
 MESSAGE_CHECK_VACATION_DATES = u'Check vacation dates, end date must be greater than/equal to start date'
 MESSAGE_CSV_DATA_ALREADY_SAVED = u'CSV data already saved'
 MESSAGE_DATA_FIELD_MISMATCH = u'datafield {0} does not match saved datafield {1}'
+MESSAGE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT = u'{0}: {1}, Does not exist or has invalid format'
 MESSAGE_SUBKEY_FIELD_MISMATCH = u'subkeyfield {0} does not match saved subkeyfield {1}'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large G Suite instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
@@ -1260,6 +1260,7 @@ MESSAGE_HELP_SYNTAX = u'Help: Syntax in file {0}\n'
 MESSAGE_HELP_WIKI = u'Help: Documentation is at {0}\n'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can turn off update checks by setting no_update_check = true in gam.cfg'
 MESSAGE_INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK = u'Insufficient permissions to perform this task'
+MESSAGE_INVALID_JSON_INFORMATION = u'Google API reported Invalid JSON Information'
 MESSAGE_INVALID_TIME_RANGE = u'{0} {1} must be greater than/equal to {2} {3}'
 MESSAGE_MISMATCH_SEARCH_REPLACE_SUBFIELDS = u'The number of subfields ({0}) in search "{1}" does not match the number of subfields ({2}) in replace "{3}"'
 MESSAGE_NO_CSV_FILE_DATA_SAVED = u'No CSV file data saved'
@@ -1273,6 +1274,7 @@ MESSAGE_REQUEST_COMPLETED_NO_FILES = u'Request completed but no results/files we
 MESSAGE_REQUEST_NOT_COMPLETE = u'Request needs to be completed before downloading, current status is: {0}'
 MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET = u'Results are too large for Google Spreadsheets. Uploading as a regular CSV file.'
 MESSAGE_SKU_PRODUCT_MISMATCH = u'Product {0} of old SKU does not match product {1} of new SKU'
+MESSAGE_UNKNOWN_API_OR_VERSION = u'Unknown Google API or version: ({{0}}), contact {0}'.format(__author__)
 #
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\nPlease make sure the Client ID: {0} is authorized for the appropriate scopes {1}'
 MESSAGE_EXECUTE_GAM_OAUTH_CREATE = u'\nPlease execute "gam oauth create"\n'
@@ -1309,7 +1311,6 @@ MEMORY_ERROR_RC = 7
 KEYBOARD_INTERRUPT_RC = 8
 HTTP_ERROR_RC = 9
 SCOPES_NOT_AUTHORIZED = 10
-NO_DISCOVERY_INFORMATION_RC = 11
 API_ACCESS_DENIED_RC = 12
 CONFIG_ERROR_RC = 13
 CERTIFICATE_VALIDATION_UNSUPPORTED_RC = 14
@@ -1544,22 +1545,22 @@ def checkEntityItemValueAFDNEorAccessErrorExit(cd, entityType, entityName, itemT
   entityActionFailedWarning([entityType, entityName, itemType, itemValue], PHRASE_DOES_NOT_EXIST, i, count)
 
 def invalidClientSecretsJsonExit():
-  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON]))
+  stderrErrorMsg(MESSAGE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.CLIENT_SECRETS_JSON_FILE), GC_Values[GC_CLIENT_SECRETS_JSON]))
   writeStderr(MESSAGE_INSTRUCTIONS_CLIENT_SECRETS_JSON)
   systemErrorExit(CLIENT_SECRETS_JSON_REQUIRED_RC, None)
 
 def invalidOauth2serviceJsonExit():
-  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON]))
+  stderrErrorMsg(MESSAGE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.OAUTH2SERVICE_JSON_FILE), GC_Values[GC_OAUTH2SERVICE_JSON]))
   writeStderr(MESSAGE_INSTRUCTIONS_OAUTH2SERVICE_JSON)
   systemErrorExit(OAUTH2SERVICE_JSON_REQUIRED_RC, None)
 
 def invalidOauth2TxtExit():
-  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]))
+  stderrErrorMsg(MESSAGE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.OAUTH2_TXT_FILE), GC_Values[GC_OAUTH2_TXT]))
   writeStderr(MESSAGE_EXECUTE_GAM_OAUTH_CREATE)
   systemErrorExit(OAUTH2_TXT_REQUIRED_RC, None)
 
 def invalidDiscoveryJsonExit(fileName):
-  stderrErrorMsg(PHRASE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.DISCOVERY_JSON_FILE), fileName))
+  stderrErrorMsg(MESSAGE_DOES_NOT_EXIST_OR_HAS_INVALID_FORMAT.format(Entity.Singular(Entity.DISCOVERY_JSON_FILE), fileName))
   systemErrorExit(INVALID_JSON_RC, None)
 
 def noPythonSSLExit():
@@ -1913,6 +1914,12 @@ def getProductAndSKU(sku):
 
 def _skuIdToDisplayName(skuId):
   return SKUS[skuId][u'displayName'] if skuId in SKUS else skuId
+
+def _formatSKUIdDisplayName(skuId):
+  skuIdDisplay = _skuIdToDisplayName(skuId)
+  if skuId == skuIdDisplay:
+    return skuId
+  return u'{0} ({1})'.format(skuId, skuIdDisplay)
 
 def _normalizeProduct(product):
   l_product = product.lower().replace(u'-', u'').replace(u' ', u'')
@@ -4202,15 +4209,27 @@ def getAPIversionHttpService(api):
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
                        cache=GM_Globals[GM_CACHE_DIR])
   if not localjson:
-    try:
-      service = googleapiclient.discovery.build(api, version, http=http, cache_discovery=False)
-      if GM_Globals[GM_CACHE_DISCOVERY_ONLY]:
-        http.cache = None
-      return (api_version, http, service, cred_family)
-    except httplib2.ServerNotFoundError as e:
-      systemErrorExit(NETWORK_ERROR_RC, e.message)
-    except googleapiclient.errors.UnknownApiNameOrVersion:
-      pass
+    retries = 5
+    for n in range(1, retries+1):
+      try:
+        service = googleapiclient.discovery.build(api, version, http=http, cache_discovery=False)
+        if GM_Globals[GM_CACHE_DISCOVERY_ONLY]:
+          http.cache = None
+        return (api_version, http, service, cred_family)
+      except httplib2.ServerNotFoundError as e:
+        systemErrorExit(NETWORK_ERROR_RC, e.message)
+      except googleapiclient.errors.UnknownApiNameOrVersion as e:
+        systemErrorExit(GOOGLE_API_ERROR_RC, MESSAGE_UNKNOWN_API_OR_VERSION.format(e.message))
+      except googleapiclient.errors.InvalidJsonError:
+        if n != retries:
+          waitOnFailure(n, retries, INVALID_JSON_RC, MESSAGE_INVALID_JSON_INFORMATION)
+          continue
+        systemErrorExit(INVALID_JSON_RC, MESSAGE_INVALID_JSON_INFORMATION)
+      except (httplib2.SSLHandshakeError, socket.error) as e:
+        if n != retries:
+          waitOnFailure(n, retries, e.errno, e.strerror)
+          continue
+        systemErrorExit(SOCKET_ERROR_RC, e.strerror)
   disc_file, discovery = readDiscoveryFile(api_version)
   try:
     service = googleapiclient.discovery.build_from_document(discovery, http=http)
@@ -4649,12 +4668,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       accessErrorExit(cd)
   elif entityType == CL_ENTITY_LICENSES:
-    result = doPrintLicenses(return_list=True, skus=entity.replace(u',', u' ').split())
-    for userlicense in result:
-      email = userlicense.get(u'userId', None)
-      if email and (email not in entitySet):
-        entitySet.add(email)
-        entityList.append(email)
+    entityList = doPrintLicenses(return_list=True, skus=shlexSplitList(entity)).keys()
   elif entityType in [CL_ENTITY_COURSEPARTICIPANTS, CL_ENTITY_TEACHERS, CL_ENTITY_STUDENTS]:
     croom = buildGAPIObject(CLASSROOM_API)
     courses = convertEntityToList(entity)
@@ -6436,7 +6450,7 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
   service_account = callGAPI(iam.projects().serviceAccounts(), u'create',
                              name=u'projects/%s' % project_id,
                              body={u'accountId': project_id, u'serviceAccount': {u'displayName': u'GAM Project'}})
-  body = {u'privateKeyType': u'TYPE_GOOGLE_CREDENTIALS_FILE', u'keyAlgorithm': u'KEY_ALG_RSA_4096'}
+  body = {u'privateKeyType': u'TYPE_GOOGLE_CREDENTIALS_FILE', u'keyAlgorithm': u'KEY_ALG_RSA_2048'}
   key = callGAPI(iam.projects().serviceAccounts().keys(), u'create',
                  name=service_account[u'name'], body=body)
   oauth2service_data = base64.b64decode(key[u'privateKeyData'])
@@ -12308,9 +12322,9 @@ def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(LICENSING_API)
   products = []
   feed = collections.deque()
-  todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId', u'skuDisplay'])
   if not return_list:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile([u'userId', u'productId', u'skuId', u'skuDisplay'])
     while CLArgs.ArgumentsRemaining():
       myarg = getArgument()
       if myarg == u'todrive':
@@ -12351,20 +12365,22 @@ def doPrintLicenses(return_list=False, skus=None):
                               customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'nextPageToken,items(productId,skuId,userId)')
       except (GAPI_invalid, GAPI_forbidden):
         pass
+  if return_list:
+    userSKUIds = {}
+    while feed:
+      u_license = feed.popleft()
+      userId = u_license.get(u'userId', u'').lower()
+      skuId = u_license.get(u'skuId')
+      if userId and skuId:
+        userSKUIds.setdefault(userId, [])
+        userSKUIds[userId].append(skuId)
+    return userSKUIds
   while feed:
     u_license = feed.popleft()
-    if u'skuId' in u_license:
-      u_license[u'skuDisplay'] = _skuIdToDisplayName(u_license[u'skuId'])
-    row = {}
-    for title in u_license:
-      if title in [u'kind', u'etags', u'selfLink']:
-        continue
-      row[title] = u_license[title]
-      if title not in titles[u'set']:
-        addTitleToCSVfile(title, titles)
-    csvRows.append(row)
-  if return_list:
-    return csvRows
+    userId = u_license.get(u'userId', u'').lower()
+    skuId = u_license.get(u'skuId', u'')
+    csvRows.append({u'userId': userId, u'productId': u_license.get(u'productId', u''),
+                    u'skuId': skuId, u'skuDisplay': _skuIdToDisplayName(skuId)})
   writeCSVfile(csvRows, titles, u'Licenses', todrive)
 
 # Notification commands utilities
@@ -15670,7 +15686,7 @@ def infoUsers(entityList):
         printEntitiesCount(Entity.LICENSE, licenses)
         Indent.Increment()
         for u_license in licenses:
-          printKeyValueList([u_license, _skuIdToDisplayName(u_license)])
+          printKeyValueList([_formatSKUIdDisplayName(u_license)])
         Indent.Decrement()
       Indent.Decrement()
     except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_badRequest, GAPI_backendError, GAPI_systemError):
@@ -15876,13 +15892,9 @@ def doPrintUsers(entityList=None):
   if getLicenseFeed:
     addTitleToCSVfile(u'Licenses', titles)
     licenses = doPrintLicenses(return_list=True)
-    if len(licenses) > 1:
+    if licenses:
       for user in csvRows:
-        user_licenses = []
-        for u_license in licenses:
-          if u_license[u'userId'].lower() == user[u'primaryEmail'].lower():
-            user_licenses.append(u_license[u'skuId'])
-        user[u'Licenses'] = delimiter.join(user_licenses)
+        user[u'Licenses'] = delimiter.join(licenses.get(user[u'primaryEmail'].lower(), []))
   writeCSVfile(csvRows, titles, u'Users', todrive)
 
 SITEVERIFICATION_METHOD_CHOICES_MAP = {
@@ -21218,9 +21230,9 @@ def addLicense(users):
       callGAPI(lic.licenseAssignments(), u'insert',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BACKEND_ERROR, GAPI_DUPLICATE, GAPI_CONDITION_NOT_MET],
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], body={u'userId': user}, fields=u'')
-      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])], i, count)
+      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], i, count)
     except (GAPI_conditionNotMet, GAPI_duplicate) as e:
-      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], e.message, i, count)
+      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
       entityUnknownWarning(Entity.USER, user, i, count)
 
@@ -21238,7 +21250,7 @@ def updateLicense(users):
       entityModifierNewValueActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])],
                                             Action.MODIFIER_FROM, _skuIdToDisplayName(parameters[LICENSE_OLDSKUID]), i, count)
     except GAPI_notFound as e:
-      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_OLDSKUID]], e.message, i, count)
+      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_OLDSKUID])], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
       entityUnknownWarning(Entity.USER, user, i, count)
 
@@ -21253,9 +21265,9 @@ def deleteLicense(users):
       callGAPI(lic.licenseAssignments(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_BACKEND_ERROR],
                productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], userId=user, fields=u'')
-      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _skuIdToDisplayName(parameters[LICENSE_SKUID])], i, count)
+      entityActionPerformed([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], i, count)
     except GAPI_notFound as e:
-      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, parameters[LICENSE_SKUID]], e.message, i, count)
+      entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], e.message, i, count)
     except (GAPI_userNotFound, GAPI_forbidden, GAPI_backendError):
       entityUnknownWarning(Entity.USER, user, i, count)
 
