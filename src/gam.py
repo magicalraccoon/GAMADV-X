@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.05'
+__version__ = u'4.41.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -17607,7 +17607,7 @@ def showASPs(users):
 def _showBackupCodes(user, codes, i, count):
   Action.Set(Action.SHOW)
   jcount = len(codes)
-  entityPerformActionNumItems([Entity.USER, user], jcount, Entity.BACKUP_VERIFICATION_CODE, i, count)
+  entityPerformActionNumItems([Entity.USER, user], jcount, Entity.BACKUP_VERIFICATION_CODES, i, count)
   if jcount == 0:
     setSysExitRC(NO_ENTITIES_FOUND)
     return
@@ -17632,7 +17632,7 @@ def updateBackupCodes(users):
                userKey=user, fields=u'')
       codes = callGAPIitems(cd.verificationCodes(), u'list', u'items',
                             throw_reasons=[GAPI_USER_NOT_FOUND],
-                            userKey=user)
+                            userKey=user, fields=u'items(verificationCode)')
       _showBackupCodes(user, codes, i, count)
     except GAPI_userNotFound:
       entityUnknownWarning(Entity.USER, user, i, count)
@@ -17649,7 +17649,7 @@ def deleteBackupCodes(users):
       callGAPI(cd.verificationCodes(), u'invalidate',
                throw_reasons=[GAPI_USER_NOT_FOUND],
                userKey=user, fields=u'')
-      printEntityKVList([Entity.USER, user], [Entity.Plural(Entity.BACKUP_VERIFICATION_CODE), u'', u'Invalidated'], i, count)
+      printEntityKVList([Entity.USER, user], [Entity.Plural(Entity.BACKUP_VERIFICATION_CODES), u'', u'Invalidated'], i, count)
     except GAPI_userNotFound:
       entityUnknownWarning(Entity.USER, user, i, count)
 
@@ -17664,7 +17664,7 @@ def showBackupCodes(users):
     try:
       codes = callGAPIitems(cd.verificationCodes(), u'list', u'items',
                             throw_reasons=[GAPI_USER_NOT_FOUND],
-                            userKey=user)
+                            userKey=user, fields=u'items(verificationCode)')
       _showBackupCodes(user, codes, i, count)
     except GAPI_userNotFound:
       entityUnknownWarning(Entity.USER, user, i, count)
@@ -21547,13 +21547,22 @@ def deprovisionUser(users):
             entityActionFailedWarning([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], e.message, j, jcount)
         Indent.Decrement()
 #
-      callGAPI(cd.verificationCodes(), u'invalidate',
-               throw_reasons=[GAPI_USER_NOT_FOUND],
-               userKey=user, fields=u'')
-      printEntityKVList([Entity.USER, user],
-                        [Entity.Plural(Entity.BACKUP_VERIFICATION_CODE), Action.PerformedName(Action.INVALIDATE)],
-                        i, count)
+      printGettingEntityItemForWhom(Entity.BACKUP_VERIFICATION_CODES, user, i, count)
+      try:
+        codes = callGAPIitems(cd.verificationCodes(), u'list', u'items',
+                              throw_reasons=[GAPI_USER_NOT_FOUND],
+                              userKey=user, fields=u'items(verificationCode)')
+        jcount = len(codes)
+        entityPerformActionNumItems([Entity.USER, user], jcount, Entity.BACKUP_VERIFICATION_CODES, i, count)
+        if jcount > 0:
+          callGAPI(cd.verificationCodes(), u'invalidate',
+                   throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
+                   userKey=user)
+          entityActionPerformed([Entity.USER, user, Entity.BACKUP_VERIFICATION_CODES, None], i, count)
+      except GAPI_invalid:
+        entityActionFailedWarning([Entity.USER, user, Entity.BACKUP_VERIFICATION_CODES, None], e.message, i, count)
 #
+      printGettingEntityItemForWhom(Entity.ACCESS_TOKEN, user, i, count)
       tokens = callGAPIitems(cd.tokens(), u'list', u'items',
                              throw_reasons=[GAPI_USER_NOT_FOUND],
                              userKey=user, fields=u'items(clientId)')

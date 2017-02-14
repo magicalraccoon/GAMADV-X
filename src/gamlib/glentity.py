@@ -47,7 +47,7 @@ class GamEntity(object):
   AUDIT_ACTIVITY_REQUEST = u'auda'
   AUDIT_EXPORT_REQUEST = u'audx'
   AUDIT_MONITOR_REQUEST = u'audm'
-  BACKUP_VERIFICATION_CODE = u'buvc'
+  BACKUP_VERIFICATION_CODES = u'buvc'
   CALENDAR = u'cale'
   CALENDAR_ACL = u'cacl'
   CALENDAR_SETTINGS = u'cset'
@@ -187,7 +187,7 @@ class GamEntity(object):
     AUDIT_ACTIVITY_REQUEST: [u'Audit Activity Requests', u'Audit Activity Request'],
     AUDIT_EXPORT_REQUEST: [u'Audit Export Requests', u'Audit Export Request'],
     AUDIT_MONITOR_REQUEST: [u'Audit Monitor Requests', u'Audit Monitor Request'],
-    BACKUP_VERIFICATION_CODE: [u'Backup Verification Codes', u'Backup Verification Code'],
+    BACKUP_VERIFICATION_CODES: [u'Backup Verification Codes', u'Backup Verification Codes'],
     CALENDAR: [u'Calendars', u'Calendar'],
     CALENDAR_ACL: [u'Calendar ACLs', u'Calendar ACL'],
     CALENDAR_SETTINGS: [u'Calendar Settings', u'Calendar Settings'],
