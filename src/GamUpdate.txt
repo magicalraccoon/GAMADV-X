@@ -1,3 +1,7 @@
+4.41.05
+
+Fix coding error in gam user deprovision that prevented tokens from being deleted in there were no ASPS.
+
 4.41.04
 
 Additional license SKU cleanup.

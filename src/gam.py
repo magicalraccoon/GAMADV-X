@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.04'
+__version__ = u'4.41.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21532,21 +21532,20 @@ def deprovisionUser(users):
                            userKey=user, fields=u'items(codeId)')
       jcount = len(asps)
       entityPerformActionNumItems([Entity.USER, user], jcount, Entity.APPLICATION_SPECIFIC_PASSWORD, i, count)
-      if jcount == 0:
-        continue
-      Indent.Increment()
-      j = 0
-      for asp in asps:
-        j += 1
-        codeId = asp[u'codeId']
-        try:
-          callGAPI(cd.asps(), u'delete',
-                   throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
-                   userKey=user, codeId=codeId, fields=u'')
-          entityActionPerformed([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], j, jcount)
-        except GAPI_invalid:
-          entityActionFailedWarning([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], PHRASE_DOES_NOT_EXIST, j, jcount)
-      Indent.Decrement()
+      if jcount > 0:
+        Indent.Increment()
+        j = 0
+        for asp in asps:
+          j += 1
+          codeId = asp[u'codeId']
+          try:
+            callGAPI(cd.asps(), u'delete',
+                     throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
+                     userKey=user, codeId=codeId, fields=u'')
+            entityActionPerformed([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], j, jcount)
+          except GAPI_invalid as e:
+            entityActionFailedWarning([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], e.message, j, jcount)
+        Indent.Decrement()
 #
       callGAPI(cd.verificationCodes(), u'invalidate',
                throw_reasons=[GAPI_USER_NOT_FOUND],
@@ -21560,21 +21559,20 @@ def deprovisionUser(users):
                              userKey=user, fields=u'items(clientId)')
       jcount = len(tokens)
       entityPerformActionNumItems([Entity.USER, user], jcount, Entity.ACCESS_TOKEN, i, count)
-      if jcount == 0:
-        continue
-      Indent.Increment()
-      j = 0
-      for token in tokens:
-        j += 1
-        clientId = token[u'clientId']
-        try:
-          callGAPI(cd.tokens(), u'delete',
-                   throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_NOT_FOUND],
-                   userKey=user, clientId=clientId, fields=u'')
-          entityActionPerformed([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], j, jcount)
-        except GAPI_notFound as e:
-          entityActionFailedWarning([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], e.message, j, jcount)
-      Indent.Decrement()
+      if jcount > 0:
+        Indent.Increment()
+        j = 0
+        for token in tokens:
+          j += 1
+          clientId = token[u'clientId']
+          try:
+            callGAPI(cd.tokens(), u'delete',
+                     throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_NOT_FOUND],
+                     userKey=user, clientId=clientId, fields=u'')
+            entityActionPerformed([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], j, jcount)
+          except GAPI_notFound as e:
+            entityActionFailedWarning([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], e.message, j, jcount)
+        Indent.Decrement()
 #
       entityActionPerformed([Entity.USER, user], i, count)
     except GAPI_userNotFound:
