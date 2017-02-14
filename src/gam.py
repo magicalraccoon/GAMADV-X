@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.06'
+__version__ = u'4.41.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -23295,6 +23295,7 @@ def infoFilters(users):
     Indent.Decrement()
 
 def _printShowFilters(users, csvFormat):
+  labelIdsOnly = False
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile(None)
@@ -23302,6 +23303,8 @@ def _printShowFilters(users, csvFormat):
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif myarg == u'labelidsonly':
+      labelIdsOnly = True
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -23310,9 +23313,12 @@ def _printShowFilters(users, csvFormat):
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
     if not gmail:
       continue
-    labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
-    if not labels:
-      continue
+    if not labelIdsOnly:
+      labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name)')
+      if not labels:
+        continue
+    else:
+      labels = {u'labels': []}
     try:
       result = callGAPI(gmail.users().settings().filters(), u'list',
                         throw_reasons=GAPI_GMAIL_THROW_REASONS,

@@ -1,3 +1,12 @@
+4.41.07
+
+Added labelidsonly argument to gam print/show filters to improve performance in special cases.
+When you get a filter from Google, all labels mentioned in the filter are specified with their internal Id, not the label name the user sees.
+Gam has to make an extra API call to get the labels so it can map from id to name so the output reflects the label names that are familiar to the user.
+If you don't need to see the label names, you can eliminate the extra API call by specifying labelidsonly.
+    gam <UserTypeEntity> show filters [labelidsonly]
+    gam <UserTypeEntity> print filters [labelidsonly] [todrive [<ToDriveAttributes>]]
+
 4.41.06
 
 More fixes to gam user deprovision.

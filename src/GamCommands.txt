@@ -1635,8 +1635,8 @@ gam <UserTypeEntity> [add] filter <FilterCriteria>+ <FilterAction>+
 gam <UserTypeEntity> delete filters <FilterIDEntity>
 
 gam <UserTypeEntity> info filters <FilterIDEntity>
-gam <UserTypeEntity> show filters
-gam <UserTypeEntity> print filters [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> show filters [labelidsonly]
+gam <UserTypeEntity> print filters [labelidsonly] [todrive [<ToDriveAttributes>]]
 
 # Users - Gmail - Forwarding
 
