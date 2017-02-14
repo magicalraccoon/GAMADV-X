@@ -10660,7 +10660,7 @@ def updateCrOSDevices(entityList, cd=None):
   elif update_body:
     function = u'patch'
     parmId = u'deviceId'
-    kwargs = {parmId: None, u'body': update_body}
+    kwargs = {parmId: None, u'body': update_body, fields=u''}
   else:
     return
   for deviceId in entityList:
@@ -10669,7 +10669,7 @@ def updateCrOSDevices(entityList, cd=None):
     try:
       callGAPI(cd.chromeosdevices(), function,
                throw_reasons=[GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-               customerId=GC_Values[GC_CUSTOMER_ID], fields=u'', **kwargs)
+               customerId=GC_Values[GC_CUSTOMER_ID], **kwargs)
       entityActionPerformed([Entity.CROS_DEVICE, deviceId], i, count)
     except GAPI_invalid as e:
       entityActionFailedWarning([Entity.CROS_DEVICE, deviceId], e.message, i, count)
@@ -11108,7 +11108,7 @@ def doUpdateMobileDevices():
       if doAction:
         callGAPI(cd.mobiledevices(), u'action',
                  throw_reasons=[GAPI_RESOURCE_ID_NOT_FOUND, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-                 customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId, body=action_body, fields=u'')
+                 customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId, body=action_body)
         printEntityKVList([Entity.MOBILE_DEVICE, resourceId],
                           [PHRASE_ACTION_APPLIED, action_body[u'action']],
                           i, count)
