@@ -21559,7 +21559,7 @@ def deprovisionUser(users):
                    throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
                    userKey=user)
           entityActionPerformed([Entity.USER, user, Entity.BACKUP_VERIFICATION_CODES, None], i, count)
-      except GAPI_invalid:
+      except GAPI_invalid as e:
         entityActionFailedWarning([Entity.USER, user, Entity.BACKUP_VERIFICATION_CODES, None], e.message, i, count)
 #
       printGettingEntityItemForWhom(Entity.ACCESS_TOKEN, user, i, count)
