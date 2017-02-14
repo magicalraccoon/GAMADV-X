@@ -1,3 +1,7 @@
+4.41.08
+
+Eliminate unnecessary/possibly invalid use of fields=u'' in various API calls.
+
 4.41.07
 
 Added labelidsonly argument to gam print/show filters to improve performance in special cases.

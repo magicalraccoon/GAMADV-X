@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.07'
+__version__ = u'4.41.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6904,7 +6904,7 @@ def doDeleteDomainAlias():
   try:
     callGAPI(cd.domainAliases(), u'delete',
              throw_reasons=[GAPI_DOMAIN_ALIAS_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
-             customer=GC_Values[GC_CUSTOMER_ID], domainAliasName=domainAliasName, fields=u'')
+             customer=GC_Values[GC_CUSTOMER_ID], domainAliasName=domainAliasName)
     entityActionPerformed([Entity.DOMAIN_ALIAS, domainAliasName])
   except GAPI_domainAliasNotFound:
     entityActionFailedWarning([Entity.DOMAIN_ALIAS, domainAliasName], PHRASE_DOES_NOT_EXIST)
@@ -7017,7 +7017,7 @@ def doDeleteDomain():
   try:
     callGAPI(cd.domains(), u'delete',
              throw_reasons=[GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
-             customer=GC_Values[GC_CUSTOMER_ID], domainName=domainName, fields=u'')
+             customer=GC_Values[GC_CUSTOMER_ID], domainName=domainName)
     entityActionPerformed([Entity.DOMAIN, domainName])
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
     accessErrorExit(cd)
@@ -7267,7 +7267,7 @@ def doDeleteAdmin():
   try:
     callGAPI(cd.roleAssignments(), u'delete',
              throw_reasons=[GAPI_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_CUSTOMER_NOT_FOUND, GAPI_FORBIDDEN],
-             customer=GC_Values[GC_CUSTOMER_ID], roleAssignmentId=roleAssignmentId, fields=u'')
+             customer=GC_Values[GC_CUSTOMER_ID], roleAssignmentId=roleAssignmentId)
     entityActionPerformed([Entity.ROLE_ASSIGNMENT_ID, roleAssignmentId])
   except GAPI_notFound:
     entityActionFailedWarning([Entity.ROLE_ASSIGNMENT_ID, roleAssignmentId], PHRASE_DOES_NOT_EXIST)
@@ -7914,7 +7914,7 @@ def _doDeleteOrgs(entityList):
       orgUnitPath = makeOrgUnitPathAbsolute(orgUnitPath)
       callGAPI(cd.orgunits(), u'delete',
                throw_reasons=[GAPI_CONDITION_NOT_MET, GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR, GAPI_BAD_REQUEST, GAPI_INVALID_CUSTOMER_ID, GAPI_LOGIN_REQUIRED],
-               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath), fields=u'')
+               customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnitPath))
       entityActionPerformed([Entity.ORGANIZATIONAL_UNIT, orgUnitPath], i, count)
     except GAPI_conditionNotMet:
       entityActionFailedWarning([Entity.ORGANIZATIONAL_UNIT, orgUnitPath], PHRASE_HAS_CHILD_ORGS.format(Entity.Plural(Entity.ORGANIZATIONAL_UNIT)), i, count)
@@ -8154,13 +8154,13 @@ def _doCreateUpdateAliases(doUpdate):
         try:
           callGAPI(cd.users().aliases(), u'delete',
                    throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_FORBIDDEN],
-                   userKey=aliasEmail, alias=aliasEmail, fields=u'')
+                   userKey=aliasEmail, alias=aliasEmail)
           printEntityKVList([Entity.USER_ALIAS, aliasEmail], [Action.PerformedName(Action.DELETE)], i, count)
         except (GAPI_userNotFound, GAPI_badRequest, GAPI_invalid, GAPI_forbidden):
           try:
             callGAPI(cd.groups().aliases(), u'delete',
                      throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_FORBIDDEN],
-                     groupKey=aliasEmail, alias=aliasEmail, fields=u'')
+                     groupKey=aliasEmail, alias=aliasEmail)
           except GAPI_forbidden:
             entityUnknownWarning(Entity.GROUP_ALIAS, aliasEmail, i, count)
             continue
@@ -8218,7 +8218,7 @@ def doDeleteAliases():
       try:
         callGAPI(cd.users().aliases(), u'delete',
                  throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_FORBIDDEN],
-                 userKey=aliasEmail, alias=aliasEmail, fields=u'')
+                 userKey=aliasEmail, alias=aliasEmail)
         entityActionPerformed([Entity.USER_ALIAS, aliasEmail], i, count)
         continue
       except (GAPI_userNotFound, GAPI_badRequest, GAPI_invalid, GAPI_forbidden):
@@ -8228,7 +8228,7 @@ def doDeleteAliases():
     try:
       callGAPI(cd.groups().aliases(), u'delete',
                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_USER_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_FORBIDDEN],
-               groupKey=aliasEmail, alias=aliasEmail, fields=u'')
+               groupKey=aliasEmail, alias=aliasEmail)
       entityActionPerformed([Entity.GROUP_ALIAS, aliasEmail], i, count)
       continue
     except (GAPI_groupNotFound, GAPI_userNotFound, GAPI_badRequest, GAPI_invalid, GAPI_forbidden):
@@ -11128,7 +11128,7 @@ def doDeleteMobileDevices():
     try:
       callGAPI(cd.mobiledevices(), u'delete',
                throw_reasons=[GAPI_RESOURCE_ID_NOT_FOUND, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-               customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId, fields=u'')
+               customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId)
       entityActionPerformed([Entity.MOBILE_DEVICE, resourceId], i, count)
     except GAPI_resourceIdNotFound:
       entityActionFailedWarning([Entity.MOBILE_DEVICE, resourceId], PHRASE_DOES_NOT_EXIST, i, count)
@@ -11603,7 +11603,7 @@ def doDeleteGroups():
     try:
       callGAPI(cd.groups(), u'delete',
                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INVALID],
-               groupKey=group, fields=u'')
+               groupKey=group)
       entityActionPerformed([Entity.GROUP, group], i, count)
     except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden, GAPI_invalid):
       entityUnknownWarning(Entity.GROUP, group, i, count)
@@ -12464,7 +12464,7 @@ def doDeleteNotification():
     try:
       callGAPI(cd.notifications(), u'delete',
                throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
-               customer=GC_Values[GC_CUSTOMER_ID], notificationId=notificationId, fields=u'')
+               customer=GC_Values[GC_CUSTOMER_ID], notificationId=notificationId)
       entityActionPerformed([Entity.NOTIFICATION, notificationId], i, count)
     except (GAPI_domainNotFound, GAPI_internalError, GAPI_badRequest, GAPI_forbidden):
       checkEntityAFDNEorAccessErrorExit(cd, Entity.NOTIFICATION, notificationId, i, count)
@@ -12608,7 +12608,7 @@ def _doDeleteResourceCalendars(entityList):
     try:
       callGAPI(cd.resources().calendars(), u'delete',
                throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-               customer=GC_Values[GC_CUSTOMER_ID], calendarResourceId=resourceId, fields=u'')
+               customer=GC_Values[GC_CUSTOMER_ID], calendarResourceId=resourceId)
       entityActionPerformed([Entity.RESOURCE_CALENDAR, resourceId], i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       checkEntityAFDNEorAccessErrorExit(cd, Entity.RESOURCE_CALENDAR, resourceId, i, count)
@@ -12868,13 +12868,14 @@ def _processCalendarACLs(cal, function, entityType, calId, j, jcount, k, kcount,
   kwargs = {}
   if function in [u'insert', u'patch']:
     kwargs[u'body'] = body
+    kwargs[u'fields'] = u''
   if function in [u'patch', u'delete']:
     kwargs[u'ruleId'] = ruleId
   try:
     callGAPI(cal.acl(), function,
              throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID, GAPI_INVALID_PARAMETER, GAPI_INVALID_SCOPE_VALUE,
                             GAPI_ILLEGAL_ACCESS_ROLE_FOR_DEFAULT, GAPI_CANNOT_CHANGE_OWN_ACL, GAPI_CANNOT_CHANGE_OWNER_ACL, GAPI_FORBIDDEN],
-             calendarId=calId, fields=u'', **kwargs)
+             calendarId=calId, **kwargs)
     entityActionPerformed([entityType, calId, Entity.CALENDAR_ACL, formatACLScopeRole(ruleId, role)], k, kcount)
   except GAPI_notFound as e:
     if not checkCalendarExists(cal, calId):
@@ -13446,7 +13447,7 @@ def _updateDeleteCalendarEvents(origUser, user, cal, calIds, count, function, ca
       try:
         callGAPI(cal.events(), function,
                  throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_DELETED, GAPI_FORBIDDEN, GAPI_INVALID, GAPI_REQUIRED, GAPI_TIME_RANGE_EMPTY],
-                 calendarId=calId, eventId=eventId, fields=u'', **kwargs)
+                 calendarId=calId, eventId=eventId, **kwargs)
         entityActionPerformed([Entity.CALENDAR, calId, Entity.EVENT, eventId], j, jcount)
       except (GAPI_notFound, GAPI_deleted) as e:
         if not checkCalendarExists(cal, calId):
@@ -13479,7 +13480,7 @@ def _wipeCalendarEvents(user, cal, calIds, count):
     try:
       callGAPI(cal.calendars(), u'clear',
                throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
-               calendarId=calId, fields=u'')
+               calendarId=calId)
       entityActionPerformed([Entity.CALENDAR, calId], i, count)
     except (GAPI_notACalendarUser, GAPI_notFound, GAPI_forbidden) as e:
       entityActionFailedWarning([Entity.CALENDAR, calId], e.message, i, count)
@@ -13609,7 +13610,7 @@ def doCalendarsUpdateEvents(cal, calIds):
       unknownArgumentExit()
   _updateDeleteCalendarEvents(None, None, cal, calIds, len(calIds), u'patch', calendarEventEntity, True,
                               _checkIfEventRecurrenceTimeZoneRequired(body, parameters), body,
-                              {u'body': body, u'sendNotifications': parameters[u'sendNotifications']})
+                              {u'body': body, u'sendNotifications': parameters[u'sendNotifications'], u'fields': u''})
 
 # gam calendars <UserEntity> delete event <EventEntity> [doit] [notifyattendees]
 # gam calendar <UserItem> deleteevent <EventEntity> [doit] [notifyattendees]
@@ -13956,7 +13957,7 @@ def doDeleteUserSchemas():
     try:
       callGAPI(cd.schemas(), u'delete',
                throw_reasons=[GAPI_BAD_REQUEST, GAPI_RESOURCE_NOT_FOUND, GAPI_FORBIDDEN],
-               customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey, fields=u'')
+               customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
       entityActionPerformed([Entity.USER_SCHEMA, schemaKey], i, count)
     except (GAPI_badRequest, GAPI_resourceNotFound, GAPI_forbidden):
       checkEntityAFDNEorAccessErrorExit(cd, Entity.USER_SCHEMA, schemaKey, i, count)
@@ -15130,7 +15131,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
   try:
     callGAPI(cd.users(), u'makeAdmin',
              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-             userKey=user, body=admin_body, fields=u'')
+             userKey=user, body=admin_body)
     printEntityKVList([Entity.USER, user], [PHRASE_ADMIN_STATUS_CHANGED_TO, admin_body[u'status']], i, count)
   except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden):
     entityUnknownWarning(Entity.USER, user, i, count)
@@ -15213,7 +15214,7 @@ def deleteUsers(entityList):
     try:
       callGAPI(cd.users(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-               userKey=user, fields=u'')
+               userKey=user)
       entityActionPerformed([Entity.USER, user], i, count)
     except (GAPI_userNotFound, GAPI_domainNotFound, GAPI_forbidden):
       entityUnknownWarning(Entity.USER, user, i, count)
@@ -15284,7 +15285,7 @@ def undeleteUsers(entityList):
     try:
       callGAPI(cd.users(), u'undelete',
                throw_reasons=[GAPI_BAD_REQUEST, GAPI_INVALID, GAPI_INVALID_ORGUNIT, GAPI_DELETED_USER_NOT_FOUND],
-               userKey=user_uid, body=body, fields=u'')
+               userKey=user_uid, body=body)
       entityActionPerformed([Entity.DELETED_USER, user], i, count)
     except (GAPI_badRequest, GAPI_invalid, GAPI_deletedUserNotFound):
       entityUnknownWarning(Entity.DELETED_USER, user, i, count)
@@ -16080,7 +16081,7 @@ def doDeleteGuardian():
     try:
       callGAPI(croom.userProfiles().guardians(), u'delete',
                throw_reasons=[GAPI_FORBIDDEN, GAPI_NOT_FOUND],
-               studentId=studentId, guardianId=guardianId, fields=u'')
+               studentId=studentId, guardianId=guardianId)
       entityActionPerformed([Entity.STUDENT, studentId, Entity.GUARDIAN, guardianId])
       return
     except GAPI_forbidden:
@@ -16260,7 +16261,7 @@ def _doDeleteCourses(entityList):
     try:
       callGAPI(croom.courses(), u'delete',
                throw_reasons=[GAPI_NOT_FOUND, GAPI_PERMISSION_DENIED],
-               id=courseId, fields=u'')
+               id=courseId)
       entityActionPerformed([Entity.COURSE, removeCourseIdScope(courseId)], i, count)
     except (GAPI_notFound, GAPI_permissionDenied) as e:
       entityActionFailedWarning([Entity.COURSE, removeCourseIdScope(courseId)], e.message, i, count)
@@ -16970,7 +16971,7 @@ def doDeletePrinters():
     try:
       callGCP(cp.printers(), u'delete',
               throw_messages=[GCP_UNKNOWN_PRINTER],
-              printerid=printerId, fields=u'')
+              printerid=printerId)
       entityActionPerformed([Entity.PRINTER, printerId], i, count)
     except GCP_unknownPrinter as e:
       entityActionFailedWarning([Entity.PRINTER, printerId], e.message, i, count)
@@ -17581,7 +17582,7 @@ def deleteASP(users):
     try:
       callGAPI(cd.asps(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
-               userKey=user, codeId=codeId, fields=u'')
+               userKey=user, codeId=codeId)
       entityActionPerformed([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], i, count)
     except GAPI_userNotFound:
       entityUnknownWarning(Entity.USER, user, i, count)
@@ -17629,7 +17630,7 @@ def updateBackupCodes(users):
     try:
       callGAPI(cd.verificationCodes(), u'generate',
                throw_reasons=[GAPI_USER_NOT_FOUND],
-               userKey=user, fields=u'')
+               userKey=user)
       codes = callGAPIitems(cd.verificationCodes(), u'list', u'items',
                             throw_reasons=[GAPI_USER_NOT_FOUND],
                             userKey=user, fields=u'items(verificationCode)')
@@ -17648,7 +17649,7 @@ def deleteBackupCodes(users):
     try:
       callGAPI(cd.verificationCodes(), u'invalidate',
                throw_reasons=[GAPI_USER_NOT_FOUND],
-               userKey=user, fields=u'')
+               userKey=user)
       printEntityKVList([Entity.USER, user], [Entity.Plural(Entity.BACKUP_VERIFICATION_CODES), u'', u'Invalidated'], i, count)
     except GAPI_userNotFound:
       entityUnknownWarning(Entity.USER, user, i, count)
@@ -17896,7 +17897,7 @@ def _updateDeleteCalendars(users, calendarEntity, function, **kwargs):
       j += 1
       calId = normalizeCalendarId(calId, user)
       _processCalendarList(user, calId, j, jcount, cal, function,
-                           calendarId=calId, fields=u'', **kwargs)
+                           calendarId=calId, **kwargs)
     Indent.Decrement()
 
 # gam <UserTypeEntity> update calendars <CalendarEntity> <CalendarAttributes>
@@ -17904,7 +17905,7 @@ def updateCalendars(users):
   calendarEntity = getCalendarEntity()
   body = {}
   colorRgbFormat = _getCalendarAttributes(body)
-  _updateDeleteCalendars(users, calendarEntity, u'update', body=body, colorRgbFormat=colorRgbFormat)
+  _updateDeleteCalendars(users, calendarEntity, u'update', body=body, colorRgbFormat=colorRgbFormat, fields=u'')
 
 # gam <UserTypeEntity> delete calendars <CalendarEntity>
 def deleteCalendars(users):
@@ -17986,7 +17987,7 @@ def _modifyRemoveCalendars(users, calendarEntity, function, **kwargs):
       try:
         callGAPI(cal.calendars(), function,
                  throw_reasons=GAPI_CALENDAR_THROW_REASONS+[GAPI_NOT_FOUND, GAPI_CANNOT_DELETE_PRIMARY_CALENDAR, GAPI_FORBIDDEN],
-                 calendarId=calId, fields=u'', **kwargs)
+                 calendarId=calId, **kwargs)
         entityActionPerformed([Entity.USER, user, Entity.CALENDAR, calId], j, jcount)
       except (GAPI_notFound, GAPI_cannotDeletePrimaryCalendar, GAPI_forbidden) as e:
         entityActionFailedWarning([Entity.USER, user, Entity.CALENDAR, calId], e.message, j, jcount)
@@ -18280,7 +18281,7 @@ def transferCalendars(users):
         try:
           callGAPI(targetCal.acl(), u'delete',
                    throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID],
-                   calendarId=calId, ruleId=sourceRuleId, fields=u'')
+                   calendarId=calId, ruleId=sourceRuleId)
           entityActionPerformed([Entity.CALENDAR, calId, Entity.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, None)], j, jcount)
         except (GAPI_notFound, GAPI_invalid):
           entityUnknownWarning(Entity.CALENDAR, calId, j, jcount)
@@ -18332,7 +18333,7 @@ def updateCalendarEvents(users):
     Indent.Increment()
     status = _updateDeleteCalendarEvents(origUser, user, cal, calIds, jcount, u'patch', calendarEventEntity, True,
                                          _checkIfEventRecurrenceTimeZoneRequired(body, parameters), body,
-                                         {u'body': body, u'sendNotifications': parameters[u'sendNotifications']})
+                                         {u'body': body, u'sendNotifications': parameters[u'sendNotifications'], u'fields': u''})
     Indent.Decrement()
     if not status:
       return
@@ -19966,7 +19967,7 @@ def transferDriveFiles(users):
             Action.Set(Action.DELETE)
             callGAPI(targetDrive.permissions(), u'delete',
                      throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_PERMISSION_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN],
-                     fileId=childId, permissionId=sourcePermissionId, fields=u'')
+                     fileId=childId, permissionId=sourcePermissionId)
             entityActionPerformed([Entity.USER, sourceUser, childFileType, childFileName, Entity.ROLE, u'owner'], j, jcount)
         except (GAPI_fileNotFound, GAPI_forbidden, GAPI_internalError, GAPI_badRequest) as e:
           entityActionFailedWarning([Entity.USER, sourceUser, childFileType, childFileName], e.message, j, jcount)
@@ -20512,7 +20513,7 @@ def deleteEmptyDriveFolders(users):
                               folderId=folder[u'id'], fields=u'{0}(id)'.format(DRIVE_FILES_LIST), maxResults=1)
           if (not children) or (DRIVE_FILES_LIST not in children) or (len(children[DRIVE_FILES_LIST]) == 0):
             callGAPI(drive.files(), u'delete',
-                     fileId=folder[u'id'], fields=u'')
+                     fileId=folder[u'id'])
             entityActionPerformed([Entity.USER, user, Entity.DRIVE_FOLDER, folder[DRIVE_FILE_NAME]], i, count)
             deleted_empty = True
           else:
@@ -20534,8 +20535,7 @@ def emptyDriveTrash(users):
       continue
     try:
       callGAPI(drive.files(), u'emptyTrash',
-               throw_reasons=GAPI_DRIVE_THROW_REASONS,
-               fields=u'')
+               throw_reasons=GAPI_DRIVE_THROW_REASONS)
       entityActionPerformed([Entity.USER, user, Entity.DRIVE_TRASH, None], i, count)
     except (GAPI_serviceNotAvailable, GAPI_authError):
       entityServiceNotApplicableWarning(Entity.USER, user, i, count)
@@ -20871,7 +20871,7 @@ def deleteDriveFileACLs(users):
             fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         callGAPI(drive.permissions(), u'delete',
                  throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_PERMISSION_NOT_FOUND],
-                 fileId=fileId, permissionId=permissionId, fields=u'')
+                 fileId=fileId, permissionId=permissionId)
         entityActionPerformed([Entity.USER, user, entityType, fileName, Entity.PERMISSION_ID, permissionId], j, jcount)
       except (GAPI_fileNotFound, GAPI_forbidden, GAPI_internalError, GAPI_badRequest) as e:
         entityActionFailedWarning([Entity.USER, user, entityType, fileName], e.message, j, jcount)
@@ -20904,7 +20904,7 @@ def deleteDriveFilePermissions(users):
       try:
         callGAPI(drive.permissions(), u'delete',
                  throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_FORBIDDEN, GAPI_INTERNAL_ERROR, GAPI_BAD_REQUEST, GAPI_PERMISSION_NOT_FOUND], retry_reasons=[GAPI_SERVICE_LIMIT],
-                 fileId=ri[RI_ENTITY], permissionId=ri[RI_ITEM], fields=u'')
+                 fileId=ri[RI_ENTITY], permissionId=ri[RI_ITEM])
         entityActionPerformed([Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
       except (GAPI_fileNotFound, GAPI_forbidden, GAPI_internalError, GAPI_badRequest, GAPI_permissionNotFound, GAPI_serviceNotAvailable, GAPI_authError) as e:
         entityActionFailedWarning([Entity.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Entity.PERMISSION_ID, ri[RI_ITEM]], e.message, int(ri[RI_J]), int(ri[RI_JCOUNT]))
@@ -21058,7 +21058,7 @@ def deleteUsersAliases(users):
         try:
           callGAPI(cd.users().aliases(), u'delete',
                    throw_reasons=[GAPI_RESOURCE_ID_NOT_FOUND],
-                   userKey=user_id, alias=an_alias, fields=u'')
+                   userKey=user_id, alias=an_alias)
           entityActionPerformed([Entity.USER, user_primary, Entity.ALIAS, an_alias], j, jcount)
         except GAPI_resourceIdNotFound:
           entityActionFailedWarning([Entity.USER, user_primary, Entity.ALIAS, an_alias], PHRASE_DOES_NOT_EXIST, j, jcount)
@@ -21264,7 +21264,7 @@ def deleteLicense(users):
     try:
       callGAPI(lic.licenseAssignments(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND, GAPI_BACKEND_ERROR],
-               productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], userId=user, fields=u'')
+               productId=parameters[LICENSE_PRODUCTID], skuId=parameters[LICENSE_SKUID], userId=user)
       entityActionPerformed([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], i, count)
     except GAPI_notFound as e:
       entityActionFailedWarning([Entity.USER, user, Entity.LICENSE, _formatSKUIdDisplayName(parameters[LICENSE_SKUID])], e.message, i, count)
@@ -21324,7 +21324,7 @@ def deletePhoto(users):
     try:
       callGAPI(cd.users().photos(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_PHOTO_NOT_FOUND],
-               userKey=user, fields=u'')
+               userKey=user)
       entityActionPerformed([Entity.USER, user, Entity.PHOTO, u''], i, count)
     except GAPI_photoNotFound as e:
       entityActionFailedWarning([Entity.USER, user, Entity.PHOTO, u''], e.message, i, count)
@@ -21421,7 +21421,7 @@ def deleteTokens(users):
     try:
       callGAPI(cd.tokens(), u'delete',
                throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_NOT_FOUND],
-               userKey=user, clientId=clientId, fields=u'')
+               userKey=user, clientId=clientId)
       entityActionPerformed([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], i, count)
     except GAPI_notFound as e:
       entityActionFailedWarning([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], e.message, i, count)
@@ -21541,7 +21541,7 @@ def deprovisionUser(users):
           try:
             callGAPI(cd.asps(), u'delete',
                      throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_INVALID],
-                     userKey=user, codeId=codeId, fields=u'')
+                     userKey=user, codeId=codeId)
             entityActionPerformed([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], j, jcount)
           except GAPI_invalid as e:
             entityActionFailedWarning([Entity.USER, user, Entity.APPLICATION_SPECIFIC_PASSWORD, codeId], e.message, j, jcount)
@@ -21577,7 +21577,7 @@ def deprovisionUser(users):
           try:
             callGAPI(cd.tokens(), u'delete',
                      throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_NOT_FOUND],
-                     userKey=user, clientId=clientId, fields=u'')
+                     userKey=user, clientId=clientId)
             entityActionPerformed([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], j, jcount)
           except GAPI_notFound as e:
             entityActionFailedWarning([Entity.USER, user, Entity.ACCESS_TOKEN, clientId], e.message, j, jcount)
@@ -21928,7 +21928,7 @@ def updateLabels(users):
                                   i, count)
               Indent.Decrement()
               callGAPI(gmail.users().labels(), u'delete',
-                       userId=u'me', id=label[u'id'], fields=u'')
+                       userId=u'me', id=label[u'id'])
               Action.Set(Action.DELETE)
               entityActionPerformed([Entity.USER, user, Entity.LABEL, label[u'name']], i, count)
             else:
@@ -22229,7 +22229,7 @@ def _processMessagesThreads(users, entityType):
       try:
         callGAPI(gmail.users().messages(), function,
                  throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_INVALID_MESSAGE_ID],
-                 userId=u'me', body=body, fields=u'')
+                 userId=u'me', body=body)
         for messageId in body[u'ids']:
           mcount += 1
           entityActionPerformed([Entity.USER, user, entityType, messageId], mcount, jcount)
@@ -23251,7 +23251,7 @@ def deleteFilters(users):
       try:
         callGAPI(gmail.users().settings().filters(), u'delete',
                  throw_reasons=GAPI_GMAIL_THROW_REASONS+[GAPI_NOT_FOUND],
-                 userId=u'me', id=filterId, fields=u'')
+                 userId=u'me', id=filterId)
         entityActionPerformed([Entity.USER, user, Entity.FILTER, filterId], j, jcount)
       except GAPI_notFound as e:
         entityActionFailedWarning([Entity.USER, user, Entity.FILTER, filterId], e.message, j, jcount)
@@ -23515,7 +23515,7 @@ def addForwardingAddresses(users):
         break
     Indent.Decrement()
 
-def _deleteInfoForwardingAddreses(users, function, fields):
+def _deleteInfoForwardingAddreses(users, function):
   emailAddressEntity = getUserObjectEntity(OB_EMAIL_ADDRESS_ENTITY, Entity.FORWARDING_ADDRESS)
   checkForExtraneousArguments()
   i, count, users = getEntityArgument(users)
@@ -23529,17 +23529,17 @@ def _deleteInfoForwardingAddreses(users, function, fields):
     for emailAddress in emailAddresses:
       j += 1
       emailAddress = normalizeEmailAddressOrUID(emailAddress, noUid=True)
-      if not _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, function, forwardingEmail=emailAddress, fields=fields):
+      if not _processForwardingAddress(user, i, count, emailAddress, j, jcount, gmail, function, forwardingEmail=emailAddress):
         break
     Indent.Decrement()
 
 # gam <UserTypeEntity> delete forwardingaddresses <EmailAddressEntity>
 def deleteForwardingAddresses(users):
-  _deleteInfoForwardingAddreses(users, u'delete', u'')
+  _deleteInfoForwardingAddreses(users, u'delete')
 
 # gam <UserTypeEntity> info forwardingaddresses <EmailAddressEntity>
 def infoForwardingAddresses(users):
-  _deleteInfoForwardingAddreses(users, u'get', None)
+  _deleteInfoForwardingAddreses(users, u'get')
 
 def _printShowForwardingAddresses(users, csvFormat):
   if csvFormat:
@@ -23859,7 +23859,7 @@ def _addUpdateSendAs(users, addCmd):
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature is not None:
     body[u'signature'] = _processSignature(tagReplacements, signature, html)
-  kwargs = {u'body': body}
+  kwargs = {u'body': body, u'fields': u''}
   if not addCmd:
     kwargs[u'sendAsEmail'] = emailAddress
   i, count, users = getEntityArgument(users)
@@ -23868,7 +23868,7 @@ def _addUpdateSendAs(users, addCmd):
     user, gmail = buildGAPIServiceObject(GMAIL_API, user)
     if not gmail:
       continue
-    _processSendAs(user, i, count, Entity.SENDAS_ADDRESS, emailAddress, i, count, gmail, [u'patch', u'create'][addCmd], False, fields=u'', **kwargs)
+    _processSendAs(user, i, count, Entity.SENDAS_ADDRESS, emailAddress, i, count, gmail, [u'patch', u'create'][addCmd], False, **kwargs)
 
 # gam <UserTypeEntity> [add] sendas <EmailAddress> <String> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 def addSendAs(users):
@@ -23878,7 +23878,7 @@ def addSendAs(users):
 def updateSendAs(users):
   _addUpdateSendAs(users, False)
 
-def _deleteInfoSendAs(users, function, fields):
+def _deleteInfoSendAs(users, function):
   emailAddressEntity = getUserObjectEntity(OB_EMAIL_ADDRESS_ENTITY, Entity.SENDAS_ADDRESS)
   formatSig = False
   if function == u'get':
@@ -23901,17 +23901,17 @@ def _deleteInfoSendAs(users, function, fields):
     for emailAddress in emailAddresses:
       j += 1
       emailAddress = normalizeEmailAddressOrUID(emailAddress, noUid=True)
-      if not _processSendAs(user, i, count, Entity.SENDAS_ADDRESS, emailAddress, j, jcount, gmail, function, formatSig, sendAsEmail=emailAddress, fields=fields):
+      if not _processSendAs(user, i, count, Entity.SENDAS_ADDRESS, emailAddress, j, jcount, gmail, function, formatSig, sendAsEmail=emailAddress):
         break
     Indent.Decrement()
 
 # gam <UserTypeEntity> delete sendas <EmailAddressEntity>
 def deleteSendAs(users):
-  _deleteInfoSendAs(users, u'delete', u'')
+  _deleteInfoSendAs(users, u'delete')
 
 # gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
 def infoSendAs(users):
-  _deleteInfoSendAs(users, u'get', None)
+  _deleteInfoSendAs(users, u'get')
 
 def _printShowSendAs(users, csvFormat):
   if csvFormat:
