@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.01'
+__version__ = u'4.42.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -38,6 +38,7 @@ import csv
 import datetime
 from htmlentitydefs import name2codepoint
 from HTMLParser import HTMLParser, HTMLParseError
+import httplib
 import json
 import mimetypes
 import platform
@@ -3624,7 +3625,7 @@ def callGData(service, function,
     except oauth2client.client.AccessTokenRefreshError as e:
       handleOAuthTokenError(e, GDATA_SERVICE_NOT_APPLICABLE in throw_errors)
       raise GDATA_ERROR_CODE_EXCEPTION_MAP[GDATA_SERVICE_NOT_APPLICABLE](e.message)
-    except (httplib2.SSLHandshakeError, socket.error) as e:
+    except (httplib.ResponseNotReady, httplib2.SSLHandshakeError, socket.error) as e:
       if n != retries:
         waitOnFailure(n, retries, e.errno, e.strerror)
         continue
@@ -4022,7 +4023,7 @@ def callGAPI(service, function,
       raise GAPI_REASON_EXCEPTION_MAP[GAPI_SERVICE_NOT_AVAILABLE](e.message)
     except httplib2.CertificateValidationUnsupported:
       noPythonSSLExit()
-    except (httplib2.SSLHandshakeError, socket.error) as e:
+    except (httplib.ResponseNotReady, httplib2.SSLHandshakeError, socket.error) as e:
       if n != retries:
         waitOnFailure(n, retries, e.errno, e.strerror)
         continue
@@ -4226,7 +4227,7 @@ def getAPIversionHttpService(api):
           waitOnFailure(n, retries, INVALID_JSON_RC, MESSAGE_INVALID_JSON_INFORMATION)
           continue
         systemErrorExit(INVALID_JSON_RC, MESSAGE_INVALID_JSON_INFORMATION)
-      except (httplib2.SSLHandshakeError, socket.error) as e:
+      except (httplib.ResponseNotReady, httplib2.SSLHandshakeError, socket.error) as e:
         if n != retries:
           waitOnFailure(n, retries, e.errno, e.strerror)
           continue
