@@ -1,3 +1,8 @@
+4.42.03
+
+Handle error where the batch.bat file in gam batch batch.bat contains a gam batch/csv command or a command that invokes an auto batch.
+Fix control-C handling.
+
 4.42.02
 
 Handle httplib.ResponseNotReady error.

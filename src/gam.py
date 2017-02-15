@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.02'
+__version__ = u'4.42.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3095,11 +3095,11 @@ def SetGlobalVariables():
         cfgValue = _quoteStringIfLeadingTrailingBlanks(cfgValue)
       if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
         expdValue = _getCfgFile(sectionName, itemName)
-        if cfgValue != expdValue:
+        if cfgValue != u"''" and cfgValue != expdValue:
           cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
       elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_DIRECTORY:
         expdValue = _getCfgDirectory(sectionName, itemName)
-        if cfgValue != expdValue:
+        if cfgValue != u"''" and cfgValue != expdValue:
           cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
       elif (itemName == GC_SECTION) and (sectionName != ConfigParser.DEFAULTSECT):
         continue
@@ -5692,6 +5692,9 @@ def MultiprocessGAMCommands(items):
     pool = multiprocessing.Pool(processes=numPoolProcesses)
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
+  except AssertionError as e:
+    CLArgs.SetLocation(0)
+    usageErrorExit(e.message)
   if GM_Globals[GM_CSVFILE][GM_REDIRECT_MULTIPROCESS]:
     mpQueueCSVFile, mpQueueHandlerCSVFile = initializeCSVFileQueueHandler()
   else:
@@ -5720,31 +5723,28 @@ def MultiprocessGAMCommands(items):
       totalItems -= 1
       if item[0] == u'commit-batch':
         writeStderr(u'commit-batch - waiting for running processes to finish before proceeding...\n')
-        pool.close()
-        pool.join()
+        while poolProcessesInUse > 0:
+          for ppid in poolProcessResults.keys():
+            try:
+              poolProcessResults[ppid].get(1)
+              poolProcessesInUse -= 1
+              del poolProcessResults[ppid]
+            except (TypeError, IOError, multiprocessing.TimeoutError):
+              pass
         writeStderr(u'commit-batch - complete\n')
-        if totalItems == 0:
-          break
-        origSigintHandler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        numPoolProcesses = min(totalItems, GC_Values[GC_NUM_THREADS])
-        pool = multiprocessing.Pool(processes=numPoolProcesses)
-        signal.signal(signal.SIGINT, origSigintHandler)
         continue
       pid += 1
       poolProcessResults[pid] = pool.apply_async(ProcessGAMCommandMulti, [pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, item])
       poolProcessesInUse += 1
       while poolProcessesInUse == numPoolProcesses:
-        for ppid, result in poolProcessResults.items():
+        for ppid in poolProcessResults.keys():
           try:
-            result.wait(1)
+            poolProcessResults[ppid].get(1)
             poolProcessesInUse -= 1
+            del poolProcessResults[ppid]
             break
           except (TypeError, IOError, multiprocessing.TimeoutError):
             pass
-        else:
-          ppid = 0
-        if ppid != 0:
-          del poolProcessResults[ppid]
   except KeyboardInterrupt:
     setSysExitRC(KEYBOARD_INTERRUPT_RC)
     pool.terminate()
