@@ -1,3 +1,9 @@
+4.42.00
+
+Fixed problem where control-C was not recognized when multiple processes were running via gam batch/csv.
+Gam terminates cleanly on Linux/MacOS when you hit control-C in this situation; on Windows exceptions are
+thrown but Gam does terminate.
+
 4.41.08
 
 Eliminate unnecessary/possibly invalid use of fields=u'' in various API calls.

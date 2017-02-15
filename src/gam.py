@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.41.08'
+__version__ = u'4.42.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -43,6 +43,7 @@ import mimetypes
 import platform
 import random
 import re
+import signal
 import socket
 import StringIO
 
@@ -5527,6 +5528,8 @@ def resetDefaultEncodingToUTF8():
 def CSVFileQueueHandler(mpQueue):
   global CLArgs, GM_Globals, GC_Values
   resetDefaultEncodingToUTF8()
+  if sys.platform.startswith('win'):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
   CLArgs = glclargs.GamCLArgs()
   titles, csvRows = initializeTitlesCSVfile(None)
   list_type = u'CSV'
@@ -5594,6 +5597,9 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
       systemErrorExit(FILE_ERROR_RC, e)
 
   resetDefaultEncodingToUTF8()
+  if sys.platform.startswith('win'):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+  pid0DataItem = [KEYBOARD_INTERRUPT_RC, None]
   pidData = {}
   if GM_Globals[GM_WINDOWS]:
     if stdData[GM_REDIRECT_NAME] == u'null':
@@ -5613,12 +5619,17 @@ def StdQueueHandler(mpQueue, stdData, tzinfo, showMultiInfo):
       if pid == 0 and showMultiInfo:
         fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], 0, pidData[pid][u'cmd']))
     elif dataType == REDIRECT_QUEUE_END:
-      _writePidData(pid, dataItem)
-      del pidData[pid]
+      if pid != 0:
+        _writePidData(pid, dataItem)
+        del pidData[pid]
+      else:
+        pid0DataItem = dataItem
     else:
       break
   for pid in pidData:
-    _writePidData(pid, [0, None])
+    if pid != 0:
+      _writePidData(pid, [KEYBOARD_INTERRUPT_RC, None])
+  _writePidData(0, pid0DataItem)
   if fd not in [sys.stdout, sys.stderr]:
     try:
       fd.close()
@@ -5640,6 +5651,8 @@ def terminateStdQueueHandler(mpQueue, mpQueueHandler):
 def ProcessGAMCommandMulti(pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, args):
   resetDefaultEncodingToUTF8()
   initializeLogging()
+  if sys.platform.startswith('win'):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
   GM_Globals[GM_PID] = pid
   GM_Globals[GM_CSVFILE] = {}
   if mpQueueCSVFile:
@@ -5671,9 +5684,11 @@ def MultiprocessGAMCommands(items):
   import multiprocessing
   if not items:
     return
-  num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
+  totalItems = len(items)
+  numPoolProcesses = min(totalItems, GC_Values[GC_NUM_THREADS])
+  origSigintHandler = signal.signal(signal.SIGINT, signal.SIG_IGN)
   try:
-    pool = multiprocessing.Pool(processes=num_worker_threads)
+    pool = multiprocessing.Pool(processes=numPoolProcesses)
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   if GM_Globals[GM_CSVFILE][GM_REDIRECT_MULTIPROCESS]:
@@ -5693,20 +5708,47 @@ def MultiprocessGAMCommands(items):
       mpQueueStderr = mpQueueStdout
   else:
     mpQueueStderr = None
-  writeStderr(u'Using %s processes...\n' % num_worker_threads)
-  pid = 0
-  while items:
-    item = items.popleft()
-    if item[0] == u'commit-batch':
-      writeStderr(u'commit-batch - waiting for running processes to finish before proceeding...\n')
-      pool.close()
-      pool.join()
-      pool = multiprocessing.Pool(processes=num_worker_threads)
-      writeStderr(u'commit-batch - complete\n')
-      continue
-    pid += 1
-    pool.apply_async(ProcessGAMCommandMulti, [pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, item])
-  pool.close()
+  signal.signal(signal.SIGINT, origSigintHandler)
+  writeStderr(u'Using %s processes...\n' % numPoolProcesses)
+  try:
+    pid = 0
+    poolProcessesInUse = 0
+    poolProcessResults = {}
+    while items:
+      item = items.popleft()
+      totalItems -= 1
+      if item[0] == u'commit-batch':
+        writeStderr(u'commit-batch - waiting for running processes to finish before proceeding...\n')
+        pool.close()
+        pool.join()
+        writeStderr(u'commit-batch - complete\n')
+        if totalItems == 0:
+          break
+        origSigintHandler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        numPoolProcesses = min(totalItems, GC_Values[GC_NUM_THREADS])
+        pool = multiprocessing.Pool(processes=numPoolProcesses)
+        signal.signal(signal.SIGINT, origSigintHandler)
+        continue
+      pid += 1
+      poolProcessResults[pid] = pool.apply_async(ProcessGAMCommandMulti, [pid, mpQueueCSVFile, mpQueueStdout, mpQueueStderr, item])
+      poolProcessesInUse += 1
+      while poolProcessesInUse == numPoolProcesses:
+        for ppid, result in poolProcessResults.items():
+          try:
+            result.wait(1)
+            poolProcessesInUse -= 1
+            break
+          except (TypeError, IOError, multiprocessing.TimeoutError):
+            pass
+        else:
+          ppid = 0
+        if ppid != 0:
+          del poolProcessResults[ppid]
+  except KeyboardInterrupt:
+    setSysExitRC(KEYBOARD_INTERRUPT_RC)
+    pool.terminate()
+  else:
+    pool.close()
   pool.join()
   if mpQueueCSVFile:
     terminateCSVFileQueueHandler(mpQueueCSVFile, mpQueueHandlerCSVFile)
@@ -10660,7 +10702,7 @@ def updateCrOSDevices(entityList, cd=None):
   elif update_body:
     function = u'patch'
     parmId = u'deviceId'
-    kwargs = {parmId: None, u'body': update_body, fields=u''}
+    kwargs = {parmId: None, u'body': update_body, u'fields': u''}
   else:
     return
   for deviceId in entityList:
