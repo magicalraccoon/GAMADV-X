@@ -1,3 +1,7 @@
+4.42.04
+
+When debug_level is > 0 and stdout is redirected, the http debug output is now properly redirected as well.
+
 4.42.03
 
 Handle error where the batch.bat file in gam batch batch.bat contains a gam batch/csv command or a command that invokes an auto batch.
