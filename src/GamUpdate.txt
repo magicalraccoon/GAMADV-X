@@ -1,3 +1,9 @@
+4.42.05
+
+Added restricted argument to gam claim ownership to restrict viewers and commenters from copying, downloading and printing the claimed files.
+    gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed]
+	[restricted] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+
 4.42.04
 
 When debug_level is > 0 and stdout is redirected, the http debug output is now properly redirected as well.

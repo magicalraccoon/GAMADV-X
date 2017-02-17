@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.04'
+__version__ = u'4.42.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20359,7 +20359,7 @@ def transferDriveFileOwnership(users):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Files to Transfer Ownership', todrive)
 
-# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [restricted] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
 def claimDriveFolderOwnership(users):
   def _identifyFilesToClaim(fileEntry, skipids, skipusers, trashed):
     for childId in fileEntry[u'children']:
@@ -20383,7 +20383,8 @@ def claimDriveFolderOwnership(users):
   subdomains = []
   csvFormat = filepath = trashed = False
   todrive = {}
-  writerscanshare = True
+  restricted = False
+  writersCanShare = True
   fileTree = None
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -20395,8 +20396,10 @@ def claimDriveFolderOwnership(users):
       subdomains = getEntityList(OB_DOMAIN_NAME_ENTITY)
     elif myarg == u'includetrashed':
       trashed = True
+    elif myarg == u'restricted':
+      restricted = True
     elif myarg == u'writerscantshare':
-      writerscanshare = False
+      writersCanShare = False
     elif myarg == u'preview':
       csvFormat = True
     elif myarg == u'filepath':
@@ -20413,7 +20416,11 @@ def claimDriveFolderOwnership(users):
   else:
     filepath = False
   body = {u'role': u'owner'}
-  bodyShare = {u'writersCanShare': False}
+  bodyShare = {}
+  if not writersCanShare:
+    bodyShare[u'writersCanShare'] = False
+  if restricted:
+    bodyShare[u'labels'][DRIVE_FILE_LABEL_RESTRICTED] = True
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -20488,7 +20495,7 @@ def claimDriveFolderOwnership(users):
           l = 0
           for fileId, fileInfo in filesToClaim[oldOwner].items():
             l += 1
-            if not writerscanshare:
+            if bodyShare:
               callGAPI(source_drive.files(), u'patch',
                        fileId=fileId, body=bodyShare, fields=u'')
             entityType = fileInfo[u'type']
