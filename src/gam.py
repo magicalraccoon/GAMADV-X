@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.05'
+__version__ = u'4.42.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5397,13 +5397,15 @@ def convertCRsNLs(value):
   return value.replace(u'\r', u'\\r').replace(u'\n', u'\\n')
 
 # Flatten a JSON object
-def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, time_objects=None):
+def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, timeObjects=None, noLenObjects=None):
   if flattened is None:
     flattened = {}
-  if time_objects is None:
-    time_objects = []
+  if timeObjects is None:
+    timeObjects = []
+  if noLenObjects is None:
+    noLenObjects = []
   if not isinstance(structure, (dict, list, collections.deque)):
-    if key not in time_objects:
+    if key not in timeObjects:
       if isinstance(structure, (str, unicode)) and GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]:
         flattened[((path+u'.') if path else u'')+key] = convertCRsNLs(structure)
       else:
@@ -5413,23 +5415,24 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
   elif isinstance(structure, (list, collections.deque)):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
-    flattened[((path+u'.') if path else u'')+key] = listLen
+    if key not in noLenObjects:
+      flattened[((path+u'.') if path else u'')+key] = listLen
     for i in xrange(listLen):
-      flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
+      flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, timeObjects, noLenObjects)
   else:
     for new_key, value in structure.items():
       if new_key in [u'kind', u'etag']:
         continue
-      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit, time_objects)
+      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit, timeObjects, noLenObjects)
   return flattened
 
 # Show a json object
-def showJSON(object_name, object_value, skip_objects=None, time_objects=None, level=0):
-  if skip_objects is None:
-    skip_objects = []
-  if time_objects is None:
-    time_objects = []
-  if object_name in [u'kind', u'etag', u'etags'] or object_name in skip_objects:
+def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, level=0):
+  if skipObjects is None:
+    skipObjects = []
+  if timeObjects is None:
+    timeObjects = []
+  if object_name in [u'kind', u'etag', u'etags'] or object_name in skipObjects:
     return
   if object_name is not None:
     printJSONKey(object_name)
@@ -5447,7 +5450,7 @@ def showJSON(object_name, object_value, skip_objects=None, time_objects=None, le
       if isinstance(sub_value, (str, unicode, int, bool)):
         printKeyValueList([sub_value])
       else:
-        showJSON(None, sub_value, skip_objects, time_objects, level+1)
+        showJSON(None, sub_value, skipObjects, timeObjects, level+1)
     if object_name is not None:
       Indent.Decrement()
   elif isinstance(object_value, dict):
@@ -5458,15 +5461,15 @@ def showJSON(object_name, object_value, skip_objects=None, time_objects=None, le
     elif level > 0:
       indentAfterFirst = unindentAfterLast = True
     for sub_object in sorted(object_value):
-      if sub_object not in skip_objects:
-        showJSON(sub_object, object_value[sub_object], skip_objects, time_objects, level+1)
+      if sub_object not in skipObjects:
+        showJSON(sub_object, object_value[sub_object], skipObjects, timeObjects, level+1)
         if indentAfterFirst:
           Indent.Increment()
           indentAfterFirst = False
     if object_name is not None or unindentAfterLast:
       Indent.Decrement()
   else:
-    if object_name not in time_objects:
+    if object_name not in timeObjects:
       if isinstance(object_value, (str, unicode)) and object_value.find(u'\n') >= 0:
         if GC_Values[GC_SHOW_CONVERT_CR_NL]:
           printJSONValue(convertCRsNLs(object_value))
@@ -6887,7 +6890,7 @@ def doReport():
           events = activity[u'events']
           del activity[u'events']
           if not countsOnly:
-            activity_row = flattenJSON(activity, time_objects=REPORT_ACTIVITIES_TIME_OBJECTS)
+            activity_row = flattenJSON(activity, timeObjects=REPORT_ACTIVITIES_TIME_OBJECTS)
             for event in events:
               for item in event.get(u'parameters', []):
                 if item[u'name'] in [u'start_time', u'end_time']:
@@ -6971,7 +6974,7 @@ def doDeleteDomainAlias():
 
 DOMAIN_ALIAS_PRINT_ORDER = [u'parentDomainName', u'creationTime', u'verified',]
 
-def _showDomainAlias(alias, alias_skip_objects):
+def _showDomainAlias(alias, aliasSkipObjects):
   printEntity([Entity.DOMAIN_ALIAS, alias[u'domainAliasName']])
   Indent.Increment()
   if u'creationTime' in alias:
@@ -6979,8 +6982,8 @@ def _showDomainAlias(alias, alias_skip_objects):
   for field in DOMAIN_ALIAS_PRINT_ORDER:
     if field in alias:
       printKeyValueList([field, alias[field]])
-      alias_skip_objects.append(field)
-  showJSON(None, alias, alias_skip_objects)
+      aliasSkipObjects.append(field)
+  showJSON(None, alias, aliasSkipObjects)
   Indent.Decrement()
 
 # gam info domainalias|aliasdomain <DomainAlias>
@@ -6992,8 +6995,8 @@ def doInfoDomainAlias():
     result = callGAPI(cd.domainAliases(), u'get',
                       throw_reasons=[GAPI_DOMAIN_ALIAS_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                       customer=GC_Values[GC_CUSTOMER_ID], domainAliasName=domainAliasName)
-    alias_skip_objects = [u'domainAliasName',]
-    _showDomainAlias(result, alias_skip_objects)
+    aliasSkipObjects = [u'domainAliasName',]
+    _showDomainAlias(result, aliasSkipObjects)
   except GAPI_domainAliasNotFound:
     entityActionFailedWarning([Entity.DOMAIN_ALIAS, domainAliasName], PHRASE_DOES_NOT_EXIST)
   except (GAPI_badRequest, GAPI_notFound, GAPI_forbidden):
@@ -7094,7 +7097,7 @@ def doInfoDomain():
     result = callGAPI(cd.domains(), u'get',
                       throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                       customer=GC_Values[GC_CUSTOMER_ID], domainName=domainName)
-    skip_objects = [u'domainName', u'domainAliases']
+    skipObjects = [u'domainName', u'domainAliases']
     printEntity([Entity.DOMAIN, result[u'domainName']])
     Indent.Increment()
     if u'creationTime' in result:
@@ -7102,16 +7105,16 @@ def doInfoDomain():
     for field in DOMAIN_PRINT_ORDER:
       if field in result:
         printKeyValueList([field, result[field]])
-        skip_objects.append(field)
+        skipObjects.append(field)
     field = u'domainAliases'
     aliases = result.get(field)
     if aliases:
-      skip_objects.append(field)
-      alias_skip_objects = [u'domainAliasName',]
+      skipObjects.append(field)
+      aliasSkipObjects = [u'domainAliasName',]
       for alias in aliases:
-        _showDomainAlias(alias, alias_skip_objects)
-        showJSON(None, alias, alias_skip_objects)
-    showJSON(None, result, skip_objects)
+        _showDomainAlias(alias, aliasSkipObjects)
+        showJSON(None, alias, aliasSkipObjects)
+    showJSON(None, result, skipObjects)
     Indent.Decrement()
   except GAPI_domainNotFound:
     entityActionFailedWarning([Entity.DOMAIN, domainName], PHRASE_DOES_NOT_EXIST)
@@ -10923,7 +10926,7 @@ def doPrintCrOSDevices(entityList=None):
     if u'notes' in cros:
       cros[u'notes'] = convertCRsNLs(cros[u'notes'])
     if (not noLists) and (not selectActiveTimeRanges) and (not selectRecentUsers):
-      addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit, time_objects=CROS_TIME_OBJECTS), csvRows, titles)
+      addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit, timeObjects=CROS_TIME_OBJECTS), csvRows, titles)
       return
     row = {}
     for attrib in cros:
@@ -11209,7 +11212,7 @@ def doInfoMobileDevices():
                       customerId=GC_Values[GC_CUSTOMER_ID], resourceId=resourceId)
       printEntity([Entity.MOBILE_DEVICE, resourceId], i, count)
       Indent.Increment()
-      showJSON(None, info, time_objects=MOBILE_TIME_OBJECTS)
+      showJSON(None, info, timeObjects=MOBILE_TIME_OBJECTS)
       Indent.Decrement()
     except GAPI_resourceIdNotFound:
       entityActionFailedWarning([Entity.MOBILE_DEVICE, resourceId], PHRASE_DOES_NOT_EXIST, i, count)
@@ -13583,13 +13586,13 @@ EVENT_TIME_OBJECTS = [u'created', u'updated', u'dateTime']
 
 def _showCalendarEvent(event, k, kcount):
   printEntity([Entity.EVENT, event[u'id']], k, kcount)
-  skip_objects = [u'id',]
+  skipObjects = [u'id',]
   Indent.Increment()
   for field in EVENT_PRINT_ORDER:
     if field in event:
-      showJSON(field, event[field], skip_objects, EVENT_TIME_OBJECTS)
-      skip_objects.append(field)
-  showJSON(None, event, skip_objects)
+      showJSON(field, event[field], skipObjects, EVENT_TIME_OBJECTS)
+      skipObjects.append(field)
+  showJSON(None, event, skipObjects)
   Indent.Decrement()
 
 def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity):
@@ -15791,7 +15794,7 @@ def doPrintUsers(entityList=None):
       userEmail = userEntity[u'primaryEmail']
       if userEmail.find(u'@') != -1:
         userEntity[u'primaryEmailLocal'], userEntity[u'primaryEmailDomain'] = splitEmailAddress(userEmail)
-    addRowTitlesToCSVfile(flattenJSON(userEntity, time_objects=USER_TIME_OBJECTS), csvRows, titles)
+    addRowTitlesToCSVfile(flattenJSON(userEntity, timeObjects=USER_TIME_OBJECTS), csvRows, titles)
 
   _PRINT_USER_REASON_TO_MESSAGE_MAP = {GAPI_RESOURCE_NOT_FOUND: PHRASE_DOES_NOT_EXIST}
   def _callbackPrintUser(request_id, response, exception):
@@ -16229,7 +16232,7 @@ def printShowGuardians(csvFormat):
       else:
         for guardian in result:
           guardian[u'studentEmail'] = studentId
-          addRowTitlesToCSVfile(flattenJSON(guardian, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
+          addRowTitlesToCSVfile(flattenJSON(guardian, timeObjects=COURSE_TIME_OBJECTS), csvRows, titles)
     except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
       entityUnknownWarning(Entity.STUDENT, studentId, i, count)
     except GAPI_permissionDenied as e:
@@ -16353,6 +16356,7 @@ COURSE_ARGUMENT_TO_PROPERTY_MAP = {
   }
 COURSE_MEMBER_ARGUMENTS = [u'none', u'all', u'students', u'teachers']
 COURSE_TIME_OBJECTS = [u'creationTime', u'updateTime']
+COURSE_NOLEN_OBJECTS = [u'materials',]
 
 def _getCourseShowArguments(myarg, courseShowProperties):
   if myarg in [u'alias', u'aliases']:
@@ -16424,7 +16428,7 @@ def _doInfoCourses(entityList):
                         id=courseId, fields=fields)
       printEntity([Entity.COURSE, result[u'id']], i, count)
       Indent.Increment()
-      showJSON(None, result, skip_objects=courseShowProperties[u'skips'], time_objects=COURSE_TIME_OBJECTS)
+      showJSON(None, result, courseShowProperties[u'skips'], COURSE_TIME_OBJECTS)
       if courseShowProperties[u'aliases']:
         try:
           aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
@@ -16553,7 +16557,7 @@ def doPrintCourses():
   for course in all_courses:
     for field in courseShowProperties[u'skips']:
       course.pop(field, None)
-    addRowTitlesToCSVfile(flattenJSON(course, time_objects=COURSE_TIME_OBJECTS), csvRows, titles)
+    addRowTitlesToCSVfile(flattenJSON(course, timeObjects=COURSE_TIME_OBJECTS, noLenObjects=COURSE_NOLEN_OBJECTS), csvRows, titles)
   if courseShowProperties[u'aliases'] or courseShowProperties[u'members'] != u'none':
     if courseShowProperties[u'aliases']:
       addTitleToCSVfile(u'Aliases', titles)
@@ -19052,16 +19056,16 @@ FILEPATH_FIELDS = [DRIVE_FILE_NAME, u'id', u'mimeType', u'parents(id)']
 # gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)]
 def showDriveFileInfo(users):
   def _setSelectionFields():
-    skip_objects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
+    skipObjects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
     fieldsList.extend(FILEINFO_FIELDS_TITLES)
     if filepath:
-      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
+      skipObjects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
 
   filepath = False
   fieldsList = []
   labelsList = []
-  skip_objects = []
+  skipObjects = []
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   while CLArgs.ArgumentsRemaining():
@@ -19092,7 +19096,7 @@ def showDriveFileInfo(users):
       fields += u',labels({0})'.format(u','.join(set(labelsList)))
   else:
     fields = u'*'
-    skip_objects.extend([u'kind', u'etag'])
+    skipObjects.extend([u'kind', u'etag'])
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -19119,7 +19123,7 @@ def showDriveFileInfo(users):
           for path in paths:
             printKeyValueList([u'path', path])
           Indent.Decrement()
-        showJSON(None, result, skip_objects, DRIVEFILE_TIME_OBJECTS)
+        showJSON(None, result, skipObjects, DRIVEFILE_TIME_OBJECTS)
         Indent.Decrement()
       except (GAPI_fileNotFound, GAPI_forbidden, GAPI_internalError) as e:
         entityActionFailedWarning([Entity.USER, user, Entity.DRIVE_FILE_OR_FOLDER_ID, fileId], e.message, j, jcount)
@@ -19262,13 +19266,13 @@ FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 def printDriveFileList(users):
   def _setSelectionFields():
     if fileIdEntity:
-      skip_objects.extend([field for field in FILELIST_TITLES if field not in fieldsList])
+      skipObjects.extend([field for field in FILELIST_TITLES if field not in fieldsList])
       fieldsList.extend(FILELIST_FIELDS)
     if filepath:
-      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
+      skipObjects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
     if showOwnedBy is not None:
-      skip_objects.extend([field for field in OWNED_BY_ME_FIELDS_TITLES if field not in fieldsList])
+      skipObjects.extend([field for field in OWNED_BY_ME_FIELDS_TITLES if field not in fieldsList])
       fieldsList.extend(OWNED_BY_ME_FIELDS_TITLES)
 
   def _printFileInfo(drive, f_file):
@@ -19283,7 +19287,7 @@ def printDriveFileList(users):
     for permission in f_file.get(u'permissions', []):
       _convertReaderToCommenter(permission)
     for attrib in f_file:
-      if attrib in skip_objects:
+      if attrib in skipObjects:
         continue
       if not isinstance(f_file[attrib], dict):
         if isinstance(f_file[attrib], list):
@@ -19341,7 +19345,7 @@ def printDriveFileList(users):
   fieldsTitles = {}
   labelsList = []
   orderByList = []
-  skip_objects = [u'prnt',]
+  skipObjects = [u'prnt',]
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = ME_IN_OWNERS
   fileIdEntity = showOwnedBy = fileTree = None
@@ -19434,7 +19438,7 @@ def printDriveFileList(users):
     fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, u','.join(set(fieldsList)))
   else:
     fields = u'*'
-    skip_objects.extend([u'kind', u'etag'])
+    skipObjects.extend([u'kind', u'etag'])
   orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
     addTitlesToCSVfile([u'paths',], titles)
@@ -20359,7 +20363,7 @@ def transferDriveFileOwnership(users):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Files to Transfer Ownership', todrive)
 
-# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [restricted] [writerscantshare] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>] [includetrashed] [restricted [<Boolean>]] [writerscantshare [<Boolean>]] [preview] [filepath] [todrive [<ToDriveAttributes>]]
 def claimDriveFolderOwnership(users):
   def _identifyFilesToClaim(fileEntry, skipids, skipusers, trashed):
     for childId in fileEntry[u'children']:
@@ -20383,8 +20387,7 @@ def claimDriveFolderOwnership(users):
   subdomains = []
   csvFormat = filepath = trashed = False
   todrive = {}
-  restricted = False
-  writersCanShare = True
+  bodyShare = {}
   fileTree = None
   while CLArgs.ArgumentsRemaining():
     myarg = getArgument()
@@ -20397,9 +20400,9 @@ def claimDriveFolderOwnership(users):
     elif myarg == u'includetrashed':
       trashed = True
     elif myarg == u'restricted':
-      restricted = True
+      bodyShare[u'labels'][DRIVE_FILE_LABEL_RESTRICTED] = getBoolean(defaultValue=True)
     elif myarg == u'writerscantshare':
-      writersCanShare = False
+      bodyShare[u'writersCanShare'] = not getBoolean(defaultValue=True)
     elif myarg == u'preview':
       csvFormat = True
     elif myarg == u'filepath':
@@ -20416,11 +20419,6 @@ def claimDriveFolderOwnership(users):
   else:
     filepath = False
   body = {u'role': u'owner'}
-  bodyShare = {}
-  if not writersCanShare:
-    bodyShare[u'writersCanShare'] = False
-  if restricted:
-    bodyShare[u'labels'][DRIVE_FILE_LABEL_RESTRICTED] = True
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
