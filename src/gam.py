@@ -5593,7 +5593,7 @@ def StdQueueHandler(mpQueue, stdtype, gmGlobals, gcValues):
       if item and (item.find(u' ') == -1) and (item.find(u',') == -1):
         qstr += item
       else:
-        qstr += u"'"+item+u"'"
+        qstr += u'"'+item+u'"'
       qstr += u' '
     return qstr
 

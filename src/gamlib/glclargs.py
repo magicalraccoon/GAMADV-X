@@ -85,14 +85,14 @@ class GamCLArgs(object):
   def SetLocation(self, location):
     self.argvI = location
 
-# Concatenate list members, any item containing spaces is enclosed in ''
+# Concatenate list members, any item containing spaces is enclosed in ""
   def QuotedArgumentList(self, items):
     qstr = u''
     for item in items:
       if item and (item.find(u' ') == -1) and (item.find(u',') == -1):
         qstr += item
       else:
-        qstr += u"'"+item+u"'"
+        qstr += u'"'+item+u'"'
       qstr += u' '
     return qstr[:-1] if len(qstr) > 0 else u''
 
