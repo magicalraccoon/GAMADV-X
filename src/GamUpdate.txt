@@ -1,3 +1,7 @@
+4.42.09
+
+Handle unbalanced quotes errors in gam batch.
+
 4.42.08
 
 Fixed bug where the file description was not set on a redirected multiprocess CSV file when todrive was specified.

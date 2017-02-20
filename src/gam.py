@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.08'
+__version__ = u'4.42.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5541,7 +5541,7 @@ def CSVFileQueueHandler(mpQueue):
   resetDefaultEncodingToUTF8()
   if sys.platform.startswith('win'):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-  if GM.Globals[GM.WINDOWS]:
+  if GM_Globals[GM_WINDOWS]:
     CLArgs = glclargs.GamCLArgs()
   titles, csvRows = initializeTitlesCSVfile(None)
   list_type = u'CSV'
@@ -5795,26 +5795,36 @@ def doBatch():
   items = collections.deque()
   f = openFile(filename)
   batchFile = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
+  errors = 0
   try:
     for line in batchFile:
-      argv = shlex.split(line)
+      try:
+        argv = shlex.split(line)
+      except ValueError as e:
+        writeStderr(convertUTF8(u'Command: >>>{0}<<<\n'.format(line.strip())))
+        writeStderr(u'{0}{1}\n'.format(ERROR_PREFIX, e.message))
+        errors += 1
+        continue
       if len(argv) > 0:
         cmd = argv[0].strip().lower()
-        if (not cmd) or cmd.startswith(u'#') or ((len(argv) == 1) and (cmd != COMMIT_BATCH_CMD)):
+        if (not cmd) or cmd.startswith(u'#'):
           continue
         if cmd == GAM_CMD:
           items.append([arg.encode(GM_Globals[GM_SYS_ENCODING]) for arg in argv])
         elif cmd == COMMIT_BATCH_CMD:
           items.append([cmd])
         else:
-          writeStderr(u'Command: >>>{0}<<< {1}\n'.format(CLArgs.QuotedArgumentList([argv[0]]), CLArgs.QuotedArgumentList(argv[1:])))
-          stderrErrorMsg(u'{0}: {1} <{2}>'.format(ARGUMENT_ERROR_NAMES[ARGUMENT_INVALID][1],
-                                                  PHRASE_EXPECTED,
-                                                  formatChoiceList([GAM_CMD, COMMIT_BATCH_CMD])))
+          writeStderr(convertUTF8(u'Command: >>>{0}<<< {1}\n'.format(CLArgs.QuotedArgumentList([argv[0]]), CLArgs.QuotedArgumentList(argv[1:]))))
+          writeStderr(u'{0}{1}: {2} <{3}>\n'.format(ERROR_PREFIX, ARGUMENT_ERROR_NAMES[ARGUMENT_INVALID][1],
+                                                    PHRASE_EXPECTED, formatChoiceList([GAM_CMD, COMMIT_BATCH_CMD])))
+          errors += 1
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   closeFile(f)
-  MultiprocessGAMCommands(items)
+  if errors == 0:
+    MultiprocessGAMCommands(items)
+  else:
+    setSysExitRC(USAGE_ERROR_RC)
 
 def doAutoBatch(entityType, entityList, CL_command):
   remaining = CLArgs.Remaining()
