@@ -5541,7 +5541,8 @@ def CSVFileQueueHandler(mpQueue):
   resetDefaultEncodingToUTF8()
   if sys.platform.startswith('win'):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-  CLArgs = glclargs.GamCLArgs()
+  if GM.Globals[GM.WINDOWS]:
+    CLArgs = glclargs.GamCLArgs()
   titles, csvRows = initializeTitlesCSVfile(None)
   list_type = u'CSV'
   todrive = {}
