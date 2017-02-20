@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.06'
+__version__ = u'4.42.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -16357,6 +16357,27 @@ COURSE_ARGUMENT_TO_PROPERTY_MAP = {
 COURSE_MEMBER_ARGUMENTS = [u'none', u'all', u'students', u'teachers']
 COURSE_TIME_OBJECTS = [u'creationTime', u'updateTime']
 COURSE_NOLEN_OBJECTS = [u'materials',]
+COURSE_PROPERTY_PRINT_ORDER = [
+  u'id',
+  u'name',
+  u'Aliases',
+  u'courseState',
+  u'descriptionHeading',
+  u'description',
+  u'section',
+  u'room',
+  u'enrollmentCode',
+  u'guardiansEnabled',
+  u'alternateLink',
+  u'ownerId',
+  u'creationTime',
+  u'updateTime',
+  u'courseGroupEmail',
+  u'teacherGroupEmail',
+  u'teacherFolder.id',
+  u'teacherFolder.title',
+  u'teacherFolder.alternateLink',
+  ]
 
 def _getCourseShowArguments(myarg, courseShowProperties):
   if myarg in [u'alias', u'aliases']:
@@ -16489,10 +16510,9 @@ def doInfoCourse():
 #	[delimiter <String>] [alias|aliases] [show none|all|students|teachers] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
 def doPrintCourses():
 
-  def _saveParticipants(course, participants, role):
+  def _saveParticipants(course, participants, role, rtitles):
     jcount = len(participants)
     course[role] = jcount
-    addTitlesToCSVfile([role], titles)
     j = 0
     for member in participants:
       memberTitles = []
@@ -16513,7 +16533,7 @@ def doPrintCourses():
         memberTitle = prefix+u'name.fullName'
         course[memberTitle] = fullName
         memberTitles.append(memberTitle)
-      addTitlesToCSVfile(memberTitles, titles)
+      addTitlesToCSVfile(memberTitles, rtitles)
       j += 1
 
   croom = buildGAPIObject(CLASSROOM_API)
@@ -16558,9 +16578,12 @@ def doPrintCourses():
     for field in courseShowProperties[u'skips']:
       course.pop(field, None)
     addRowTitlesToCSVfile(flattenJSON(course, timeObjects=COURSE_TIME_OBJECTS, noLenObjects=COURSE_NOLEN_OBJECTS), csvRows, titles)
+  if courseShowProperties[u'aliases']:
+    addTitleToCSVfile(u'Aliases', titles)
+  sortCSVTitles(COURSE_PROPERTY_PRINT_ORDER, titles)
   if courseShowProperties[u'aliases'] or courseShowProperties[u'members'] != u'none':
-    if courseShowProperties[u'aliases']:
-      addTitleToCSVfile(u'Aliases', titles)
+    ttitles = {u'set': set(u'teachers'), u'list': [u'teachers',]}
+    stitles = {u'set': set(u'students'), u'list': [u'students',]}
     i = 0
     count = len(csvRows)
     for course in csvRows:
@@ -16584,17 +16607,24 @@ def doPrintCourses():
                                     page_message=page_message,
                                     throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                     courseId=courseId, fields=u'nextPageToken,teachers(profile)', pageSize=GC_Values[GC_CLASSROOM_MAX_RESULTS])
-            _saveParticipants(course, results, u'teachers')
+            _saveParticipants(course, results, u'teachers', ttitles)
           if courseShowProperties[u'members'] != u'teachers':
             Entity.SetGetting(Entity.STUDENT)
             results = callGAPIpages(croom.courses().students(), u'list', u'students',
                                     page_message=page_message,
                                     throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                                     courseId=courseId, fields=u'nextPageToken,students(profile)', pageSize=GC_Values[GC_CLASSROOM_MAX_RESULTS])
-            _saveParticipants(course, results, u'students')
+            _saveParticipants(course, results, u'students', stitles)
       except (GAPI_notFound, GAPI_forbidden):
         pass
-  sortCSVTitles([u'id', u'name'], titles)
+    ttitles[u'list'].sort()
+    stitles[u'list'].sort()
+    try:
+      cmsIndex = titles[u'list'].index(u'courseMaterialSets')
+      titles[u'list'] = titles[u'list'][:cmsIndex]+ttitles[u'list']+stitles[u'list']+titles[u'list'][cmsIndex:]
+    except ValueError:
+      titles[u'list'].extend(ttitles[u'list'])
+      titles[u'list'].extend(stitles[u'list'])
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):
