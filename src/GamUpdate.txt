@@ -1,6 +1,11 @@
+4.42.10
+
+Define NullHandler for logging to accommodate Python 2.6.
+
 4.42.09
 
 Handle unbalanced quotes errors in gam batch.
+If errors are encountered a batch file, none of the commands will be executed.
 
 4.42.08
 

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.42.09'
+__version__ = u'4.42.10'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -40,6 +40,7 @@ from htmlentitydefs import name2codepoint
 from HTMLParser import HTMLParser, HTMLParseError
 import httplib
 import json
+import logging
 import mimetypes
 import platform
 import random
@@ -5526,9 +5527,13 @@ def doUsage():
   writeStdout(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
   writeStdout(MESSAGE_HELP_WIKI.format(GAM_WIKI))
 
+class NullHandler(logging.Handler):
+  def emit(self, record):
+    pass
+
 def initializeLogging():
-  import logging
-  logging.getLogger().addHandler(logging.NullHandler())
+  nh = NullHandler()
+  logging.getLogger().addHandler(nh)
 
 def resetDefaultEncodingToUTF8():
   if sys.getdefaultencoding().upper() != u'UTF-8':
@@ -5807,7 +5812,7 @@ def doBatch():
         continue
       if len(argv) > 0:
         cmd = argv[0].strip().lower()
-        if (not cmd) or cmd.startswith(u'#'):
+        if (not cmd) or cmd.startswith(u'#') or ((len(argv) == 1) and (cmd != COMMIT_BATCH_CMD)):
           continue
         if cmd == GAM_CMD:
           items.append([arg.encode(GM_Globals[GM_SYS_ENCODING]) for arg in argv])
