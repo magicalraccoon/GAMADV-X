@@ -146,6 +146,9 @@ class GamAction(object):
   PREFIX_NOT = u'Not'
   SUFFIX_FAILED = u'Failed'
 
+  def __init__(self):
+    self.action = None
+
   def Set(self, action):
     self.action = action
 

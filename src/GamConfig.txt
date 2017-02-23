@@ -98,10 +98,10 @@ contact_max_results
 csv_input_column_delimiter
 	Column delimiter used when reading CSV files; this must be a single character
 	All places where an input CSV file can be specified have an argument columndelimiter <String> that can override this value.
-	Default: ","
+	Default: ','
 	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
 csv_output_convert_cr_nl
-	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
+	Convert carriage returns (CR) to '\r' and newlines (NL) to '\n' when writing CSV files
 	The commands gam print groups|sites|messages|threads and gam show sites|messages|threads have
 	an argument, converttextnl, that can set this value to true.
 	Default: False
@@ -109,13 +109,13 @@ csv_output_convert_cr_nl
 csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
 	The argument redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>] can override this value.
-	Default: ","
+	Default: ','
 	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
 csv_output_field_delimiter
 	Field list delimiter used when writing CSV output files; this must be a single character
 	With the default value of an empty string:
 	Each of the gam print courses|groups|users  commands has a delimiter <String> argument that can override this value.
-	Default: " "
+	Default: ' '
 	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
 customer_id
 	Google Custmer ID
@@ -191,7 +191,7 @@ section
 	Default: DEFAULT
 	Environment variable: GAM_SECTION
 show_convert_cr_nl
-	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when showing data
+	Convert carriage returns (CR) to '\r' and newlines (NL) to '\n' when showing data
 	Default: False
 	Environment variable: GAM_SHOW_CONVERT_CR_NL
 show_counts_min
@@ -222,6 +222,10 @@ todrive_timestamp
 	Enable/disable adding a timestamp to the title of CSV files when todrive is specified
 	Default: False
 	Environment variable: GAM_TODRIVE_TIMESTAMP
+todrive_user
+	Email address of user to receive CSV files when todrive is specified
+	Default: '' which becomes admin user in oauth2.txt
+	Environment variable: GAM_TODRIVE_USER
 user_max_results
 	When retrieving lists of Users from API, how many should be retrieved in each chunk
 	Default: 500
@@ -243,7 +247,7 @@ Section: DEFAULT
   csv_input_column_delimiter = ,
   csv_output_convert_cr_nl = false
   csv_output_column_delimiter = ,
-  csv_output_field_delimiter = " "
+  csv_output_field_delimiter = ' '
   customer_id =
   debug_level = 0
   device_max_results = 500
@@ -271,6 +275,7 @@ Section: DEFAULT
   todrive_conversion = true
   todrive_parent = root
   todrive_timestamp = false
+  todrive_user = ''
   user_max_results = 500
 
 If you (the administrator) run GAM and have multiple other users that also run GAM, you will make a gam.cfg for each user.
@@ -356,7 +361,7 @@ contact_max_results = 100
 csv_input_column_delimiter = ,
 csv_output_convert_cr_nl = false
 csv_output_column_delimiter = ,
-csv_output_field_delimiter = " "
+csv_output_field_delimiter = ' '
 customer_id = 0000000000
 debug_level = 0
 device_max_results = 500
@@ -384,6 +389,7 @@ timezone = utc
 todrive_conversion = true
 todrive_parent = root
 todrive_timestamp = false
+todrive_user = ''
 user_max_results = 500
 
 [foo]

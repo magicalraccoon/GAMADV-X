@@ -153,7 +153,7 @@ If an item contains spaces, it should be surrounded by ".
 <ThreadID> ::= <String>
 <TimeZone> ::= <String>
 <Title> ::= <String>
-<ToDriveAttributes> ::= (tdtitle <String>)|(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
+<ToDriveAttributes> ::= (tdtitle <String>)|(tduser <EmailAddress>)|(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
 <TransferID> ::= <String>
 <URI> ::= <String>
 <URL> ::= <String>

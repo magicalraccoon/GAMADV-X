@@ -318,24 +318,29 @@ class GamEntity(object):
     ROLE_MANAGER_MEMBER_OWNER: [u'Members, Managers, Owners', u'Member, Manager, Owner'],
     }
 
+  def __init__(self):
+    self.entityType = None
+    self.forWhom = None
+    self.showTotal = False
+
   def SetGetting(self, entityType):
     self.entityType = entityType
-    
+
   def Getting(self):
     return self.entityType
 
   def SetGettingForWhom(self, forWhom):
     self.forWhom = forWhom
-    
+
   def GettingForWhom(self):
     return self.forWhom
-     
+
   def SetGettingShowTotal(self, showTotal):
     self.showTotal = showTotal
-    
+
   def GettingShowTotal(self):
     return self.showTotal
-    
+
   def Choose(self, entityType, count):
     return self._NAMES[entityType][[0, 1][count == 1]]
 
@@ -353,3 +358,17 @@ class GamEntity(object):
 
   def SingularGetting(self):
     return self._NAMES[self.entityType][1]
+
+  def FormatEntityValueList(self, entityValueList):
+    evList = []
+    for j in range(0, len(entityValueList), 2):
+      evList.append(self.Singular(entityValueList[j]))
+      evList.append(entityValueList[j+1])
+    return evList
+
+  def EntityTypeName(self, entityType, entityName):
+    return u'{0}: {1}'.format(self.Singular(entityType), entityName)
+
+  def EntityTypeNameMessage(self, entityType, entityName, message):
+    return u'{0}: {1} {2}'.format(self.Singular(entityType), entityName, message)
+

@@ -1,3 +1,31 @@
+4.43.00
+
+Continued code refactoring.
+
+The elements of a <ProductIDList> or <SKUIDList> must be separated by commas not spaces; this applies to gam print licenses, gam info users, gam print users
+and gam licenses <SKUIDLIst> <Command> ...
+
+Added LicensesDisplay column to CSV file for gam print users licenses to show descriptive name of license SKU.
+The Licenses column still displays the actual SKU.
+
+Added tduser <EmailAddress> to <ToDriveAttributes>.
+Added todrive_user to gam.cfg
+Anywhere you can specify todrive, there are additional subarguments following the todrive argument that let you title the file,
+direct the uploaded file to a particular user and location and add a timestamp to the file title.
+    <ToDriveAttributes> ::=
+	(tdtitle <String>)|(tduser <EmailAddress>)|(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdtimestamp <Boolean> [tddaysoffset <Number>] [tdhoursoffset <Number])
+The tdtitle argument specifies the title for the uploaded file, if not specified, the Gam default title is used.
+The tduser argument specifies the user to receive the uploaded file; if not specified, the todrive_user value from gam.cfg is used;
+that value defaults to the user named in oauth2.txt.
+The tdparent argument specifies the an existing parent folder for the uploaded file; if not specified, the todrive_parent value from gam.cfg is used;
+that value defaults to the root folder.
+The tdtimestamp argument specifies whether a timestamp (of the time the file is uploaded to Google) will be added to the title of the uploaded file;
+if not specified, the todrive_timestamp value from gam.cfg is used, that value defaults to False.
+The tddaysoffset and tdhoursoffset arguments let you specify values that subtract time from the timestamp, they default to 0.
+A possible use for these values is as documentation to reflect the end of the time period that the uploaded report covers.
+Example: generate a list of user IDs and names, title the file "User IDs and Names", upload it to the "GAM Reports" folder of usermgr@domain.com, add a timestamp to the title.
+    gam print users todrive tdtitle "User IDs and Names" tduser usermgr@domain.com tdparent "GAM Reports" tdtimestamp true id name
+
 4.42.10
 
 Define NullHandler for logging to accommodate Python 2.6.
@@ -81,6 +109,7 @@ Additional license SKU cleanup.
 4.41.02
 
 Added skuDisplay column to CSV file for gam print licenses to show descriptive name of license SKU.
+The skuId column still displays the actual SKU.
 
 4.41.01
 

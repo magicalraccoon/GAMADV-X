@@ -41,4 +41,3 @@ class GamIndent(object):
 
   def MultiLineText(self, message, n=0):
     return message.replace(u'\n', u'\n{0}'.format(self.INDENT_SPACES_PER_LEVEL*(self.indent+n))).rstrip()
-  
