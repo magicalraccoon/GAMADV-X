@@ -21,7 +21,7 @@ direct the uploaded file to a particular user and location and add a timestamp t
 The tdtitle argument specifies the title for the uploaded file, if not specified, the Gam default title is used.
 The tduser argument specifies the user to receive the uploaded file; if not specified, the todrive_user value from gam.cfg is used;
 that value defaults to the user named in oauth2.txt.
-The tdparent argument specifies the an existing parent folder for the uploaded file; if not specified, the todrive_parent value from gam.cfg is used;
+The tdparent argument specifies an existing/writable parent folder for the uploaded file; if not specified, the todrive_parent value from gam.cfg is used;
 that value defaults to the root folder.
 The tdtimestamp argument specifies whether a timestamp (of the time the file is uploaded to Google) will be added to the title of the uploaded file;
 if not specified, the todrive_timestamp value from gam.cfg is used, that value defaults to False.
