@@ -1,3 +1,7 @@
+4.43.02
+
+Fix bug in gam add drivefileacl where incorrect parameter was passed to API.
+
 4.43.01
 
 When todrive tdparent id:<DriveFolderID>|<DriveFolderName> is specified, in addition to checking that the parent is an existing folder, the folder is verified as being writable.

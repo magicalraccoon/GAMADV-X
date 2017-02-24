@@ -18624,7 +18624,7 @@ def transferDriveFiles(users):
           Act.Set(Act.TRANSFER_OWNERSHIP)
           callGAPI(sourceDrive.permissions(), API.DRIVE_CREATE_PERMISSIONS,
                    throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.INVALID_SHARING_REQUEST, GAPI.FORBIDDEN],
-                   fileId=childId, sendNotificationEmails=False, body=targetPermissionsBody)
+                   fileId=childId, sendNotificationEmails=False, body=targetPermissionsBody, fields=u'')
           entityModifierNewValueItemValueActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, Ent.USER, targetUser, j, jcount)
           callGAPI(targetDrive.files(), API.DRIVE_PATCH_FILE,
                    throw_reasons=GAPI.DRIVE_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
@@ -19315,8 +19315,7 @@ def addDriveFileACL(users):
             fileName = result[API.DRIVE_FILE_NAME]+u'('+fileId+u')'
         permission = callGAPI(drive.permissions(), API.DRIVE_CREATE_PERMISSIONS,
                               throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.INVALID_SHARING_REQUEST],
-                              fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage,
-                              transferOwnership=transferOwnership, body=body)
+                              fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
         entityActionPerformed([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
         _showDriveFilePermission(permission)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
