@@ -1,3 +1,7 @@
+4.43.03
+
+Improve error messages for invalid queries and custom schemas in info/print users.
+
 4.43.02
 
 Fix bug in gam add drivefileacl where incorrect parameter was passed to API.

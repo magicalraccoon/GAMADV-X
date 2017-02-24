@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.43.01'
+__version__ = u'4.43.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1333,6 +1333,11 @@ def badRequestWarning(entityType, itemType, itemValue):
 
 def invalidQuery(query):
   return u'{0} ({1}) {2}'.format(Ent.Singular(Ent.QUERY), query, Msg.INVALID)
+
+def invalidUserSchema(schema):
+  if isinstance(schema, list):
+    return u'{0} ({1}) {2}'.format(Ent.Singular(Ent.USER_SCHEMA), u','.join(schema), Msg.INVALID)
+  return u'{0} ({1}) {2}'.format(Ent.Singular(Ent.USER_SCHEMA), schema, Msg.INVALID)
 
 def entityServiceNotApplicableWarning(entityType, entityName, i=0, count=0):
   setSysExitRC(SERVICE_NOT_APPLICABLE_RC)
@@ -9618,7 +9623,7 @@ def doPrintCrOSDevices(entityList=None):
       while feed:
         _printCrOS(feed.popleft())
     except GAPI.invalidInput:
-      entityActionFailedWarning([Ent.CROS_DEVICE, Msg.LIST], invalidQuery(query))
+      entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
       return
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
@@ -9847,7 +9852,7 @@ def doPrintMobileDevices():
           row[attrib] = formatLocalTime(mobile[attrib])
       csvRows.append(row)
   except GAPI.invalidInput:
-    entityActionFailedWarning([Ent.MOBILE_DEVICE, Msg.LIST], invalidQuery(query))
+    entityActionFailedWarning([Ent.MOBILE_DEVICE, None], invalidQuery(query))
   except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
     accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Mobile', todrive)
@@ -14138,7 +14143,7 @@ def infoUsers(entityList):
     userEmail = normalizeEmailAddressOrUID(userEmail)
     try:
       user = callGAPI(cd.users(), u'get',
-                      throw_reasons=GAPI.USER_GET_THROW_REASONS,
+                      throw_reasons=GAPI.USER_GET_THROW_REASONS+[GAPI.INVALID_INPUT],
                       userKey=userEmail, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fields)
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
@@ -14331,6 +14336,11 @@ def infoUsers(entityList):
       Ind.Decrement()
     except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.USER, userEmail, i, count)
+    except GAPI.invalidInput as e:
+      if customFieldMask:
+        entityActionFailedWarning([Ent.USER, userEmail], invalidUserSchema(customFieldMask), i, count)
+      else:
+        entityActionFailedWarning([Ent.USER, userEmail], e.message, i, count)
 
 # gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 def doInfoUsers():
@@ -14374,6 +14384,8 @@ def doPrintUsers(entityList=None):
       http_status, reason, message = checkGAPIError(exception)
       if reason in GAPI.USER_GET_THROW_REASONS:
         entityUnknownWarning(Ent.USER, ri[RI_ITEM], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      elif (reason == GAPI.INVALID_INPUT) and customFieldMask:
+        entityActionFailedWarning([Ent.USER, ri[RI_ITEM]], invalidUserSchema(customFieldMask), int(ri[RI_J]), int(ri[RI_JCOUNT]))
       else:
         errMsg = getHTTPError(_PRINT_USER_REASON_TO_MESSAGE_MAP, http_status, reason, message)
         printKeyValueList([ERROR, errMsg])
@@ -14469,10 +14481,17 @@ def doPrintUsers(entityList=None):
       while feed:
         _printUser(feed.popleft())
     except GAPI.domainNotFound:
-      entityActionFailedWarning([Ent.USER, Msg.LIST, Ent.DOMAIN, domain], Msg.NOT_FOUND)
+      entityActionFailedWarning([Ent.USER, None, Ent.DOMAIN, domain], Msg.NOT_FOUND)
       return
-    except GAPI.invalidInput:
-      entityActionFailedWarning([Ent.USER, Msg.LIST], invalidQuery(query))
+    except GAPI.invalidInput as e:
+      if query and not customFieldMask:
+        entityActionFailedWarning([Ent.USER, None], invalidQuery(query))
+      elif customFieldMask and not query:
+        entityActionFailedWarning([Ent.USER, None], invalidUserSchema(customFieldMask))
+      elif query and customFieldMask:
+        entityActionFailedWarning([Ent.USER, None], u'{0} or {1}'.format(invalidQuery(query), invalidUserSchema(customFieldMask)))
+      else:
+        entityActionFailedWarning([Ent.USER, None], e.message)
       return
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
@@ -17228,7 +17247,7 @@ def doDriveSearch(drive, user, i, count, query=None):
                           q=query, fields=u'nextPageToken,{0}(id)'.format(API.DRIVE_FILES_LIST), maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     return [f_file[u'id'] for f_file in files]
   except GAPI.invalidQuery:
-    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, Msg.LIST], invalidQuery(query), i, count)
+    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
   except GAPI.fileNotFound:
     printGettingEntityItemsForWhomDoneInfo(0)
   except (GAPI.serviceNotAvailable, GAPI.authError):
@@ -18091,7 +18110,7 @@ def printDriveFileList(users):
           else:
             entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
     except GAPI.invalidQuery:
-      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, Msg.LIST], invalidQuery(query), i, count)
+      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
       break
     except GAPI.fileNotFound:
       printGettingEntityItemsForWhomDoneInfo(0)
@@ -19252,9 +19271,9 @@ DRIVEFILE_ACL_ROLES_MAP = {
 DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # anyone must be first element
 
 # gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [transferownership <Boolean>] [sendmail] [emailmessage <String>] [showtitles]
+#	(role reader|commenter|writer|owner|editor) [withlink|(allowfilediscovery <Boolean>)] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
 def addDriveFileACL(users):
-  sendNotificationEmails = showTitles = transferOwnership = False
+  sendNotificationEmails = showTitles = False
   emailMessage = None
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
@@ -19282,8 +19301,6 @@ def addDriveFileACL(users):
     elif myarg == u'emailmessage':
       sendNotificationEmails = True
       emailMessage = getString(Cmd.OB_STRING)
-    elif myarg == u'transferownership':
-      transferOwnership = getBoolean()
     elif myarg == u'showtitles':
       showTitles = True
     else:
