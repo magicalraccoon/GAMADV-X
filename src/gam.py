@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.43.00'
+__version__ = u'4.43.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3767,9 +3767,12 @@ def getTodriveParameters():
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=[GAPI.FILE_NOT_FOUND],
-                          fileId=todrive[u'parent'][3:], fields=u'id,mimeType')
+                          fileId=todrive[u'parent'][3:], fields=u'id,mimeType,editable')
         if result[u'mimeType'] != MIMETYPE_GA_FOLDER:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_ID, Msg.NOT_AN_ENTITY.format(Ent.Singular(Ent.DRIVE_FOLDER)),
+                                  localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
+        if not result[u'editable']:
+          invalidTodriveValueExit(Ent.DRIVE_FOLDER_ID, Msg.NOT_WRITABLE,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         todrive[u'parentId'] = result[u'id']
       except GAPI.fileNotFound:
@@ -3780,12 +3783,15 @@ def getTodriveParameters():
         results = callGAPIpages(drive.files(), u'list', API.DRIVE_FILES_LIST,
                                 throw_reasons=[GAPI.INVALID_QUERY],
                                 q=u"{0} = '{1}'".format(API.DRIVE_FILE_NAME, todrive[u'parent']),
-                                fields=u'nextPageToken,{0}(id,mimeType)'.format(API.DRIVE_FILES_LIST), maxResults=1)
+                                fields=u'nextPageToken,{0}(id,mimeType,editable)'.format(API.DRIVE_FILES_LIST), maxResults=1)
         if not results:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_FOUND,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         if results[0][u'mimeType'] != MIMETYPE_GA_FOLDER:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_AN_ENTITY.format(Ent.Singular(Ent.DRIVE_FOLDER)),
+                                  localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
+        if not results[0][u'editable']:
+          invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_WRITABLE,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         todrive[u'parentId'] = results[0][u'id']
       except GAPI.invalidQuery:
@@ -3940,7 +3946,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       drive = buildGAPIObject(API.DRIVE)
     try:
       result = callGAPI(drive.files(), API.DRIVE_CREATE_FILE,
-                        throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND],
+                        throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
                         convert=convert, body={u'parents': [{u'id': todrive[u'parentId']}], u'description': u' '.join(Cmd.AllArguments()), API.DRIVE_FILE_NAME: title, u'mimeType': u'text/csv'},
                         media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=API.DRIVE_FILE_VIEW_LINK)
       file_url = result[API.DRIVE_FILE_VIEW_LINK]
@@ -3953,8 +3959,8 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
         webbrowser.open(file_url)
     except GAPI.insufficientPermissions:
       printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, Msg.INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
-    except GAPI.fileNotFound:
-      entityActionFailedWarning([Ent.DRIVE_FOLDER, todrive[u'parentId']], Msg.DOES_NOT_EXIST, 0, 0)
+    except (GAPI.fileNotFound, GAPI.unknownError) as e:
+      entityActionFailedWarning([Ent.DRIVE_FOLDER, todrive[u'parentId']], e.message, 0, 0)
   if GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] != u'-':
     closeFile(csvFile)
 
