@@ -133,5 +133,5 @@ Globals = {
   MAP_USER_ID_TO_NAME: None,
   OAUTH2_TXT_LOCK: None,
   CACHE_DIR: None,
-  CACHE_DISCOVERY_ONLY: False,
+  CACHE_DISCOVERY_ONLY: True,
   }

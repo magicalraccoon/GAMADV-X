@@ -74,7 +74,7 @@ cache_discovery_only
 	If no_cache = False and cache_discovery_only = True, only GAM discovery API calls are cached.
 	The last combination caches GAM discovery API calls that usually return the same value
 	without consuming large amounts of disc space as when all GAM API calls are cached.
-	Signal file: GamConfigDir/cachediscoveryonly.txt
+	Signal file: GamConfigDir/allcache.txt
 charset
 	Character set of gam batch, gam csv, gam loop files.
 	Default: utf-8 for Linux/Mac OSX, mbcs for Windows
@@ -238,7 +238,7 @@ Section: DEFAULT
   auto_batch_min = 0
   batch_size = 50
   cache_dir = /Users/admin/.gam/gamcache
-  cache_discovery_only = false
+  cache_discovery_only = true
   charset = utf-8
   classroom_max_results = 0
   client_secrets_json = client_secrets.json ; /Users/admin/.gam/client_secrets.json
@@ -352,7 +352,7 @@ activity_max_results = 100
 auto_batch_min = 0
 batch_size = 50
 cache_dir = /Users/admin/.gam/gamcache
-cache_discovery_only = false
+cache_discovery_only = true
 charset = utf-8
 classroom_max_results = 0
 client_secrets_json = client_secrets.json

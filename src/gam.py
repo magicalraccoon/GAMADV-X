@@ -5007,7 +5007,7 @@ def getCRMService(login_hint):
     noPythonSSLExit()
   credentials.user_agent = GAM_INFO
   http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL],
-                                             cache=GM.Globals[GM.CACHE_DIR]))
+                                             cache=None))
   return (googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False), http)
 
 # gam create project [<EmailAddress>]
