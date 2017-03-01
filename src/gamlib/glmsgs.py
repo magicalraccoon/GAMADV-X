@@ -143,6 +143,7 @@ SKU_PRODUCT_MISMATCH = u'Product {0} of old SKU does not match product {1} of ne
 STARTING_THREAD = u'Starting thread'
 STRING_LENGTH = u'string length'
 SUBKEY_FIELD_MISMATCH = u'subkeyfield {0} does not match saved subkeyfield {1}'
+SUBSCRIPTION_NOT_FOUND = u'Could not find subscription'
 THAT_MATCHED_QUERY = u'that matched query'
 THAT_MATCH_QUERY = u'that match query'
 TO = u'To'

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.43.04'
+__version__ = u'4.44.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3987,7 +3987,10 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
       else:
         flattened[((path+u'.') if path else u'')+key] = structure
     else:
-      flattened[((path+u'.') if path else u'')+key] = formatLocalTime(structure)
+      if isinstance(structure, (str, unicode)):
+        flattened[((path+u'.') if path else u'')+key] = formatLocalTime(structure)
+      else:
+        flattened[((path+u'.') if path else u'')+key] = formatLocalTimestamp(structure)
   elif isinstance(structure, (list, collections.deque)):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
@@ -4057,7 +4060,10 @@ def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, leve
       else:
         printJSONValue(object_value)
     else:
-      printJSONValue(formatLocalTime(object_value))
+      if isinstance(object_value, (str, unicode)):
+        printJSONValue(formatLocalTime(object_value))
+      else:
+        printJSONValue(formatLocalTimestamp(object_value))
 
 # Batch processing request_id fields
 RI_ENTITY = 0
@@ -4701,6 +4707,11 @@ OAUTH2_SCOPES = [
    u'credfam': API.FAM2_SCOPES,
    u'subscopes': [],
    u'scope': u'https://www.googleapis.com/auth/admin.reports.usage.readonly'},
+  {u'name': u'Reseller API',
+   u'credfam': API.FAM2_SCOPES,
+   u'subscopes': [],
+   u'offByDefault': True,
+   u'scope': u'https://www.googleapis.com/auth/apps.order'},
   {u'name': u'Site Verification API',
    u'credfam': API.FAM2_SCOPES,
    u'subscopes': [],
@@ -4800,7 +4811,7 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       i = 0
       for a_scope in OAUTH2_SCOPES:
         if cred_family == a_scope[u'credfam']:
-          selected_scopes[i] = u'*'
+          selected_scopes[i] = [u'*', u' '][a_scope.get(u'offByDefault', False)]
         i += 1
   prompt = u'Please enter 0-{0}[a|r] or {1}: '.format(num_scopes-1, u'|'.join(OAUTH2_CMDS))
   while True:
@@ -5515,6 +5526,314 @@ def doReport():
         csvRows.append({u'event': event, u'count': eventCounts[event]})
     writeCSVfile(csvRows, titles, u'{0} Activity Report'.format(report.capitalize()), todrive)
 
+ADDRESS_FIELDS_PRINT_ORDER = [u'contactName', u'organizationName', u'addressLine1', u'addressLine2', u'addressLine3', u'locality', u'region', u'postalCode', u'countryCode']
+
+def _showCustomerAddressPhoneNumber(customerInfo):
+  if u'postalAddress' in customerInfo:
+    printKeyValueList([u'Address', None])
+    Ind.Increment()
+    for field in ADDRESS_FIELDS_PRINT_ORDER:
+      if field in customerInfo[u'postalAddress']:
+        printKeyValueList([field, customerInfo[u'postalAddress'][field]])
+    Ind.Decrement()
+  if u'phoneNumber' in customerInfo:
+    printKeyValueList([u'Phone', customerInfo[u'phoneNumber']])
+
+ADDRESS_FIELDS_ARGUMENT_MAP = {
+  u'contact': u'contactName', u'contactname': u'contactName',
+  u'name': u'organizationName', u'organizationname': u'organizationName',
+  u'address': u'addressLine1', u'address1': u'addressLine1', u'addressline1': u'addressLine1',
+  u'address2': u'addressLine2', u'addressline2': u'addressLine2',
+  u'address3': u'addressLine3', u'addressline3': u'addressLine3',
+  u'city': u'locality', u'locality': u'locality',
+  u'state': u'region', u'region': u'region',
+  u'zipcode': u'postalCode', u'postal': u'postalCode', u'postalcode': u'postalCode',
+  u'country': u'countryCode', u'countrycode': u'countryCode',
+  }
+
+def _getResoldCustomerAttr():
+  body = {}
+  customerAuthToken = None
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg in ADDRESS_FIELDS_ARGUMENT_MAP:
+      body.setdefault(u'postalAddress', {})
+      body[u'postalAddress'][ADDRESS_FIELDS_ARGUMENT_MAP[myarg]] = getString(Cmd.OB_STRING, minLen=0, maxLen=255)
+    elif myarg in [u'email', u'alternateemail']:
+      body[u'alternateEmail'] = getEmailAddress(noUid=True)
+    elif myarg in [u'phone', u'phonenumber']:
+      body[u'phoneNumber'] = getString(Cmd.OB_STRING, minLen=0)
+    elif myarg in [u'customerauthtoken', u'transfertoken']:
+      customerAuthToken = getString(Cmd.OB_STRING)
+    else:
+      unknownArgumentExit()
+  return customerAuthToken, body
+
+# gam create resoldcustomer <CustomerDomain> (customer_auth_token <String>) <ResoldCustomerAttributes>+
+def doCreateResoldCustomer():
+  res = buildGAPIObject(API.RESELLER)
+  customerDomain = getString(u'customerDomain')
+  customerAuthToken, body = _getResoldCustomerAttr()
+  body[u'customerDomain'] = customerDomain
+  try:
+    result = callGAPI(res.customers(), u'insert',
+                      throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                      body=body, customerAuthToken=customerAuthToken, fields=u'customerId')
+    result = json.loads(readFile(u'custInfo.json'))
+    entityActionPerformed([Ent.CUSTOMER_DOMAIN, body[u'customerDomain'], Ent.CUSTOMER_ID, result[u'customerId']])
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_DOMAIN, body[u'customerDomain']], e.message)
+
+# gam update resoldcustomer <CustomerID> [customer_auth_token <String>] <ResoldCustomerAttributes>+
+def doUpdateResoldCustomer():
+  res = buildGAPIObject(API.RESELLER)
+  customerId = getString(Cmd.OB_CUSTOMER_ID)
+  customerAuthToken, body = _getResoldCustomerAttr()
+  try:
+    callGAPI(res.customers(), u'patch',
+             throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+             customerId=customerId, body=body, customerAuthToken=customerAuthToken, fields=u'')
+    entityActionPerformed([Ent.CUSTOMER_ID, customerId])
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId], e.message)
+
+# gam info resoldcustomer <CustomerID>
+def doInfoResoldCustomer():
+  res = buildGAPIObject(API.RESELLER)
+  customerId = getString(Cmd.OB_CUSTOMER_ID)
+  checkForExtraneousArguments()
+  try:
+    customerInfo = callGAPI(res.customers(), u'get',
+                            throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                            customerId=customerId)
+    printKeyValueList([u'Customer ID', customerInfo[u'customerId']])
+    printKeyValueList([u'Customer Domain', customerInfo[u'customerDomain']])
+    printKeyValueList([u'Customer Domain Verified', customerInfo[u'customerDomainVerified']])
+    _showCustomerAddressPhoneNumber(customerInfo)
+    printKeyValueList([u'Customer Alternate Email', customerInfo[u'alternateEmail']])
+    printKeyValueList([u'Customer Admin Console URL', customerInfo[u'resourceUiUrl']])
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId], e.message)
+
+def getCustomerSubscription(res):
+  customerId = getString(Cmd.OB_CUSTOMER_ID)
+  skuId = getString(Cmd.OB_SKU_ID)
+  try:
+    subscriptions = callGAPIpages(res.subscriptions(), u'list', u'subscriptions',
+                                  throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                                  fields=u'nextPageToken,subscriptions(skuId,subscriptionId)', customerId=customerId)
+    for subscription in subscriptions:
+      if skuId == subscription[u'skuId']:
+        return (customerId, skuId, subscription[u'subscriptionId'])
+    Cmd.Backup()
+    usageErrorExit(u'{0}, {1}'.format(Ent.FormatEntityValueList([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId]), Msg.SUBSCRIPTION_NOT_FOUND))
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.SUBSCRIPTION, None], e.message)
+    sys.exit(GM.Globals[GM.SYSEXITRC])
+
+PLAN_NAME_CHOICES = {
+  u'annualmonthlypay': u'ANNUAL_MONTHLY_PAY',
+  u'annualyearlypay': u'ANNUAL_YEARLY_PAY',
+  u'flexible': u'FLEXIBLE',
+  u'trial': u'TRIAL',
+  }
+
+def _getResoldSubscriptionAttr(customerId):
+  body = {u'customerId': customerId,
+          u'plan': {},
+          u'seats': {},
+          u'skuId': None,
+         }
+  customerAuthToken = None
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg in [u'deal', u'dealcode']:
+      body[u'dealCode'] = getString(u'dealCode')
+    elif myarg in [u'plan', u'planname']:
+      body[u'plan'][u'planName'] = getChoice(PLAN_NAME_CHOICES, mapChoice=True)
+    elif myarg in [u'purchaseorderid', u'po']:
+      body[u'purchaseOrderId'] = getString(u'purchaseOrderId')
+    elif myarg in [u'seats']:
+      body[u'seats'][u'numberOfSeats'] = getInteger()
+      body[u'seats'][u'maximumNumberOfSeats'] = getInteger()
+    elif myarg in [u'sku', u'skuid']:
+      _, body[u'skuId'] = SKU.getProductAndSKU(getString(Cmd.OB_SKU_ID))
+    elif myarg in [u'customerauthtoken', u'transfertoken']:
+      customerAuthToken = getString(u'customer_auth_token')
+    else:
+      unknownArgumentExit()
+  for field in [u'plan', u'seats', u'skuId']:
+    if not body[field]:
+      missingArgumentExit(field.lower())
+  return customerAuthToken, body
+
+def _showSubscription(subscription):
+  Ind.Increment()
+  printEntity([Ent.SUBSCRIPTION, subscription[u'subscriptionId']])
+  showJSON(None, subscription, skipObjects=[u'customerId', u'skuId', u'subscriptionId'],
+           timeObjects=[u'creationTime', u'startTime', u'endTime', u'trialEndTime', u'transferabilityExpirationTime'])
+  Ind.Decrement()
+
+# gam create resoldsubscription <CustomerID> (sku <SKUID>)
+#	 (plan annual_monthly_pay|annual_yearly_pay|flexible|trial) (seats <NumberOfSeats> <MaximumNumberOfSeats>)
+#	 [customer_auth_token <String>] [deal <String>] [purchaseorderid <String>]
+def doCreateResoldSubscription():
+  res = buildGAPIObject(API.RESELLER)
+  customerId = getString(Cmd.OB_CUSTOMER_ID)
+  customerAuthToken, body = _getResoldSubscriptionAttr(customerId)
+  try:
+    subscription = callGAPI(res.subscriptions(), u'insert',
+                            throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                            customerId=customerId, customerAuthToken=customerAuthToken, body=body)
+    entityActionPerformed([Ent.CUSTOMER_ID, customerId, Ent.SKU, subscription[u'skuId']])
+    _showSubscription(subscription)
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId], e.message)
+
+RENEWAL_TYPE_MAP = {
+  u'autorenewmonthlypay': u'AUTO_RENEW_MONTHLY_PAY',
+  u'autorenewyearlypay': u'AUTO_RENEW_YEARLY_PAY',
+  u'cancel': u'CANCEL',
+  u'renewcurrentusersmonthlypay': u'RENEW_CURRENT_USERS_MONTHLY_PAY',
+  u'renewcurrentusersyearlypay': u'RENEW_CURRENT_USERS_YEARLY_PAY',
+  u'switchtopayasyougo': u'SWITCH_TO_PAY_AS_YOU_GO',
+  }
+
+# gam update resoldsubscription <CustomerID> <SKUID>
+#	activate|suspend|startpaidservice|
+#	(renewal auto_renew_monthly_pay|auto_renew_yearly_pay|cancel|renew_current_users_monthly_pay|renew_current_users_yearly_pay|switch_to_pay_as_you_go)|
+#	(seats <NumberOfSeats> [<MaximumNumberOfSeats>])|
+#	(plan annual_monthly_pay|annual_yearly_pay|flexible|trial [deal <String>] [purchaseorderid <String>] [seats <NumberOfSeats> [<MaximumNumberOfSeats>]])
+def doUpdateResoldSubscription():
+  res = buildGAPIObject(API.RESELLER)
+  function = None
+  customerId, skuId, subscriptionId = getCustomerSubscription(res)
+  kwargs = {}
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'activate':
+      function = u'activate'
+    elif myarg == u'suspend':
+      function = u'suspend'
+    elif myarg == u'startpaidservice':
+      function = u'startPaidService'
+    elif myarg in [u'renewal', u'renewaltype']:
+      function = u'changeRenewalSettings'
+      kwargs[u'body'] = {u'renewalType': getChoice(RENEWAL_TYPE_MAP, mapChoice=True)}
+    elif myarg in [u'seats']:
+      function = u'changeSeats'
+      kwargs[u'body'] = {u'numberOfSeats': getInteger()}
+      if Cmd.ArgumentsRemaining() and Cmd.Current().isdigit():
+        kwargs[u'body'][u'maximumNumberOfSeats'] = getInteger()
+    elif myarg in [u'plan']:
+      function = u'changePlan'
+      kwargs[u'body'] = {u'planName': getChoice(PLAN_NAME_CHOICES, mapChoice=True)}
+      while Cmd.ArgumentsRemaining():
+        planarg = getArgument()
+        if planarg == u'seats':
+          kwargs[u'body'][u'seats'] = {u'numberOfSeats': getInteger()}
+          if Cmd.ArgumentsRemaining() and Cmd.Current().isdigit():
+            kwargs[u'body'][u'seats'][u'maximumNumberOfSeats'] = getInteger()
+        elif planarg in [u'purchaseorderid', u'po']:
+          kwargs[u'body'][u'purchaseOrderId'] = getString(u'purchaseOrderId')
+        elif planarg in [u'dealcode', u'deal']:
+          kwargs[u'body'][u'dealCode'] = getString(u'dealCode')
+        else:
+          unknownArgumentExit()
+    else:
+      unknownArgumentExit()
+  try:
+    subscription = callGAPI(res.subscriptions(), function,
+                            throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                            customerId=customerId, subscriptionId=subscriptionId, **kwargs)
+    entityActionPerformed([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId])
+    if subscription:
+      _showSubscription(subscription)
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId], e.message)
+
+DELETION_TYPE_MAP = {
+  u'cancel': u'cancel',
+  u'downgrade': u'downgrade',
+  u'transfertodirect': u'transfer_to_direct',
+  }
+
+# gam delete resoldsubscription <CustomerID> <SKUID> cancel|downgrade|transfer_to_direct
+def doDeleteResoldSubscription():
+  res = buildGAPIObject(API.RESELLER)
+  customerId, skuId, subscriptionId = getCustomerSubscription(res)
+  deletionType = getChoice(DELETION_TYPE_MAP, mapChoice=True)
+  checkForExtraneousArguments()
+  try:
+    callGAPI(res.subscriptions(), u'delete',
+             throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+             customerId=customerId, subscriptionId=subscriptionId, deletionType=deletionType)
+    entityActionPerformed([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId])
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId], e.message)
+
+# gam info resoldsubscription <CustomerID> <SKUID>
+def doInfoResoldSubscription():
+  res = buildGAPIObject(API.RESELLER)
+  customerId, skuId, subscriptionId = getCustomerSubscription(res)
+  checkForExtraneousArguments()
+  try:
+    subscription = callGAPI(res.subscriptions(), u'get',
+                            throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                            customerId=customerId, subscriptionId=subscriptionId)
+    printEntity([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId])
+    _showSubscription(subscription)
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.CUSTOMER_ID, customerId, Ent.SKU, skuId], e.message)
+
+def _doPrintShowResoldSubscriptions(csvFormat):
+  res = buildGAPIObject(API.RESELLER)
+  kwargs = {}
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile([u'customerId', u'skuId', u'subscriptionId'])
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif myarg in [u'customerid']:
+      kwargs[u'customerId'] = getString(Cmd.OB_CUSTOMER_ID)
+    elif myarg in [u'customerauthtoken', u'transfertoken']:
+      kwargs[u'customerAuthToken'] = getString(Cmd.OB_CUSTOMER_AUTH_TOKEN)
+    elif myarg == u'customerprefix':
+      kwargs[u'customerNamePrefix'] = getString(Cmd.OB_STRING)
+    else:
+      unknownArgumentExit()
+  try:
+    subscriptions = callGAPIpages(res.subscriptions(), u'list', u'subscriptions',
+                                  throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                                  fields=u'nextPageToken,subscriptions', **kwargs)
+    jcount = len(subscriptions)
+    if not csvFormat:
+      performActionNumItems(jcount, Ent.SUBSCRIPTION)
+      Ind.Increment()
+      j = 0
+      for subscription in subscriptions:
+        j += 1
+        printEntity([Ent.CUSTOMER_ID, subscription[u'customerId'], Ent.SKU, subscription[u'skuId']], j, jcount)
+        _showSubscription(subscription)
+      Ind.Decrement()
+    else:
+      for subscription in subscriptions:
+        addRowTitlesToCSVfile(flattenJSON(subscription, timeObjects=[u'creationTime', u'startTime', u'endTime', u'trialEndTime', u'transferabilityExpirationTime']), csvRows, titles)
+      sortCSVTitles([u'customerId', u'skuId', u'subscriptionId'], titles)
+      writeCSVfile(csvRows, titles, u'Resold Subscriptions', todrive)
+  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
+    entityActionFailedWarning([Ent.SUBSCRIPTION, None], e.message)
+
+# gam print resoldsubscriptions [todrive [<ToDriveAttributes>]] [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+def doPrintResoldSubscriptions():
+  _doPrintShowResoldSubscriptions(True)
+
+# gam show resoldsubscriptions [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+def doShowResoldSubscriptions():
+  _doPrintShowResoldSubscriptions(False)
+
 # gam create domainalias|aliasdomain <DomainAlias> <DomainName>
 def doCreateDomainAlias():
   cd = buildGAPIObject(API.DIRECTORY)
@@ -5952,47 +6271,25 @@ def doPrintAdmins():
   except (GAPI.badRequest, GAPI.customerNotFound, GAPI.forbidden):
     accessErrorExit(cd)
 
-ADDRESS_FIELDS_PRINT_ORDER = [u'contactName', u'organizationName', u'addressLine1', u'addressLine2', u'addressLine3', u'locality', u'region', u'postalCode', u'countryCode']
-
 # gam info customer
 def doInfoCustomer():
   cd = buildGAPIObject(API.DIRECTORY)
   checkForExtraneousArguments()
   try:
-    customer_info = callGAPI(cd.customers(), u'get',
-                             throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                             customerKey=GC.Values[GC.CUSTOMER_ID])
-    printKeyValueList([u'Customer ID', customer_info[u'id']])
-    printKeyValueList([u'Primary Domain', customer_info[u'customerDomain']])
-    printKeyValueList([u'Customer Creation Time', formatLocalTime(customer_info[u'customerCreationTime'])])
+    customerInfo = callGAPI(cd.customers(), u'get',
+                            throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                            customerKey=GC.Values[GC.CUSTOMER_ID])
+    printKeyValueList([u'Customer ID', customerInfo[u'id']])
+    printKeyValueList([u'Primary Domain', customerInfo[u'customerDomain']])
+    printKeyValueList([u'Customer Creation Time', formatLocalTime(customerInfo[u'customerCreationTime'])])
     verified = callGAPI(cd.domains(), u'get',
-                        customer=customer_info[u'id'], domainName=customer_info[u'customerDomain'], fields=u'verified')[u'verified']
+                        customer=customerInfo[u'id'], domainName=customerInfo[u'customerDomain'], fields=u'verified')[u'verified']
     printKeyValueList([u'Primary Domain Verified', verified])
-    printKeyValueList([u'Default Language', customer_info[u'language']])
-    if u'postalAddress' in customer_info:
-      printKeyValueList([u'Address', None])
-      Ind.Increment()
-      for field in ADDRESS_FIELDS_PRINT_ORDER:
-        if field in customer_info[u'postalAddress']:
-          printKeyValueList([field, customer_info[u'postalAddress'][field]])
-      Ind.Decrement()
-    if u'phoneNumber' in customer_info:
-      printKeyValueList([u'Phone', customer_info[u'phoneNumber']])
-    printKeyValueList([u'Admin Secondary Email', customer_info[u'alternateEmail']])
+    printKeyValueList([u'Default Language', customerInfo[u'language']])
+    _showCustomerAddressPhoneNumber(customerInfo)
+    printKeyValueList([u'Admin Secondary Email', customerInfo[u'alternateEmail']])
   except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
     accessErrorExit(cd)
-
-ADDRESS_FIELDS_ARGUMENT_MAP = {
-  u'contact': u'contactName', u'contactname': u'contactName',
-  u'name': u'organizationName', u'organizationname': u'organizationName',
-  u'address1': u'addressLine1', u'addressline1': u'addressLine1',
-  u'address2': u'addressLine2', u'addressline2': u'addressLine2',
-  u'address3': u'addressLine3', u'addressline3': u'addressLine3',
-  u'locality': u'locality',
-  u'region': u'region',
-  u'postalcode': u'postalCode',
-  u'country': u'countryCode', u'countrycode': u'countryCode',
-  }
 
 # gam update customer [primary <DomainName>] [adminsecondaryemail|alternateemail <EmailAddress>] [language <LanguageCode] [phone|phonenumber <String>]
 #	[contact|contactname <String>] [name|organizationname <String>]
@@ -13558,6 +13855,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         return (schemaName, None)
     invalidArgumentExit(Cmd.OB_SCHEMA_NAME_FIELD_NAME)
 
+  createIfNotFound = False
   if updateCmd:
     body = {}
     need_password = False
@@ -13764,6 +14062,8 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           body[up][schemaName][fieldName].append(schemaValue)
       else:
         body[up][schemaName][fieldName] = getString(Cmd.OB_STRING, minLen=0)
+    elif myarg == u'createifnotfound' and updateCmd:
+      createIfNotFound = True
     else:
       unknownArgumentExit()
   if need_password:
@@ -13771,7 +14071,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
   if u'password' in body and need_to_hash_password:
     body[u'password'] = gen_sha512_hash(body[u'password'])
     body[u'hashFunction'] = u'crypt'
-  return (body, admin_body)
+  return (body, admin_body, createIfNotFound)
 
 def changeAdminStatus(cd, user, admin_body, i=0, count=0):
   try:
@@ -13785,7 +14085,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
 # gam create user <EmailAddress> <UserAttributes>
 def doCreateUser():
   cd = buildGAPIObject(API.DIRECTORY)
-  body, admin_body = getUserAttributes(cd, False, noUid=True)
+  body, admin_body, _ = getUserAttributes(cd, False, noUid=True)
   user = body[u'primaryEmail']
   try:
     callGAPI(cd.users(), u'insert',
@@ -13808,13 +14108,14 @@ def doCreateUser():
 # gam <UserTypeEntity> update user <UserAttributes>
 def updateUsers(entityList):
   cd = buildGAPIObject(API.DIRECTORY)
-  body, admin_body = getUserAttributes(cd, True)
+  body, admin_body, createIfNotFound = getUserAttributes(cd, True)
   i, count, entityList = getEntityArgument(entityList)
   for user in entityList:
     i += 1
     user = normalizeEmailAddressOrUID(user)
     try:
       if (u'primaryEmail' in body) and (body[u'primaryEmail'][:4].lower() == u'vfe@'):
+        vfe = True
         user_primary = callGAPI(cd.users(), u'get',
                                 throw_reasons=GAPI.USER_GET_THROW_REASONS,
                                 userKey=user, fields=u'primaryEmail,id')
@@ -13825,11 +14126,29 @@ def updateUsers(entityList):
         body[u'emails'] = [{u'type': u'custom',
                             u'customType': u'former_employee',
                             u'primary': False, u'address': user_primary}]
+      else:
+        vfe = False
       if body:
-        callGAPI(cd.users(), u'update',
-                 throw_reasons=[GAPI.USER_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID, GAPI.INVALID_ORGUNIT, GAPI.INVALID_SCHEMA_VALUE],
-                 userKey=user, body=body, fields=u'')
-        entityActionPerformed([Ent.USER, user], i, count)
+        try:
+          callGAPI(cd.users(), u'update',
+                   throw_reasons=[GAPI.USER_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID, GAPI.INVALID_ORGUNIT, GAPI.INVALID_SCHEMA_VALUE],
+                   userKey=user, body=body, fields=u'')
+          entityActionPerformed([Ent.USER, user], i, count)
+        except GAPI.userNotFound:
+          if createIfNotFound and (count == 1) and not vfe:
+            if u'primaryEmail' not in body:
+              body[u'primaryEmail'] = user
+            try:
+              callGAPI(cd.users(), u'insert',
+                       throw_reasons=[GAPI.DUPLICATE, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID, GAPI.INVALID_ORGUNIT, GAPI.INVALID_SCHEMA_VALUE],
+                       body=body, fields=u'')
+              Act.Set(Act.CREATE)
+              entityActionPerformed([Ent.USER, user], i, count)
+            except GAPI.duplicate:
+              entityDuplicateWarning(Ent.USER, user, i, count)
+          else:
+            entityUnknownWarning(Ent.USER, user, i, count)
+            continue
       if admin_body:
         changeAdminStatus(cd, user, admin_body, i, count)
     except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
@@ -23166,87 +23485,96 @@ MAIN_COMMANDS_WITH_OBJECTS = {
   u'create':
     {CMD_ACTION: Act.CREATE,
      CMD_FUNCTION:
-       {Cmd.ARG_ADMIN:	doCreateAdmin,
+       {Cmd.ARG_ADMIN:		doCreateAdmin,
         Cmd.ARG_ALIASES:	doCreateAliases,
         Cmd.ARG_CONTACT:	doCreateDomainContact,
-        Cmd.ARG_COURSE:	doCreateCourse,
-        Cmd.ARG_DATA_TRANSFER:doCreateDataTransfer,
-        Cmd.ARG_DOMAIN:	doCreateDomain,
+        Cmd.ARG_COURSE:		doCreateCourse,
+        Cmd.ARG_DATA_TRANSFER:	doCreateDataTransfer,
+        Cmd.ARG_DOMAIN:		doCreateDomain,
         Cmd.ARG_DOMAIN_ALIAS:	doCreateDomainAlias,
-        Cmd.ARG_GROUP:	doCreateGroup,
-        Cmd.ARG_GUARDIAN: doInviteGuardian,
-        Cmd.ARG_ORG:	doCreateOrg,
+        Cmd.ARG_GROUP:		doCreateGroup,
+        Cmd.ARG_GUARDIAN: 	doInviteGuardian,
+        Cmd.ARG_ORG:		doCreateOrg,
         Cmd.ARG_PROJECT:	doCreateProject,
+        Cmd.ARG_RESOLDCUSTOMER:	doCreateResoldCustomer,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	doCreateResoldSubscription,
         Cmd.ARG_RESOURCE:	doCreateResourceCalendar,
-        Cmd.ARG_SCHEMA:	doCreateUserSchema,
-        Cmd.ARG_SITE:	doCreateDomainSite,
-        Cmd.ARG_USER:	doCreateUser,
-        Cmd.ARG_VERIFY:	doCreateSiteVerification,
+        Cmd.ARG_SCHEMA:		doCreateUserSchema,
+        Cmd.ARG_SITE:		doCreateDomainSite,
+        Cmd.ARG_USER:		doCreateUser,
+        Cmd.ARG_VERIFY:		doCreateSiteVerification,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
-        u'aliasdomain':	Cmd.ARG_DOMAIN_ALIAS,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
+        u'aliasdomain':		Cmd.ARG_DOMAIN_ALIAS,
         u'aliasdomains':	Cmd.ARG_DOMAIN_ALIAS,
-        u'apiproject':	Cmd.ARG_PROJECT,
-        u'class':	Cmd.ARG_COURSE,
+        u'apiproject':		Cmd.ARG_PROJECT,
+        u'class':		Cmd.ARG_COURSE,
         Cmd.ARG_CONTACTS:	Cmd.ARG_CONTACT,
         Cmd.ARG_DOMAIN_ALIASES:	Cmd.ARG_DOMAIN_ALIAS,
         Cmd.ARG_GUARDIANS:	Cmd.ARG_GUARDIAN,
         u'guardianinvite':	Cmd.ARG_GUARDIAN,
         u'inviteguardian':	Cmd.ARG_GUARDIAN,
-        u'transfer':	Cmd.ARG_DATA_TRANSFER,
-        u'nickname':	Cmd.ARG_ALIASES,
-        u'nicknames':	Cmd.ARG_ALIASES,
-        u'ou':		Cmd.ARG_ORG,
+        u'transfer':		Cmd.ARG_DATA_TRANSFER,
+        u'nickname':		Cmd.ARG_ALIASES,
+        u'nicknames':		Cmd.ARG_ALIASES,
+        u'ou':			Cmd.ARG_ORG,
+        Cmd.ARG_RESELLERCUSTOMERS:	Cmd.ARG_RESELLERCUSTOMER,
+        Cmd.ARG_RESELLERSUBSCRIPTIONS:	Cmd.ARG_RESELLERSUBSCRIPTION,
+        Cmd.ARG_RESOLDCUSTOMERS:	Cmd.ARG_RESOLDCUSTOMER,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	Cmd.ARG_RESOLDSUBSCRIPTION,
         Cmd.ARG_SCHEMAS:	Cmd.ARG_SCHEMA,
-        Cmd.ARG_SITES:	Cmd.ARG_SITE,
-        u'verification':Cmd.ARG_VERIFY,
+        Cmd.ARG_SITES:		Cmd.ARG_SITE,
+        u'verification':	Cmd.ARG_VERIFY,
        },
     },
   u'delete':
     {CMD_ACTION: Act.DELETE,
      CMD_FUNCTION:
-       {Cmd.ARG_ADMIN:	doDeleteAdmin,
+       {Cmd.ARG_ADMIN:		doDeleteAdmin,
         Cmd.ARG_ALIASES:	doDeleteAliases,
         Cmd.ARG_CONTACTS:	doDeleteDomainContacts,
-        Cmd.ARG_COURSE:	doDeleteCourse,
+        Cmd.ARG_COURSE:		doDeleteCourse,
         Cmd.ARG_COURSES:	doDeleteCourses,
-        Cmd.ARG_DOMAIN:	doDeleteDomain,
+        Cmd.ARG_DOMAIN:		doDeleteDomain,
         Cmd.ARG_DOMAIN_ALIAS:	doDeleteDomainAlias,
-        Cmd.ARG_GROUPS:	doDeleteGroups,
-        Cmd.ARG_GUARDIAN: doDeleteGuardian,
+        Cmd.ARG_GROUPS:		doDeleteGroups,
+        Cmd.ARG_GUARDIAN: 	doDeleteGuardian,
         Cmd.ARG_MOBILES:	doDeleteMobileDevices,
         Cmd.ARG_NOTIFICATION:	doDeleteNotification,
-        Cmd.ARG_ORG:	doDeleteOrg,
-        Cmd.ARG_ORGS:	doDeleteOrgs,
+        Cmd.ARG_ORG:		doDeleteOrg,
+        Cmd.ARG_ORGS:		doDeleteOrgs,
         Cmd.ARG_PRINTERS:	doDeletePrinters,
         Cmd.ARG_PROJECTS:	doDeleteProjects,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	doDeleteResoldSubscription,
         Cmd.ARG_RESOURCE:	doDeleteResourceCalendar,
-        Cmd.ARG_RESOURCES:doDeleteResourceCalendars,
+        Cmd.ARG_RESOURCES:	doDeleteResourceCalendars,
         Cmd.ARG_SCHEMAS:	doDeleteUserSchemas,
         Cmd.ARG_SITEACLS:	doProcessDomainSiteACLs,
-        Cmd.ARG_USER:	doDeleteUser,
-        Cmd.ARG_USERS:	doDeleteUsers,
+        Cmd.ARG_USER:		doDeleteUser,
+        Cmd.ARG_USERS:		doDeleteUsers,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
-        u'aliasdomain':	Cmd.ARG_DOMAIN_ALIAS,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
+        u'aliasdomain':		Cmd.ARG_DOMAIN_ALIAS,
         u'aliasdomains':	Cmd.ARG_DOMAIN_ALIAS,
-        u'class':	Cmd.ARG_COURSE,
+        u'class':		Cmd.ARG_COURSE,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
         Cmd.ARG_DOMAIN_ALIASES:	Cmd.ARG_DOMAIN_ALIAS,
-        Cmd.ARG_GROUP:	Cmd.ARG_GROUPS,
+        Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
         Cmd.ARG_GUARDIANS:	Cmd.ARG_GUARDIAN,
-        Cmd.ARG_MOBILE:	Cmd.ARG_MOBILES,
-        u'nickname':	Cmd.ARG_ALIASES,
-        u'nicknames':	Cmd.ARG_ALIASES,
-        u'ou':		Cmd.ARG_ORG,
-        u'ous':		Cmd.ARG_ORGS,
-        Cmd.ARG_PROJECT:	Cmd.ARG_PROJECTS,
-        u'print':	Cmd.ARG_PRINTERS,
+        Cmd.ARG_MOBILE:		Cmd.ARG_MOBILES,
+        u'nickname':		Cmd.ARG_ALIASES,
+        u'nicknames':		Cmd.ARG_ALIASES,
+        u'ou':			Cmd.ARG_ORG,
+        u'ous':			Cmd.ARG_ORGS,
+        u'print':		Cmd.ARG_PRINTERS,
         Cmd.ARG_PRINTER:	Cmd.ARG_PRINTERS,
+        Cmd.ARG_PROJECT:	Cmd.ARG_PROJECTS,
         u'notifications':	Cmd.ARG_NOTIFICATION,
-        Cmd.ARG_SCHEMA:	Cmd.ARG_SCHEMAS,
+        Cmd.ARG_RESELLERSUBSCRIPTIONS:	Cmd.ARG_RESELLERSUBSCRIPTION,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	Cmd.ARG_RESOLDSUBSCRIPTION,
+        Cmd.ARG_SCHEMA:		Cmd.ARG_SCHEMAS,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
        },
     },
@@ -23255,91 +23583,98 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {Cmd.ARG_ALIASES:	doInfoAliases,
         Cmd.ARG_CONTACTS:	doInfoDomainContacts,
-        Cmd.ARG_COURSE:	doInfoCourse,
+        Cmd.ARG_COURSE:		doInfoCourse,
         Cmd.ARG_COURSES:	doInfoCourses,
-        Cmd.ARG_CROSES:	doInfoCrOSDevices,
+        Cmd.ARG_CROSES:		doInfoCrOSDevices,
         Cmd.ARG_CUSTOMER:	doInfoCustomer,
-        Cmd.ARG_DATA_TRANSFER:doInfoDataTransfer,
-        Cmd.ARG_DOMAIN:	doInfoDomain,
+        Cmd.ARG_DATA_TRANSFER:	doInfoDataTransfer,
+        Cmd.ARG_DOMAIN:		doInfoDomain,
         Cmd.ARG_DOMAIN_ALIAS:	doInfoDomainAlias,
         Cmd.ARG_INSTANCE:	doInfoInstance,
-        Cmd.ARG_GAL:	doInfoGAL,
-        Cmd.ARG_GROUPS:	doInfoGroups,
+        Cmd.ARG_GAL:		doInfoGAL,
+        Cmd.ARG_GROUPS:		doInfoGroups,
         Cmd.ARG_MOBILES:	doInfoMobileDevices,
         Cmd.ARG_NOTIFICATION:	doInfoNotifications,
-        Cmd.ARG_ORG:	doInfoOrg,
-        Cmd.ARG_ORGS:	doInfoOrgs,
+        Cmd.ARG_ORG:		doInfoOrg,
+        Cmd.ARG_ORGS:		doInfoOrgs,
         Cmd.ARG_PRINTERS:	doInfoPrinters,
+        Cmd.ARG_RESOLDCUSTOMER:	doInfoResoldCustomer,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	doInfoResoldSubscription,
         Cmd.ARG_RESOURCE:	doInfoResourceCalendar,
-        Cmd.ARG_RESOURCES:doInfoResourceCalendars,
+        Cmd.ARG_RESOURCES:	doInfoResourceCalendars,
         Cmd.ARG_SCHEMAS:	doInfoUserSchemas,
-        Cmd.ARG_SITES:	doInfoDomainSites,
+        Cmd.ARG_SITES:		doInfoDomainSites,
         Cmd.ARG_SITEACLS:	doProcessDomainSiteACLs,
-        Cmd.ARG_USER:	doInfoUser,
-        Cmd.ARG_USERS:	doInfoUsers,
-        Cmd.ARG_VERIFY:	doInfoSiteVerification,
+        Cmd.ARG_USER:		doInfoUser,
+        Cmd.ARG_USERS:		doInfoUsers,
+        Cmd.ARG_VERIFY:		doInfoSiteVerification,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
-        u'aliasdomain':	Cmd.ARG_DOMAIN_ALIAS,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
+        u'aliasdomain':		Cmd.ARG_DOMAIN_ALIAS,
         u'aliasdomains':	Cmd.ARG_DOMAIN_ALIAS,
-        u'class':	Cmd.ARG_COURSE,
+        u'class':		Cmd.ARG_COURSE,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
-        Cmd.ARG_CROS:	Cmd.ARG_CROSES,
+        Cmd.ARG_CROS:		Cmd.ARG_CROSES,
         Cmd.ARG_DOMAIN_ALIASES:	Cmd.ARG_DOMAIN_ALIAS,
-        Cmd.ARG_GROUP:	Cmd.ARG_GROUPS,
-        Cmd.ARG_MOBILE:	Cmd.ARG_MOBILES,
-        u'nickname':	Cmd.ARG_ALIASES,
-        u'nicknames':	Cmd.ARG_ALIASES,
+        Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
+        Cmd.ARG_MOBILE:		Cmd.ARG_MOBILES,
+        u'nickname':		Cmd.ARG_ALIASES,
+        u'nicknames':		Cmd.ARG_ALIASES,
         u'notifications':	Cmd.ARG_NOTIFICATION,
-        u'ou':		Cmd.ARG_ORG,
-        u'ous':		Cmd.ARG_ORGS,
-        u'print':	Cmd.ARG_PRINTERS,
+        u'ou':			Cmd.ARG_ORG,
+        u'ous':			Cmd.ARG_ORGS,
+        u'print':		Cmd.ARG_PRINTERS,
         Cmd.ARG_PRINTER:	Cmd.ARG_PRINTERS,
-        Cmd.ARG_SCHEMA:	Cmd.ARG_SCHEMAS,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        Cmd.ARG_RESELLERCUSTOMERS:	Cmd.ARG_RESELLERCUSTOMER,
+        Cmd.ARG_RESELLERSUBSCRIPTIONS:	Cmd.ARG_RESELLERSUBSCRIPTION,
+        Cmd.ARG_RESOLDCUSTOMERS:	Cmd.ARG_RESOLDCUSTOMER,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	Cmd.ARG_RESOLDSUBSCRIPTION,
+        Cmd.ARG_SCHEMA:		Cmd.ARG_SCHEMAS,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        u'transfer':	Cmd.ARG_DATA_TRANSFER,
-        u'verification':Cmd.ARG_VERIFY,
+        u'transfer':		Cmd.ARG_DATA_TRANSFER,
+        u'verification':	Cmd.ARG_VERIFY,
        },
     },
   u'print':
     {CMD_ACTION: Act.PRINT,
      CMD_FUNCTION:
        {Cmd.ARG_ADMINROLES:	doPrintAdminRoles,
-        Cmd.ARG_ADMINS:	doPrintAdmins,
+        Cmd.ARG_ADMINS:		doPrintAdmins,
         Cmd.ARG_ALIASES:	doPrintAliases,
         Cmd.ARG_CONTACTS:	doPrintDomainContacts,
         Cmd.ARG_COURSES:	doPrintCourses,
         Cmd.ARG_COURSE_PARTICIPANTS:	doPrintCourseParticipants,
-        Cmd.ARG_CROS:	doPrintCrOSDevices,
+        Cmd.ARG_CROS:		doPrintCrOSDevices,
         Cmd.ARG_DATA_TRANSFERS:	doPrintDataTransfers,
         Cmd.ARG_DOMAINS:	doPrintDomains,
         Cmd.ARG_DOMAIN_ALIASES:	doPrintDomainAliases,
-        Cmd.ARG_GAL:	doPrintGAL,
+        Cmd.ARG_GAL:		doPrintGAL,
         Cmd.ARG_GROUP_MEMBERS: doPrintGroupMembers,
-        Cmd.ARG_GROUPS:	doPrintGroups,
-        Cmd.ARG_GUARDIANS: doPrintGuardians,
+        Cmd.ARG_GROUPS:		doPrintGroups,
+        Cmd.ARG_GUARDIANS: 	doPrintGuardians,
         Cmd.ARG_LICENSES:	doPrintLicenses,
-        Cmd.ARG_MOBILE:	doPrintMobileDevices,
-        Cmd.ARG_ORGS:	doPrintOrgs,
+        Cmd.ARG_MOBILE:		doPrintMobileDevices,
+        Cmd.ARG_ORGS:		doPrintOrgs,
         Cmd.ARG_PRINTERS:	doPrintPrinters,
-        Cmd.ARG_PRINTJOBS:doPrintPrintJobs,
-        Cmd.ARG_ORGS:	doPrintOrgs,
+        Cmd.ARG_PRINTJOBS:	doPrintPrintJobs,
+        Cmd.ARG_ORGS:		doPrintOrgs,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	doPrintResoldSubscriptions,
         Cmd.ARG_RESOURCES:	doPrintResourceCalendars,
         Cmd.ARG_SCHEMAS:	doPrintUserSchemas,
-        Cmd.ARG_SITES:	doPrintDomainSites,
+        Cmd.ARG_SITES:		doPrintDomainSites,
         Cmd.ARG_SITEACTIVITY:	doPrintDomainSiteActivity,
-        Cmd.ARG_TOKENS:	doPrintTokens,
+        Cmd.ARG_TOKENS:		doPrintTokens,
         Cmd.ARG_TRANSFERAPPS:	doPrintTransferApps,
-        Cmd.ARG_USERS:	doPrintUsers,
+        Cmd.ARG_USERS:		doPrintUsers,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
         u'aliasdomain':		Cmd.ARG_DOMAIN_ALIASES,
         u'aliasdomains':	Cmd.ARG_DOMAIN_ALIASES,
         u'classes':		Cmd.ARG_COURSES,
-        Cmd.ARG_CONTACT:		Cmd.ARG_CONTACTS,
+        Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
         u'transfers':		Cmd.ARG_DATA_TRANSFERS,
         u'classparticipants':	Cmd.ARG_COURSE_PARTICIPANTS,
         u'class-participants':	Cmd.ARG_COURSE_PARTICIPANTS,
@@ -23349,14 +23684,16 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'groupmembers':	Cmd.ARG_GROUP_MEMBERS,
         u'groupsmembers':	Cmd.ARG_GROUP_MEMBERS,
         u'groups-members':	Cmd.ARG_GROUP_MEMBERS,
-        Cmd.ARG_GUARDIAN:		Cmd.ARG_GUARDIANS,
+        Cmd.ARG_GUARDIAN:	Cmd.ARG_GUARDIANS,
         u'license':		Cmd.ARG_LICENSES,
         u'licence':		Cmd.ARG_LICENSES,
         u'licences':		Cmd.ARG_LICENSES,
         u'nicknames':		Cmd.ARG_ALIASES,
         u'ous':			Cmd.ARG_ORGS,
-        Cmd.ARG_PRINTER:		Cmd.ARG_PRINTERS,
-        Cmd.ARG_RESOURCE:		Cmd.ARG_RESOURCES,
+        Cmd.ARG_PRINTER:	Cmd.ARG_PRINTERS,
+        Cmd.ARG_RESELLERSUBSCRIPTION:	Cmd.ARG_RESELLERSUBSCRIPTIONS,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	Cmd.ARG_RESOLDSUBSCRIPTIONS,
+        Cmd.ARG_RESOURCE:	Cmd.ARG_RESOURCES,
         u'roles':		Cmd.ARG_ADMINROLES,
         Cmd.ARG_SCHEMA:		Cmd.ARG_SCHEMAS,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
@@ -23367,21 +23704,24 @@ MAIN_COMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: Act.SHOW,
      CMD_FUNCTION:
        {Cmd.ARG_CONTACTS:	doShowDomainContacts,
-        Cmd.ARG_GAL:	doShowGAL,
-        Cmd.ARG_GUARDIANS: doShowGuardians,
+        Cmd.ARG_GAL:		doShowGAL,
+        Cmd.ARG_GUARDIANS: 	doShowGuardians,
         Cmd.ARG_ORGTREE:	doShowOrgTree,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	doShowResoldSubscriptions,
         Cmd.ARG_RESOURCES:	doShowResourceCalendars,
         Cmd.ARG_SCHEMAS:	doShowUserSchemas,
-        Cmd.ARG_SITES:	doShowDomainSites,
+        Cmd.ARG_SITES:		doShowDomainSites,
         Cmd.ARG_SITEACLS:	doProcessDomainSiteACLs,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
         Cmd.ARG_GUARDIAN:	Cmd.ARG_GUARDIANS,
-        u'outree':	Cmd.ARG_ORGTREE,
-        Cmd.ARG_RESOURCE:		Cmd.ARG_RESOURCES,
-        Cmd.ARG_SCHEMA:	Cmd.ARG_SCHEMAS,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        u'outree':		Cmd.ARG_ORGTREE,
+        Cmd.ARG_RESELLERSUBSCRIPTION:	Cmd.ARG_RESELLERSUBSCRIPTIONS,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	Cmd.ARG_RESOLDSUBSCRIPTIONS,
+        Cmd.ARG_RESOURCE:	Cmd.ARG_RESOURCES,
+        Cmd.ARG_SCHEMA:		Cmd.ARG_SCHEMAS,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
        },
     },
@@ -23390,52 +23730,58 @@ MAIN_COMMANDS_WITH_OBJECTS = {
      CMD_FUNCTION:
        {Cmd.ARG_ALIASES:	doUpdateAliases,
         Cmd.ARG_CONTACTS:	doUpdateDomainContacts,
-        Cmd.ARG_COURSE:	doUpdateCourse,
+        Cmd.ARG_COURSE:		doUpdateCourse,
         Cmd.ARG_COURSES:	doUpdateCourses,
-        Cmd.ARG_CROSES:	doUpdateCrOSDevices,
+        Cmd.ARG_CROSES:		doUpdateCrOSDevices,
         Cmd.ARG_CUSTOMER:	doUpdateCustomer,
-        Cmd.ARG_DOMAIN:	doUpdateDomain,
+        Cmd.ARG_DOMAIN:		doUpdateDomain,
         Cmd.ARG_INSTANCE:	doUpdateInstance,
-        Cmd.ARG_GROUPS:	doUpdateGroups,
+        Cmd.ARG_GROUPS:		doUpdateGroups,
         Cmd.ARG_MOBILES:	doUpdateMobileDevices,
         Cmd.ARG_NOTIFICATION:	doUpdateNotification,
-        Cmd.ARG_ORG:	doUpdateOrg,
-        Cmd.ARG_ORGS:	doUpdateOrgs,
+        Cmd.ARG_ORG:		doUpdateOrg,
+        Cmd.ARG_ORGS:		doUpdateOrgs,
         Cmd.ARG_PRINTERS:	doUpdatePrinters,
+        Cmd.ARG_RESOLDCUSTOMER:	doUpdateResoldCustomer,
+        Cmd.ARG_RESOLDSUBSCRIPTION:	doUpdateResoldSubscription,
         Cmd.ARG_RESOURCE:	doUpdateResourceCalendar,
-        Cmd.ARG_RESOURCES:doUpdateResourceCalendars,
+        Cmd.ARG_RESOURCES:	doUpdateResourceCalendars,
         Cmd.ARG_SCHEMAS:	doUpdateUserSchemas,
-        Cmd.ARG_SITES:	doUpdateDomainSites,
+        Cmd.ARG_SITES:		doUpdateDomainSites,
         Cmd.ARG_SITEACLS:	doProcessDomainSiteACLs,
-        Cmd.ARG_USER:	doUpdateUser,
-        Cmd.ARG_USERS:	doUpdateUsers,
-        Cmd.ARG_VERIFY:	doUpdateSiteVerification,
+        Cmd.ARG_USER:		doUpdateUser,
+        Cmd.ARG_USERS:		doUpdateUsers,
+        Cmd.ARG_VERIFY:		doUpdateSiteVerification,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
-        u'class':	Cmd.ARG_COURSE,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
+        u'class':		Cmd.ARG_COURSE,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
-        Cmd.ARG_CROS:	Cmd.ARG_CROSES,
-        Cmd.ARG_GROUP:	Cmd.ARG_GROUPS,
-        Cmd.ARG_MOBILE:	Cmd.ARG_MOBILES,
-        u'nickname':	Cmd.ARG_ALIASES,
-        u'nicknames':	Cmd.ARG_ALIASES,
+        Cmd.ARG_CROS:		Cmd.ARG_CROSES,
+        Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
+        Cmd.ARG_MOBILE:		Cmd.ARG_MOBILES,
+        u'nickname':		Cmd.ARG_ALIASES,
+        u'nicknames':		Cmd.ARG_ALIASES,
         u'notifications':	Cmd.ARG_NOTIFICATION,
-        u'ou':		Cmd.ARG_ORG,
-        u'ous':		Cmd.ARG_ORGS,
-        u'print':	Cmd.ARG_PRINTERS,
+        u'ou':			Cmd.ARG_ORG,
+        u'ous':			Cmd.ARG_ORGS,
+        u'print':		Cmd.ARG_PRINTERS,
         Cmd.ARG_PRINTER:	Cmd.ARG_PRINTERS,
-        Cmd.ARG_SCHEMA:	Cmd.ARG_SCHEMAS,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        Cmd.ARG_RESELLERCUSTOMERS:	Cmd.ARG_RESELLERCUSTOMER,
+        Cmd.ARG_RESELLERSUBSCRIPTIONS:	Cmd.ARG_RESELLERSUBSCRIPTION,
+        Cmd.ARG_RESOLDCUSTOMERS:	Cmd.ARG_RESOLDCUSTOMER,
+        Cmd.ARG_RESOLDSUBSCRIPTIONS:	Cmd.ARG_RESOLDSUBSCRIPTION,
+        Cmd.ARG_SCHEMA:		Cmd.ARG_SCHEMAS,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        u'verification':Cmd.ARG_VERIFY,
+        u'verification':	Cmd.ARG_VERIFY,
        },
     },
   u'undelete':
     {CMD_ACTION: Act.UNDELETE,
      CMD_FUNCTION:
-       {Cmd.ARG_USER:	doUndeleteUser,
-        Cmd.ARG_USERS:	doUndeleteUsers,
+       {Cmd.ARG_USER:		doUndeleteUser,
+        Cmd.ARG_USERS:		doUndeleteUsers,
        },
      CMD_OBJ_ALIASES:
        {
@@ -23778,33 +24124,33 @@ COMMANDS_ALIASES = {
 
 # <CrOSTypeEntity> commands
 CROS_COMMANDS = {
-  u'info':	{CMD_ACTION: Act.INFO, CMD_FUNCTION: infoCrOSDevices},
-  u'list':	{CMD_ACTION: Act.LIST, CMD_FUNCTION: doListCrOS},
-  u'print':	{CMD_ACTION: Act.PRINT, CMD_FUNCTION: doPrintCrOSEntity},
-  u'update':	{CMD_ACTION: Act.UPDATE, CMD_FUNCTION: updateCrOSDevices},
+  u'info':		{CMD_ACTION: Act.INFO, CMD_FUNCTION: infoCrOSDevices},
+  u'list':		{CMD_ACTION: Act.LIST, CMD_FUNCTION: doListCrOS},
+  u'print':		{CMD_ACTION: Act.PRINT, CMD_FUNCTION: doPrintCrOSEntity},
+  u'update':		{CMD_ACTION: Act.UPDATE, CMD_FUNCTION: updateCrOSDevices},
   }
 
 # <UserTypeEntity> commands
 USER_COMMANDS = {
-  u'arrows':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setArrows},
+  u'arrows':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setArrows},
   Cmd.ARG_DELEGATE:	{CMD_ACTION: Act.ADD, CMD_FUNCTION: delegateTo},
   u'deprovision':	{CMD_ACTION: Act.DEPROVISION, CMD_FUNCTION: deprovisionUser},
   Cmd.ARG_FILTER:	{CMD_ACTION: Act.ADD, CMD_FUNCTION: addFilter},
   Cmd.ARG_FORWARD:	{CMD_ACTION: Act.SET, CMD_FUNCTION: setForward},
-  Cmd.ARG_IMAP:	{CMD_ACTION: Act.SET, CMD_FUNCTION: setImap},
-  u'label':	{CMD_ACTION: Act.ADD, CMD_FUNCTION: addLabel},
-  u'list':	{CMD_ACTION: Act.LIST, CMD_FUNCTION: doListUser},
-  u'language':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setLanguage},
-  u'pagesize':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setPageSize},
-  Cmd.ARG_POP:	{CMD_ACTION: Act.SET, CMD_FUNCTION: setPop},
+  Cmd.ARG_IMAP:		{CMD_ACTION: Act.SET, CMD_FUNCTION: setImap},
+  u'label':		{CMD_ACTION: Act.ADD, CMD_FUNCTION: addLabel},
+  u'list':		{CMD_ACTION: Act.LIST, CMD_FUNCTION: doListUser},
+  u'language':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setLanguage},
+  u'pagesize':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setPageSize},
+  Cmd.ARG_POP:		{CMD_ACTION: Act.SET, CMD_FUNCTION: setPop},
   Cmd.ARG_PROFILE:	{CMD_ACTION: Act.SET, CMD_FUNCTION: setProfile},
   Cmd.ARG_SENDAS:	{CMD_ACTION: Act.ADD, CMD_FUNCTION: addSendAs},
-  u'shortcuts':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setShortCuts},
-  u'signature':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setSignature},
-  u'snippets':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setSnippets},
-  u'unicode':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setUnicode},
+  u'shortcuts':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setShortCuts},
+  u'signature':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setSignature},
+  u'snippets':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setSnippets},
+  u'unicode':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setUnicode},
   Cmd.ARG_VACATION:	{CMD_ACTION: Act.SET, CMD_FUNCTION: setVacation},
-  u'webclips':	{CMD_ACTION: Act.SET, CMD_FUNCTION: setWebClips},
+  u'webclips':		{CMD_ACTION: Act.SET, CMD_FUNCTION: setWebClips},
   }
 
 # User commands with objects
@@ -23816,29 +24162,29 @@ USER_COMMANDS_WITH_OBJECTS = {
        {Cmd.ARG_CALENDARS:	addCalendars,
         Cmd.ARG_CALENDARACLS:	addCalendarACLs,
         Cmd.ARG_DELEGATE:	addDelegate,
-        Cmd.ARG_DRIVEFILE:addDriveFile,
+        Cmd.ARG_DRIVEFILE:	addDriveFile,
         Cmd.ARG_DRIVEFILEACL:	addDriveFileACL,
-        Cmd.ARG_EVENT:	addCalendarEvent,
-        Cmd.ARG_FILTER:	addFilter,
+        Cmd.ARG_EVENT:		addCalendarEvent,
+        Cmd.ARG_FILTER:		addFilter,
         Cmd.ARG_FORWARDINGADDRESSES:	addForwardingAddresses,
-        Cmd.ARG_GROUPS:	addUserToGroups,
-        Cmd.ARG_LABEL:	addLabel,
+        Cmd.ARG_GROUPS:		addUserToGroups,
+        Cmd.ARG_LABEL:		addLabel,
         Cmd.ARG_LICENSE:	addLicense,
         Cmd.ARG_PERMISSIONS:	addDriveFilePermissions,
-        Cmd.ARG_SENDAS:	addSendAs,
-        Cmd.ARG_SMIME:	addSmime,
+        Cmd.ARG_SENDAS:		addSendAs,
+        Cmd.ARG_SMIME:		addSmime,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_DELEGATES:	Cmd.ARG_DELEGATE,
-        Cmd.ARG_EVENTS:	Cmd.ARG_EVENT,
+        Cmd.ARG_EVENTS:		Cmd.ARG_EVENT,
         Cmd.ARG_FILTERS:	Cmd.ARG_FILTER,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
-        Cmd.ARG_GROUP:	Cmd.ARG_GROUPS,
-        Cmd.ARG_LABELS:	Cmd.ARG_LABEL,
-        u'licence':	Cmd.ARG_LICENSE,
+        Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
+        Cmd.ARG_LABELS:		Cmd.ARG_LABEL,
+        u'licence':		Cmd.ARG_LICENSE,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
        },
     },
@@ -23863,7 +24209,7 @@ USER_COMMANDS_WITH_OBJECTS = {
   u'claim':
     {CMD_ACTION: Act.CLAIM,
      CMD_FUNCTION:
-       {Cmd.ARG_OWNERSHIP: claimDriveFolderOwnership,
+       {Cmd.ARG_OWNERSHIP: 	claimDriveFolderOwnership,
        },
      CMD_OBJ_ALIASES:
        {
@@ -23872,7 +24218,7 @@ USER_COMMANDS_WITH_OBJECTS = {
   u'copy':
     {CMD_ACTION: Act.COPY,
      CMD_FUNCTION:
-       {Cmd.ARG_DRIVEFILE:copyDriveFile,
+       {Cmd.ARG_DRIVEFILE:	copyDriveFile,
        },
      CMD_OBJ_ALIASES:
        {
@@ -23884,20 +24230,20 @@ USER_COMMANDS_WITH_OBJECTS = {
        {Cmd.ARG_CALENDAR:	createCalendar,
         Cmd.ARG_CONTACT:	createUserContact,
         Cmd.ARG_CONTACT_GROUP:	createUserContactGroup,
-        Cmd.ARG_SITE:	createUserSite,
+        Cmd.ARG_SITE:		createUserSite,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDARS:	Cmd.ARG_CALENDAR,
         Cmd.ARG_CONTACTS:	Cmd.ARG_CONTACT,
         Cmd.ARG_CONTACT_GROUPS:	Cmd.ARG_CONTACT_GROUP,
-        Cmd.ARG_SITES:	Cmd.ARG_SITE,
+        Cmd.ARG_SITES:		Cmd.ARG_SITE,
        },
     },
   u'delete':
     {CMD_ACTION: Act.DELETE,
      CMD_FUNCTION:
        {Cmd.ARG_ALIASES:	deleteUsersAliases,
-        Cmd.ARG_ASP:	deleteASP,
+        Cmd.ARG_ASP:		deleteASP,
         Cmd.ARG_BACKUPCODES:	deleteBackupCodes,
         Cmd.ARG_CALENDARS:	deleteCalendars,
         Cmd.ARG_CALENDARACLS:	deleteCalendarACLs,
@@ -23907,27 +24253,27 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DRIVEFILE:	deleteDriveFile,
         Cmd.ARG_DRIVEFILEACLS:	deleteDriveFileACLs,
         Cmd.ARG_EMPTYDRIVEFOLDERS:	deleteEmptyDriveFolders,
-        Cmd.ARG_EVENTS:	deleteCalendarEvents,
+        Cmd.ARG_EVENTS:		deleteCalendarEvents,
         Cmd.ARG_FILTERS:	deleteFilters,
         Cmd.ARG_FORWARDINGADDRESSES:	deleteForwardingAddresses,
-        Cmd.ARG_GROUPS:	deleteUserFromGroups,
-        Cmd.ARG_LABEL:	deleteLabel,
+        Cmd.ARG_GROUPS:		deleteUserFromGroups,
+        Cmd.ARG_LABEL:		deleteLabel,
         Cmd.ARG_LICENSE:	deleteLicense,
         Cmd.ARG_MESSAGES:	processMessages,
         Cmd.ARG_PERMISSIONS:	deleteDriveFilePermissions,
-        Cmd.ARG_PHOTO:	deletePhoto,
-        Cmd.ARG_SENDAS:	deleteSendAs,
-        Cmd.ARG_SMIME:	deleteSmime,
+        Cmd.ARG_PHOTO:		deletePhoto,
+        Cmd.ARG_SENDAS:		deleteSendAs,
+        Cmd.ARG_SMIME:		deleteSmime,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
         Cmd.ARG_THREADS:	processThreads,
-        Cmd.ARG_TOKEN:	deleteTokens,
-        Cmd.ARG_USERS:	deleteUsers,
+        Cmd.ARG_TOKEN:		deleteTokens,
+        Cmd.ARG_USERS:		deleteUsers,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_ALIAS:	Cmd.ARG_ALIASES,
+       {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
         u'applicationspecificpasswords':	Cmd.ARG_ASP,
-        Cmd.ARG_ASPS:	Cmd.ARG_ASP,
-        u'backupcode':	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_ASPS:		Cmd.ARG_ASP,
+        u'backupcode':		Cmd.ARG_BACKUPCODES,
         u'verificationcodes':	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
@@ -23935,18 +24281,18 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_CONTACT_GROUP:	Cmd.ARG_CONTACT_GROUPS,
         Cmd.ARG_DELEGATES:	Cmd.ARG_DELEGATE,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
-        Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
-        Cmd.ARG_FILTER:	Cmd.ARG_FILTERS,
-        Cmd.ARG_GROUP:	Cmd.ARG_GROUPS,
-        u'licence':	Cmd.ARG_LICENSE,
-        Cmd.ARG_LABELS:	Cmd.ARG_LABEL,
+        Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
+        Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
+        u'licence':		Cmd.ARG_LICENSE,
+        Cmd.ARG_LABELS:		Cmd.ARG_LABEL,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
-        Cmd.ARG_TOKENS:	Cmd.ARG_TOKEN,
-        u'3lo':		Cmd.ARG_TOKEN,
-        u'oauth':	Cmd.ARG_TOKEN,
-        Cmd.ARG_USER:	Cmd.ARG_USERS,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
+        Cmd.ARG_TOKENS:		Cmd.ARG_TOKEN,
+        u'3lo':			Cmd.ARG_TOKEN,
+        u'oauth':		Cmd.ARG_TOKEN,
+        Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
   u'empty':
@@ -23961,8 +24307,8 @@ USER_COMMANDS_WITH_OBJECTS = {
   u'get':
     {CMD_ACTION: Act.DOWNLOAD,
      CMD_FUNCTION:
-       {Cmd.ARG_DRIVEFILE:getDriveFile,
-        Cmd.ARG_PHOTO:	getPhoto,
+       {Cmd.ARG_DRIVEFILE:	getDriveFile,
+        Cmd.ARG_PHOTO:		getPhoto,
        },
      CMD_OBJ_ALIASES:
        {
@@ -23971,29 +24317,29 @@ USER_COMMANDS_WITH_OBJECTS = {
   u'info':
     {CMD_ACTION: Act.INFO,
      CMD_FUNCTION:
-       {Cmd.ARG_CALENDARS:infoCalendars,
+       {Cmd.ARG_CALENDARS:	infoCalendars,
         Cmd.ARG_CALENDARACLS:	infoCalendarACLs,
         Cmd.ARG_CONTACTS:	infoUserContacts,
         Cmd.ARG_CONTACT_GROUPS:	infoUserContactGroups,
-        Cmd.ARG_EVENTS:	infoCalendarEvents,
+        Cmd.ARG_EVENTS:		infoCalendarEvents,
         Cmd.ARG_FILTERS:	infoFilters,
         Cmd.ARG_FORWARDINGADDRESSES:	infoForwardingAddresses,
-        Cmd.ARG_SENDAS:	infoSendAs,
-        Cmd.ARG_SITES:	infoUserSites,
+        Cmd.ARG_SENDAS:		infoSendAs,
+        Cmd.ARG_SITES:		infoUserSites,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
-        Cmd.ARG_USERS:	infoUsers,
+        Cmd.ARG_USERS:		infoUsers,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
         Cmd.ARG_CONTACT_GROUP:	Cmd.ARG_CONTACT_GROUPS,
-        Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
-        Cmd.ARG_FILTER:	Cmd.ARG_FILTERS,
+        Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        Cmd.ARG_USER:	Cmd.ARG_USERS,
+        Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
   u'modify':
@@ -24006,16 +24352,16 @@ USER_COMMANDS_WITH_OBJECTS = {
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
        },
     },
   u'move':
     {CMD_ACTION: Act.MOVE,
      CMD_FUNCTION:
-       {Cmd.ARG_EVENTS:	moveCalendarEvents,
+       {Cmd.ARG_EVENTS:		moveCalendarEvents,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
+       {Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
        },
     },
   u'purge':
@@ -24038,7 +24384,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DRIVEACTIVITY:	printDriveActivity,
         Cmd.ARG_DRIVEFILEACLS:	printDriveFileACLs,
         Cmd.ARG_DRIVESETTINGS:	printDriveSettings,
-        Cmd.ARG_EVENTS:	printCalendarEvents,
+        Cmd.ARG_EVENTS:		printCalendarEvents,
         Cmd.ARG_FILEINFO:	showDriveFileInfo,
         Cmd.ARG_FILELIST:	printDriveFileList,
         Cmd.ARG_FILTERS:	printFilters,
@@ -24047,13 +24393,13 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_GMAILPROFILE:	printGmailProfile,
         Cmd.ARG_GPLUSPROFILE:	printGplusProfile,
         Cmd.ARG_MESSAGES:	printMessages,
-        Cmd.ARG_SENDAS:	printSendAs,
-        Cmd.ARG_SMIMES:	printSmimes,
-        Cmd.ARG_SITES:	printUserSites,
+        Cmd.ARG_SENDAS:		printSendAs,
+        Cmd.ARG_SMIMES:		printSmimes,
+        Cmd.ARG_SITES:		printUserSites,
         Cmd.ARG_SITEACTIVITY:	printUserSiteActivity,
         Cmd.ARG_THREADS:	printThreads,
-        Cmd.ARG_TOKENS:	printTokens,
-        Cmd.ARG_USERS:	doPrintUserEntity,
+        Cmd.ARG_TOKENS:		printTokens,
+        Cmd.ARG_USERS:		doPrintUserEntity,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
@@ -24062,17 +24408,17 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_CONTACT_GROUP:	Cmd.ARG_CONTACT_GROUPS,
         Cmd.ARG_DELEGATE:	Cmd.ARG_DELEGATES,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
-        Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
-        Cmd.ARG_FILTER:	Cmd.ARG_FILTERS,
+        Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
-        Cmd.ARG_SMIME:	Cmd.ARG_SMIMES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
-        Cmd.ARG_TOKEN:	Cmd.ARG_TOKENS,
-        u'3lo':		Cmd.ARG_TOKENS,
-        u'oauth':	Cmd.ARG_TOKENS,
-        Cmd.ARG_USER:	Cmd.ARG_USERS,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
+        Cmd.ARG_SMIME:		Cmd.ARG_SMIMES,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
+        Cmd.ARG_TOKEN:		Cmd.ARG_TOKENS,
+        u'3lo':			Cmd.ARG_TOKENS,
+        u'oauth':		Cmd.ARG_TOKENS,
+        Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
   u'remove':
@@ -24087,7 +24433,7 @@ USER_COMMANDS_WITH_OBJECTS = {
   u'show':
     {CMD_ACTION: Act.SHOW,
      CMD_FUNCTION:
-       {Cmd.ARG_ASPS:	showASPs,
+       {Cmd.ARG_ASPS:		showASPs,
         Cmd.ARG_BACKUPCODES:	showBackupCodes,
         Cmd.ARG_CALENDARS:	showCalendars,
         Cmd.ARG_CALENDARACLS:	showCalendarACLs,
@@ -24098,7 +24444,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DRIVEACTIVITY:	printDriveActivity,
         Cmd.ARG_DRIVEFILEACLS:	showDriveFileACLs,
         Cmd.ARG_DRIVESETTINGS:	printDriveSettings,
-        Cmd.ARG_EVENTS:	showCalendarEvents,
+        Cmd.ARG_EVENTS:		showCalendarEvents,
         Cmd.ARG_FILEINFO:	showDriveFileInfo,
         Cmd.ARG_FILELIST:	printDriveFileList,
         Cmd.ARG_FILEPATH:	showDriveFilePath,
@@ -24109,24 +24455,24 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_FORWARDINGADDRESSES:	showForwardingAddresses,
         Cmd.ARG_GMAILPROFILE:	showGmailProfile,
         Cmd.ARG_GPLUSPROFILE:	showGplusProfile,
-        Cmd.ARG_IMAP:	showImap,
-        Cmd.ARG_LABELS:	showLabels,
+        Cmd.ARG_IMAP:		showImap,
+        Cmd.ARG_LABELS:		showLabels,
         Cmd.ARG_MESSAGES:	showMessages,
-        Cmd.ARG_POP:	showPop,
+        Cmd.ARG_POP:		showPop,
         Cmd.ARG_PROFILE:	showProfile,
-        Cmd.ARG_SENDAS:	showSendAs,
-        Cmd.ARG_SMIMES:	showSmimes,
-        Cmd.ARG_SIGNATURE:showSignature,
-        Cmd.ARG_SITES:	showUserSites,
+        Cmd.ARG_SENDAS:		showSendAs,
+        Cmd.ARG_SMIMES:		showSmimes,
+        Cmd.ARG_SIGNATURE:	showSignature,
+        Cmd.ARG_SITES:		showUserSites,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
         Cmd.ARG_THREADS:	showThreads,
-        Cmd.ARG_TOKENS:	showTokens,
+        Cmd.ARG_TOKENS:		showTokens,
         Cmd.ARG_VACATION:	showVacation,
        },
      CMD_OBJ_ALIASES:
        {u'applicationspecificpasswords':	Cmd.ARG_ASPS,
-        Cmd.ARG_ASP:	Cmd.ARG_ASPS,
-        u'backupcode':	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_ASP:		Cmd.ARG_ASPS,
+        u'backupcode':		Cmd.ARG_BACKUPCODES,
         u'verificationcodes':	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
@@ -24134,21 +24480,21 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_CONTACT_GROUP:	Cmd.ARG_CONTACT_GROUPS,
         Cmd.ARG_DELEGATE:	Cmd.ARG_DELEGATES,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
-        Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
-        Cmd.ARG_FILTER:	Cmd.ARG_FILTERS,
+        Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
-        u'imap4':	Cmd.ARG_IMAP,
-        u'pop3':	Cmd.ARG_POP,
-        Cmd.ARG_LABEL:	Cmd.ARG_LABELS,
+        u'imap4':		Cmd.ARG_IMAP,
+        u'pop3':		Cmd.ARG_POP,
+        Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        u'sig':		Cmd.ARG_SIGNATURE,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        u'sig':			Cmd.ARG_SIGNATURE,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        Cmd.ARG_SMIME:	Cmd.ARG_SMIMES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
-        Cmd.ARG_TOKEN:	Cmd.ARG_TOKENS,
-        u'3lo':		Cmd.ARG_TOKENS,
-        u'oauth':	Cmd.ARG_TOKENS,
+        Cmd.ARG_SMIME:		Cmd.ARG_SMIMES,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
+        Cmd.ARG_TOKEN:		Cmd.ARG_TOKENS,
+        u'3lo':			Cmd.ARG_TOKENS,
+        u'oauth':		Cmd.ARG_TOKENS,
        },
     },
   u'spam':
@@ -24159,19 +24505,19 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
        },
     },
   u'transfer':
     {CMD_ACTION: Act.TRANSFER,
      CMD_FUNCTION:
-       {Cmd.ARG_DRIVE:	transferDriveFiles,
+       {Cmd.ARG_DRIVE:		transferDriveFiles,
         Cmd.ARG_CALENDARS:	transferCalendars,
-        Cmd.ARG_OWNERSHIP: transferDriveFileOwnership,
+        Cmd.ARG_OWNERSHIP: 	transferDriveFileOwnership,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
-        u'seccals':	Cmd.ARG_CALENDARS,
+        u'seccals':		Cmd.ARG_CALENDARS,
        },
     },
   u'trash':
@@ -24183,7 +24529,7 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
        },
     },
   u'untrash':
@@ -24195,16 +24541,16 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        Cmd.ARG_THREAD:	Cmd.ARG_THREADS,
+        Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
        },
     },
   u'undelete':
     {CMD_ACTION: Act.UNDELETE,
      CMD_FUNCTION:
-       {Cmd.ARG_USERS:	undeleteUsers,
+       {Cmd.ARG_USERS:		undeleteUsers,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_USER:	Cmd.ARG_USERS,
+       {Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
   u'update':
@@ -24216,42 +24562,42 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_CALENDARACLS:	updateCalendarACLs,
         Cmd.ARG_CONTACTS:	updateUserContacts,
         Cmd.ARG_CONTACT_GROUP:	updateUserContactGroup,
-        Cmd.ARG_DRIVEFILE:updateDriveFile,
+        Cmd.ARG_DRIVEFILE:	updateDriveFile,
         Cmd.ARG_DRIVEFILEACLS:	updateDriveFileACLs,
-        Cmd.ARG_EVENTS:	updateCalendarEvents,
-        Cmd.ARG_LABELS:	updateLabels,
-        Cmd.ARG_LABELSETTINGS:updateLabelSettings,
+        Cmd.ARG_EVENTS:		updateCalendarEvents,
+        Cmd.ARG_LABELS:		updateLabels,
+        Cmd.ARG_LABELSETTINGS:	updateLabelSettings,
         Cmd.ARG_LICENSE:	updateLicense,
-        Cmd.ARG_PHOTO:	updatePhoto,
-        Cmd.ARG_SENDAS:	updateSendAs,
-        Cmd.ARG_SMIME:	updateSmime,
-        Cmd.ARG_SITES:	updateUserSites,
+        Cmd.ARG_PHOTO:		updatePhoto,
+        Cmd.ARG_SENDAS:		updateSendAs,
+        Cmd.ARG_SMIME:		updateSmime,
+        Cmd.ARG_SITES:		updateUserSites,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
-        Cmd.ARG_USERS:	updateUsers,
+        Cmd.ARG_USERS:		updateUsers,
        },
      CMD_OBJ_ALIASES:
-       {u'backupcode':	Cmd.ARG_BACKUPCODES,
+       {u'backupcode':		Cmd.ARG_BACKUPCODES,
         u'verificationcodes':	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
         Cmd.ARG_CONTACT_GROUPS:	Cmd.ARG_CONTACT_GROUP,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
-        Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
-        Cmd.ARG_LABEL:	Cmd.ARG_LABELS,
-        u'licence':	Cmd.ARG_LICENSE,
-        Cmd.ARG_SITE:	Cmd.ARG_SITES,
+        Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
+        u'licence':		Cmd.ARG_LICENSE,
+        Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
-        Cmd.ARG_USER:	Cmd.ARG_USERS,
+        Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
   u'wipe':
     {CMD_ACTION: Act.WIPE,
      CMD_FUNCTION:
-       {Cmd.ARG_EVENTS:	wipeCalendarEvents,
+       {Cmd.ARG_EVENTS:		wipeCalendarEvents,
        },
      CMD_OBJ_ALIASES:
-       {Cmd.ARG_EVENT:	Cmd.ARG_EVENTS,
+       {Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
        },
     },
   }

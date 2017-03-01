@@ -59,9 +59,11 @@ class GamEntity(object):
   COURSE = u'cour'
   COURSE_ALIAS = u'coal'
   COURSE_ID = u'coid'
+  CUSTOMER_ID = u'cust'
   CREDENTIALS = u'cred'
   CRITERIA = u'crit'
   CROS_DEVICE = u'cros'
+  CUSTOMER_DOMAIN = u'cudo'
   CUSTOMER_ID = u'cuid'
   DEFAULT_LANGUAGE = u'dfla'
   DELEGATE = u'dele'
@@ -152,6 +154,7 @@ class GamEntity(object):
   SSO_SETTINGS = u'ssos'
   SOURCE_USER = u'srcu'
   STUDENT = u'stud'
+  SUBSCRIPTION = u'subs'
   TARGET_USER = u'tgtu'
   TEACHER = u'teac'
   THREAD = u'thre'
@@ -199,6 +202,8 @@ class GamEntity(object):
     COURSE: [u'Courses', u'Course'],
     COURSE_ALIAS: [u'Course Aliases', u'Course Alias'],
     COURSE_ID: [u'Course IDs', u'Course ID'],
+    CUSTOMER_DOMAIN: [u'Customer Domains', u'Customer Domain'],
+    CUSTOMER_ID: [u'Customer IDs', u'Customer ID'],
     CREDENTIALS: [u'Credentials', u'Credentials'],
     CRITERIA: [u'Criteria', u'Criteria'],
     CROS_DEVICE: [u'CrOS Devices', u'CrOS Device'],
@@ -291,6 +296,7 @@ class GamEntity(object):
     SSO_KEY: [u'SSO Key', u'SSO Key'],
     SSO_SETTINGS: [u'SSO Settings', u'SSO Settings'],
     SOURCE_USER: [u'Source Users', u'Source User'],
+    SUBSCRIPTION: [u'Subscriptions', u'Subscription'],
     STUDENT: [u'Students', u'Student'],
     TARGET_USER: [u'Target Users', u'Target User'],
     TEACHER: [u'Teachers', u'Teacher'],

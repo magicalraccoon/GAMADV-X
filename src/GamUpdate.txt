@@ -1,3 +1,45 @@
+4.44.00
+
+Added Reseller API support, derived from Jay's initial code.
+    <ResoldCustomerAttributes> ::=
+	(email|alternateemail <EmailAddress>)|
+	(contact|contactname <String>)|
+	(phone|phonenumber <String>)|
+	(name|organizationname <String>)|
+	(address|address1|addressline1 <String>)|
+	(address2|addressline2 <String>)|
+	(address3|addressline3 <String>)|
+	(city|locality <String>)|
+	(state|region <String>)|
+	(zipcode|postal|postalcode <String>)|
+	(country|countrycode <String>)
+
+    gam create resoldcustomer <CustomerDomain> (customer_auth_token <String>) <ResoldCustomerAttributes>+
+    gam update resoldcustomer <CustomerID> [customer_auth_token <String>] <ResoldCustomerAttribues>+
+    gam info resoldcustomer <CustomerID>
+
+    gam create resoldsubscription <CustomerID> (sku <SKUID>)
+	 (plan annual_monthly_pay|annual_yearly_pay|flexible|trial) (seats <NumberOfSeats> <MaximumNumberOfSeats>)
+	 [customer_auth_token <String>] [deal <String>] [purchaseorderid <String>]
+    gam update resoldsubscription <CustomerID> <SKUID>
+	activate|suspend|startpaidservice|
+	(renewal auto_renew_monthly_pay|auto_renew_yearly_pay|cancel|renew_current_users_monthly_pay|renew_current_users_yearly_pay|switch_to_pay_as_you_go)|
+	(seats <NumberOfSeats> [<MaximumNumberOfSeats>])|
+	(plan annual_monthly_pay|annual_yearly_pay|flexible|trial [deal <String>] [purchaseorderid <String>] [seats <NumberOfSeats> [<MaximumNumberOfSeats>]])
+    gam delete resoldsubscription <CustomerID> <SKUID> cancel|downgrade|transfer_to_direct
+    gam info resoldsubscription <CustomerID>  <SKUID>
+    gam show resoldsubscriptions [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+    gam print resoldsubscriptions [todrive [<ToDriveAttributes>]] [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+
+Added createifnotfound to update users. If, when attempting to update a single user, the user is not found, this argument causes Gam to create the user.
+This is a special purpose feature, it will typically be used when an information system outputs a CSV file of user data but does not indicate which
+users are new.
+    gam update user <UserItem> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
+    gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
+    gam <UserTypeEntity> update users <UserAttrubutes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
+Example:
+    gam  redirect stdout Update.log multiprocess redirect stderr stdout csv Users.csv gam update user "~Email" firstname "~Firstname" lastname "~Lastname" password "~Password" org "~Org" createifnotfound
+
 4.43.04
 
 Make no_cache = False and cache_discovery_only = True be the default.

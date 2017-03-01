@@ -795,12 +795,12 @@ gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <Cou
 	(language <LanguageCode>)|
 	(phone|phonenumber <String>)|
 	(name|organizationname <String>)|
-	(address1|addressline1 <String>)|
+	(address|address1|addressline1 <String>)|
 	(address2|addressline2 <String>)|
 	(address3|addressline3 <String>)|
-	(locality <String>)|
-	(region <String>)|
-	(postalcode <String>)|
+	(city|locality <String>)|
+	(state|region <String>)|
+	(zipcode|postal|postalcode <String>)|
 	(country|countrycode <String>)
 
 gam update customer <CustomerAttributes>*
@@ -1090,6 +1090,38 @@ gam report customers|customer|domain [todrive [<ToDriveAttributes>]] [nodatechan
 gam report admin|calendar|calendars|drive|docs|doc|groups|group|logins|login|mobile|tokens|token [todrive [<ToDriveAttributes>]] [maxresults <Number>]
 	[([start <Time>] [end <Time>])|yesterday] [(user all|<UserItem>)|(select <UserTypeEntity>)] [event <String>] [filter|filters <String>] [ip <String>] [countsonly] [summary]
 
+# Reseller
+
+<ResoldCustomerAttributes> ::=
+	(email|alternateemail <EmailAddress>)|
+	(contact|contactname <String>)|
+	(phone|phonenumber <String>)|
+	(name|organizationname <String>)|
+	(address|address1|addressline1 <String>)|
+	(address2|addressline2 <String>)|
+	(address3|addressline3 <String>)|
+	(city|locality <String>)|
+	(state|region <String>)|
+	(zipcode|postal|postalcode <String>)|
+	(country|countrycode <String>)
+
+gam create resoldcustomer <CustomerDomain> (customer_auth_token <String>) <ResoldCustomerAttributes>+
+gam update resoldcustomer <CustomerID> [customer_auth_token <String>] <ResoldCustomerAttribues>+
+gam info resoldcustomer <CustomerID>
+
+gam create resoldsubscription <CustomerID> (sku <SKUID>)
+	 (plan annual_monthly_pay|annual_yearly_pay|flexible|trial) (seats <NumberOfSeats> <MaximumNumberOfSeats>)
+	 [customer_auth_token <String>] [deal <String>] [purchaseorderid <String>]
+gam update resoldsubscription <CustomerID> <SKUID>
+	activate|suspend|startpaidservice|
+	(renewal auto_renew_monthly_pay|auto_renew_yearly_pay|cancel|renew_current_users_monthly_pay|renew_current_users_yearly_pay|switch_to_pay_as_you_go)|
+	(seats <NumberOfSeats> [<MaximumNumberOfSeats>])|
+	(plan annual_monthly_pay|annual_yearly_pay|flexible|trial [deal <String>] [purchaseorderid <String>] [seats <NumberOfSeats> [<MaximumNumberOfSeats>]])
+gam delete resoldsubscription <CustomerID> <SKUID> cancel|downgrade|transfer_to_direct
+gam info resoldsubscription <CustomerID>  <SKUID>
+gam show resoldsubscriptions [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+gam print resoldsubscriptions [todrive [<ToDriveAttributes>]] [customerid <CustomerID>] [customer_auth_token <String>] [customer_prefix <String>]
+
 # Resource Calendars
 
 <ResourceFieldName> ::=
@@ -1236,17 +1268,17 @@ gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 	(<SchemaName>.<FieldName> [multivalued|multivalue|value|multinonempty [type work|home|other|(custom <String>)]] <String>)
 
 gam create user <EmailAddress> <UserAttrubutes>*
-gam update user <UserItem> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+gam update user <UserItem> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
 gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
-gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+gam update users <UserTypeEntity> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 gam delete users <UserTypeEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
-gam <UserTypeEntity> update users <UserAttrubutes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+gam <UserTypeEntity> update users <UserAttrubutes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 gam <UserTypeEntity> delete users
 gam <UserEntity> undelete users [org|ou <OrgUnitPath>]
 gam <UserTypeEntity> info users [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
