@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.00'
+__version__ = u'4.44.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2424,10 +2424,9 @@ def checkGDataError(e, service):
 def waitOnFailure(n, retries, error_code, error_message):
   wait_on_fail = min(2 ** n, 60)+float(random.randint(1, 1000)) / 1000
   if n > 3:
-    writeStderr(u'Temporary error: {0} - {1}. Backing off {2} seconds...'.format(error_code, error_message, int(wait_on_fail)))
+    writeStderr(u'Temporary error: {0} - {1}, Backing off: {2} seconds, Retry: {3}/{4}\n'.format(error_code, error_message, int(wait_on_fail), n, retries))
+    flushStderr()
   time.sleep(wait_on_fail)
-  if n > 3:
-    writeStderr(u'attempt {0}/{1}\n'.format(n+1, retries))
 
 def callGData(service, function,
               soft_errors=False, throw_errors=None, retry_errors=None,
@@ -5621,7 +5620,7 @@ def getCustomerSubscription(res):
   try:
     subscriptions = callGAPIpages(res.subscriptions(), u'list', u'subscriptions',
                                   throw_reasons=[GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                                  fields=u'nextPageToken,subscriptions(skuId,subscriptionId)', customerId=customerId)
+                                  customerId=customerId, fields=u'nextPageToken,subscriptions(skuId,subscriptionId)')
     for subscription in subscriptions:
       if skuId == subscription[u'skuId']:
         return (customerId, skuId, subscription[u'subscriptionId'])

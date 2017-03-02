@@ -1,3 +1,7 @@
+4.44.01
+
+Clean up error messages when Google API requires that Gam wait before retrying.
+
 4.44.00
 
 Added Reseller API support, derived from Jay's initial code.
