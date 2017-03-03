@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.02'
+__version__ = u'4.44.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2524,6 +2524,8 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       return (e.resp[u'status'], GAPI.BAD_GATEWAY, e.content)
     if (e.resp[u'status'] == u'403') and (u'Invalid domain.' in e.content):
       error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI.NOT_FOUND, u'message': u'Domain not found'}]}}
+    elif (e.resp[u'status'] == u'403') and (u'Domain cannot use apis.' in e.content):
+      error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI.DOMAIN_CANNOT_USE_APIS, u'message': u'Domain cannot use apis'}]}}
     elif (e.resp[u'status'] == u'400') and (u'InvalidSsoSigningKey' in e.content):
       error = {u'error': {u'code': 400, u'errors': [{u'reason': GAPI.INVALID, u'message': u'InvalidSsoSigningKey'}]}}
     elif (e.resp[u'status'] == u'400') and (u'UnknownError' in e.content):
@@ -2923,7 +2925,7 @@ def convertUserUIDtoEmailAddress(emailAddressOrUID, checkForCustomerId=False):
                       userKey=normalizedEmailAddressOrUID, fields=u'primaryEmail')
     if u'primaryEmail' in result:
       return result[u'primaryEmail'].lower()
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     pass
   return normalizedEmailAddressOrUID
 
@@ -2950,7 +2952,7 @@ def convertEmailToUserID(user):
     return callGAPI(cd.users(), u'get',
                     throw_reasons=GAPI.USER_GET_THROW_REASONS,
                     userKey=user, fields=u'id')[u'id']
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     Cmd.Backup()
     usageErrorExit(formatKeyValueList(Ind.Spaces(),
                                       [Ent.Singular(Ent.USER), user,
@@ -2964,7 +2966,7 @@ def convertUserIDtoEmail(uid):
     return callGAPI(cd.users(), u'get',
                     throw_reasons=GAPI.USER_GET_THROW_REASONS,
                     userKey=uid, fields=u'primaryEmail')[u'primaryEmail']
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     return u'uid:{0}'.format(uid)
 
 # Convert UID to split email address
@@ -2983,7 +2985,7 @@ def splitEmailAddressOrUID(emailAddressOrUID):
       normalizedEmailAddressOrUID = result[u'primaryEmail'].lower()
       atLoc = normalizedEmailAddressOrUID.find(u'@')
       return (normalizedEmailAddressOrUID, normalizedEmailAddressOrUID[:atLoc], normalizedEmailAddressOrUID[atLoc+1:])
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     pass
   return (normalizedEmailAddressOrUID, normalizedEmailAddressOrUID, GC.Values[GC.DOMAIN])
 
@@ -2999,7 +3001,7 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
                         userKey=cg.group(1), fields=u'primaryEmail')
       if u'primaryEmail' in result:
         return result[u'primaryEmail'].lower()
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       pass
     return None
   atLoc = emailAddressOrUID.find(u'@')
@@ -3713,7 +3715,7 @@ def checkUserExists(cd, user, i=0, count=0):
     return callGAPI(cd.users(), u'get',
                     throw_reasons=GAPI.USER_GET_THROW_REASONS,
                     userKey=user, fields=u'primaryEmail')[u'primaryEmail']
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     entityUnknownWarning(Ent.USER, user, i, count)
     return None
 
@@ -5202,7 +5204,7 @@ def doWhatIs():
     return
   except (GAPI.userNotFound, GAPI.badRequest):
     pass
-  except (GAPI.domainNotFound, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
+  except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
     entityUnknownWarning(Ent.EMAIL, email)
     setSysExitRC(ENTITY_IS_UKNOWN_RC)
     return
@@ -5225,7 +5227,7 @@ def doWhatIs():
     return
   except GAPI.groupNotFound:
     pass
-  except (GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+  except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
     entityUnknownWarning(Ent.EMAIL, email)
     setSysExitRC(ENTITY_IS_UKNOWN_RC)
     return
@@ -7208,7 +7210,7 @@ def infoAliases(entityList):
       continue
     except (GAPI.userNotFound, GAPI.badRequest):
       pass
-    except (GAPI.domainNotFound, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
+    except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.USER_ALIAS, aliasEmail, i, count)
       continue
     try:
@@ -7219,7 +7221,7 @@ def infoAliases(entityList):
       continue
     except GAPI.groupNotFound:
       pass
-    except (GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+    except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
       entityUnknownWarning(Ent.GROUP_ALIAS, aliasEmail, i, count)
       continue
     entityUnknownWarning(Ent.EMAIL, aliasEmail, i, count)
@@ -10265,7 +10267,7 @@ def doCreateGroup():
     entityActionPerformedMessage([Ent.GROUP, body[u'email']], errMsg)
   except GAPI.duplicate:
     entityDuplicateWarning(Ent.GROUP, body[u'email'])
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.backendError, GAPI.systemError, GAPI.invalid, GAPI.invalidInput) as e:
+  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError, GAPI.invalid, GAPI.invalidInput) as e:
     entityActionFailedWarning([Ent.GROUP, body[u'email']], e.message)
 
 def checkGroupExists(cd, group, i=0, count=0):
@@ -10274,7 +10276,7 @@ def checkGroupExists(cd, group, i=0, count=0):
     return callGAPI(cd.groups(), u'get',
                     throw_reasons=GAPI.GROUP_GET_THROW_REASONS, retry_reasons=GAPI.GROUP_GET_RETRY_REASONS,
                     groupKey=group, fields=u'email')[u'email']
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
     entityUnknownWarning(Ent.GROUP, group, i, count)
     return None
 
@@ -10415,7 +10417,7 @@ def doUpdateGroups():
                             groupUniqueId=group, body=gs_body, fields=u'')
           if result is None:
             errMsg = Msg.API_ERROR_SETTINGS
-        except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
+        except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
           entityUnknownWarning(Ent.GROUP, group, i, count)
           continue
       entityActionPerformedMessage([Ent.GROUP, group], errMsg, i, count)
@@ -10538,7 +10540,7 @@ def doDeleteGroups():
                throw_reasons=[GAPI.GROUP_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID],
                groupKey=group)
       entityActionPerformed([Ent.GROUP, group], i, count)
-    except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.invalid):
+    except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.invalid):
       entityUnknownWarning(Ent.GROUP, group, i, count)
 #
 # CL argument: [API field name, CSV field title]
@@ -10800,7 +10802,7 @@ def doPrintGroups():
         response = callGAPI(cd.groups(), u'get',
                             soft_errors=True, throw_reasons=GAPI.GROUP_GET_THROW_REASONS, retry_reasons=GAPI.GROUP_GET_RETRY_REASONS,
                             groupKey=ri[RI_ENTITY], fields=cdfields)
-      except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+      except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
         entityUnknownWarning(Ent.GROUP, ri[RI_ENTITY], i, int(ri[RI_COUNT]))
         return
     entityList.append(response)
@@ -10865,7 +10867,7 @@ def doPrintGroups():
         response = callGAPI(gs.groups(), u'get',
                             soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
                             groupUniqueId=ri[RI_ENTITY], fields=gsfields)
-      except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.backendError, GAPI.systemError) as e:
+      except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError) as e:
         entityActionFailedWarning([Ent.GROUP, ri[RI_ENTITY], Ent.GROUP_SETTINGS, None], e.message, i, int(ri[RI_COUNT]))
     groupData[i][u'settings'] = response
     _writeRowIfComplete(i)
@@ -10984,7 +10986,7 @@ def doPrintGroups():
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
       entityList = collections.deque()
-    except (GAPI.resourceNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+    except (GAPI.resourceNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
       if kwargs.get(u'domain'):
         badRequestWarning(Ent.GROUP, Ent.DOMAIN, kwargs[u'domain'])
         entityList = collections.deque()
@@ -11165,7 +11167,7 @@ def doPrintGroupMembers():
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
       entityList = collections.deque()
-    except (GAPI.resourceNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+    except (GAPI.resourceNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
       if kwargs.get(u'domain'):
         badRequestWarning(Ent.GROUP, Ent.DOMAIN, kwargs[u'domain'])
         entityList = collections.deque()
@@ -11225,7 +11227,7 @@ def doPrintGroupMembers():
               del mbinfo[u'name'][u'fullName']
             addRowTitlesToCSVfile(flattenJSON(mbinfo, flattened=row), csvRows, titles)
             continue
-          except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+          except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
             pass
         elif memberType == u'GROUP':
           if membernames:
@@ -11233,7 +11235,7 @@ def doPrintGroupMembers():
               row[u'name'] = callGAPI(cd.groups(), u'get',
                                       throw_reasons=GAPI.GROUP_GET_THROW_REASONS, retry_reasons=GAPI.GROUP_GET_RETRY_REASONS,
                                       groupKey=member[u'id'], fields=u'name')[u'name']
-            except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest):
+            except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest):
               pass
         elif memberType == u'CUSTOMER':
           if membernames:
@@ -14078,7 +14080,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
              throw_reasons=[GAPI.USER_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN],
              userKey=user, body=admin_body)
     printEntityKVList([Ent.USER, user], [Msg.ADMIN_STATUS_CHANGED_TO, admin_body[u'status']], i, count)
-  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden):
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden):
     entityUnknownWarning(Ent.USER, user, i, count)
 
 # gam create user <EmailAddress> <UserAttributes>
@@ -14095,7 +14097,7 @@ def doCreateUser():
       changeAdminStatus(cd, user, admin_body)
   except GAPI.duplicate:
     entityDuplicateWarning(Ent.USER, user)
-  except (GAPI.domainNotFound, GAPI.forbidden) as e:
+  except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden) as e:
     entityActionFailedWarning([Ent.USER, user], e.message)
   except GAPI.invalidSchemaValue:
     entityActionFailedWarning([Ent.USER, user], Msg.INVALID_SCHEMA_VALUE)
@@ -14150,7 +14152,7 @@ def updateUsers(entityList):
             continue
       if admin_body:
         changeAdminStatus(cd, user, admin_body, i, count)
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.USER, user, i, count)
     except GAPI.invalidSchemaValue:
       entityActionFailedWarning([Ent.USER, user], Msg.INVALID_SCHEMA_VALUE, i, count)
@@ -14180,7 +14182,7 @@ def deleteUsers(entityList):
                throw_reasons=[GAPI.USER_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN],
                userKey=user)
       entityActionPerformed([Ent.USER, user], i, count)
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden):
       entityUnknownWarning(Ent.USER, user, i, count)
 
 # gam delete users <UserTypeEntity>
@@ -14652,7 +14654,7 @@ def infoUsers(entityList):
           printKeyValueList([SKU.formatSKUIdDisplayName(u_license)])
         Ind.Decrement()
       Ind.Decrement()
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.USER, userEmail, i, count)
     except GAPI.invalidInput as e:
       if customFieldMask:
@@ -20077,7 +20079,7 @@ def deleteUsersAliases(users):
         except GAPI.resourceIdNotFound:
           entityActionFailedWarning([Ent.USER, user_primary, Ent.ALIAS, an_alias], Msg.DOES_NOT_EXIST, j, jcount)
       Ind.Decrement()
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.USER, user, i, count)
 
 # gam <UserTypeEntity> add group|groups [member|manager|owner] <GroupEntity>
@@ -20504,7 +20506,7 @@ def _printShowTokens(entityType, users, csvFormat):
           csvRows.append(row)
     except (GAPI.notFound, GAPI.resourceNotFound) as e:
       entityActionFailedWarning([Ent.USER, user, Ent.ACCESS_TOKEN, clientId], e.message, i, count)
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden):
       entityUnknownWarning(Ent.USER, user, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'OAuth Tokens', todrive)
@@ -21084,7 +21086,7 @@ def archiveMessages(users):
     group = callGAPI(cd.groups(), u'get',
                      throw_reasons=GAPI.GROUP_GET_THROW_REASONS,
                      groupKey=group, fields=u'email')[u'email']
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest) as e:
+  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest) as e:
     Cmd.Backup()
     usageErrorExit(u'{0}: {1}'.format(Msg.INVALID_GROUP, e.message))
   while Cmd.ArgumentsRemaining():
@@ -21857,7 +21859,7 @@ def delegateTo(users, checkForTo=True):
         setSysExitRC(USER_SUSPENDED_ERROR_RC)
       else:
         return True
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.DELEGATOR, delegatorEmail, i, count)
     return False
 
@@ -21874,7 +21876,7 @@ def delegateTo(users, checkForTo=True):
         entityActionNotPerformedWarning([Ent.DELEGATOR, delegatorEmail],
                                         Ent.EntityTypeNameMessage(Ent.DELEGATE, delegateEmail, Msg.IS_REQD_TO_CHG_PWD_NO_DELEGATION), j, jcount)
         setSysExitRC(USER_SUSPENDED_ERROR_RC)
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.DELEGATE, delegateEmail, j, jcount)
 
   def _checkDelegatorDelegate(i, count, j, jcount):

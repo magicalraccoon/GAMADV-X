@@ -16,7 +16,7 @@ You can download the current GAMADV-X release from the [GitHub Releases] page. C
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
-* Single Executable Archive, Windows - `gamadv-x-x.yy.z-windows-x64.zip, gamadv-x-4.wx.yz-windows.zip`
+* Single Executable Archive, Windows - `gamadv-x-4.wx.yz-windows-x64.zip, gamadv-x-4.wx.yz-windows.zip`
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
@@ -36,7 +36,7 @@ Enter the following gam commands and follow instructions to create the necessary
 - Build gam.cfg: ```gam config verify```
 - Build GAM Project for authorization: ```gam create project```
 - Authorize Gam Client: ```gam oauth create```
-- Authorize Service Account: ```gam user <admin email address> check serviceaccount```
+- Authorize Service Account: ```gam user <email address> check serviceaccount```
 
 Installation - Upgrading from a GAM version other than a prior version of GAMADV-X
 ----------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ version of GAM can run. Your existing oauth2.txt is not used, a new file will be
 Enter the following gam commands and follow instructions.
 - Build gam.cfg: ```gam config verify```
 - Authorize Gam Client: ```gam oauth create```
-- Authorize Service Account: ```gam user <admin email address> check serviceaccount```
+- Authorize Service Account: ```gam user <email address> check serviceaccount```
 
 Installation - Upgrading from a prior version of GAMADV-X
 ---------------------------------------------------------

@@ -1,3 +1,7 @@
+4.44.03
+
+Handle "Domain cannot use apis." error.
+
 4.44.02
 
 Added nocache argument to gam get drivefile to prevent the Google API from caching a file download. Due to a flaw in a Python library,
