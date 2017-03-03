@@ -42,7 +42,7 @@ Installation - Upgrading from a GAM version other than a prior version of GAMADV
 ----------------------------------------------------------------------------------
 Read GamConfig.txt.
 
-Linux/Mac OS
+## Linux/Mac OS
 
 This example assumes that GAMADV-X has beem installed in /usr/local/gamadv-x.
 Set environment variable OLDGAMPATH to point to the existing Gam directory; /usr/local/gam will be used in this example.
@@ -266,7 +266,7 @@ https://www.googleapis.com/auth/userinfo.profile
 ```
 The link shown in the error message should take you directly to the authorization screen.
 If not, in the Admin console, click `Security`, click `Show more`, click `Advanced settings`, click `Manage API client access`.
-Paste SVCACCTID in the `Client Name` box and the complete list of scopes in the `One or More API Scopes` box, click `Authorize'
+Paste SVCACCTID in the `Client Name` box and the complete list of scopes in the `One or More API Scopes` box, click `Authorize`.
 Wait a moment and then perform the following command; it it still fails, wait a bit longer, it can sometimes take serveral minutes
 for the authorization to complete.
 ```
@@ -348,7 +348,7 @@ Section: DEFAULT
 admin@server:/usr/local/gamadv-x$ 
 ```
 
-Windows
+## Windows
 
 This example assumes that GAMADV-X has beem installed in C:\GAMADV-X.
 Set environment variable OLDGAMPATH to point to the existing Gam directory; C:\GAM will be used in this example.
@@ -606,7 +606,7 @@ https://www.googleapis.com/auth/userinfo.profile
 ```
 The link shown in the error message should take you directly to the authorization screen.
 If not, in the Admin console, click `Security`, click `Show more`, click `Advanced settings`, click `Manage API client access`.
-Paste SVCACCTID in the `Client Name` box and the complete list of scopes in the `One or More API Scopes` box, click `Authorize'
+Paste SVCACCTID in the `Client Name` box and the complete list of scopes in the `One or More API Scopes` box, click `Authorize`.
 Wait a moment and then perform the following command; it it still fails, wait a bit longer, it can sometimes take serveral minutes
 for the authorization to complete.
 ```
