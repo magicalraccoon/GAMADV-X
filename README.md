@@ -6,7 +6,7 @@ GAMADV-X is a rewrite/extension of Jay Lee's [GAM](https://github.com/jay0lee/GA
 
 Documentation
 -------------
-General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is in Gam*.txt files.
+General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is hosted in the [GitHub GAMADV-X Wiki] and in Gam*.txt files.
 
 Downloads
 ---------
@@ -706,5 +706,6 @@ GAMADV-X is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</
 
 [GitHub Releases]: https://github.com/taers232c/GAMADV-X/releases
 [GitHub]: https://github.com/taers232c/GAMADV-X/tree/master
-[GitHub Wiki]: https://github.com/taers232c/GAMADV-X/wiki/
+[GitHub Wiki]: https://github.com/jay0lee/GAM/wiki/
+[GitHub GAMADV-X Wiki]: https://github.com/taers232c/GAMADV-X/wiki/
 [Google Groups]: http://groups.google.com/group/google-apps-manager
