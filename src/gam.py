@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.01'
+__version__ = u'4.44.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -18836,9 +18836,10 @@ DOCUMENT_FORMATS_MAP = {
   u'ods': [{u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'}],
   u'openoffice': [{u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'},
                   {u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'}],
+  u'mht': [{u'mime': u'message/rfc822', u'ext': u'mht'}],
   }
 
-# gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>]
+# gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>] [nocache]
 def getDriveFile(users):
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
@@ -18846,6 +18847,7 @@ def getDriveFile(users):
   exportFormatName = u'openoffice'
   exportFormats = DOCUMENT_FORMATS_MAP[exportFormatName]
   targetFolder = GC.Values[GC.DRIVE_DIR]
+  nocache = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'format':
@@ -18863,6 +18865,8 @@ def getDriveFile(users):
         os.makedirs(targetFolder)
     elif myarg == u'revision':
       revisionId = getInteger(minVal=1)
+    elif myarg == u'nocache':
+      nocache = True
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -18915,6 +18919,8 @@ def getDriveFile(users):
           filename = os.path.join(targetFolder, u'({0})-{1}'.format(y, safe_file_title))
         if revisionId:
           download_url = u'{0}&revision={1}'.format(download_url, revisionId)
+        if nocache:
+          drive._http.cache = None
         _, content = drive._http.request(download_url)
         status, e = writeFileReturnError(filename, content)
         if status:
@@ -22966,7 +22972,7 @@ def printSendAs(users):
 def showSendAs(users):
   _printShowSendAs(users, False)
 
-# gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+# gam <UserTypeEntity> add smime (file <FileName> [charset <CharSet>]) [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
 def addSmime(users):
   sendAsEmailBase = None
   smimefile = None
@@ -22975,6 +22981,7 @@ def addSmime(users):
     myarg = getArgument()
     if myarg == u'file':
       smimefile = getString(Cmd.OB_FILE_NAME)
+      encoding = getCharSet()
     elif myarg == u'password':
       body[u'encryptedKeyPassword'] = getString(Cmd.OB_PASSWORD)
     elif myarg == u'default':
@@ -22985,7 +22992,7 @@ def addSmime(users):
       unknownArgumentExit()
   if not smimefile:
     missingArgumentExit(u'file')
-  smime_data = readFile(smimefile)
+  smime_data = readFile(smimefile, encoding=encoding)
   body[u'pkcs12'] = base64.urlsafe_b64encode(smime_data)
   i, count, users = getEntityArgument(users)
   for user in users:

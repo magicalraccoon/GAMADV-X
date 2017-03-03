@@ -1525,7 +1525,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] <DriveFileAddAttributes>*
 gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] <DriveFileUpdateAttributes>*
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] <DriveFileCopyAttributes>*
-gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>]
+gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>] [nocache]
 gam <UserTypeEntity> delete drivefile <DriveFileEntity> [purge|untrash|trash]
 gam <UserTypeEntity> purge drivefile <DriveFileEntity>
 gam <UserTypeEntity> trash drivefile <DriveFileEntity>
@@ -1724,7 +1724,7 @@ gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddressEntity> [format]
 gam <UserTypeEntity> print sendas [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+gam <UserTypeEntity> add smime (file <FileName> [charset <CharSet>]) [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
 gam <UserTypeEntity> update smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>] [default]
 gam <UserTypeEntity> delete smime [id <S/MIMEID>] [sendas|sendasemail <EmailAddress>]
 gam <UserTypeEntity> show smimes [primaryonly]

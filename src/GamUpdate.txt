@@ -1,3 +1,9 @@
+4.44.02
+
+Added nocache argument to gam get drivefile to prevent the Google API from caching a file download. Due to a flaw in a Python library,
+caching the download of certain files throws an exception preventing the file from being downloaded.
+    gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>] [nocache]
+
 4.44.01
 
 Clean up error messages when Google API requires that Gam wait before retrying.
