@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.03'
+__version__ = u'4.44.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20741,13 +20741,16 @@ def _printShowGplusProfile(users, csvFormat):
     if csvFormat:
       printGettingEntityItemForWhom(Ent.GPLUS_PROFILE, user, i, count)
     try:
-      results = callGAPI(gplus.people(), u'get',
-                         throw_reasons=GAPI.GPLUS_THROW_REASONS,
-                         userId=u'me')
-      if not csvFormat:
-        _showGplusProfile(user, i, count, results)
+      result = callGAPI(gplus.people(), u'get',
+                        soft_errors=True, throw_reasons=GAPI.GPLUS_THROW_REASONS, retry_reasons=[GAPI.UNKNOWN_ERROR],
+                        userId=u'me')
+      if result:
+        if not csvFormat:
+          _showGplusProfile(user, i, count, result)
+        else:
+          addRowTitlesToCSVfile(flattenJSON(result, flattened={u'emailAddress': user}), csvRows, titles)
       else:
-        addRowTitlesToCSVfile(flattenJSON(results, flattened={u'emailAddress': user}), csvRows, titles)
+        entityServiceNotApplicableWarning(Ent.USER, user, i, count)
     except GAPI.serviceNotAvailable:
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
