@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.05'
+__version__ = u'4.44.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1061,10 +1061,13 @@ def getStringReturnInList(item):
 YYYYMMDD_FORMAT = u'%Y-%m-%d'
 YYYYMMDD_FORMAT_REQUIRED = u'yyyy-mm-dd'
 
-def getYYYYMMDD(minLen=1, returnTimeStamp=False):
+def getYYYYMMDD(minLen=1, returnTimeStamp=False, alternateValue=None):
   if Cmd.ArgumentsRemaining():
     argstr = Cmd.Current().strip()
     if argstr:
+      if alternateValue is not None and argstr.lower() == alternateValue.lower():
+        Cmd.Advance()
+        return None
       try:
         timeStamp = time.mktime(datetime.datetime.strptime(argstr, YYYYMMDD_FORMAT).timetuple())*1000
         Cmd.Advance()
@@ -23322,6 +23325,9 @@ def setUnicode(users):
     if result:
       printEntity([Ent.USER, user, Ent.UNICODE_ENCODING_ENABLED, result[u'unicode']], i, count)
 
+VACATION_START_STARTED = u'Started'
+VACATION_END_NOT_SPECIFIED = u'NotSpecified'
+
 def _showVacation(user, i, count, result, formatReply):
   enabled = result[u'enableAutoReply']
   printEntity([Ent.USER, user, Ent.VACATION, None], i, count)
@@ -23333,11 +23339,11 @@ def _showVacation(user, i, count, result, formatReply):
     if u'startTime' in result:
       printKeyValueList([u'Start Date', formatLocalDatestamp(result[u'startTime'])])
     else:
-      printKeyValueList([u'Start Date', u'Started'])
+      printKeyValueList([u'Start Date', VACATION_START_STARTED])
     if u'endTime' in result:
       printKeyValueList([u'End Date', formatLocalDatestamp(result[u'endTime'])])
     else:
-      printKeyValueList([u'End Date', u'Not specified'])
+      printKeyValueList([u'End Date', VACATION_END_NOT_SPECIFIED])
     printKeyValueList([u'Subject', result.get(u'responseSubject', u'None')])
     if formatReply:
       printKeyValueList([u'Message', None])
@@ -23359,18 +23365,18 @@ def _showVacation(user, i, count, result, formatReply):
   Ind.Decrement()
 
 def _printVacation(user, result):
-  row = {u'User': user, u'enableAutoReply': result[u'enableAutoReply']}
+  row = {u'User': user, u'enabled': result[u'enableAutoReply']}
   if result[u'enableAutoReply']:
-    row[u'restrictToContacts'] = result[u'restrictToContacts']
-    row[u'restrictToDomain'] = result[u'restrictToDomain']
+    row[u'contactsonly'] = result[u'restrictToContacts']
+    row[u'domainonly'] = result[u'restrictToDomain']
     if u'startTime' in result:
-      row[u'startTime'] = formatLocalDatestamp(result[u'startTime'])
+      row[u'startdate'] = formatLocalDatestamp(result[u'startTime'])
     else:
-      row[u'startTime'] = u'Started'
+      row[u'startdate'] = VACATION_START_STARTED
     if u'endTime' in result:
-      row[u'endTime'] = formatLocalDatestamp(result[u'endTime'])
+      row[u'enddate'] = formatLocalDatestamp(result[u'endTime'])
     else:
-      row[u'endTime'] = u'Not specified'
+      row[u'enddate'] = VACATION_END_NOT_SPECIFIED
     row[u'subject'] = result.get(u'responseSubject', u'None')
     if result.get(u'responseBodyPlainText'):
       row[u'html'] = False
@@ -23384,8 +23390,8 @@ def _printVacation(user, result):
   return row
 
 # gam <UserTypeEntity> vacation <FalseValues>
-# gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [html]
-#	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+# gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [html [<Boolean>]]
+#	[contactsonly [<Boolean>]] [domainonly [<Boolean>]] [startdate <Date>|Started] [enddate <Date>|NotSpecified]
 def setVacation(users):
   enable = getBoolean()
   body = {u'enableAutoReply': enable}
@@ -23396,9 +23402,9 @@ def setVacation(users):
     while Cmd.ArgumentsRemaining():
       myarg = getArgument()
       if myarg == u'subject':
-        body[u'responseSubject'] = getString(Cmd.OB_STRING, checkBlank=True)
+        body[u'responseSubject'] = getString(Cmd.OB_STRING, minLen=0)
       elif myarg == u'message':
-        message = getString(Cmd.OB_STRING, checkBlank=True)
+        message = getString(Cmd.OB_STRING, minLen=0)
       elif myarg == u'file':
         filename = getString(Cmd.OB_FILE_NAME)
         encoding = getCharSet()
@@ -23408,15 +23414,20 @@ def setVacation(users):
         matchReplacement = getString(Cmd.OB_STRING, minLen=0)
         tagReplacements[matchTag] = matchReplacement
       elif myarg == u'html':
-        responseBodyType = u'responseBodyHtml'
+        if getBoolean(defaultValue=True):
+          responseBodyType = u'responseBodyHtml'
       elif myarg == u'contactsonly':
-        body[u'restrictToContacts'] = True
+        body[u'restrictToContacts'] = getBoolean(defaultValue=True)
       elif myarg == u'domainonly':
-        body[u'restrictToDomain'] = True
+        body[u'restrictToDomain'] = getBoolean(defaultValue=True)
       elif myarg == u'startdate':
-        body[u'startTime'] = getYYYYMMDD(returnTimeStamp=True)
+        body[u'startTime'] = getYYYYMMDD(returnTimeStamp=True, alternateValue=VACATION_START_STARTED)
+        if body[u'startTime'] is None:
+          del body[u'startTime']
       elif myarg == u'enddate':
-        body[u'endTime'] = getYYYYMMDD(returnTimeStamp=True)
+        body[u'endTime'] = getYYYYMMDD(returnTimeStamp=True, alternateValue=VACATION_END_NOT_SPECIFIED)
+        if body[u'endTime'] is None:
+          del body[u'endTime']
       else:
         unknownArgumentExit()
     if message:
@@ -23448,8 +23459,8 @@ def setVacation(users):
 def _printShowVacation(users, csvFormat):
   if csvFormat:
     todrive = {}
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'enableAutoReply', u'restrictToContacts', u'restrictToDomain',
-                                               u'startTime', u'endTime', u'subject', u'html', u'message'])
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'enabled', u'contactsonly', u'domainonly',
+                                               u'startdate', u'enddate', u'subject', u'html', u'message'])
   formatReply = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()

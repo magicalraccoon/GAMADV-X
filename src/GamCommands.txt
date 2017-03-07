@@ -1735,8 +1735,8 @@ gam <UserTypeEntity> show signature|sig [format] [primary]
 gam <UserTypeEntity> print signature [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> vacation <FalseValues>
-gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html]
-	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
+gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html [<Boolean>]]
+	[contactsonly [<Boolean>]] [domainonly [<Boolean>]] [startdate <Date>|Started] [enddate <Date>|NotSpecified]
 gam <UserTypeEntity> show vacation [format]
 gam <UserTypeEntity> print vacation [todrive [<ToDriveAttributes>]]	
 
