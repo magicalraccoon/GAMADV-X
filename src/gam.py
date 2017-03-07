@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.04'
+__version__ = u'4.44.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2522,6 +2522,8 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       return (e.resp[u'status'], GAPI.QUOTA_EXCEEDED, e.content)
     if (e.resp[u'status'] == u'502') and (u'Bad Gateway' in e.content):
       return (e.resp[u'status'], GAPI.BAD_GATEWAY, e.content)
+    if (e.resp[u'status'] == u'111') and (u'Connection refused' in e.content):
+      return (e.resp[u'status'], GAPI.CONNECTION_REFUSED, e.content)
     if (e.resp[u'status'] == u'403') and (u'Invalid domain.' in e.content):
       error = {u'error': {u'code': 403, u'errors': [{u'reason': GAPI.NOT_FOUND, u'message': u'Domain not found'}]}}
     elif (e.resp[u'status'] == u'403') and (u'Domain cannot use apis.' in e.content):
@@ -7455,7 +7457,7 @@ def doSubmitExportRequest():
       unknownArgumentExit()
   try:
     request = callGData(auditObject, u'createMailboxExportRequest',
-                        throw_errors=[GDATA.INVALID_DOMAIN, GDATA.DOES_NOT_EXIST],
+                        throw_errors=[GDATA.INVALID_DOMAIN, GDATA.DOES_NOT_EXIST, GDATA.INVALID_VALUE],
                         user=parameters[u'auditUserName'], begin_date=begin_date, end_date=end_date, include_deleted=include_deleted,
                         search_query=search_query, headers_only=headers_only)
     entityActionPerformed([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_EXPORT_REQUEST, None])
@@ -7464,6 +7466,8 @@ def doSubmitExportRequest():
     Ind.Decrement()
   except (GDATA.invalidDomain, GDATA.doesNotExist):
     entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
+  except GDATA.invalidValue as e:
+    entityActionFailedWarning([Ent.USER, parameters[u'auditUser']], e.message)
 
 # gam audit export delete <EmailAddress> <RequestID>
 def doDeleteExportRequest():
@@ -20742,7 +20746,7 @@ def _printShowGplusProfile(users, csvFormat):
       printGettingEntityItemForWhom(Ent.GPLUS_PROFILE, user, i, count)
     try:
       result = callGAPI(gplus.people(), u'get',
-                        soft_errors=True, throw_reasons=GAPI.GPLUS_THROW_REASONS, retry_reasons=[GAPI.UNKNOWN_ERROR],
+                        soft_errors=True, throw_reasons=GAPI.GPLUS_THROW_REASONS, retry_reasons=[GAPI.UNKNOWN_ERROR, GAPI.CONNECTION_REFUSED],
                         userId=u'me')
       if result:
         if not csvFormat:
@@ -23354,6 +23358,31 @@ def _showVacation(user, i, count, result, formatReply):
         printKeyValueList([u'Message', u'None'])
   Ind.Decrement()
 
+def _printVacation(user, result):
+  row = {u'User': user, u'enableAutoReply': result[u'enableAutoReply']}
+  if result[u'enableAutoReply']:
+    row[u'restrictToContacts'] = result[u'restrictToContacts']
+    row[u'restrictToDomain'] = result[u'restrictToDomain']
+    if u'startTime' in result:
+      row[u'startTime'] = formatLocalDatestamp(result[u'startTime'])
+    else:
+      row[u'startTime'] = u'Started'
+    if u'endTime' in result:
+      row[u'endTime'] = formatLocalDatestamp(result[u'endTime'])
+    else:
+      row[u'endTime'] = u'Not specified'
+    row[u'subject'] = result.get(u'responseSubject', u'None')
+    if result.get(u'responseBodyPlainText'):
+      row[u'html'] = False
+      row[u'message'] = convertCRsNLs(result[u'responseBodyPlainText'])
+    elif result.get(u'responseBodyHtml'):
+      row[u'html'] = True
+      row[u'message'] = result[u'responseBodyHtml']
+    else:
+      row[u'html'] = False
+      row[u'message'] = u'None'
+  return row
+
 # gam <UserTypeEntity> vacation <FalseValues>
 # gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)* [html]
 #	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
@@ -23416,12 +23445,17 @@ def setVacation(users):
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
-# gam <UserTypeEntity> show vacation [format]
-def showVacation(users):
+def _printShowVacation(users, csvFormat):
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile([u'User', u'enableAutoReply', u'restrictToContacts', u'restrictToDomain',
+                                               u'startTime', u'endTime', u'subject', u'html', u'message'])
   formatReply = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'format':
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif not csvFormat and myarg == u'format':
       formatReply = True
     else:
       unknownArgumentExit()
@@ -23435,9 +23469,22 @@ def showVacation(users):
       result = callGAPI(gmail.users().settings(), u'getVacation',
                         throw_reasons=GAPI.GMAIL_THROW_REASONS,
                         userId=u'me')
-      _showVacation(user, i, count, result, formatReply)
+      if not csvFormat:
+        _showVacation(user, i, count, result, formatReply)
+      else:
+        csvRows.append(_printVacation(user, result))
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+  if csvFormat:
+    writeCSVfile(csvRows, titles, u'Vacation', todrive)
+
+# gam <UserTypeEntity> print vacation [todrive [<ToDriveAttributes>]]
+def printVacation(users):
+  _printShowVacation(users, True)
+
+# gam <UserTypeEntity> show vacation [format]
+def showVacation(users):
+  _printShowVacation(users, False)
 
 # gam <UserTypeEntity> webclips <Boolean>
 def setWebClips(users):
@@ -23696,9 +23743,9 @@ MAIN_COMMANDS_WITH_OBJECTS = {
         u'groupsmembers':	Cmd.ARG_GROUP_MEMBERS,
         u'groups-members':	Cmd.ARG_GROUP_MEMBERS,
         Cmd.ARG_GUARDIAN:	Cmd.ARG_GUARDIANS,
-        u'license':		Cmd.ARG_LICENSES,
-        u'licence':		Cmd.ARG_LICENSES,
-        u'licences':		Cmd.ARG_LICENSES,
+        Cmd.ARG_LICENSE:	Cmd.ARG_LICENSES,
+        Cmd.ARG_LICENCE:	Cmd.ARG_LICENSES,
+        Cmd.ARG_LICENCES:	Cmd.ARG_LICENSES,
         u'nicknames':		Cmd.ARG_ALIASES,
         u'ous':			Cmd.ARG_ORGS,
         Cmd.ARG_PRINTER:	Cmd.ARG_PRINTERS,
@@ -24195,7 +24242,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
         Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
         Cmd.ARG_LABELS:		Cmd.ARG_LABEL,
-        u'licence':		Cmd.ARG_LICENSE,
+        Cmd.ARG_LICENCE:	Cmd.ARG_LICENSE,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
        },
     },
@@ -24282,10 +24329,10 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_ALIAS:		Cmd.ARG_ALIASES,
-        u'applicationspecificpasswords':	Cmd.ARG_ASP,
+        Cmd.ARG_APPLICATIONSPECIFICPASSWORDS:	Cmd.ARG_ASP,
         Cmd.ARG_ASPS:		Cmd.ARG_ASP,
-        u'backupcode':		Cmd.ARG_BACKUPCODES,
-        u'verificationcodes':	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_BACKUPCODE:	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_VERIFICATIONCODES:	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
@@ -24295,14 +24342,14 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
         Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_GROUP:		Cmd.ARG_GROUPS,
-        u'licence':		Cmd.ARG_LICENSE,
+        Cmd.ARG_LICENCE:	Cmd.ARG_LICENSE,
         Cmd.ARG_LABELS:		Cmd.ARG_LABEL,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
         Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
         Cmd.ARG_TOKENS:		Cmd.ARG_TOKEN,
-        u'3lo':			Cmd.ARG_TOKEN,
-        u'oauth':		Cmd.ARG_TOKEN,
+        Cmd.ARG_3LO:		Cmd.ARG_TOKEN,
+        Cmd.ARG_OAUTH:		Cmd.ARG_TOKEN,
         Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
@@ -24411,6 +24458,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_THREADS:	printThreads,
         Cmd.ARG_TOKENS:		printTokens,
         Cmd.ARG_USERS:		doPrintUserEntity,
+        Cmd.ARG_VACATION:	printVacation,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
@@ -24423,12 +24471,14 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
+        Cmd.ARG_SIG:		Cmd.ARG_SENDAS,
+        Cmd.ARG_SIGNATURE:	Cmd.ARG_SENDAS,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SMIME:		Cmd.ARG_SMIMES,
         Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
         Cmd.ARG_TOKEN:		Cmd.ARG_TOKENS,
-        u'3lo':			Cmd.ARG_TOKENS,
-        u'oauth':		Cmd.ARG_TOKENS,
+        Cmd.ARG_3LO:		Cmd.ARG_TOKENS,
+        Cmd.ARG_OAUTH:		Cmd.ARG_TOKENS,
         Cmd.ARG_USER:		Cmd.ARG_USERS,
        },
     },
@@ -24481,10 +24531,10 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_VACATION:	showVacation,
        },
      CMD_OBJ_ALIASES:
-       {u'applicationspecificpasswords':	Cmd.ARG_ASPS,
+       {Cmd.ARG_APPLICATIONSPECIFICPASSWORDS:	Cmd.ARG_ASPS,
         Cmd.ARG_ASP:		Cmd.ARG_ASPS,
-        u'backupcode':		Cmd.ARG_BACKUPCODES,
-        u'verificationcodes':	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_BACKUPCODE:	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_VERIFICATIONCODES:	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
@@ -24494,18 +24544,18 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
         Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
-        u'imap4':		Cmd.ARG_IMAP,
-        u'pop3':		Cmd.ARG_POP,
+        Cmd.ARG_IMAP4:		Cmd.ARG_IMAP,
+        Cmd.ARG_POP3:		Cmd.ARG_POP,
         Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
-        u'sig':			Cmd.ARG_SIGNATURE,
+        Cmd.ARG_SIG:		Cmd.ARG_SIGNATURE,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
         Cmd.ARG_SMIME:		Cmd.ARG_SMIMES,
         Cmd.ARG_THREAD:		Cmd.ARG_THREADS,
         Cmd.ARG_TOKEN:		Cmd.ARG_TOKENS,
-        u'3lo':			Cmd.ARG_TOKENS,
-        u'oauth':		Cmd.ARG_TOKENS,
+        Cmd.ARG_3LO:		Cmd.ARG_TOKENS,
+        Cmd.ARG_OAUTH:		Cmd.ARG_TOKENS,
        },
     },
   u'spam':
@@ -24528,7 +24578,7 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
-        u'seccals':		Cmd.ARG_CALENDARS,
+        Cmd.ARG_SECCALS:	Cmd.ARG_CALENDARS,
        },
     },
   u'trash':
@@ -24587,8 +24637,8 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_USERS:		updateUsers,
        },
      CMD_OBJ_ALIASES:
-       {u'backupcode':		Cmd.ARG_BACKUPCODES,
-        u'verificationcodes':	Cmd.ARG_BACKUPCODES,
+       {Cmd.ARG_BACKUPCODE:	Cmd.ARG_BACKUPCODES,
+        Cmd.ARG_VERIFICATIONCODES:	Cmd.ARG_BACKUPCODES,
         Cmd.ARG_CALENDAR:	Cmd.ARG_CALENDARS,
         Cmd.ARG_CALENDARACL:	Cmd.ARG_CALENDARACLS,
         Cmd.ARG_CONTACT:	Cmd.ARG_CONTACTS,
@@ -24596,7 +24646,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
         Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
-        u'licence':		Cmd.ARG_LICENSE,
+        Cmd.ARG_LICENCE:	Cmd.ARG_LICENSE,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
         Cmd.ARG_USER:		Cmd.ARG_USERS,
