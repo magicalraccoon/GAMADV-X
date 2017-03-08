@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.07'
+__version__ = u'4.44.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2118,7 +2118,7 @@ def SetGlobalVariables():
         elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_TIMEZONE:
           value = getString(Cmd.OB_STRING, checkBlank=True)
         else:
-          minLen, maxLen = GC.VAR_INFO[itemName].get(GC.VAR_LIMITS, (None, None))
+          minLen, maxLen = GC.VAR_INFO[itemName].get(GC.VAR_LIMITS, (0, None))
           value = _quoteStringIfLeadingTrailingBlanks(getString(Cmd.OB_STRING, minLen=minLen, maxLen=maxLen))
         GM.Globals[GM.PARSER].set(sectionName, itemName, value)
   prevExtraArgsTxt = GC.Values.get(GC.EXTRA_ARGS, None)
