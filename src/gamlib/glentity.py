@@ -157,6 +157,7 @@ class GamEntity(object):
   SUBSCRIPTION = u'subs'
   TARGET_USER = u'tgtu'
   TEACHER = u'teac'
+  TEAMDRIVE = u'team'
   THREAD = u'thre'
   TOKEN = u'tokn'
   TRANSFER_ID = u'trid'
@@ -300,6 +301,7 @@ class GamEntity(object):
     STUDENT: [u'Students', u'Student'],
     TARGET_USER: [u'Target Users', u'Target User'],
     TEACHER: [u'Teachers', u'Teacher'],
+    TEAMDRIVE: [u'TeamDrives', u'TeamDrive'],
     THREAD: [u'Threads', u'Thread'],
     TOKEN: [u'Tokens', u'Token'],
     TRANSFER_ID: [u'Transfer IDs', u'Transfer ID'],

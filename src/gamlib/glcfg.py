@@ -121,6 +121,8 @@ TODRIVE_USER = u'todrive_user'
 TODRIVE_PARENT = u'todrive_parent'
 # Append timestamp to todrive file name
 TODRIVE_TIMESTAMP = u'todrive_timestamp'
+# Save local copy of CSV file
+TODRIVE_LOCALCOPY = u'todrive_localcopy'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 USER_MAX_RESULTS = u'user_max_results'
 
@@ -167,6 +169,7 @@ Defaults = {
   TODRIVE_USER: u'',
   TODRIVE_PARENT: u'root',
   TODRIVE_TIMESTAMP: FALSE,
+  TODRIVE_LOCALCOPY: FALSE,
   USER_MAX_RESULTS: 500,
   }
 
@@ -232,5 +235,6 @@ VAR_INFO = {
   TODRIVE_USER: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'GAM_TODRIVE_USER', VAR_LIMITS: (0, None)},
   TODRIVE_PARENT: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'GAM_TODRIVE_PARENT', VAR_LIMITS: (0, None)},
   TODRIVE_TIMESTAMP: {VAR_TYPE: TYPE_BOOLEAN, VAR_ENVVAR: u'GAM_TODRIVE_TIMESTAMP'},
+  TODRIVE_LOCALCOPY: {VAR_TYPE: TYPE_BOOLEAN, VAR_ENVVAR: u'GAM_TODRIVE_LOCALCOPY'},
   USER_MAX_RESULTS: {VAR_TYPE: TYPE_INTEGER, VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', VAR_LIMITS: (1, 500)},
   }

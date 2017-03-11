@@ -105,6 +105,9 @@ DRIVE_PATCH_PERMISSIONS = u'patch'
 #
 DRIVE_REVISIONS_LIST = u'items'
 #
+DRIVE_CREATE_TEAMDRIVE = u'insert'
+DRIVE_TEAMDRIVES_LIST = u'items'
+#
 DRIVE_PARENTS_ID = u'parents(id)'
 
 def getVersion(api):

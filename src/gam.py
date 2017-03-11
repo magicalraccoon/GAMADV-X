@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.10'
+__version__ = u'4.44.11'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1612,7 +1612,7 @@ def cleanFilename(filename):
   return filename
 
 # Open a file
-def openFile(filename, mode=u'rU'):
+def openFile(filename, mode=u'rU', continueOnError=False, displayError=True):
   try:
     if filename != u'-':
       return open(os.path.expanduser(filename), mode)
@@ -1620,6 +1620,11 @@ def openFile(filename, mode=u'rU'):
       return StringIO.StringIO(unicode(sys.stdin.read()))
     return sys.stdout
   except IOError as e:
+    if continueOnError:
+      if displayError:
+        stderrWarningMsg(e)
+        setSysExitRC(FILE_ERROR_RC)
+      return None
     systemErrorExit(FILE_ERROR_RC, e)
 
 # Close a file
@@ -3744,7 +3749,9 @@ def getTodriveParameters():
 
   localUser = localParent = False
   tduserLocation = tdparentLocation = Cmd.Location()
-  todrive = {u'title': None, u'user': GC.Values[GC.TODRIVE_USER], u'parent': GC.Values[GC.TODRIVE_PARENT], u'timestamp': GC.Values[GC.TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0}
+  todrive = {u'title': None, u'user': GC.Values[GC.TODRIVE_USER], u'parent': GC.Values[GC.TODRIVE_PARENT],
+             u'timestamp': GC.Values[GC.TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0,
+             u'localcopy': GC.Values[GC.TODRIVE_LOCALCOPY]}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'tdtitle':
@@ -3758,11 +3765,13 @@ def getTodriveParameters():
       tdparentLocation = Cmd.Location()
       localParent = True
     elif myarg == u'tdtimestamp':
-      todrive[u'timestamp'] = getBoolean()
+      todrive[u'timestamp'] = getBoolean(defaultValue=GC.Values[GC.TODRIVE_TIMESTAMP])
     elif myarg == u'tddaysoffset':
       todrive[u'daysoffset'] = getInteger(minVal=0)
     elif myarg == u'tdhoursoffset':
       todrive[u'hoursoffset'] = getInteger(minVal=0)
+    elif myarg == u'tdlocalcopy':
+      todrive[u'localcopy'] = getBoolean(defaultValue=GC.Values[GC.TODRIVE_LOCALCOPY])
     else:
       Cmd.Backup()
       break
@@ -3899,85 +3908,105 @@ def sortCSVTitles(firstTitle, titles):
     titles[u'list'].insert(0, title)
 
 def writeCSVfile(csvRows, titles, list_type, todrive):
+
+  def writeCSVData(writer):
+    try:
+      if GM.Globals[GM.CSVFILE][GM.REDIRECT_WRITE_HEADER]:
+        writer.writerow(dict((item, item) for item in writer.fieldnames))
+      writer.writerows(csvRows)
+      return True
+    except IOError as e:
+      stderrErrorMsg(e)
+      return False
+
+  def writeCSVToStdout():
+    csv.register_dialect(u'nixstdout', lineterminator=[u'\n', u'\r\n'][GM.Globals[GM.WINDOWS]])
+    csvFile = StringIO.StringIO()
+    writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
+                               dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
+                               quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+    if writeCSVData(writer):
+      try:
+        GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD].write(csvFile.getvalue())
+      except IOError as e:
+        stderrErrorMsg(e)
+        setSysExitRC(FILE_ERROR_RC)
+    closeFile(csvFile)
+
+  def writeCSVToFile():
+    csv.register_dialect(u'nixstdout', lineterminator=[u'\n', u'\r\n'][GM.Globals[GM.WINDOWS]])
+    csvFile = openFile(GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME], GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE], continueOnError=True)
+    if csvFile:
+      writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
+                                 dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
+                                 quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+      writeCSVData(writer)
+      closeFile(csvFile)
+
+  def writeCSVToDrive():
+    csv.register_dialect(u'nixstdout', lineterminator=u'\n')
+    csvFile = StringIO.StringIO()
+    writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
+                            dialect=u'nixstdout',
+                            quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+    if writeCSVData(writer):
+      if GC.Values[GC.TODRIVE_CONVERSION]:
+        columns = len(titles[u'list'])
+        rows = len(csvRows)
+        cell_count = rows * columns
+        if cell_count > 500000 or columns > 256:
+          printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
+          convert = False
+        else:
+          convert = True
+      else:
+        convert = False
+      title = todrive[u'title'] or u'{0} - {1}'.format(GC.Values[GC.DOMAIN], list_type)
+      if todrive[u'timestamp']:
+        timestamp = datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
+        title += u' - '+timestamp.isoformat()
+      if todrive['user']:
+        _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
+      else:
+        drive = buildGAPIObject(API.DRIVE)
+      try:
+        result = callGAPI(drive.files(), API.DRIVE_CREATE_FILE,
+                          throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
+                          convert=convert, body={u'parents': [{u'id': todrive[u'parentId']}], u'description': u' '.join(Cmd.AllArguments()), API.DRIVE_FILE_NAME: title, u'mimeType': u'text/csv'},
+                          media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=API.DRIVE_FILE_VIEW_LINK)
+        file_url = result[API.DRIVE_FILE_VIEW_LINK]
+        if GC.Values[GC.NO_BROWSER]:
+          msg_txt = u'{0}:\n{1}'.format(Msg.DATA_UPLOADED_TO_DRIVE_FILE, file_url)
+          send_email(title, msg_txt)
+          printKeyValueList([msg_txt])
+        else:
+          import webbrowser
+          webbrowser.open(file_url)
+      except GAPI.insufficientPermissions:
+        printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, Msg.INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
+      except (GAPI.fileNotFound, GAPI.unknownError) as e:
+        entityActionFailedWarning([Ent.DRIVE_FOLDER, todrive[u'parentId']], str(e), 0, 0)
+    closeFile(csvFile)
+
   if GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE] is not None:
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_NAME, list_type))
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_TODRIVE, todrive))
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_TITLES, titles[u'list']))
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_DATA, csvRows))
     return
-  csv.register_dialect(u'nixstdout', lineterminator=u'\n' if todrive or not GM.Globals[GM.WINDOWS] else u'\r\n')
-  redirectCSVtoMultiprocessStdout = False
-  if not todrive and GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] == u'-':
-    if GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD]:
-      redirectCSVtoMultiprocessStdout = True
-    else:
-      GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] = GM.Globals[GM.STDOUT][GM.REDIRECT_NAME]
-  if todrive or redirectCSVtoMultiprocessStdout:
-    csvFile = StringIO.StringIO()
-  else:
-    csvFile = openFile(GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME], GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE])
-  if todrive:
-    writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout',
-                            quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
-  else:
-    writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                               dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
-                               quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
-  try:
-    if GM.Globals[GM.CSVFILE][GM.REDIRECT_WRITE_HEADER]:
-      writer.writerow(dict((item, item) for item in writer.fieldnames))
-      if GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE] == u'ab':
-        GM.Globals[GM.CSVFILE][GM.REDIRECT_WRITE_HEADER] = False
-    writer.writerows(csvRows)
-  except IOError as e:
-    systemErrorExit(FILE_ERROR_RC, e)
-  if redirectCSVtoMultiprocessStdout:
-    try:
-      GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD].write(csvFile.getvalue())
-    except IOError as e:
-      systemErrorExit(FILE_ERROR_RC, e)
-    csvFile.close()
-    return
-  if todrive:
-    if GC.Values[GC.TODRIVE_CONVERSION]:
-      columns = len(titles[u'list'])
-      rows = len(csvRows)
-      cell_count = rows * columns
-      if cell_count > 500000 or columns > 256:
-        printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
-        convert = False
+  if (not todrive) or todrive[u'localcopy']:
+    if GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] == u'-':
+      if GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD]:
+        writeCSVToStdout()
       else:
-        convert = True
+        GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] = GM.Globals[GM.STDOUT][GM.REDIRECT_NAME]
+        writeCSVToFile()
     else:
-      convert = False
-    title = todrive[u'title'] or u'{0} - {1}'.format(GC.Values[GC.DOMAIN], list_type)
-    if todrive[u'timestamp']:
-      timestamp = datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
-      title += u' - '+timestamp.isoformat()
-    if todrive['user']:
-      _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
-    else:
-      drive = buildGAPIObject(API.DRIVE)
-    try:
-      result = callGAPI(drive.files(), API.DRIVE_CREATE_FILE,
-                        throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
-                        convert=convert, body={u'parents': [{u'id': todrive[u'parentId']}], u'description': u' '.join(Cmd.AllArguments()), API.DRIVE_FILE_NAME: title, u'mimeType': u'text/csv'},
-                        media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=API.DRIVE_FILE_VIEW_LINK)
-      file_url = result[API.DRIVE_FILE_VIEW_LINK]
-      if GC.Values[GC.NO_BROWSER]:
-        msg_txt = u'{0}:\n{1}'.format(Msg.DATA_UPLOADED_TO_DRIVE_FILE, file_url)
-        send_email(title, msg_txt)
-        printKeyValueList([msg_txt])
-      else:
-        import webbrowser
-        webbrowser.open(file_url)
-    except GAPI.insufficientPermissions:
-      printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, Msg.INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
-    except (GAPI.fileNotFound, GAPI.unknownError) as e:
-      entityActionFailedWarning([Ent.DRIVE_FOLDER, todrive[u'parentId']], str(e), 0, 0)
-  if GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] != u'-':
-    closeFile(csvFile)
+      writeCSVToFile()
+  if todrive:
+    writeCSVToDrive()
+  if GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE] == u'ab':
+    GM.Globals[GM.CSVFILE][GM.REDIRECT_WRITE_HEADER] = False
 
 def convertCRsNLs(value):
   return value.replace(u'\r', u'\\r').replace(u'\n', u'\\n')

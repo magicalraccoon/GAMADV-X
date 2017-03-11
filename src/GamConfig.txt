@@ -214,6 +214,10 @@ todrive_conversion
 	Enable/disable conversion of CSV files to Google Sheets when todrive is specified
 	Default: True
 	Environment variable: GAM_TODRIVE_CONVERSION
+todrive_localcopy
+	Enable/disable saving a local copy of CSV files when todrive is specified
+	Default: False
+	Environment variable: GAM_TODRIVE_LOCALCOPY
 todrive_parent
 	Parent folder for CSV files when todrive is specified; can be id:<DriveFolderID> or <DriveFolderName>
 	Default: root
@@ -273,6 +277,7 @@ Section: DEFAULT
   show_multi_info = false
   timezone = utc
   todrive_conversion = true
+  todrive_localcopy = false
   todrive_parent = root
   todrive_timestamp = false
   todrive_user = ''
@@ -388,6 +393,7 @@ show_multi_info = false
 timezone = utc
 todrive_conversion = true
 todrive_parent = root
+todrive_localcopy = false
 todrive_timestamp = false
 todrive_user = ''
 user_max_results = 500

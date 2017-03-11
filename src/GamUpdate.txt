@@ -1,3 +1,41 @@
+4.44.11
+
+Previously, specifying todrive with a print command caused the CSV file to be uploaded to Google Drive,
+it could not be saved locally at the same time. Now, you can have the CSV file saved locally and uploaded to Google Drive
+in the same command. The tdlocalcopy subargument to todrive causes the CSV file to be saved and uploaded.
+Added todrive_localcopy to gam.cfg with a default value of false; this value is the default for tdlocalcopy.
+You can specify tdlocalcopy false/true on the command line to override the default value from gam.cfg.
+    <ToDriveAttributes> ::=
+	(tdtitle <String>)|
+	(tduser <EmailAddress>)|
+	(tdparent id:<DriveFolderID>|<DriveFolderName>)|
+	(tdtimestamp [<Boolean>] [tddaysoffset <Number>] [tdhoursoffset <Number])|
+	(tdlocalcopy [<Boolean>])
+Current options:
+  Output to stdout:
+    gam print users
+    gam redirect csv - print users
+  Save file locally:
+    gam print users > ./Users.csv
+    gam redirect csv - print users > ./Users.csv
+    gam redirect csv ./Users.csv print users
+  Upload file to Google Drive:
+    gam print users todrive
+    gam redirect csv - print users todrive
+Current options that don't perform as expected, data is not saved locally:
+  Save file locally and upload to Google Drive:
+    gam print users todrive > ./Users.csv
+    gam redirect csv - print users todrive > ./Users.csv
+    gam redirect csv ./Users.csv print users todrive
+New options:
+  Output to stdout and upload to Google Drive:
+    gam print users todrive tdlocalcopy true
+    gam redirect csv - print users todrive tdlocalcopy true
+  Save file locally and upload to Google Drive:
+    gam print users todrive tdlocalcopy true > ./Users.csv
+    gam redirect csv - print users todrive tdlocalcopy true > ./Users.csv
+    gam redirect csv ./Users.csv print users todrive tdlocalcopy true
+
 4.44.10
 
 Handle corrupt files in gamcache by turning caching off for the current command.
