@@ -18886,6 +18886,7 @@ def getDriveFile(users):
   body, parameters = initializeDriveFileAttributes()
   revisionId = None
   exportFormatName = u'openoffice'
+  exportFormatChoices = [exportFormatName]
   exportFormats = DOCUMENT_FORMATS_MAP[exportFormatName]
   targetFolder = GC.Values[GC.DRIVE_DIR]
   nocache = False
