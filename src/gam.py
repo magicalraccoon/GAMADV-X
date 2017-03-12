@@ -3765,13 +3765,13 @@ def getTodriveParameters():
       tdparentLocation = Cmd.Location()
       localParent = True
     elif myarg == u'tdtimestamp':
-      todrive[u'timestamp'] = getBoolean(defaultValue=GC.Values[GC.TODRIVE_TIMESTAMP])
+      todrive[u'timestamp'] = getBoolean(defaultValue=True)
     elif myarg == u'tddaysoffset':
       todrive[u'daysoffset'] = getInteger(minVal=0)
     elif myarg == u'tdhoursoffset':
       todrive[u'hoursoffset'] = getInteger(minVal=0)
     elif myarg == u'tdlocalcopy':
-      todrive[u'localcopy'] = getBoolean(defaultValue=GC.Values[GC.TODRIVE_LOCALCOPY])
+      todrive[u'localcopy'] = getBoolean(defaultValue=True)
     else:
       Cmd.Backup()
       break
