@@ -447,6 +447,7 @@ class GamCLArgs(object):
   OB_TAG = u'Tag'
   OB_TEAMDRIVE_ID = u'TeamDriveID'
   OB_TEAMDRIVE_ID_LIST = u'TeamDriveIDList'
+  OB_TEAMDRIVE_NAME = u'TeamDriveName'
   OB_THREAD_ID = u'ThreadID'
   OB_TRANSFER_ID = u'TransferID'
   OB_URI = u'URI'

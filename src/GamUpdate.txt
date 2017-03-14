@@ -1,3 +1,7 @@
+4.44.12
+
+Fixed bug where extra \r was output on each line when writing CSV files on Windows.
+
 4.44.11
 
 Previously, specifying todrive with a print command caused the CSV file to be uploaded to Google Drive,

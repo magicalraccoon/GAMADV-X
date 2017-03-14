@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.11'
+__version__ = u'4.44.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3920,7 +3920,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       return False
 
   def writeCSVToStdout():
-    csv.register_dialect(u'nixstdout', lineterminator=[u'\n', u'\r\n'][GM.Globals[GM.WINDOWS]])
     csvFile = StringIO.StringIO()
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
                                dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
@@ -3934,7 +3933,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     closeFile(csvFile)
 
   def writeCSVToFile():
-    csv.register_dialect(u'nixstdout', lineterminator=[u'\n', u'\r\n'][GM.Globals[GM.WINDOWS]])
     csvFile = openFile(GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME], GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE], continueOnError=True)
     if csvFile:
       writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
@@ -3944,7 +3942,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       closeFile(csvFile)
 
   def writeCSVToDrive():
-    csv.register_dialect(u'nixstdout', lineterminator=u'\n')
     csvFile = StringIO.StringIO()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
                             dialect=u'nixstdout',
@@ -3994,6 +3991,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_TITLES, titles[u'list']))
     GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE].put((GM.REDIRECT_QUEUE_DATA, csvRows))
     return
+  csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   if (not todrive) or todrive[u'localcopy']:
     if GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] == u'-':
       if GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD]:
