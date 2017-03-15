@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.12'
+__version__ = u'4.44.13'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3783,7 +3783,7 @@ def getTodriveParameters():
   if todrive[u'parent'] == u'root':
     todrive[u'parentId'] = u'root'
   else:
-    if todrive['user']:
+    if todrive[u'user']:
       _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
     else:
       drive = buildGAPIObject(API.DRIVE)
@@ -3791,11 +3791,11 @@ def getTodriveParameters():
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=[GAPI.FILE_NOT_FOUND],
-                          fileId=todrive[u'parent'][3:], fields=u'id,mimeType,editable')
+                          fileId=todrive[u'parent'][3:], fields=u'id,mimeType,capabilities(canEdit)')
         if result[u'mimeType'] != MIMETYPE_GA_FOLDER:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_ID, Msg.NOT_AN_ENTITY.format(Ent.Singular(Ent.DRIVE_FOLDER)),
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
-        if not result[u'editable']:
+        if not result[u'capabilities'][u'canEdit']:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_ID, Msg.NOT_WRITABLE,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         todrive[u'parentId'] = result[u'id']
@@ -3807,14 +3807,14 @@ def getTodriveParameters():
         results = callGAPIpages(drive.files(), u'list', API.DRIVE_FILES_LIST,
                                 throw_reasons=[GAPI.INVALID_QUERY],
                                 q=u"{0} = '{1}'".format(API.DRIVE_FILE_NAME, todrive[u'parent']),
-                                fields=u'nextPageToken,{0}(id,mimeType,editable)'.format(API.DRIVE_FILES_LIST), maxResults=1)
+                                fields=u'nextPageToken,{0}(id,mimeType,capabilities(canEdit))'.format(API.DRIVE_FILES_LIST), maxResults=1)
         if not results:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_FOUND,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         if results[0][u'mimeType'] != MIMETYPE_GA_FOLDER:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_AN_ENTITY.format(Ent.Singular(Ent.DRIVE_FOLDER)),
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
-        if not results[0][u'editable']:
+        if not results[0][u'capabilities'][u'canEdit']:
           invalidTodriveValueExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_WRITABLE,
                                   localParent, tdparentLocation, GC.TODRIVE_PARENT, todrive[u'parent'])
         todrive[u'parentId'] = results[0][u'id']
@@ -3962,7 +3962,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       if todrive[u'timestamp']:
         timestamp = datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
         title += u' - '+timestamp.isoformat()
-      if todrive['user']:
+      if todrive[u'user']:
         _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
       else:
         drive = buildGAPIObject(API.DRIVE)
@@ -5034,7 +5034,7 @@ def checkServiceAccount(users):
   if all_scopes_pass:
     printLine(Msg.SCOPE_AUTHORIZATION_PASSED.format(service_account))
   else:
-    printErrorMessage(SCOPES_NOT_AUTHORIZED, Msg.SCOPE_AUTHORIZATION_FAILED.format(user_domain, service_account, ',\n'.join(all_scopes)))
+    printErrorMessage(SCOPES_NOT_AUTHORIZED, Msg.SCOPE_AUTHORIZATION_FAILED.format(user_domain, service_account, u',\n'.join(all_scopes)))
 
 def getCRMService(login_hint):
   from oauth2client.contrib.dictionary_storage import DictionaryStorage
@@ -7095,7 +7095,7 @@ def doShowOrgTree():
   printGettingAccountEntitiesDoneInfo(len(orgs[u'organizationUnits']))
   orgUnits = {}
   for orgUnit in orgs[u'organizationUnits']:
-    orgPath = orgUnit['orgUnitPath'].split(u'/')
+    orgPath = orgUnit[u'orgUnitPath'].split(u'/')
     addOrgUnitToTree(orgPath, 1, len(orgPath)-1, orgUnits)
   for org in sorted(orgUnits):
     printOrgUnit(org, orgUnits)
@@ -11949,22 +11949,20 @@ def _doPrintShowCalendarACLs(user, cal, calIds, count, csvFormat, csvRows, title
       jcount = len(acls)
       if not csvFormat:
         entityPerformActionNumItems([Ent.CALENDAR, calId], jcount, Ent.CALENDAR_ACL, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
         for rule in acls:
           j += 1
           printEntity([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLRule(rule)], j, jcount)
         Ind.Decrement()
-      else:
+      elif acls:
         for rule in acls:
           flattened = {u'calendarId': calId}
           if user:
             flattened[u'primaryEmail'] = user
           addRowTitlesToCSVfile(flattenJSON(rule, flattened=flattened), csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
+        csvRows.append({u'calendarId': calId, u'primaryEmail': user})
     except GAPI.forbidden as e:
       entityActionFailedWarning([Ent.CALENDAR, calId], str(e), i, count)
     except GAPI.notFound:
@@ -12353,13 +12351,13 @@ def _validateCalendarGetEvents(user, cal, calId, j, jcount, calendarEventEntity,
     return (calId, cal, eventsList, kcount)
   except GAPI.notFound:
     entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
-    return (calId, cal, None, 0)
+    return (calId, cal, [], 0)
   except (GAPI.notACalendarUser, GAPI.forbidden) as e:
     entityActionFailedWarning([Ent.CALENDAR, calId], str(e), j, jcount)
-    return (calId, cal, None, 0)
+    return (calId, cal, [], 0)
   except (GAPI.serviceNotAvailable, GAPI.authError):
     entityServiceNotApplicableWarning(Ent.CALENDAR, calId, j, jcount)
-    return (calId, cal, None, 0)
+    return (calId, cal, [], 0)
 
 def _checkIfEventRecurrenceTimeZoneRequired(body, parameters):
   if (u'recurrence' in body) and ((u'start' in body) or (u'end' in body)):
@@ -12550,8 +12548,6 @@ def _printShowCalendarEvents(user, cal, calIds, count, calendarEventEntity, csvF
   for calId in calIds:
     i += 1
     calId, cal, events, jcount = _validateCalendarGetEvents(user, cal, calId, i, count, calendarEventEntity, not csvFormat)
-    if jcount == 0:
-      continue
     if not csvFormat:
       Ind.Increment()
       j = 0
@@ -12559,12 +12555,14 @@ def _printShowCalendarEvents(user, cal, calIds, count, calendarEventEntity, csvF
         j += 1
         _showCalendarEvent(event, j, jcount)
       Ind.Decrement()
-    else:
+    elif events:
       for event in events:
         flattened = {u'calendarId': calId}
         if user:
           flattened[u'primaryEmail'] = user
         addRowTitlesToCSVfile(flattenJSON(event, flattened=flattened), csvRows, titles)
+    elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
+      csvRows.append({u'calendarId': calId, u'primaryEmail': user})
 
 # gam calendars <UserEntity> add event <EventAddAttributes>+
 # gam calendar <UserItem> addevent <EventAddAttributes>+
@@ -14267,7 +14265,7 @@ def undeleteUsers(entityList):
         continue
       if jcount > 1:
         entityActionNotPerformedWarning([Ent.DELETED_USER, user],
-                                        Msg.PLEASE_SELECT_ENTITY_TO_PROCESS.format(jcount, Ent.Plural(Ent.DELETED_USER), u'undelete', 'uid:<String>'),
+                                        Msg.PLEASE_SELECT_ENTITY_TO_PROCESS.format(jcount, Ent.Plural(Ent.DELETED_USER), u'undelete', u'uid:<String>'),
                                         i, count)
         Ind.Increment()
         j = 0
@@ -17110,8 +17108,6 @@ def _printShowCalendars(users, csvFormat):
       jcount = len(calendars)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.CALENDAR, i, count)
-        if jcount == 0:
-          continue
         Ind.Increment()
         j = 0
         for calendar in calendars:
@@ -17120,13 +17116,15 @@ def _printShowCalendars(users, csvFormat):
             acls = _getPermissions(cal, calendar)
           _showCalendar(calendar, j, jcount, acls)
         Ind.Decrement()
-      else:
+      elif calendars:
         for calendar in calendars:
           row = {u'primaryEmail': user, u'calendarId': calendar[u'id']}
           if showPermissions:
             flattenJSON(_getPermissions(cal, calendar), key=u'permissions', flattened=row)
           calendar.pop(u'id', None)
           addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row), csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'primaryEmail': user})
     except GAPI.notACalendarUser as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError):
@@ -17593,7 +17591,7 @@ def printCalendarEvents(users):
 def showCalendarEvents(users):
   printShowCalendarEvents(users, False)
 
-def doDriveSearch(drive, user, i, count, query=None):
+def doDriveSearch(drive, user, i, count, query=None, parentQuery=False):
   if GC.Values[GC.SHOW_GETTINGS]:
     printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
   page_message = getPageMessageForWhom(noNL=True)
@@ -17602,7 +17600,9 @@ def doDriveSearch(drive, user, i, count, query=None):
                           page_message=page_message,
                           throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.FILE_NOT_FOUND],
                           q=query, fields=u'nextPageToken,{0}(id)'.format(API.DRIVE_FILES_LIST), maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-    return [f_file[u'id'] for f_file in files]
+    if files or not parentQuery:
+      return [f_file[u'id'] for f_file in files]
+    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
   except GAPI.invalidQuery:
     entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
   except GAPI.fileNotFound:
@@ -17691,7 +17691,7 @@ def _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, driv
   else:
     user = convertUserUIDtoEmailAddress(user)
   if parameters[DFA_PARENTQUERY]:
-    more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY])
+    more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY], parentQuery=True)
     if more_parents is None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
@@ -17973,13 +17973,14 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
 DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'alternatelink': API.DRIVE_FILE_VIEW_LINK,
   u'appdatacontents': u'appDataContents',
-  u'cancomment': u'canComment',
-  u'canreadrevisions': u'canReadRevisions',
-  u'copyable': u'copyable',
+  u'cancomment': u'capabilities(canComment)',
+  u'canreadrevisions': u'capabilities(canReadRevisions)',
+  u'capabilities': u'capabilities',
+  u'copyable': u'capabilities(canCopy)',
   u'createddate': API.DRIVE_FILE_CREATED_DATE_TIME,
   u'createdtime': API.DRIVE_FILE_CREATED_DATE_TIME,
   u'description': u'description',
-  u'editable': u'editable',
+  u'editable': u'capabilities(canEdit)',
   u'explicitlytrashed': u'explicitlyTrashed',
   u'fileextension': u'fileExtension',
   u'filesize': API.DRIVE_FILE_SIZE,
@@ -18014,7 +18015,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'permissions': u'permissions',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
-  u'shareable': u'shareable',
+  u'shareable': u'capabilities(canShare)',
   u'shared': u'shared',
   u'sharedwithmedate': API.DRIVE_FILE_SHARED_WITH_ME_DATE_TIME,
   u'sharedwithmetime': API.DRIVE_FILE_SHARED_WITH_ME_DATE_TIME,
@@ -18265,7 +18266,7 @@ def printDriveFileList(users):
   def _printFileInfo(drive, f_file):
     if f_file.get(u'prnt'):
       return
-    if showOwnedBy is not None and f_file[u'ownedByMe'] != showOwnedBy:
+    if showOwnedBy is not None and f_file.get(u'ownedByMe', showOwnedBy) != showOwnedBy:
       return
     f_file[u'prnt'] = True
     row = {u'Owner': user}
@@ -18335,7 +18336,8 @@ def printDriveFileList(users):
   skipObjects = [u'prnt',]
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = ME_IN_OWNERS
-  fileIdEntity = showOwnedBy = fileTree = None
+  fileIdEntity = {}
+  showOwnedBy = fileTree = None
   body, parameters = initializeDriveFileAttributes()
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
@@ -18530,7 +18532,9 @@ def showDriveFileTree(users):
 
   maxdepth = -1
   query = ME_IN_OWNERS
-  fileIdEntity = showOwnedBy = fileTree = None
+  fileIdEntity = initDriveFileEntity()
+  cleanFileIDsList(fileIdEntity, [u'root',])
+  showOwnedBy = fileTree = None
   body, parameters = initializeDriveFileAttributes()
   orderByList = []
   while Cmd.ArgumentsRemaining():
@@ -18557,9 +18561,6 @@ def showDriveFileTree(users):
         query = ME_IN_OWNERS
     else:
       unknownArgumentExit()
-  if not fileIdEntity:
-    fileIdEntity = initDriveFileEntity()
-    cleanFileIDsList(fileIdEntity, [u'root',])
   orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -18574,7 +18575,8 @@ def showDriveFileTree(users):
       feed = callGAPIpages(drive.files(), u'list', API.DRIVE_FILES_LIST,
                            page_message=page_message,
                            throw_reasons=GAPI.DRIVE_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},{2},mimeType)'.format(API.DRIVE_FILES_LIST, API.DRIVE_FILE_NAME, API.DRIVE_PARENTS_ID), maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},{2},mimeType)'.format(API.DRIVE_FILES_LIST, API.DRIVE_FILE_NAME, API.DRIVE_PARENTS_ID),
+                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, body, parameters, drive=drive, entityType=Ent.DRIVE_FOLDER)
       if jcount == 0:
         continue
@@ -18720,26 +18722,30 @@ def copyDriveFile(users):
     body = {API.DRIVE_FILE_NAME: newFolderTitle, u'mimeType': MIMETYPE_GA_FOLDER, u'parents': []}
     if parentId:
       body[u'parents'].append({u'id': parentId})
-    result = callGAPI(drive.files(), API.DRIVE_CREATE_FILE, body=body, fields=u'id')
+    result = callGAPI(drive.files(), API.DRIVE_CREATE_FILE,
+                      body=body, fields=u'id')
     newFolderId = result[u'id']
     Act.Set(Act.CREATE)
     entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId], i, count)
     Act.Set(Act.COPY)
-    source_children = callGAPI(drive.children(), u'list', folderId=folderId, fields=u'{0}(id)'.format(API.DRIVE_FILES_LIST))
+    source_children = callGAPI(drive.children(), u'list',
+                               folderId=folderId, fields=u'{0}(id)'.format(API.DRIVE_FILES_LIST))
     jcount = len(source_children[API.DRIVE_FILES_LIST]) if (source_children and (API.DRIVE_FILES_LIST in source_children)) else 0
     if jcount > 0:
       Ind.Increment()
       j = 0
       for child in source_children[API.DRIVE_FILES_LIST]:
         j += 1
-        metadata = callGAPI(drive.files(), u'get', fileId=child[u'id'], fields=u'id,{0},mimeType'.format(API.DRIVE_FILE_NAME))
+        metadata = callGAPI(drive.files(), u'get',
+                            fileId=child[u'id'], fields=u'id,{0},mimeType'.format(API.DRIVE_FILE_NAME))
         if metadata[u'mimeType'] == MIMETYPE_GA_FOLDER:
           _recursiveFolderCopy(drive, user, j, jcount, child[u'id'], metadata[API.DRIVE_FILE_NAME], metadata[API.DRIVE_FILE_NAME], newFolderId)
         else:
           fileId = metadata[u'id']
           body = {API.DRIVE_FILE_NAME: metadata[API.DRIVE_FILE_NAME], u'parents': []}
           body[u'parents'].append({u'id': newFolderId})
-          result = callGAPI(drive.files(), u'copy', fileId=fileId, body=body, fields=u'id,{0}'.format(API.DRIVE_FILE_NAME))
+          result = callGAPI(drive.files(), u'copy',
+                            fileId=fileId, body=body, fields=u'id,{0}'.format(API.DRIVE_FILE_NAME))
           entityModifierNewValueItemValueActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, metadata[API.DRIVE_FILE_NAME]], Act.MODIFIER_TO, result[API.DRIVE_FILE_NAME], Ent.DRIVE_FILE_ID, result[u'id'], j, jcount)
       Ind.Decrement()
       entityModifierNewValueItemValueActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folderTitle], Act.MODIFIER_TO, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId, i, count)
@@ -19557,25 +19563,37 @@ def deleteEmptyDriveFolders(users):
       Ind.Increment()
       deleted_empty = True
       while deleted_empty:
+        deleted_empty = False
         printGettingAllEntityItemsForWhom(Ent.DRIVE_FOLDER, user, i, count)
         page_message = getPageMessageForWhom()
         feed = callGAPIpages(drive.files(), u'list', API.DRIVE_FILES_LIST,
                              page_message=page_message,
                              throw_reasons=GAPI.DRIVE_THROW_REASONS,
-                             q=query, fields=u'nextPageToken,{0}(id,{1})'.format(API.DRIVE_FILES_LIST, API.DRIVE_FILE_NAME), maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-        deleted_empty = False
+                             q=query, fields=u'nextPageToken,{0}(id,{1},ownedByMe)'.format(API.DRIVE_FILES_LIST, API.DRIVE_FILE_NAME),
+                             maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+        jcount = len(feed)
+        j = 0
         for folder in feed:
-          children = callGAPI(drive.children(), u'list',
-                              throw_reasons=GAPI.DRIVE_THROW_REASONS,
-                              folderId=folder[u'id'], fields=u'{0}(id)'.format(API.DRIVE_FILES_LIST), maxResults=1)
-          if (not children) or (API.DRIVE_FILES_LIST not in children) or (len(children[API.DRIVE_FILES_LIST]) == 0):
-            callGAPI(drive.files(), u'delete',
-                     fileId=folder[u'id'])
-            entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folder[API.DRIVE_FILE_NAME]], i, count)
-            deleted_empty = True
+          j += 1
+          if folder.get(u'ownedByMe', True):
+            children = callGAPIitems(drive.children(), u'list', API.DRIVE_FILES_LIST,
+                                     throw_reasons=GAPI.DRIVE_THROW_REASONS,
+                                     folderId=folder[u'id'], fields=u'{0}(id)'.format(API.DRIVE_FILES_LIST), maxResults=1)
+            if len(children) == 0:
+              try:
+                callGAPI(drive.files(), u'delete',
+                         throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FORBIDDEN],
+                         fileId=folder[u'id'])
+                entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folder[API.DRIVE_FILE_NAME]], j, jcount)
+                deleted_empty = True
+              except GAPI.forbidden as e:
+                entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, folder[API.DRIVE_FILE_NAME]], str(e), j, jcount)
+            else:
+              entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, folder[API.DRIVE_FILE_NAME]],
+                                              u'{0} - {1}'.format(Msg.CONTAINS_AT_LEAST_1_ITEM, children[0][u'id']), j, jcount)
           else:
             entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, folder[API.DRIVE_FILE_NAME]],
-                                            u'{0} - {1}'.format(Msg.CONTAINS_AT_LEAST_1_ITEM, children[API.DRIVE_FILES_LIST][0][u'id']), i, count)
+                                            Msg.NOT_OWNED_BY.format(user), j, jcount)
     except (GAPI.serviceNotAvailable, GAPI.authError):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
       break
@@ -19598,6 +19616,10 @@ def emptyDriveTrash(users):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
 DRIVEFILE_ACL_TIME_OBJECTS = [API.DRIVE_PERMISSIONS_EXPIRATION_DATE_TIME]
+DRIVEFILE_ACL_KEY_PRINT_ORDER = [
+  u'id', u'emailAddress', u'domain', u'role', u'additionalRoles', u'type',
+  API.DRIVE_PERMISSIONS_EXPIRATION_DATE_TIME, u'photoLink', u'authKey', u'withLink',
+  ]
 
 # DriveFileACL commands utilities
 def _showDriveFilePermission(permission):
@@ -19612,17 +19634,19 @@ def _showDriveFilePermission(permission):
       printKeyValueList([permission[u'id']])
   Ind.Increment()
   _convertReaderToCommenter(permission)
-  for key in permission:
-    if key not in [u'kind', u'etag', u'selfLink', API.DRIVE_PERMISSIONS_NAME]:
-      if key not in DRIVEFILE_ACL_TIME_OBJECTS:
-        if key != u'additionalRoles':
-          printKeyValueList([key, permission[key]])
-        else:
-          printKeyValueList([key, u','.join(permission[key])])
+  for key in DRIVEFILE_ACL_KEY_PRINT_ORDER:
+    value = permission.get(key)
+    if value is None:
+      continue
+    if key not in DRIVEFILE_ACL_TIME_OBJECTS:
+      if key != u'additionalRoles':
+        printKeyValueList([key, value])
       else:
-        printKeyValueList([key, formatLocalTime(permission[key])])
+        printKeyValueList([key, u','.join(value)])
+    else:
+      printKeyValueList([key, formatLocalTime(value)])
   Ind.Decrement()
-#
+
 DRIVEFILE_ACL_ROLES_MAP = {
   u'commenter': u'commenter',
   u'editor': u'writer',
@@ -19695,8 +19719,10 @@ def addDriveFileACL(users):
             entityType = Ent.DRIVE_FILE_OR_FOLDER
             fileName = result[API.DRIVE_FILE_NAME]+u'('+fileId+u')'
         permission = callGAPI(drive.permissions(), API.DRIVE_CREATE_PERMISSIONS,
-                              throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.INVALID_SHARING_REQUEST],
-                              fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
+                              throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR,
+                                                                      GAPI.INVALID_SHARING_REQUEST],
+                              fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage,
+                              body=body)
         entityActionPerformed([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
         _showDriveFilePermission(permission)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
@@ -20052,22 +20078,21 @@ def _printShowDriveFileACLs(users, csvFormat):
             fileName = result[API.DRIVE_FILE_NAME]
             if not csvFormat:
               fileName += u'('+fileId+u')'
-        result = callGAPI(drive.permissions(), u'list',
-                          throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR],
-                          fileId=fileId, fields=API.DRIVE_PERMISSIONS_LIST)
+        results = callGAPIpages(drive.permissions(), u'list', API.DRIVE_PERMISSIONS_LIST,
+                                throw_reasons=GAPI.DRIVE_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR],
+                                fileId=fileId, fields=u'nextPageToken,{0}'.format(API.DRIVE_PERMISSIONS_LIST))
         if not csvFormat:
           printEntityKVList([entityType, fileName], [Ent.Plural(Ent.PERMITTEE)], j, jcount)
-          if result:
+          if results:
             Ind.Increment()
-            for permission in result[API.DRIVE_PERMISSIONS_LIST]:
+            for permission in results:
               _showDriveFilePermission(permission)
             Ind.Decrement()
-        elif result:
-          result[u'permissions'] = result.pop(u'items', {})
+        elif results:
           if showTitles:
-            addRowTitlesToCSVfile(flattenJSON(result, flattened={u'Owner': user, u'id': fileId, API.DRIVE_FILE_NAME: fileName}), csvRows, titles)
+            addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId, API.DRIVE_FILE_NAME: fileName}), csvRows, titles)
           else:
-            addRowTitlesToCSVfile(flattenJSON(result, flattened={u'Owner': user, u'id': fileId}), csvRows, titles)
+            addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId}), csvRows, titles)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError):
@@ -20525,23 +20550,21 @@ def _printShowTokens(entityType, users, csvFormat):
       jcount = len(results)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.ACCESS_TOKEN, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
         for token in results:
           j += 1
           _showToken(token, j, jcount)
         Ind.Decrement()
-      else:
+      elif results:
         for token in results:
           row = {u'user': user, u'scopes': delimiter.join(token.get(u'scopes', []))}
           for item in token:
             if item != u'scopes':
               row[item] = token.get(item, u'')
           csvRows.append(row)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'user': user})
     except (GAPI.notFound, GAPI.resourceNotFound) as e:
       entityActionFailedWarning([Ent.USER, user, Ent.ACCESS_TOKEN, clientId], str(e), i, count)
     except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden):
@@ -22066,29 +22089,29 @@ def _printShowDelegates(users, csvFormat):
                         v=u'2.0', delegator=delegatorName, domainName=delegatorDomain)
       if result is not None and u'feed' in result and u'entry' in result[u'feed']:
         delegates = result[u'feed'][u'entry']
-        jcount = len(delegates)
-        if not csvFormat:
-          entityPerformActionNumItems([Ent.DELEGATOR, delegatorEmail], jcount, Ent.DELEGATE, i, count)
-        if jcount == 0:
-          setSysExitRC(NO_ENTITIES_FOUND)
-          continue
-        if not csvFormat:
+      else:
+        delegates = []
+      jcount = len(delegates)
+      if not csvFormat:
+        entityPerformActionNumItems([Ent.DELEGATOR, delegatorEmail], jcount, Ent.DELEGATE, i, count)
+        Ind.Increment()
+        j = 0
+        for delegate in delegates:
+          j += 1
+          delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
+          printEntity([Ent.DELEGATE, delegateName], j, jcount)
           Ind.Increment()
-          j = 0
-          for delegate in delegates:
-            j += 1
-            delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
-            printEntity([Ent.DELEGATE, delegateName], j, jcount)
-            Ind.Increment()
-            printKeyValueList([u'Delegate Email', delegateAddress])
-            printKeyValueList([u'Delegation ID', delegationID])
-            printKeyValueList([u'Status', delegateStatus])
-            Ind.Decrement()
+          printKeyValueList([u'Delegate Email', delegateAddress])
+          printKeyValueList([u'Delegation ID', delegationID])
+          printKeyValueList([u'Status', delegateStatus])
           Ind.Decrement()
-        else:
-          for delegate in delegates:
-            delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
-            csvRows.append({u'Delegator': delegatorEmail, u'Delegate': delegateName, u'Delegate Email': delegateAddress, u'Delegation ID': delegationID, u'Status': delegateStatus})
+        Ind.Decrement()
+      elif delegates:
+        for delegate in delegates:
+          delegateName, delegateAddress, delegationID, delegateStatus = getDelegateFields(delegate)
+          csvRows.append({u'Delegator': delegatorEmail, u'Delegate': delegateName, u'Delegate Email': delegateAddress, u'Delegation ID': delegationID, u'Status': delegateStatus})
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'Delegator': delegatorEmail})
     except (GAPI.notFound, GAPI.serviceNotAvailable, GAPI.domainNotFound):
       entityServiceNotApplicableWarning(Ent.DELEGATOR, delegatorEmail, i, count)
   if csvFormat:
@@ -22367,25 +22390,23 @@ def _printShowFilters(users, csvFormat):
     else:
       labels = {u'labels': []}
     try:
-      result = callGAPI(gmail.users().settings().filters(), u'list',
-                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                        userId=u'me')
-      jcount = len(result.get(u'filter', [])) if (result) else 0
+      results = callGAPIitems(gmail.users().settings().filters(), u'list', u'filter',
+                              throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                              userId=u'me')
+      jcount = len(results)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.FILTER, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
-        for userFilter in result[u'filter']:
+        for userFilter in results:
           j += 1
           _showFilter(userFilter, j, jcount, labels)
         Ind.Decrement()
-      else:
-        for userFilter in result[u'filter']:
+      elif results:
+        for userFilter in results:
           addRowTitlesToCSVfile(_printFilter(user, userFilter, labels), csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -22605,25 +22626,23 @@ def _printShowForwardingAddresses(users, csvFormat):
     if not gmail:
       continue
     try:
-      result = callGAPI(gmail.users().settings().forwardingAddresses(), u'list',
-                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                        userId=u'me')
-      jcount = len(result.get(u'forwardingAddresses', [])) if (result) else 0
+      results = callGAPIitems(gmail.users().settings().forwardingAddresses(), u'list', u'forwardingAddresses',
+                              throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                              userId=u'me')
+      jcount = len(results)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.FORWARDING_ADDRESS, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
-        for forward in result[u'forwardingAddresses']:
+        for forward in results:
           j += 1
           _showForwardingAddress(j, jcount, forward)
         Ind.Decrement()
-      else:
-        for forward in result[u'forwardingAddresses']:
+      elif results:
+        for forward in results:
           csvRows.append({u'User': user, u'forwardingEmail': forward[u'forwardingEmail'], u'verificationStatus': forward[u'verificationStatus']})
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -22980,28 +22999,26 @@ def _printShowSendAs(users, csvFormat):
     if not gmail:
       continue
     try:
-      result = callGAPI(gmail.users().settings().sendAs(), u'list',
-                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                        userId=u'me')
-      jcount = len(result.get(u'sendAs', [])) if (result) else 0
+      results = callGAPIitems(gmail.users().settings().sendAs(), u'list', u'sendAs',
+                              throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                              userId=u'me')
+      jcount = len(results)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.SENDAS_ADDRESS, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
-        for sendas in result[u'sendAs']:
+        for sendas in results:
           j += 1
           _showSendAs(sendas, j, jcount, formatSig)
         Ind.Decrement()
-      else:
-        for sendas in result[u'sendAs']:
+      elif results:
+        for sendas in results:
           row = {u'User': user, u'isPrimary': False}
           for item in sendas:
             row[item] = sendas[item]
           addRowTitlesToCSVfile(row, csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -23182,48 +23199,49 @@ def _printShowSmimes(users, csvFormat):
       if primaryonly:
         sendAsEmails = [user]
       else:
-        result = callGAPI(gmail.users().settings().sendAs(), u'list',
-                          throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                          userId=u'me', fields=u'sendAs(sendAsEmail)')
-        sendAsEmails = [sendAs[u'sendAsEmail'] for sendAs in result[u'sendAs']] if result else []
+        results = callGAPIitems(gmail.users().settings().sendAs(), u'list', u'sendAs',
+                                throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                                userId=u'me', fields=u'sendAs(sendAsEmail)')
+        sendAsEmails = [sendAs[u'sendAsEmail'] for sendAs in results]
       jcount = len(sendAsEmails)
       if not csvFormat:
         entityPerformActionSubItemModifierNumItems([Ent.USER, user], Ent.SMIME_ID, Act.MODIFIER_FROM, jcount, Ent.SENDAS_ADDRESS, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      j = 0
-      for sendAsEmail in sendAsEmails:
-        j += 1
-        result = callGAPI(gmail.users().settings().sendAs().smimeInfo(), u'list',
-                          throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
-                          userId=u'me', sendAsEmail=sendAsEmail)
-        smimes = result.get(u'smimeInfo', [])
-        kcount = len(smimes)
-        if not csvFormat:
-          Ind.Increment()
-          printEntity([Ent.SENDAS_ADDRESS, sendAsEmail], j, jcount)
-          Ind.Increment()
-          k = 0
-          for smime in smimes:
-            k += 1
-            printEntity([Ent.SMIME_ID, smime[u'id']], k, kcount)
+      if sendAsEmails:
+        j = 0
+        for sendAsEmail in sendAsEmails:
+          j += 1
+          smimes = callGAPIitems(gmail.users().settings().sendAs().smimeInfo(), u'list', u'smimeInfo',
+                                 throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
+                                 userId=u'me', sendAsEmail=sendAsEmail)
+          kcount = len(smimes)
+          if not csvFormat:
             Ind.Increment()
-            printKeyValueList([u'Default', smime.get(u'isDefault', False)])
-            printKeyValueList([u'Issuer CN', smime[u'issuerCn']])
-            printKeyValueList([u'Expiration', formatLocalTimestamp(smime[u'expiration'])])
-            printKeyValueList([u'Password', smime.get(u'encryptedKeyPassword', u'')])
-            printKeyValueList([u'PEM', None])
+            printEntity([Ent.SENDAS_ADDRESS, sendAsEmail], j, jcount)
             Ind.Increment()
-            printKeyValueList([Ind.MultiLineText(smime[u'pem'])])
+            k = 0
+            for smime in smimes:
+              k += 1
+              printEntity([Ent.SMIME_ID, smime[u'id']], k, kcount)
+              Ind.Increment()
+              printKeyValueList([u'Default', smime.get(u'isDefault', False)])
+              printKeyValueList([u'Issuer CN', smime[u'issuerCn']])
+              printKeyValueList([u'Expiration', formatLocalTimestamp(smime[u'expiration'])])
+              printKeyValueList([u'Password', smime.get(u'encryptedKeyPassword', u'')])
+              printKeyValueList([u'PEM', None])
+              Ind.Increment()
+              printKeyValueList([Ind.MultiLineText(smime[u'pem'])])
+              Ind.Decrement()
+              Ind.Decrement()
             Ind.Decrement()
             Ind.Decrement()
-          Ind.Decrement()
-          Ind.Decrement()
-        else:
-          for smime in smimes:
-            smime[u'expiration'] = formatLocalTimestamp(smime[u'expiration'])
-            addRowTitlesToCSVfile(flattenJSON(smime, flattened={u'User': user}), csvRows, titles)
+          elif smimes:
+            for smime in smimes:
+              smime[u'expiration'] = formatLocalTimestamp(smime[u'expiration'])
+              addRowTitlesToCSVfile(flattenJSON(smime, flattened={u'User': user}), csvRows, titles)
+          elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+            csvRows.append({u'User': user})
+      elif csvFormat and GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+        csvRows.append({u'User': user})
     except GAPI.forbidden as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):

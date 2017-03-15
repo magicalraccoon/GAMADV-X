@@ -83,6 +83,7 @@ If an item contains spaces, it should be surrounded by ".
 <ContactGroupID> ::= id:<String>
 <ContactGroupName> ::= <String>
 <ContactGroupItem> ::= <ContactGroupID>|<ContactGroupName>
+<CorporaAttribute> ::= allteamdrives|default|domain|(teamdrive <TeamDriveID>)
 <CourseAlias> ::= <String>
 <CourseID> ::= <Number>|d:<CourseAlias>
 <CourseParticipantType> ::= teacher|teachers|student|students
@@ -90,7 +91,7 @@ If an item contains spaces, it should be surrounded by ".
 <CrOSItem> ::= <CrOSID>|(query:<QueryCrOS>)|(query <QueryCrOS>)
 <CustomerID> ::= <String>
 <DomainName> ::= <String>(.<String>)+
-<DriveFileACLRole> :: =commenter|editor|owner|reader|writer
+<DriveFileACLRole> :: =commenter|editor|organizer|owner|reader|writer
 <DriveFileID> ::= <String>
 <DriveFileURL> :: = https://docs.google.com/a/<DomainName>/document/d/<DriveFileID>/<String>
 <DriveFileItem> ::= <DriveFileID>|<DriveFileURL>
@@ -153,6 +154,8 @@ If an item contains spaces, it should be surrounded by ".
 <S/MIMEID> ::= <String>	
 <StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Tag> ::= <String>
+<TeamDriveID> ::= <String>
+<TeamDriveName> ::= <String>
 <ThreadID> ::= <String>
 <TimeZone> ::= <String>
 <Title> ::= <String>
@@ -1539,7 +1542,7 @@ gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 <DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <DriveFilePermissionIDEntity> ::= <DriveFilePermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-<DriveFileACLRole> :: =commenter|editor|owner|reader|writer
+<DriveFileACLRole> :: =commenter|editor|organizer|owner|reader|writer
 <DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>;<DriveFileACLRole>
 <DriveFilePermissionID> ::= anyone|anyonewithlink|id:<String>
 <DriveFilePermissionIDorEmail> ::= <DriveFilePermissionID>|<EmailAddress>
@@ -1562,6 +1565,7 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 
 <DriveFieldName> ::=
 	appdatacontents|
+	capabilities|
 	cancomment|
 	canreadrevisions|
 	copyable|
@@ -1573,6 +1577,7 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 	filesize|
 	foldercolorrgb|
 	fullfileextension|
+	hasaugmentedpermissions|
 	headrevisionid|
 	iconlink|
 	id|
@@ -1599,9 +1604,12 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity
 	size|
 	spaces|
 	starred|
+	teamdriveid|
 	thumbnaillink|
 	title|
 	trashed
+	trasheddate|trashedtime|
+	trashinguser|
 	userpermission|
 	version|
 	viewed|
@@ -1629,14 +1637,17 @@ gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<Driv
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
 gam <UserTypeEntity> show filepath <DriveFileEntity>
 
-gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)] [select <DriveFileEntity>|orphans] [depth <Number>] (orderby <DriveOrderByFieldName> [ascending|descending])*
-gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
-	[filepath] [allfields|<DriveFieldName>*|(fields <DriveFiledNameList>)] (orderby <DriveOrderByFieldName> [ascending|descending])* [delimiter <String>]
+gam <UserTypeEntity> show filetree [corpora <CorporaAttribute>] [anyowner|(showownedby any|me|others)]
+	[select <DriveFileEntity>|orphans] [depth <Number>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [corpora <CorporaAttribute>] [anyowner|(showownedby any|me|others)]
+	[query <QueryDriveFile>] [fullquery <QueryDriveFile>]
+	[select <DriveFileEntity>|orphans] [depth <Number>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+	[filepath] [allfields|<DriveFieldName>*|(fields <DriveFiledNameList>)] [delimiter <String>]
 
 gam <UserTypeEntity> print|show driveactivity [todrive [<ToDriveAttributes>]] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> print|show drivesettings [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> delete emptydrivefolders
+gam <UserTypeEntity> delete emptydrivefolders [corpora <CorporaAttribute>]
 gam <UserTypeEntity> empty drivetrash
 
 # Users - Deprovision

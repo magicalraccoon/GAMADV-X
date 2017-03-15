@@ -1,3 +1,14 @@
+4.44.13
+
+Added csv_output_users_audit to gam.cfg, its default value is False.
+Gam print commands that print objects belonging to users don't print rows for users that don't have
+any of the following objects: calendars, calendar ACLs, calendar events, delegates, filters,
+forwarding addresses, sendas addresses, S/MIME certificates and tokens. When csv_output_users_audit is true,
+a placeholder row will be output with the user's email address; these rows will useful for auditing purposes only,
+they can not be successfuly used in a gam csv command.
+Example:, produce an audit CSV file showing the delegates for the Sales group.
+     gam config auto_batch_min 1 csv_output_users_audit true redirect csv SalesDelegatesAudit.csv multiprocess group Sales print delegates
+
 4.44.12
 
 Fixed bug where extra \r was output on each line when writing CSV files on Windows.

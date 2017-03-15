@@ -64,6 +64,8 @@ CSV_OUTPUT_CONVERT_CR_NL = u'csv_output_convert_cr_nl'
 CSV_OUTPUT_COLUMN_DELIMITER = u'csv_output_column_delimiter'
 # Field list delimiter in CSV output file
 CSV_OUTPUT_FIELD_DELIMITER = u'csv_output_field_delimiter'
+# Output rows for users even if they do not have the print object (delegate, filters, ...)
+CSV_OUTPUT_USERS_AUDIT = u'csv_output_users_audit'
 # custmerId from gam.cfg or retrieved from Google
 CUSTOMER_ID = u'customer_id'
 # If debug_level > 0: extra_args[u'prettyPrint'] = True, httplib2.debuglevel = gam_debug_level, appsObj.debug = True
@@ -141,6 +143,7 @@ Defaults = {
   CSV_OUTPUT_CONVERT_CR_NL: FALSE,
   CSV_OUTPUT_COLUMN_DELIMITER: u',',
   CSV_OUTPUT_FIELD_DELIMITER: u"' '",
+  CSV_OUTPUT_USERS_AUDIT: FALSE,
   CUSTOMER_ID: MY_CUSTOMER,
   DEBUG_LEVEL: 0,
   DEVICE_MAX_RESULTS: 500,
@@ -207,6 +210,7 @@ VAR_INFO = {
   CSV_OUTPUT_CONVERT_CR_NL: {VAR_TYPE: TYPE_BOOLEAN, VAR_ENVVAR: u'GAM_CSV_OUTPUT_CONVERT_CR_NL', VAR_SFFT: (FALSE, TRUE)},
   CSV_OUTPUT_COLUMN_DELIMITER: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'GAM_CSV_OUTPUT_COLUMN_DELIMITER', VAR_LIMITS: (1, 1)},
   CSV_OUTPUT_FIELD_DELIMITER: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'GAM_CSV_OUTPUT_FIELD_DELIMITER', VAR_LIMITS: (1, 1)},
+  CSV_OUTPUT_USERS_AUDIT: {VAR_TYPE: TYPE_BOOLEAN, VAR_ENVVAR: u'GAM_CSV_OUTPUT_USERS_AUDIT', VAR_SFFT: (FALSE, TRUE)},
   CUSTOMER_ID: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'CUSTOMER_ID', VAR_LIMITS: (0, None)},
   DEBUG_LEVEL: {VAR_TYPE: TYPE_INTEGER, VAR_SIGFILE: u'debug.gam', VAR_LIMITS: (0, None), VAR_SFFT: (u'0', u'4')},
   DEVICE_MAX_RESULTS: {VAR_TYPE: TYPE_INTEGER, VAR_ENVVAR: u'GAM_DEVICE_MAX_RESULTS', VAR_LIMITS: (1, 1000)},

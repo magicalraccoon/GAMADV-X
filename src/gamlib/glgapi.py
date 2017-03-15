@@ -68,6 +68,7 @@ NOT_A_CALENDAR_USER = u'notACalendarUser'
 NOT_FOUND = u'notFound'
 NOT_IMPLEMENTED = u'notImplemented'
 ORGUNIT_NOT_FOUND = u'orgunitNotFound'
+OWNER_ON_TEAM_DRIVE_ITEM_NOT_SUPPORTED = u'ownerOnTeamDriveItemNotSupported'
 PERMISSION_DENIED = u'permissionDenied'
 PERMISSION_NOT_FOUND = u'permissionNotFound'
 PHOTO_NOT_FOUND = u'photoNotFound'
@@ -252,6 +253,8 @@ class notImplemented(Exception):
   pass
 class orgunitNotFound(Exception):
   pass
+class ownerOnTeamDriveItemNotSupported(Exception):
+  pass
 class permissionDenied(Exception):
   pass
 class permissionNotFound(Exception):
@@ -325,6 +328,7 @@ REASON_EXCEPTION_MAP = {
   NOT_FOUND: notFound,
   NOT_IMPLEMENTED: notImplemented,
   ORGUNIT_NOT_FOUND: orgunitNotFound,
+  OWNER_ON_TEAM_DRIVE_ITEM_NOT_SUPPORTED: ownerOnTeamDriveItemNotSupported,
   PERMISSION_DENIED: permissionDenied,
   PERMISSION_NOT_FOUND: permissionNotFound,
   PHOTO_NOT_FOUND: photoNotFound,

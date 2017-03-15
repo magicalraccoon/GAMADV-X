@@ -117,6 +117,13 @@ csv_output_field_delimiter
 	Each of the gam print courses|groups|users  commands has a delimiter <String> argument that can override this value.
 	Default: ' '
 	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
+csv_output_users_audit
+	Gam print commands that print objects belonging to users don't print rows for users that don't have any of the objects.
+	The objects are: calendars, calendar ACLs, calendar events, delegates, filters, forwarding addresses, sendas addresses,
+	S/MIME certificates and tokens. When csv_output_users_audit is true, a placeholder row will be output with the
+	user's email address; these rows will useful for auditing purposes only, they can not be successfuly used in a gam csv command.
+	Default: False
+	Environment variable: GAM_CSV_OUTPUT_USERS_AUDIT
 customer_id
 	Google Custmer ID
 	Default: Blank
@@ -252,6 +259,7 @@ Section: DEFAULT
   csv_output_convert_cr_nl = false
   csv_output_column_delimiter = ,
   csv_output_field_delimiter = ' '
+  csv_output_users_audit = false
   customer_id =
   debug_level = 0
   device_max_results = 500
@@ -367,6 +375,7 @@ csv_input_column_delimiter = ,
 csv_output_convert_cr_nl = false
 csv_output_column_delimiter = ,
 csv_output_field_delimiter = ' '
+csv_output_users_audit = false
 customer_id = 0000000000
 debug_level = 0
 device_max_results = 500
