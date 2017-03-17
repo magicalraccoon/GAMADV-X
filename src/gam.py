@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.16'
+__version__ = u'4.44.17'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -9142,10 +9142,6 @@ def _printShowContacts(users, entityType, csvFormat, contactFeed=True):
     jcount = len(contacts) if (contacts) else 0
     if not csvFormat:
       entityPerformActionModifierNumItems([entityType, user], Msg.MAXIMUM_OF, jcount, Ent.CONTACT, i, count)
-    if jcount == 0:
-      setSysExitRC(NO_ENTITIES_FOUND)
-      continue
-    if not csvFormat:
       Ind.Increment()
       j = 0
       for contact in contacts:
@@ -9157,7 +9153,7 @@ def _printShowContacts(users, entityType, csvFormat, contactFeed=True):
           contactGroupIDs, _ = getContactGroupsInfo(contactsManager, contactsObject, entityType, user, i, count)
         _showContact(contactsManager, fields, displayFieldsList, [None, contactGroupIDs][showContactGroups], j, jcount)
       Ind.Decrement()
-    else:
+    elif contacts:
       for contact in contacts:
         fields = contactsManager.ContactToFields(contact)
         if contactQuery[u'emailMatchPattern'] and not contactEmailAddressMatches(contactsManager, contactQuery, fields):
@@ -9223,6 +9219,8 @@ def _printShowContacts(users, entityType, csvFormat, contactFeed=True):
             if group in contactGroupIDs:
               contactRow[fn+CONTACT_GROUP_NAME] = contactGroupIDs[group]
         addRowTitlesToCSVfile(contactRow, csvRows, titles)
+    elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and entityType == Ent.USER:
+      csvRows.append({Ent.Singular(entityType): user})
   if csvFormat:
     sortCSVTitles([Ent.Singular(entityType), CONTACT_ID, CONTACT_NAME], titles)
     writeCSVfile(csvRows, titles, u'Contacts', todrive)
@@ -9494,22 +9492,20 @@ def _printShowContactGroups(users, csvFormat):
       jcount = len(groups)
       if not csvFormat:
         entityPerformActionNumItems([Ent.USER, user], jcount, Ent.CONTACT_GROUP, i, count)
-      if jcount == 0:
-        setSysExitRC(NO_ENTITIES_FOUND)
-        continue
-      if not csvFormat:
         Ind.Increment()
         j = 0
         for group in groups:
           j += 1
           _showContactGroup(contactsManager, group, j, jcount)
         Ind.Decrement()
-      else:
+      elif groups:
         for group in groups:
           fields = contactsManager.ContactGroupToFields(group)
           groupRow = {Ent.Singular(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
                       CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: formatLocalTime(fields[CONTACT_GROUP_UPDATED])}
           addRowTitlesToCSVfile(groupRow, csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and entityType == Ent.USER:
+        csvRows.append({Ent.Singular(entityType): user})
     except GDATA.forbidden:
       entityServiceNotApplicableWarning(entityType, user, i, count)
     except GDATA.serviceNotApplicable:

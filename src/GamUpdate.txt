@@ -1,3 +1,7 @@
+4.44.17
+
+gam print contacts/contactgroups now output user placeholder rows as necessary when csv_output_users_audit is true.
+
 4.44.16
 
 Handle Google change that dropped domain and admin email address from credentials.
