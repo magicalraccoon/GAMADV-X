@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.14'
+__version__ = u'4.44.16'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4773,6 +4773,7 @@ def getValidateLoginHint(login_hint):
     print u'Error: that is not a valid email address'
 
 PROFILE_SCOPE = u'profile'
+EMAIL_SCOPE = u'email'
 
 # gam oauth|oauth2 create|request [<EmailAddress>]
 def doOAuthRequest():
@@ -4886,7 +4887,7 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
   flags = cmd_flags(noLocalWebserver=GC.Values[GC.NO_BROWSER])
   httpObj = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
   for cred_family in API.FAM_LIST:
-    scopes = [PROFILE_SCOPE,] # Email Display Scope, always included for client
+    scopes = [EMAIL_SCOPE, PROFILE_SCOPE] # Email Display Scope, always included for client
     i = 0
     for a_scope in OAUTH2_SCOPES:
       if cred_family == a_scope[u'credfam']:
@@ -4951,8 +4952,9 @@ def doOAuthInfo():
     printKeyValueList([u'Client ID', credentials.client_id])
     printKeyValueList([u'Secret', credentials.client_secret])
     scopes = sorted(credentials.scopes)
-    if PROFILE_SCOPE in scopes:
-      scopes.remove(PROFILE_SCOPE)
+    for scope in [EMAIL_SCOPE, PROFILE_SCOPE]:
+      if scope in scopes:
+        scopes.remove(scope)
     printKeyValueList([u'Scopes', len(scopes)])
     Ind.Increment()
     for scope in scopes:
@@ -4980,7 +4982,7 @@ def doOAuthInfo():
           fam2Credentials and not fam2Credentials.invalid and
           fam1Credentials.client_id == fam2Credentials.client_id and
           fam1Credentials.client_secret == fam2Credentials.client_secret and
-          fam1Credentials.id_token.get(PROFILE_SCOPE) == fam2Credentials.id_token.get(PROFILE_SCOPE)):
+          fam1Credentials.id_token.get(EMAIL_SCOPE) == fam2Credentials.id_token.get(EMAIL_SCOPE)):
         fam1Credentials.scopes = fam1Credentials.scopes.union(fam2Credentials.scopes)
         _printCredentials(fam1Credentials)
       else:
