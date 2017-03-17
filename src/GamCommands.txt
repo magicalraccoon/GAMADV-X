@@ -292,7 +292,14 @@ Specify a collection of items by directly specifying them; the item type is dete
 <DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
 <DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
 <DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
-<DriveFileEntity> ::= <DriveFileIDEntity> | <DriveFileNameEntity> | <DriveFileQueryEntity> | root | <FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
+<TeamDriveEntity> ::= <TeamDriveID> | (teamdriveid <TeamDriveID>) | (teamdriveid:<TeamDriveID>) | (teamdrivename <TeamDriveName>) | (teamdrivename:<TeamDriveName>)
+<DriveFileEntity> ::=
+	<DriveFileIDEntity> |
+	<DriveFileNameEntity> |
+	<DriveFileQueryEntity> |
+	<TeamDriveEntity> |
+	root |
+	<FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
 <DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <DriveFilePermissionIDEntity> ::= <DriveFilePermissionIDList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <EmailAddressEntity> ::= <EmailAddressList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -1799,6 +1806,15 @@ gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)] [noshow]
 gam <UserTypeEntity> profile share|shared|unshare|unshared
 
 gam <UserTypeEntity> show profile
+
+# Users - Team Drives
+
+gam <UserTypeEntity> create teamdrive <Name>
+gam <UserTypeEntity> update teamdrive <TeamDriveEntity> [name <Name>]
+gam <UserTypeEntity> delete teamdrive <TeamDriveEntity>
+gam <UserTypeEntity> info teamdrive <TeamDriveEntity>
+gam <UserTypeEntity> print teamdrives [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> show teamdrives
 
 # Users - Tokens
 

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.13'
+__version__ = u'4.44.14'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3069,7 +3069,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                              groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type)', maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
       for member in result:
         if member[u'type'] == u'USER':
-          email = member[u'email']
+          email = member[u'email'].lower()
           if domains:
             _, domain = splitEmailAddress(email)
             if domain not in domains:
@@ -3132,7 +3132,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                                  throw_reasons=GAPI.MEMBERS_THROW_REASONS,
                                  groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,id,type)', maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
           for member in result:
-            email = member.get(u'email', member[u'id'])
+            email = member[u'email'].lower() if member[u'type'] != u'CUSTOMER' else member[u'id']
             if ((not groupUserMembersOnly) or (member[u'type'] == u'USER')) and email not in entitySet:
               entitySet.add(email)
               entityList.append(email)
@@ -10327,6 +10327,18 @@ UPDATE_GROUP_SUBCMDS = [u'add', u'clear', u'delete', u'remove', u'sync', u'updat
 # gam update groups <GroupEntity> clear [member] [manager] [owner] [suspended]
 def doUpdateGroups():
 
+# Convert foo@googlemail.com to foo@gmail.com; eliminate periods in name for foo.bar@gmail.com
+
+  def _cleanAddress(emailAddress, mapCleanToOriginal):
+    atLoc = emailAddress.find(u'@')
+    if atLoc > 0:
+      if emailAddress[atLoc+1:] in [u'gmail.com', u'googlemail.com']:
+        cleanEmailAddress = emailAddress[:atLoc].replace(u'.', u'')+u'@gmail.com'
+        if cleanEmailAddress != emailAddress:
+          mapCleanToOriginal[cleanEmailAddress] = emailAddress
+          return cleanEmailAddress
+    return emailAddress
+
   _ADD_MEMBER_REASON_TO_MESSAGE_MAP = {GAPI.DUPLICATE: Msg.DUPLICATE, GAPI.MEMBER_NOT_FOUND: Msg.DOES_NOT_EXIST,
                                        GAPI.RESOURCE_NOT_FOUND: Msg.DOES_NOT_EXIST, GAPI.INVALID_MEMBER: Msg.INVALID_ROLE,
                                        GAPI.CYCLIC_MEMBERSHIPS_NOT_ALLOWED: Msg.WOULD_MAKE_MEMBERSHIP_CYCLE}
@@ -10494,8 +10506,9 @@ def doUpdateGroups():
     groupMemberLists = syncMembers if isinstance(syncMembers, dict) else None
     if not groupMemberLists:
       syncMembersSet = set()
+      syncMembersMap = {}
       for member in syncMembers:
-        syncMembersSet.add(convertUserUIDtoEmailAddress(member, checkForCustomerId=True))
+        syncMembersSet.add(_cleanAddress(convertUserUIDtoEmailAddress(member, checkForCustomerId=True), syncMembersMap))
     checkForExtraneousArguments()
     i = 0
     count = len(entityList)
@@ -10503,13 +10516,21 @@ def doUpdateGroups():
       i += 1
       if groupMemberLists:
         syncMembersSet = set()
-        for member in groupMemberLists[group]:
-          syncMembersSet.add(convertUserUIDtoEmailAddress(member, checkForCustomerId=True))
+        syncMembersMap = {}
+        for member in syncMembers:
+          syncMembersSet.add(_cleanAddress(convertUserUIDtoEmailAddress(member, checkForCustomerId=True), syncMembersMap))
       group = checkGroupExists(cd, group, i, count)
       if group:
-        currentMembersSet = set(getUsersToModify(Cmd.ENTITY_GROUP, group, memberRole=role, groupUserMembersOnly=False))
-        _batchAddGroupMembers(cd, group, i, count, list(syncMembersSet-currentMembersSet), role)
-        _batchRemoveUpdateGroupMembers(cd, u'delete', group, i, count, list(currentMembersSet-syncMembersSet), role)
+        currentMembersSet = set()
+        currentMembersMap = {}
+        for member in getUsersToModify(Cmd.ENTITY_GROUP, group, memberRole=role, groupUserMembersOnly=False):
+          currentMembersSet.add(_cleanAddress(convertUserUIDtoEmailAddress(member, checkForCustomerId=True), currentMembersMap))
+        _batchAddGroupMembers(cd, group, i, count,
+                              [syncMembersMap.get(emailAddress, emailAddress) for emailAddress in syncMembersSet-currentMembersSet],
+                              role)
+        _batchRemoveUpdateGroupMembers(cd, u'delete', group, i, count,
+                                       [currentMembersMap.get(emailAddress, emailAddress) for emailAddress in currentMembersSet-syncMembersSet],
+                                       role)
   elif CL_subCommand == u'update':
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=Ent.ROLE_MEMBER, mapChoice=True)
     _, updateMembers = getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS, groupUserMembersOnly=False)

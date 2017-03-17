@@ -1,3 +1,15 @@
+4.44.14
+
+Email addresses in the gmail.com domain can have arbitrary dots in the name. When adding such an address to a group,
+Google maps the name to have the dots specified when the account was set up regardless of the dots specified in the address to be added.
+Email addresses in the gmail.com domain have an equivalent email address in the googlemail.com domain. When adding such an address to a group,
+Google maps the domain name to the domain name specified when the account was set up regardless of the domain name specified in the address to be added.
+This causes erroneous deletes and duplicate adds when syncing group membership as the email address in the group may not match
+the email address in the list of email addresses to sync even though they are equivalent.
+Gam now maps all email addresses in the gmail.com and googlemail.com domains to a canonical form before comparing the current group email addresses
+with the email addresses on the command line. If an email address is to be added, it is added with the email address specified on the command line.
+If an email address is to be deleted, it is deleted using the email address from the group.
+
 4.44.13
 
 Added csv_output_users_audit to gam.cfg, its default value is False.
