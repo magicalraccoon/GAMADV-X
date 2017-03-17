@@ -1,3 +1,7 @@
+4.44.15
+
+Improved error messages for gam add/delete delegates, they should be easier to understand.
+
 4.44.14
 
 Email addresses in the gmail.com domain can have arbitrary dots in the name. When adding such an address to a group,

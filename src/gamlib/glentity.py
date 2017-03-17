@@ -378,9 +378,12 @@ class GamEntity(object):
       evList.append(entityValueList[j+1])
     return evList
 
-  def EntityTypeName(self, entityType, entityName):
+  def TypeMessage(self, entityType, message):
+    return u'{0}: {1}'.format(self.Singular(entityType), message)
+
+  def TypeName(self, entityType, entityName):
     return u'{0}: {1}'.format(self.Singular(entityType), entityName)
 
-  def EntityTypeNameMessage(self, entityType, entityName, message):
+  def TypeNameMessage(self, entityType, entityName, message):
     return u'{0}: {1} {2}'.format(self.Singular(entityType), entityName, message)
 

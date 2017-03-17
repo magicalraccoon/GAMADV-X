@@ -20,6 +20,7 @@
 
 """
 # APIs
+ADMIN = u'admin'
 ADMIN_SETTINGS = u'admin-settings'
 APPSACTIVITY = u'appsactivity'
 CALENDAR = u'calendar'
@@ -29,6 +30,7 @@ CONTACTS = u'contacts'
 DATATRANSFER = u'datatransfer'
 DIRECTORY = u'directory'
 DRIVE = u'drive'
+DRIVE3 = 'drive3'
 EMAIL_AUDIT = u'email-audit'
 EMAIL_SETTINGS = u'email-settings'
 GMAIL = u'gmail'
@@ -62,6 +64,7 @@ _INFO = {
   DATATRANSFER: {u'version': u'datatransfer_v1', u'credfam': FAM1_SCOPES},
   DIRECTORY: {u'version': u'directory_v1', u'credfam': FAM1_SCOPES},
   DRIVE: {u'version': 'v2', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
+  DRIVE3: {u'version': 'v3', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
   EMAIL_AUDIT: {u'version': u'v1', u'credfam': FAM2_SCOPES, u'localjson': True},
   EMAIL_SETTINGS: {u'version': u'v2', u'credfam': FAM1_SCOPES, u'localjson': True},
   GMAIL: {u'version': u'v1', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://mail.google.com/', u'https://www.googleapis.com/auth/gmail.settings.basic',
@@ -114,7 +117,9 @@ def getVersion(api):
   version = _INFO[api][u'version']
   cred_family = _INFO[api][u'credfam']
   if api in [DIRECTORY, REPORTS, DATATRANSFER]:
-    api = u'admin'
+    api = ADMIN
+  elif api == DRIVE3:
+    api = DRIVE
   return (api, version, u'{0}-{1}'.format(api, version), cred_family)
 
 def getSortedSvcAcctScopesList():

@@ -1392,6 +1392,14 @@ def entityModifierNewValueActionFailedWarning(entityValueList, modifier, newValu
                                  Ent.FormatEntityValueList(entityValueList)+[u'{0} {1}'.format(Act.ToPerform(), modifier), newValue, Act.Failed(), errMessage],
                                  currentCountNL(i, count)))
 
+def entityNumEntitiesActionFailedWarning(entityType, entityName, itemType, itemCount, errMessage, i=0, count=0):
+  setSysExitRC(AC_FAILED_RC)
+  writeStderr(formatKeyValueList(Ind.Spaces(),
+                                 [Ent.Singular(entityType), entityName,
+                                  Ent.Choose(itemType, itemCount), itemCount,
+                                  Act.Failed(), errMessage],
+                                 currentCountNL(i, count)))
+
 def entityActionNotPerformedWarning(entityValueList, errMessage, i=0, count=0):
   setSysExitRC(AC_NOT_PERFORMED_RC)
   writeStderr(formatKeyValueList(Ind.Spaces(),
@@ -2771,7 +2779,7 @@ def getAPIversionHttpService(api):
   httpObj = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL],
                           cache=GM.Globals[GM.CACHE_DIR])
   if not hasLocalJSON:
-    retries = 5
+    retries = 3
     for n in range(1, retries+1):
       try:
         service = googleapiclient.discovery.build(api, version, http=httpObj, cache_discovery=False)
@@ -3002,28 +3010,6 @@ def splitEmailAddressOrUID(emailAddressOrUID):
   except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
     pass
   return (normalizedEmailAddressOrUID, normalizedEmailAddressOrUID, GC.Values[GC.DOMAIN])
-
-# Add domain to foo or convert uid:xxx to foo
-# Return foo@bar.com
-def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
-  cg = UID_PATTERN.match(emailAddressOrUID)
-  if cg:
-    try:
-      cd = buildGAPIObject(API.DIRECTORY)
-      result = callGAPI(cd.users(), u'get',
-                        throw_reasons=GAPI.USER_GET_THROW_REASONS,
-                        userKey=cg.group(1), fields=u'primaryEmail')
-      if u'primaryEmail' in result:
-        return result[u'primaryEmail'].lower()
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
-      pass
-    return None
-  atLoc = emailAddressOrUID.find(u'@')
-  if atLoc == -1:
-    return u'{0}@{1}'.format(emailAddressOrUID, addDomain)
-  if atLoc == len(emailAddressOrUID)-1:
-    return u'{0}{1}'.format(emailAddressOrUID, addDomain)
-  return emailAddressOrUID
 
 def shlexSplitList(entity, dataDelimiter=' ,'):
   import shlex
@@ -8789,7 +8775,7 @@ def validateContactGroupsList(contactsManager, contactsObject, contactId, fields
     else:
       if contactGroupNames:
         entityActionNotPerformedWarning([entityType, entityName, Ent.CONTACT, contactId],
-                                        Ent.EntityTypeNameMessage(Ent.CONTACT_GROUP, contactGroup, Msg.DOES_NOT_EXIST))
+                                        Ent.TypeNameMessage(Ent.CONTACT_GROUP, contactGroup, Msg.DOES_NOT_EXIST))
       result = False
   return (result, contactGroupsList)
 
@@ -9285,7 +9271,7 @@ def createUserContactGroup(users):
     if contactGroupNames is False:
       continue
     if fields[CONTACT_GROUP_NAME] in contactGroupNames:
-      entityActionFailedWarning([entityType, user], Ent.EntityTypeNameMessage(Ent.CONTACT_GROUP_NAME, fields[CONTACT_GROUP_NAME], Msg.DUPLICATE), i, count)
+      entityActionFailedWarning([entityType, user], Ent.TypeNameMessage(Ent.CONTACT_GROUP_NAME, fields[CONTACT_GROUP_NAME], Msg.DUPLICATE), i, count)
       continue
     try:
       group = callGData(contactsObject, u'CreateGroup',
@@ -9329,7 +9315,7 @@ def updateUserContactGroup(users):
           continue
         break
       if update_fields[CONTACT_GROUP_NAME] in contactGroupNames and groupId not in contactGroupNames[update_fields[CONTACT_GROUP_NAME]]:
-        entityActionFailedWarning([entityType, user, Ent.CONTACT_GROUP, contactGroup], Ent.EntityTypeNameMessage(Ent.CONTACT_GROUP_NAME, update_fields[CONTACT_GROUP_NAME], Msg.DUPLICATE), i, count)
+        entityActionFailedWarning([entityType, user, Ent.CONTACT_GROUP, contactGroup], Ent.TypeNameMessage(Ent.CONTACT_GROUP_NAME, update_fields[CONTACT_GROUP_NAME], Msg.DUPLICATE), i, count)
         continue
       contactGroup = contactGroupIDs.get(groupId, contactGroup)
       try:
@@ -12508,7 +12494,7 @@ def _moveCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity,
           entityUnknownWarning(Ent.CALENDAR, calId, i, count)
           break
         else:
-          entityActionFailedWarning([Ent.CALENDAR, calId, Ent.EVENT, eventId, Ent.CALENDAR, newCalId], Ent.EntityTypeNameMessage(Ent.EVENT, eventId, str(e)), j, jcount)
+          entityActionFailedWarning([Ent.CALENDAR, calId, Ent.EVENT, eventId, Ent.CALENDAR, newCalId], Ent.TypeNameMessage(Ent.EVENT, eventId, str(e)), j, jcount)
       except (GAPI.notACalendarUser, GAPI.forbidden) as e:
         entityActionFailedWarning([Ent.CALENDAR, calId], str(e), i, count)
         break
@@ -19057,7 +19043,7 @@ def transferDriveFiles(users):
         except GAPI.permissionNotFound:
           entityDoesNotHaveItemWarning([Ent.USER, sourceUser, childFileType, childFileName, Ent.PERMISSION_ID, sourcePermissionId], j, jcount)
         except (GAPI.invalidSharingRequest) as e:
-          entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], Ent.EntityTypeNameMessage(Ent.PERMISSION_ID, sourcePermissionId, str(e)), j, jcount)
+          entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, sourcePermissionId, str(e)), j, jcount)
         except (GAPI.serviceNotAvailable, GAPI.authError):
           entityServiceNotApplicableWarning(Ent.USER, sourceUser, 0, 0)
       else:
@@ -19197,7 +19183,7 @@ def transferDriveFiles(users):
       printKeyValueList([u'Source drive size', formatFileSize(sourceDriveSize),
                          u'Target drive free', formatFileSize(targetDriveFree)])
       targetDriveFree = targetDriveFree - sourceDriveSize # prep targetDriveFree for next user
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, Ent.EntityTypeName(Ent.SOURCE_USER, user), i, count)
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, Ent.TypeName(Ent.SOURCE_USER, user), i, count)
       page_message = getPageMessageForWhom()
       sourceDriveFiles = callGAPIpages(sourceDrive.files(), u'list', API.DRIVE_FILES_LIST,
                                        page_message=page_message,
@@ -19366,7 +19352,7 @@ def transferDriveFileOwnership(users):
                      fileId=xferFileId, permissionId=permissionId, transferOwnership=True, body=body, fields=u'')
             entityModifierNewValueItemValueActionPerformed([Ent.USER, user, entityType, fileDesc], Act.MODIFIER_TO, None, Ent.USER, newOwner, k, kcount)
           except GAPI.invalidSharingRequest as e:
-            entityActionFailedWarning([Ent.USER, user, entityType, fileDesc], Ent.EntityTypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), k, kcount)
+            entityActionFailedWarning([Ent.USER, user, entityType, fileDesc], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), k, kcount)
           except GAPI.permissionNotFound:
             entityDoesNotHaveItemWarning([Ent.USER, user, entityType, fileDesc, Ent.PERMISSION_ID, permissionId], k, kcount)
           except GAPI.fileNotFound:
@@ -19538,7 +19524,7 @@ def claimDriveFolderOwnership(users):
                          fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body, fields=u'')
                 entityModifierNewValueItemValueActionPerformed([Ent.USER, user, entityType, fileDesc], Act.MODIFIER_FROM, None, Ent.USER, oldOwner, l, lcount)
               except GAPI.invalidSharingRequest as e:
-                entityActionFailedWarning([Ent.USER, user, entityType, fileDesc], Ent.EntityTypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), l, lcount)
+                entityActionFailedWarning([Ent.USER, user, entityType, fileDesc], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), l, lcount)
               except GAPI.permissionNotFound:
                 entityDoesNotHaveItemWarning([Ent.USER, user, entityType, fileDesc, Ent.PERMISSION_ID, permissionId], l, lcount)
               except GAPI.fileNotFound:
@@ -19749,7 +19735,7 @@ def addDriveFileACL(users):
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except (GAPI.invalidSharingRequest) as e:
-        entityActionFailedWarning([Ent.USER, user, entityType, fileName], Ent.EntityTypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), j, jcount)
+        entityActionFailedWarning([Ent.USER, user, entityType, fileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError):
         entityServiceNotApplicableWarning(Ent.USER, user, i, count)
         break
@@ -21921,57 +21907,51 @@ def setArrows(users):
     if result:
       printEntity([Ent.USER, user, Ent.ARROWS_ENABLED, result[u'arrows']], i, count)
 
+def _checkDelegator(cd, delegatorEmail, i, count, jcount):
+  try:
+    result = callGAPI(cd.users(), u'get',
+                      throw_reasons=GAPI.USER_GET_THROW_REASONS,
+                      userKey=delegatorEmail, fields=u'suspended,changePasswordAtNextLogin')
+    if result[u'suspended']:
+      entityNumEntitiesActionFailedWarning(Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, jcount, Ent.TypeMessage(Ent.DELEGATOR, Msg.IS_SUSPENDED_NO_DELEGATION), i, count)
+      setSysExitRC(USER_SUSPENDED_ERROR_RC)
+    elif result[u'changePasswordAtNextLogin']:
+      entityNumEntitiesActionFailedWarning(Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, jcount, Ent.TypeMessage(Ent.DELEGATOR, Msg.IS_REQD_TO_CHG_PWD_NO_DELEGATION), i, count)
+      setSysExitRC(USER_REQUIRED_TO_CHANGE_PASSWORD_ERROR_RC)
+    else:
+      return True
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError) as e:
+    entityNumEntitiesActionFailedWarning(Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, jcount, Ent.TypeMessage(Ent.DELEGATOR, str(e)), i, count)
+  return False
+
+def _checkDelegate(cd, delegatorEmail, delegateEmail, j, jcount):
+  try:
+    result = callGAPI(cd.users(), u'get',
+                      throw_reasons=GAPI.USER_GET_THROW_REASONS,
+                      userKey=delegateEmail, fields=u'suspended,changePasswordAtNextLogin')
+    if result[u'suspended']:
+      entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, Msg.IS_SUSPENDED_NO_DELEGATION), j, jcount)
+      setSysExitRC(USER_SUSPENDED_ERROR_RC)
+    elif result[u'changePasswordAtNextLogin']:
+      entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, Msg.IS_REQD_TO_CHG_PWD_NO_DELEGATION), j, jcount)
+      setSysExitRC(USER_REQUIRED_TO_CHANGE_PASSWORD_ERROR_RC)
+    else:
+      entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Msg.GOOGLE_DELEGATION_ERROR, j, jcount)
+      setSysExitRC(GOOGLE_API_ERROR_RC)
+  except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError) as e:
+    entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, str(e)), j, jcount)
+
+def _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount):
+  if not _checkDelegator(cd, delegatorEmail, i, count, jcount):
+    return False
+  _checkDelegate(cd, delegatorEmail, delegateEmail, j, jcount)
+  return True
+
 HTTP_400_RESULT_PATTERN = re.compile(r'errorCode="(.*)".*invalidInput="(.*)".*reason="(.*)"')
 HTTP_4XX_5XX_RESULT_PATTERN = re.compile(r'<TITLE>(.*)</TITLE>')
 
-# gam <UserTypeEntity> add delegate|delegates <UserEntity>
-# gam <UserTypeEntity> delegate|delegates to <UserEntity>
-def addDelegate(users):
-  delegateTo(users, checkForTo=False)
-
+# gam <UserTypeEntity> delegate to <UserEntity>
 def delegateTo(users, checkForTo=True):
-
-  def _checkDelegator(i, count, jcount):
-    try:
-      result = callGAPI(cd.users(), u'get',
-                        throw_reasons=GAPI.USER_GET_THROW_REASONS,
-                        userKey=delegatorEmail, fields=u'suspended,changePasswordAtNextLogin')
-      if result[u'suspended']:
-        entityNumEntitiesActionNotPerformedWarning(Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, jcount, Ent.EntityTypeNameMessage(Ent.DELEGATOR, delegatorEmail, Msg.IS_SUSPENDED_NO_DELEGATION), i, count)
-        setSysExitRC(USER_SUSPENDED_ERROR_RC)
-      elif result[u'changePasswordAtNextLogin']:
-        entityNumEntitiesActionNotPerformedWarning(Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, jcount, Ent.EntityTypeNameMessage(Ent.DELEGATOR, delegatorEmail, Msg.IS_REQD_TO_CHG_PWD_NO_DELEGATION), i, count)
-        setSysExitRC(USER_SUSPENDED_ERROR_RC)
-      else:
-        return True
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
-      entityUnknownWarning(Ent.DELEGATOR, delegatorEmail, i, count)
-    return False
-
-  def _checkDelegate(j, jcount):
-    try:
-      result = callGAPI(cd.users(), u'get',
-                        throw_reasons=GAPI.USER_GET_THROW_REASONS,
-                        userKey=delegateEmail, fields=u'suspended,changePasswordAtNextLogin')
-      if result[u'suspended']:
-        entityActionNotPerformedWarning([Ent.DELEGATOR, delegatorEmail],
-                                        Ent.EntityTypeNameMessage(Ent.DELEGATE, delegateEmail, Msg.IS_SUSPENDED_NO_DELEGATION), j, jcount)
-        setSysExitRC(USER_SUSPENDED_ERROR_RC)
-      elif result[u'changePasswordAtNextLogin']:
-        entityActionNotPerformedWarning([Ent.DELEGATOR, delegatorEmail],
-                                        Ent.EntityTypeNameMessage(Ent.DELEGATE, delegateEmail, Msg.IS_REQD_TO_CHG_PWD_NO_DELEGATION), j, jcount)
-        setSysExitRC(USER_SUSPENDED_ERROR_RC)
-    except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
-      entityUnknownWarning(Ent.DELEGATE, delegateEmail, j, jcount)
-
-  def _checkDelegatorDelegate(i, count, j, jcount):
-    if not _checkDelegator(i, count, jcount):
-      return False
-    Ind.Increment()
-    _checkDelegate(j, jcount)
-    Ind.Decrement()
-    return True
-
   cd = buildGAPIObject(API.DIRECTORY)
   emailSettings = buildGAPIObject(API.EMAIL_SETTINGS)
   if checkForTo:
@@ -21982,10 +21962,11 @@ def delegateTo(users, checkForTo=True):
   for user in users:
     i += 1
     delegatorEmail, delegatorName, delegatorDomain, delegates, jcount = _validateDelegatorGetObjectList(user, i, count, delegateEntity)
+    Ind.Increment()
     j = 0
     for delegate in delegates:
       j += 1
-      delegateEmail = normalizeEmailAddressOrUID(delegate)
+      delegateEmail = convertUserUIDtoEmailAddress(delegate)
       uri = u'https://apps-apis.google.com/a/feeds/emailsettings/2.0/{0}/{1}/delegation'.format(delegatorDomain, delegatorName)
       body = u'''<?xml version="1.0" encoding="utf-8"?>
   <atom:entry xmlns:atom="http://www.w3.org/2005/Atom" xmlns:apps="http://schemas.google.com/apps/2006">
@@ -21998,9 +21979,7 @@ def delegateTo(users, checkForTo=True):
         status, result = emailSettings._http.request(uri=uri, method=u'POST', body=body, headers=headers)
         httpStatus = int(status[u'status'])
         if httpStatus == 201: # Success
-          Ind.Increment()
           entityActionPerformed([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], j, jcount)
-          Ind.Decrement()
           time.sleep(10) # on success, sleep 10 seconds before exiting or moving on to next user to prevent ghost delegates
           break
         if httpStatus == 400:
@@ -22010,39 +21989,60 @@ def delegateTo(users, checkForTo=True):
             invalidInput = tg.group(2)
             reason = tg.group(3)
             if errorCode == GDATA.DOES_NOT_EXIST:
-              delegatorOK = _checkDelegatorDelegate(i, count, j, jcount)
+              delegatorOK = _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount)
             elif errorCode == GDATA.NAME_NOT_VALID:
-              Ind.Increment()
-              entityServiceNotApplicableWarning(Ent.DELEGATE, delegateEmail, j, jcount)
-              Ind.Decrement()
+              entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, Msg.ENTITY_NAME_NOT_VALID), j, jcount)
             elif errorCode == GDATA.ENTITY_EXISTS:
-              Ind.Increment()
-              entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail], Ent.EntityTypeNameMessage(Ent.DELEGATE, delegateEmail, Msg.DUPLICATE), j, jcount)
-              Ind.Decrement()
+              entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, Msg.DUPLICATE), j, jcount)
             else:
               if not invalidInput:
                 delegatorOK = False
-                entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail], u'errorCode: {0}, reason: {1}'.format(errorCode, reason), i, count)
+                entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATOR, u'errorCode: {0}, reason: {1}'.format(errorCode, reason)), i, count)
               else:
-                Ind.Increment()
-                entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail], Ent.EntityTypeNameMessage(Ent.DELEGATE, delegateEmail, u'errorCode: {0}, reason: {1}'.format(errorCode, reason)), j, jcount)
-                Ind.Decrement()
+                entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], Ent.TypeMessage(Ent.DELEGATE, u'errorCode: {0}, reason: {1}'.format(errorCode, reason)), j, jcount)
           else:
-            delegatorOK = _checkDelegatorDelegate(i, count, j, jcount)
+            delegatorOK = _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount)
           break
         if httpStatus < 500:
-          delegatorOK = _checkDelegatorDelegate(i, count, j, jcount)
+          delegatorOK = _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount)
           break
         tg = HTTP_4XX_5XX_RESULT_PATTERN.search(result)
         reason = tg.group(1) if tg is not None else u'Unknown Error'
         waitOnFailure(n, retries, httpStatus, reason)
       else: #retries exceeded
-        delegatorOK = _checkDelegatorDelegate(i, count, j, jcount)
+        delegatorOK = _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount)
       if not delegatorOK:
         break
+    Ind.Decrement()
+
+# gam <UserTypeEntity> add delegate|delegates <UserEntity>
+def addDelegate(users):
+  delegateTo(users, checkForTo=False)
 
 # gam <UserTypeEntity> delete delegate|delegates <UserEntity>>
 def deleteDelegate(users):
+
+# Add domain to foo or convert uid:xxx to foo. Return foo@bar.com
+  def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
+    cg = UID_PATTERN.match(emailAddressOrUID)
+    if cg:
+      try:
+        result = callGAPI(cd.users(), 'get',
+                          throw_reasons=GAPI.USER_GET_THROW_REASONS,
+                          userKey=cg.group(1), fields='primaryEmail')
+        if u'primaryEmail' in result:
+          return result[u'primaryEmail'].lower()
+      except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+        pass
+      return None
+    atLoc = emailAddressOrUID.find(u'@')
+    if atLoc == -1:
+      return u'{0}@{1}'.format(emailAddressOrUID, addDomain)
+    if atLoc == len(emailAddressOrUID)-1:
+      return u'{0}{1}'.format(emailAddressOrUID, addDomain)
+    return emailAddressOrUID
+
+  cd = buildGAPIObject(API.DIRECTORY)
   emailSettings = buildGAPIObject(API.EMAIL_SETTINGS)
   delegateEntity = getUserObjectEntity(Cmd.OB_USER_ENTITY, Ent.DELEGATE)
   checkForExtraneousArguments()
@@ -22064,8 +22064,8 @@ def deleteDelegate(users):
                  v=u'2.0', delegator=delegatorName, domainName=delegatorDomain, delegate=delegateEmail)
         entityActionPerformed([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], j, jcount)
       except (GAPI.notFound, GAPI.serviceNotAvailable, GAPI.domainNotFound):
-        entityServiceNotApplicableWarning(Ent.DELEGATOR, delegatorEmail, i, count)
-        break
+        if not _checkDelegatorDelegate(cd, delegatorEmail, delegateEmail, i, count, j, jcount):
+          break
       except GAPI.invalidInput as e:
         entityActionFailedWarning([Ent.DELEGATOR, delegatorEmail, Ent.DELEGATE, delegateEmail], str(e), j, jcount)
     Ind.Decrement()
