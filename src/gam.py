@@ -5255,6 +5255,8 @@ def doReport():
               continue
             row = {u'email': user_report[u'entity'][u'userEmail'], u'date': try_date}
             for item in user_report.get(u'parameters', {}):
+              if u'name' not in item:
+                continue
               name = item[u'name']
               if name not in titles[u'set']:
                 addTitleToCSVfile(name, titles)
