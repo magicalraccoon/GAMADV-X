@@ -1,3 +1,8 @@
+4.44.19
+
+Courtesy of Jay, handle additional values in gam report customer.
+Handle Google changes that broke gam create project.
+
 4.44.18
 
 Courtesy of Jay, show customer license info in gam info customer/instance.

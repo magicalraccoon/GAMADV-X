@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.18'
+__version__ = u'4.44.19'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4923,19 +4923,21 @@ def doCreateProject():
       print u'Checking project status...'
       status = callGAPI(crm.operations(), u'get', name=operation_name)
       if u'error' in status:
-        if u'message' in status[u'error'] and status[u'error'][u'message'].find(u'Callers must accept ToS') != -1:
-          print u'''Please go to:
+        try:
+          if status[u'error'][u'details'][0][u'violations'][0][u'description'] == u'Callers must accept Terms of Service':
+            print u'''Please go to:
 
 https://console.cloud.google.com/start
 
 and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup, you can return here and press enter.'''
-          raw_input()
-          create_again = True
-          break
-        else:
-          print status
-          sys.exit(1)
-      if u'done' in status and status[u'done']:
+            raw_input()
+            create_again = True
+            break
+        except (IndexError, KeyError):
+          pass
+        print status
+        sys.exit(1)
+      if status.get(u'done', False):
         break
       sleep_time = i ** 2
       print u'Project still being created. Sleeping %s seconds' % sleep_time
@@ -5316,6 +5318,20 @@ def doReport():
                     elif an_item == u'client_id':
                       app[u'client_id'] = subitem[an_item]
                   auth_apps.append(app)
+              else:
+                values = []
+                for subitem in item[u'msgValue']:
+                  if u'count' not in subitem:
+                    continue
+                  mycount = myvalue = None
+                  for key, value in subitem.items():
+                    if key == u'count':
+                      mycount = value
+                    else:
+                      myvalue = value
+                    if mycount and myvalue:
+                      values.append('{0}:{1}'.format(myvalue, mycount))
+                csvRows.append({u'name': name, u'value': u' '.join(values)})
         for row in auth_apps: # put apps at bottom
           csvRows.append(row)
         break
