@@ -1,3 +1,8 @@
+4.44.18
+
+Courtesy of Jay, show customer license info in gam info customer/instance.
+Handle bad data from Google in gam report customer.
+
 4.44.17
 
 gam print contacts/contactgroups now output user placeholder rows as necessary when csv_output_users_audit is true.
