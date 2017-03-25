@@ -21,7 +21,6 @@
 """
 
 import os
-import sys
 
 # The following GM_XXX constants are arbitrary but must be unique
 # Most errors print a message and bail out with a return code

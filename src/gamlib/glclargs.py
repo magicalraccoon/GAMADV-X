@@ -347,8 +347,8 @@ class GamCLArgs(object):
   OB_ACL_SCOPE_ENTITY = u'ACLScopeEntity'
   OB_ARGUMENT = u'argument'
   OB_ASP_ID = u'AspID'
-  OB_CALENDAR_ENTITY = U'CalendarEntity'
-  OB_CALENDAR_ITEM = U'CalendarItem'
+  OB_CALENDAR_ENTITY = u'CalendarEntity'
+  OB_CALENDAR_ITEM = u'CalendarItem'
   OB_CHAR_SET = u'CharacterSet'
   OB_CIDR_NETMASK = u'CIDRnetmask'
   OB_CLIENT_ID = u'ClientID'
@@ -395,8 +395,8 @@ class GamCLArgs(object):
   OB_GAM_ARGUMENT_LIST = u'GAM argument list'
   OB_GROUP_ENTITY = u'GroupEntity'
   OB_GROUP_ITEM = u'GroupItem'
-  OB_GUARDIAN_INVITATION_ID = U'GuardianInvitationID'
-  OB_GUARDIAN_ITEM = U'GuardianItem'
+  OB_GUARDIAN_INVITATION_ID = u'GuardianInvitationID'
+  OB_GUARDIAN_ITEM = u'GuardianItem'
   OB_GUARDIAN_STATE_LIST = u'GuardianStateList'
   OB_HOST_NAME = u'HostName'
   OB_JOB_ID = u'JobID'
@@ -458,6 +458,7 @@ class GamCLArgs(object):
 #
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
   ARGUMENT_BLANK = u'blnk'
+  ARGUMENT_DEPRECATED = u'depr'
   ARGUMENT_EMPTY = u'empt'
   ARGUMENT_EXTRANEOUS = u'extr'
   ARGUMENT_INVALID = u'inva'
@@ -466,6 +467,7 @@ class GamCLArgs(object):
 # These values can be translated into other languages
   ARGUMENT_ERROR_NAMES = {
     ARGUMENT_BLANK: [u'Blank arguments', u'Blank argument'],
+    ARGUMENT_DEPRECATED: [u'Deprecated arguments', u'Deprecated argument'],
     ARGUMENT_EMPTY: [u'Empty arguments', u'Empty argument'],
     ARGUMENT_EXTRANEOUS: [u'Extra arguments', u'Extra argument'],
     ARGUMENT_INVALID: [u'Invalid arguments', u'Invalid argument'],

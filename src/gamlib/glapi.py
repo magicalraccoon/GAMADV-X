@@ -63,8 +63,8 @@ _INFO = {
   CONTACTS: {u'version': u'v3', u'credfam': FAM2_SCOPES, u'svcacctscopes': [u'https://www.google.com/m8/feeds',], u'localjson': True},
   DATATRANSFER: {u'version': u'datatransfer_v1', u'credfam': FAM1_SCOPES},
   DIRECTORY: {u'version': u'directory_v1', u'credfam': FAM1_SCOPES},
-  DRIVE: {u'version': 'v2', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
-  DRIVE3: {u'version': 'v3', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
+  DRIVE: {u'version': u'v2', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
+  DRIVE3: {u'version': u'v3', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://www.googleapis.com/auth/drive',]},
   EMAIL_AUDIT: {u'version': u'v1', u'credfam': FAM2_SCOPES, u'localjson': True},
   EMAIL_SETTINGS: {u'version': u'v2', u'credfam': FAM1_SCOPES, u'localjson': True},
   GMAIL: {u'version': u'v1', u'credfam': FAM1_SCOPES, u'svcacctscopes': [u'https://mail.google.com/', u'https://www.googleapis.com/auth/gmail.settings.basic',
@@ -231,23 +231,36 @@ DRIVE3_TO_DRIVE2_CAPABILITIES_FIELDS_MAP = {
   u'canShare': u'shareable',
   }
 
+DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP = {
+  u'capabilities.canComment': u'canComment',
+  u'capabilities.canReadRevisions': u'canReadRevisions',
+  u'capabilities.canCopy': u'copyable',
+  u'capabilities.canEdit': u'editable',
+  u'capabilities.canShare': u'shareable',
+  }
+
 DRIVE3_TO_DRIVE2_FILES_FIELDS_MAP = {
   u'createdTime': u'createdDate',
+  u'expirationTime': u'expirationDate',
+  u'modifiedByMe': u'modified',
   u'modifiedByMeTime': u'modifiedByMeDate',
   u'modifiedTime': u'modifiedDate',
   u'name': u'title',
   u'sharedWithMeTime': u'sharedWithMeDate',
   u'size': u'fileSize',
   u'trashedTime': u'trashedDate',
+  u'viewedByMe': u'viewed',
   u'viewedByMeTime': u'lastViewedByMeDate',
+  u'viewersCanCopyContent': u'restricted',
   u'webViewLink': u'alternateLink',
   }
 
-DRIVE3_TO_DRIVE2_LABELS_FIELDS_MAP = {
+DRIVE3_TO_DRIVE2_LABELS_MAP = {
+  u'modifiedByMe': u'modified',
+  u'viewersCanCopyContent': u'restricted',
   u'starred': u'starred',
   u'trashed': u'trashed',
   u'viewedByMe': u'viewed',
-  u'viewersCanCopyContent': u'restricted',
   }
 
 DRIVE3_TO_DRIVE2_REVISIONS_FIELDS_MAP = {

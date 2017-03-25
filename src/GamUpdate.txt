@@ -1,3 +1,7 @@
+4.44.20
+
+Fix gam <UserTypeEntity> add smime, original code from Jay was not correct.
+
 4.44.19
 
 Courtesy of Jay, handle additional values in gam report customer.

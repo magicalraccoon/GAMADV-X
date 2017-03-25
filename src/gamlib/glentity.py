@@ -189,7 +189,7 @@ class GamEntity(object):
     API: [u'APIs', u'API'],
     APPLICATION_SPECIFIC_PASSWORD: [u'Application Specific Passwords', u'Application Specific Password'],
     ARROWS_ENABLED: [u'Personal Indicator Arrows Enabled', u'Personal Indicator Arrows Enabled'],
-    ATTENDEE: [U'Attendees', u'Attendee'],
+    ATTENDEE: [u'Attendees', u'Attendee'],
     AUDIT_ACTIVITY_REQUEST: [u'Audit Activity Requests', u'Audit Activity Request'],
     AUDIT_EXPORT_REQUEST: [u'Audit Export Requests', u'Audit Export Request'],
     AUDIT_MONITOR_REQUEST: [u'Audit Monitor Requests', u'Audit Monitor Request'],

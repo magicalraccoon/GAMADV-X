@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.19'
+__version__ = u'4.44.20'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5124,7 +5124,7 @@ def _adjustDate(errMsg, noDateChange):
   if (not match_date) or noDateChange:
     printWarningMessage(DATA_NOT_AVALIABLE_RC, errMsg)
     return None
-  return str(match_date.group(1))
+  return unicode(match_date.group(1))
 
 NL_SPACES_PATTERN = re.compile(r'\n +')
 
@@ -17889,26 +17889,36 @@ def _setRoleConvertCommenterToReader(body, role):
     body[u'role'] = u'reader'
     body[u'additionalRoles'] = [role]
 
+def _mapDrive3TitlesToDrive2(titles, drive3TitlesMap):
+  for i in range(len(titles)):
+    if titles[i] in drive3TitlesMap:
+      titles[i] = drive3TitlesMap[titles[i]]
+
 def _mapDrivePermissionNames(permission):
-  permission.pop(u'selfLink', None)
-  if permission[u'type'] not in [u'anyone', u'domain']:
-    permission.pop(u'withLink', None)
   if permission[u'role'] == u'reader' and permission.get(u'additionalRoles') and permission[u'additionalRoles'][0] == u'commenter':
     permission[u'role'] = permission[u'additionalRoles'].pop(0)
     if not permission[u'additionalRoles']:
       del permission[u'additionalRoles']
 
+def _mapDriveFieldNames(f_file, user):
+  capabilities = f_file.get(u'capabilities')
+  if capabilities:
+    for attrib in API.DRIVE3_TO_DRIVE2_CAPABILITIES_FIELDS_MAP:
+      f_file[API.DRIVE3_TO_DRIVE2_CAPABILITIES_FIELDS_MAP[attrib]] = capabilities[attrib]
+  for permission in f_file.get(u'permissions', []):
+    _mapDrivePermissionNames(permission)
+
 DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'alternatelink': u'alternateLink',
   u'appdatacontents': u'appDataContents',
-  u'cancomment': u'capabilities(canComment)',
-  u'canreadrevisions': u'capabilities(canReadRevisions)',
+  u'cancomment': u'capabilities.canComment',
+  u'canreadrevisions': u'capabilities.canReadRevisions',
   u'capabilities': u'capabilities',
-  u'copyable': u'capabilities(canCopy)',
+  u'copyable': u'capabilities.canCopy',
   u'createddate': u'createdDate',
   u'createdtime': u'createdDate',
   u'description': u'description',
-  u'editable': u'capabilities(canEdit)',
+  u'editable': u'capabilities.canEdit',
   u'explicitlytrashed': u'explicitlyTrashed',
   u'fileextension': u'fileExtension',
   u'filesize': u'fileSize',
@@ -17943,7 +17953,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'permissions': u'permissions',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
-  u'shareable': u'capabilities(canShare)',
+  u'shareable': u'capabilities.canShare',
   u'shared': u'shared',
   u'sharedwithmedate': u'sharedWithMeDate',
   u'sharedwithmetime': u'sharedWithMeDate',
@@ -17954,16 +17964,17 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'title': u'title',
   u'userpermission': u'userPermission',
   u'version': u'version',
-  u'viewedbyme': u'labels(viewed)',
+  u'viewedbyme': u'labels.viewed',
   u'viewedbymedate': u'lastViewedByMeDate',
   u'viewedbymetime': u'lastViewedByMeDate',
-  u'viewerscancopycontent': u'labels(restricted)',
+  u'viewerscancopycontent': u'labels.restricted',
   u'webcontentlink': u'webContentLink',
   u'webviewlink': u'alternateLink',
   u'writerscanshare': u'writersCanShare',
   }
 
-DRIVEFILE_TIME_OBJECTS = [u'createdDate', u'lastViewedByMeDate', u'markedViewedByMeDate', u'modifiedByMeDate', u'modifiedDate', u'sharedWithMeDate', u'expirationDate']
+DRIVEFILE_FIELDS_TIME_OBJECTS = [u'createdDate', u'lastViewedByMeDate', u'modifiedByMeDate', u'modifiedDate', u'sharedWithMeDate']
+DRIVEFILE_REVISIONS_TIME_OBJECTS = [u'expirationDate',]
 
 FILEINFO_FIELDS_TITLES = [u'title', u'mimeType']
 FILEPATH_TITLES = [u'title', u'id', u'mimeType', u'parents']
@@ -18007,7 +18018,7 @@ def showDriveFileInfo(users):
       unknownArgumentExit()
   if fieldsList or labelsList:
     _setSelectionFields()
-    fields = u','.join(set(fieldsList))
+    fields = u','.join(set(fieldsList)).replace(u'.', u'/')
     if labelsList:
       fields += u',labels({0})'.format(u','.join(set(labelsList)))
   else:
@@ -18039,9 +18050,8 @@ def showDriveFileInfo(users):
           for path in paths:
             printKeyValueList([u'path', path])
           Ind.Decrement()
-        for permission in result.get(u'permissions', []):
-          _mapDrivePermissionNames(permission)
-        showJSON(None, result, skipObjects, DRIVEFILE_TIME_OBJECTS)
+        _mapDriveFieldNames(result, user)
+        showJSON(None, result, skipObjects, DRIVEFILE_FIELDS_TIME_OBJECTS)
         Ind.Decrement()
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
@@ -18074,7 +18084,7 @@ def showDriveFileRevisions(users):
         for revision in result[u'items']:
           printEntity([Ent.REVISION_ID, revision[u'id']])
           Ind.Increment()
-          showJSON(None, revision, [u'id',], DRIVEFILE_TIME_OBJECTS)
+          showJSON(None, revision, [u'id',], DRIVEFILE_REVISIONS_TIME_OBJECTS)
           Ind.Decrement()
         Ind.Decrement()
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
@@ -18190,8 +18200,7 @@ def printDriveFileList(users):
     row = {u'Owner': user}
     if filepath:
       addFilePathsToRow(drive, fileTree, f_file, filePathInfo, row, titles)
-    for permission in f_file.get(u'permissions', []):
-      _mapDrivePermissionNames(permission)
+    _mapDriveFieldNames(f_file, user)
     for attrib in f_file:
       if attrib in skipObjects:
         continue
@@ -18213,7 +18222,7 @@ def printDriveFileList(users):
                   if x_attrib not in titles[u'set']:
                     addTitleToCSVfile(x_attrib, titles)
         elif isinstance(f_file[attrib], (str, unicode, int, bool)):
-          if attrib not in DRIVEFILE_TIME_OBJECTS:
+          if attrib not in DRIVEFILE_FIELDS_TIME_OBJECTS:
             row[attrib] = f_file[attrib]
           else:
             row[attrib] = formatLocalTime(f_file[attrib])
@@ -18332,7 +18341,7 @@ def printDriveFileList(users):
     _setSelectionFields()
     fields = u'nextPageToken,items('
     if fieldsList:
-      fields += u','.join(set(fieldsList))
+      fields += u','.join(set(fieldsList)).replace(u'.', u'/')
       if labelsList:
         fields += u','
     if labelsList:
@@ -18342,13 +18351,15 @@ def printDriveFileList(users):
     for field in [u'name', u'alternateLink']:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field.lower()]]}, fieldsList, fieldsTitles, titles)
     _setSelectionFields()
-    fields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList)))
+    fields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList))).replace(u'.', u'/')
   else:
     fields = u'*'
     skipObjects.extend([u'kind', u'etag'])
   orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
     addTitlesToCSVfile([u'paths',], titles)
+  _mapDrive3TitlesToDrive2(titles[u'list'], API.DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP)
+  titles[u'set'] = set(titles[u'list'])
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -19533,7 +19544,7 @@ def emptyDriveTrash(users):
     except (GAPI.serviceNotAvailable, GAPI.authError):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
-DRIVEFILE_ACL_TIME_OBJECTS = [u'expirationDate']
+DRIVEFILE_ACL_TIME_OBJECTS = [u'expirationDate',]
 DRIVEFILE_ACL_KEY_PRINT_ORDER = [
   u'id', u'type', u'emailAddress', u'domain', u'role', u'additionalRoles',
   u'expirationDate', u'photoLink', u'authKey', u'withLink',
@@ -22970,25 +22981,24 @@ def showSendAs(users):
 # gam <UserTypeEntity> add smime (file <FileName> [charset <CharSet>]) [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
 def addSmime(users):
   sendAsEmailBase = None
-  smimefile = None
-  body = {u'isDefault': False}
+  setDefault = False
+  body = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'file':
       smimefile = getString(Cmd.OB_FILE_NAME)
       encoding = getCharSet()
+      body[u'pkcs12'] = base64.urlsafe_b64encode(readFile(smimefile, encoding=encoding))
     elif myarg == u'password':
       body[u'encryptedKeyPassword'] = getString(Cmd.OB_PASSWORD)
     elif myarg == u'default':
-      body[u'isDefault'] = True
+      setDefault = True
     elif myarg in [u'sendas', u'sendasemail']:
       sendAsEmailBase = getEmailAddress(noUid=True)
     else:
       unknownArgumentExit()
-  if not smimefile:
+  if u'pkcs12' not in body:
     missingArgumentExit(u'file')
-  smime_data = readFile(smimefile, encoding=encoding)
-  body[u'pkcs12'] = base64.urlsafe_b64encode(smime_data)
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -23002,7 +23012,11 @@ def addSmime(users):
                         userId=u'me', sendAsEmail=sendAsEmail, body=body, fields=u'id,issuerCn')
       entityModifierNewValueActionPerformed([Ent.USER, user, Ent.SENDAS_ADDRESS, sendAsEmail, Ent.SMIME_ID, result[u'id']],
                                             Act.MODIFIER_FROM, u'{0}: {1}'.format(Ent.Singular(Ent.ISSUER_CN), result[u'issuerCn']), i, count)
-    except GAPI.forbidden as e:
+      if setDefault:
+        callGAPI(gmail.users().settings().sendAs().smimeInfo(), u'setDefault',
+                 throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
+                 userId=u'me', sendAsEmail=sendAsEmail, id=result[u'id'])
+    except (GAPI.forbidden, GAPI.invalidArgument) as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
@@ -23071,7 +23085,7 @@ def updateSmime(users):
                throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
                userId=u'me', sendAsEmail=sendAsEmail, id=smimeId)
       entityActionPerformed([Ent.USER, user, Ent.SENDAS_ADDRESS, sendAsEmail, Ent.SMIME_ID, smimeId], i, count)
-    except GAPI.forbidden as e:
+    except (GAPI.forbidden, GAPI.invalidArgument) as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
@@ -23106,7 +23120,7 @@ def deleteSmime(users):
                throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
                userId=u'me', sendAsEmail=sendAsEmail, id=smimeId)
       entityActionPerformed([Ent.USER, user, Ent.SENDAS_ADDRESS, sendAsEmail, Ent.SMIME_ID, smimeId], i, count)
-    except GAPI.forbidden as e:
+    except (GAPI.forbidden, GAPI.invalidArgument) as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
@@ -23177,7 +23191,7 @@ def _printShowSmimes(users, csvFormat):
             csvRows.append({u'User': user})
       elif csvFormat and GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
         csvRows.append({u'User': user})
-    except GAPI.forbidden as e:
+    except (GAPI.forbidden, GAPI.invalidArgument) as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
