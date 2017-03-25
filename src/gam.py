@@ -23009,12 +23009,12 @@ def addSmime(users):
       result = callGAPI(gmail.users().settings().sendAs().smimeInfo(), u'insert',
                         throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
                         userId=u'me', sendAsEmail=sendAsEmail, body=body, fields=u'id,issuerCn')
-      entityModifierNewValueActionPerformed([Ent.USER, user, Ent.SENDAS_ADDRESS, sendAsEmail, Ent.SMIME_ID, result[u'id']],
-                                            Act.MODIFIER_FROM, u'{0}: {1}'.format(Ent.Singular(Ent.ISSUER_CN), result[u'issuerCn']), i, count)
       if setDefault:
         callGAPI(gmail.users().settings().sendAs().smimeInfo(), u'setDefault',
                  throw_reasons=GAPI.GMAIL_SMIME_THROW_REASONS,
                  userId=u'me', sendAsEmail=sendAsEmail, id=result[u'id'])
+      entityModifierNewValueActionPerformed([Ent.USER, user, Ent.SENDAS_ADDRESS, sendAsEmail, Ent.SMIME_ID, result[u'id']],
+                                            Act.MODIFIER_FROM, u'{0}: {1}'.format(Ent.Singular(Ent.ISSUER_CN), result[u'issuerCn']), i, count)
     except (GAPI.forbidden, GAPI.invalidArgument) as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
