@@ -1,3 +1,9 @@
+4.44.21
+
+Corrected my error in add smime. S/MIME .p12 files are binary, there is no need for a charset option; in fact, even if you didn't specify a charset,
+the code didn't operate correctly.
+    gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+
 4.44.20
 
 Fix gam <UserTypeEntity> add smime, original code from Jay was not correct.

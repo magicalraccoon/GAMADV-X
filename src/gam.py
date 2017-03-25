@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.20'
+__version__ = u'4.44.21'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22978,7 +22978,7 @@ def printSendAs(users):
 def showSendAs(users):
   _printShowSendAs(users, False)
 
-# gam <UserTypeEntity> add smime (file <FileName> [charset <CharSet>]) [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
+# gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
 def addSmime(users):
   sendAsEmailBase = None
   setDefault = False
@@ -22987,8 +22987,7 @@ def addSmime(users):
     myarg = getArgument()
     if myarg == u'file':
       smimefile = getString(Cmd.OB_FILE_NAME)
-      encoding = getCharSet()
-      body[u'pkcs12'] = base64.urlsafe_b64encode(readFile(smimefile, encoding=encoding))
+      body[u'pkcs12'] = base64.urlsafe_b64encode(readFile(smimefile, mode=u'rb'))
     elif myarg == u'password':
       body[u'encryptedKeyPassword'] = getString(Cmd.OB_PASSWORD)
     elif myarg == u'default':
