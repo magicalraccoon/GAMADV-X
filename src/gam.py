@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.21'
+__version__ = u'4.44.22'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2316,6 +2316,9 @@ def getClientCredentials(cred_family):
   credentials.user_agent = GAM_INFO
   return credentials
 
+def _getAdminUserFromOAuth(cred_family):
+  return getClientCredentials(cred_family).id_token.get(u'email', u'Unknown')
+
 def getSvcAcctCredentials(scopes, act_as):
   try:
     if not GM.Globals[GM.OAUTH2SERVICE_JSON_DATA]:
@@ -3761,18 +3764,16 @@ def getTodriveParameters():
     else:
       Cmd.Backup()
       break
-  if todrive[u'user']:
-    user = checkUserExists(buildGAPIObject(API.DIRECTORY), todrive[u'user'])
-    if not user:
-      invalidTodriveValueExit(Ent.USER, Msg.NOT_FOUND, localUser, tduserLocation, GC.TODRIVE_USER, todrive[u'user'])
-      todrive[u'user'] = user
+  if not todrive[u'user']:
+    todrive[u'user'] = _getAdminUserFromOAuth(API.FAM1_SCOPES)
+  user = checkUserExists(buildGAPIObject(API.DIRECTORY), todrive[u'user'])
+  if not user:
+    invalidTodriveValueExit(Ent.USER, Msg.NOT_FOUND, localUser, tduserLocation, GC.TODRIVE_USER, todrive[u'user'])
+  todrive[u'user'] = user
   if todrive[u'parent'] == u'root':
     todrive[u'parentId'] = u'root'
   else:
-    if todrive[u'user']:
-      _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
-    else:
-      drive = buildGAPIObject(API.DRIVE)
+    _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
     if todrive[u'parent'].startswith(u'id:'):
       try:
         result = callGAPI(drive.files(), u'get',
@@ -3812,16 +3813,17 @@ def getTodriveParameters():
 # Send an email
 def send_email(msg_subj, msg_txt, msg_rcpt=None):
   from email.mime.text import MIMEText
-  gmail = buildGAPIObject(API.GMAIL)
-  sender_email = gmail._http.request.credentials.id_token[u'email']
+  userId, gmail = buildGAPIServiceObject(API.GMAIL, _getAdminUserFromOAuth(API.FAM1_SCOPES))
+  if not gmail:
+    return
   if not msg_rcpt:
-    msg_rcpt = sender_email
+    msg_rcpt = userId
   msg = MIMEText(msg_txt)
   msg[u'Subject'] = msg_subj
-  msg[u'From'] = sender_email
+  msg[u'From'] = userId
   msg[u'To'] = msg_rcpt
   callGAPI(gmail.users().messages(), u'send',
-           userId=sender_email, body={u'raw': base64.urlsafe_b64encode(msg.as_string())}, fields=u'')
+           userId=userId, body={u'raw': base64.urlsafe_b64encode(msg.as_string())}, fields=u'')
 
 # Write a CSV file
 def addTitleToCSVfile(title, titles):
@@ -3948,10 +3950,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       if todrive[u'timestamp']:
         timestamp = datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
         title += u' - '+timestamp.isoformat()
-      if todrive[u'user']:
-        _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
-      else:
-        drive = buildGAPIObject(API.DRIVE)
+      _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
       try:
         result = callGAPI(drive.files(), u'insert',
                           throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
@@ -14619,8 +14618,7 @@ def doInfoUser():
   if Cmd.ArgumentsRemaining():
     infoUsers(getStringReturnInList(Cmd.OB_USER_ITEM))
   else:
-    credentials = getClientCredentials(API.FAM1_SCOPES)
-    infoUsers([credentials.id_token[u'email']])
+    infoUsers([_getAdminUserFromOAuth(API.FAM1_SCOPES)])
 
 USERS_ORDERBY_CHOICES_MAP = {
   u'familyname': u'familyName',

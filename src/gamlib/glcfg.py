@@ -78,6 +78,8 @@ DOMAIN = u'domain'
 DRIVE_DIR = u'drive_dir'
 # When retrieving lists of Drive files/folders from API, how many should be retrieved in each chunk
 DRIVE_MAX_RESULTS = u'drive_max_results'
+# Use Drive V3 ntive names
+DRIVE_V3_NATIVE_NAMES = u'drive_v3_native_names'
 # When processing email messages in batches, how many should be processed in each batch
 EMAIL_BATCH_SIZE = u'email_batch_size'
 # Path to extra_args.txt
@@ -150,6 +152,7 @@ Defaults = {
   DOMAIN: u'',
   DRIVE_DIR: u'',
   DRIVE_MAX_RESULTS: 1000,
+  DRIVE_V3_NATIVE_NAMES: FALSE,
   EMAIL_BATCH_SIZE: 100,
   EXTRA_ARGS: u'',
   MEMBER_MAX_RESULTS: 200,
@@ -217,6 +220,7 @@ VAR_INFO = {
   DOMAIN: {VAR_TYPE: TYPE_STRING, VAR_ENVVAR: u'GA_DOMAIN', VAR_LIMITS: (0, None)},
   DRIVE_DIR: {VAR_TYPE: TYPE_DIRECTORY, VAR_ENVVAR: u'GAMDRIVEDIR'},
   DRIVE_MAX_RESULTS: {VAR_TYPE: TYPE_INTEGER, VAR_ENVVAR: u'GAM_DRIVE_MAX_RESULTS', VAR_LIMITS: (1, 1000)},
+  DRIVE_V3_NATIVE_NAMES: {VAR_TYPE: TYPE_BOOLEAN, VAR_ENVVAR: u'GAM_DRIVE_V3_NATIVE_NAMES'},
   EMAIL_BATCH_SIZE: {VAR_TYPE: TYPE_INTEGER, VAR_ENVVAR: u'GAM_EMAIL_BATCH_SIZE', VAR_LIMITS: (1, 100)},
   EXTRA_ARGS: {VAR_TYPE: TYPE_FILE, VAR_SIGFILE: FN_EXTRA_ARGS_TXT, VAR_SFFT: (u'', FN_EXTRA_ARGS_TXT)},
   MEMBER_MAX_RESULTS: {VAR_TYPE: TYPE_INTEGER, VAR_ENVVAR: u'GAM_MEMBER_MAX_RESULTS', VAR_LIMITS: (1, 10000)},

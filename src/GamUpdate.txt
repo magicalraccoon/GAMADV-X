@@ -1,3 +1,7 @@
+4.44.22
+
+Use service account for uploading todrive reports and sending email messages when no_browser is true.
+
 4.44.21
 
 Corrected my error in add smime. S/MIME .p12 files are binary, there is no need for a charset option; in fact, even if you didn't specify a charset,
