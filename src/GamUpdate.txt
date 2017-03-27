@@ -1,3 +1,10 @@
+4.44.23
+
+When todrive is specified and gam.cfg/no_browser is true, the email regarding the upload will be sent to the
+email address specified in gam.cfg/todrive_user or the email address specifed with the tduser command line argument.
+If neither of these options is specified, the email is sent to the G Suite administrator.
+Previously, the email was always sent to the G Suite administrator.
+
 4.44.22
 
 Use service account for uploading todrive reports and sending email messages when no_browser is true.

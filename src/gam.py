@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.22'
+__version__ = u'4.44.23'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3811,13 +3811,11 @@ def getTodriveParameters():
   return todrive
 
 # Send an email
-def send_email(msg_subj, msg_txt, msg_rcpt=None):
+def send_email(msg_subj, msg_txt, msg_rcpt):
   from email.mime.text import MIMEText
   userId, gmail = buildGAPIServiceObject(API.GMAIL, _getAdminUserFromOAuth(API.FAM1_SCOPES))
   if not gmail:
     return
-  if not msg_rcpt:
-    msg_rcpt = userId
   msg = MIMEText(msg_txt)
   msg[u'Subject'] = msg_subj
   msg[u'From'] = userId
@@ -3939,27 +3937,26 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
         columns = len(titles[u'list'])
         rows = len(csvRows)
         cell_count = rows * columns
+        mimeType = MIMETYPE_GA_SPREADSHEET
         if cell_count > 500000 or columns > 256:
           printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
-          convert = False
-        else:
-          convert = True
+          mimeType = u'text/csv'
       else:
-        convert = False
+        mimeType = u'text/csv'
       title = todrive[u'title'] or u'{0} - {1}'.format(GC.Values[GC.DOMAIN], list_type)
       if todrive[u'timestamp']:
         timestamp = datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset'])
         title += u' - '+timestamp.isoformat()
-      _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'])
+      _, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'])
       try:
-        result = callGAPI(drive.files(), u'insert',
+        result = callGAPI(drive.files(), u'create',
                           throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
-                          convert=convert, body={u'parents': [{u'id': todrive[u'parentId']}], u'description': u' '.join(Cmd.AllArguments()), u'title': title, u'mimeType': u'text/csv'},
-                          media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=u'alternateLink')
-        file_url = result[u'alternateLink']
+                          body={u'parents': [todrive[u'parentId']], u'description': u' '.join(Cmd.AllArguments()), u'name': title, u'mimeType': mimeType},
+                          media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=u'webViewLink', supportsTeamDrives=True)
+        file_url = result[u'webViewLink']
         if GC.Values[GC.NO_BROWSER]:
           msg_txt = u'{0}:\n{1}'.format(Msg.DATA_UPLOADED_TO_DRIVE_FILE, file_url)
-          send_email(title, msg_txt)
+          send_email(title, msg_txt, todrive[u'user'])
           printKeyValueList([msg_txt])
         else:
           import webbrowser
