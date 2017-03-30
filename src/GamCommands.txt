@@ -83,7 +83,6 @@ If an item contains spaces, it should be surrounded by ".
 <ContactGroupID> ::= id:<String>
 <ContactGroupName> ::= <String>
 <ContactGroupItem> ::= <ContactGroupID>|<ContactGroupName>
-<CorporaAttribute> ::= allteamdrives|domain|(teamdrive <TeamDriveID>)|user
 <CourseAlias> ::= <String>
 <CourseID> ::= <Number>|d:<CourseAlias>
 <CourseParticipantType> ::= teacher|teachers|student|students
@@ -154,8 +153,6 @@ If an item contains spaces, it should be surrounded by ".
 <S/MIMEID> ::= <String>	
 <StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Tag> ::= <String>
-<TeamDriveID> ::= <String>
-<TeamDriveName> ::= <String>
 <ThreadID> ::= <String>
 <TimeZone> ::= <String>
 <Title> ::= <String>
@@ -292,12 +289,10 @@ Specify a collection of items by directly specifying them; the item type is dete
 <DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
 <DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
 <DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
-<TeamDriveEntity> ::= <TeamDriveID> | (teamdriveid <TeamDriveID>) | (teamdriveid:<TeamDriveID>) | (teamdrivename <TeamDriveName>) | (teamdrivename:<TeamDriveName>)
 <DriveFileEntity> ::=
 	<DriveFileIDEntity> |
 	<DriveFileNameEntity> |
 	<DriveFileQueryEntity> |
-	<TeamDriveEntity> |
 	root |
 	<FileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
 <DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -588,14 +583,14 @@ gam <CrOSTypeEntity> update (<CrOSAttributes>+)|(action deprovision_same_model_r
 <CrOSOrderByFieldName> ::=
 	lastsync|location|notes|serialnumber|status|supportenddate|user
 
-gam info cros <CrosEntity> [nolists] [listlimit <Number>]
+gam info cros <CrosEntity> [nolists] [listlimit <Number>] [start <Date>] [end <Date>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
-gam <CrOSTypeEntity> info [nolists] [listlimit <Number>]
+gam <CrOSTypeEntity> info [nolists] [listlimit <Number>] [start <Date>] [end <Date>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
 gam print cros
 gam [<CrOSTypeEntity>] print cros [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
-	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>]
+	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists] [listlimit <Number>] [start <Date>] [end <Date>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 gam <CrOSTypeEntity> print
 
@@ -621,9 +616,22 @@ The basic argument yields these column headers: deviceId,annotatedAssetId,annota
 The full and allfields arguments yield all column headers including two headers, recentUsers and activeTimeRanges,
 that repeat with two subvalues each, yielding a large number of columns that make the output hard to process.
 The nolists argument suppresses these two headers; if you want these headers in a more manageable form use the following arguments.
-The listlimit <Number> argument limits the number of repetitions to <Number>. If <Number> equals zero, there is no limit.
 If recentusers is specified as a field, each pair of values for recentUsers is put on a separate row with all of the other headers.
 If timeranges is specified as a field, each  pair of values for activeTimeRanges is put on a separate row with all of the other headers.
+The listlimit <Number> argument limits the number of repetitions to <Number>. If <Number> equals zero, there is no limit.
+
+gam [<CrOSTypeEntity>] print crosactivity [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
+	[orderby <CrOSOrderByFieldName> [ascending|descending]] [recentusers] [timeranges] [listlimit <Number>] [start <Date>] [end <Date>]
+	[delimiter <String>] 
+
+The basic column headers are: deviceId,annotatedAssetId,annotatedLocation,serialNumber,orgUnitPath.
+If recentusers is specified, all of the recent users email addresses, separated by the delimiter <String>,
+are put on a separate row, with header recentUsers.email, in addition to the basic headers.
+If timeranges is specified, each pair of time range values, activeTimeRanges.date and activeTimeRanges.duration,
+are put on a separate row with the basic headers.
+The default is to include both recentusers and timeranges.
+The listlimit <Number> argument limits the number of recent users and time ranges to <Number>. If <Number> equals zero, there is no limit.
+The start <Date> and end <Date> arguments filter the time ranges.
 
 # Contacts
 
@@ -1806,15 +1814,6 @@ gam <UserTypeEntity> get photo [drivedir|(targetfolder <FilePath>)] [noshow]
 gam <UserTypeEntity> profile share|shared|unshare|unshared
 
 gam <UserTypeEntity> show profile
-
-# Users - Team Drives
-
-gam <UserTypeEntity> create teamdrive <Name>
-gam <UserTypeEntity> update teamdrive <TeamDriveEntity> [name <Name>]
-gam <UserTypeEntity> delete teamdrive <TeamDriveEntity>
-gam <UserTypeEntity> info teamdrive <TeamDriveEntity>
-gam <UserTypeEntity> print teamdrives [todrive [<ToDriveAttributes>]]
-gam <UserTypeEntity> show teamdrives
 
 # Users - Tokens
 
