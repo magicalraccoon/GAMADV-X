@@ -9871,7 +9871,7 @@ def doPrintCrOSDevices(entityList=None):
         fieldsList = [u'deviceId',]
       projection = u'FULL'
       addFieldToCSVfile(u'activetimeranges', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
-      addTitlesToCSVfile([u'activeTimeRanges.duration'], titles)
+      addTitlesToCSVfile([u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList)).replace(u'.', u'/') if fieldsList else None
