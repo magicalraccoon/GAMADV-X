@@ -1,3 +1,13 @@
+4.44.25
+
+At Jay's suggestion, added activeTimeRanges.minutes column to gam print cros/crosactivity.
+activeTimeRanges.activeTime: milliseconds
+activeTimeRanges.duration: hh:mm:ss
+activeTimeRanges.minutes: minutes
+
+The column headers for the following print commands have been adjusted to make the most common headers appear at the left
+and the remaining headers be sorted: courses, course-participants, domainaliases, mobile, printers, printjobs.
+
 4.44.24
 
 Added start <Date> and end <Date> arguments to gam info cros and gam print cros to allow filtering of activeTimeRanges.

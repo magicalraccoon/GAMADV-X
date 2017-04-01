@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.24'
+__version__ = u'4.44.25'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5820,6 +5820,7 @@ def doPrintDomainAliases():
       csvRows.append(row)
   except (GAPI.badRequest, GAPI.notFound, GAPI.forbidden):
     accessErrorExit(cd)
+  sortCSVTitles([u'domainAliasName', u'parentDomainName', u'creationTime', u'verified'], titles)
   writeCSVfile(csvRows, titles, u'Domain Aliases', todrive)
 
 # gam create domain <DomainName>
@@ -9696,6 +9697,7 @@ def infoCrOSDevices(entityList, cd=None):
             Ind.Increment()
             printKeyValueList([u'activeTime', str(activeTimeRange[u'activeTime'])])
             printKeyValueList([u'duration', formatMilliSeconds(activeTimeRange[u'activeTime'])])
+            printKeyValueList([u'minutes', activeTimeRange[u'activeTime']/60000])
             Ind.Decrement()
           Ind.Decrement()
         recentUsers = cros.get(u'recentUsers', [])
@@ -9758,9 +9760,10 @@ def doPrintCrOSDevices(entityList=None):
     for i in range(min(max(lenATR, lenRU), listLimit or max(lenATR, lenRU))):
       new_row = row.copy()
       if i < lenATR:
+        new_row[u'activeTimeRanges.date'] = activeTimeRanges[i][u'date']
         new_row[u'activeTimeRanges.activeTime'] = str(activeTimeRanges[i][u'activeTime'])
         new_row[u'activeTimeRanges.duration'] = formatMilliSeconds(activeTimeRanges[i][u'activeTime'])
-        new_row[u'activeTimeRanges.date'] = activeTimeRanges[i][u'date']
+        new_row[u'activeTimeRanges.minutes'] = activeTimeRanges[i][u'activeTime']/60000
       if i < lenRU:
         new_row[u'recentUsers.email'] = recentUsers[i].get(u'email', [u'Unknown', u'UnmanagedUser'][recentUsers[i][u'type'] == u'USER_TYPE_UNMANAGED'])
         new_row[u'recentUsers.type'] = recentUsers[i][u'type']
@@ -9856,7 +9859,7 @@ def doPrintCrOSDevices(entityList=None):
       addTitlesToCSVfile(CROS_ARGUMENT_TO_PROPERTY_MAP[u'recentusers'], titles)
     if selectActiveTimeRanges:
       addTitlesToCSVfile(CROS_ARGUMENT_TO_PROPERTY_MAP[u'activetimeranges'], titles)
-      addTitlesToCSVfile([u'activeTimeRanges.duration'], titles)
+      addTitlesToCSVfile([u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
   else:
     if selectRecentUsers:
       if not fieldsList:
@@ -9938,6 +9941,7 @@ def doPrintCrOSActivity(entityList=None):
         new_row = row.copy()
         new_row[u'activeTimeRanges.date'] = activeTimeRange[u'date']
         new_row[u'activeTimeRanges.duration'] = formatMilliSeconds(activeTimeRange[u'activeTime'])
+        new_row[u'activeTimeRanges.minutes'] = activeTimeRange[u'activeTime']/60000
         csvRows.append(new_row)
     if selectRecentUsers:
       recentUsers = cros.get(u'recentUsers', [])
@@ -10001,7 +10005,7 @@ def doPrintCrOSActivity(entityList=None):
     addTitlesToCSVfile([u'recentUsers.email',], titles)
   if selectActiveTimeRanges:
     fieldsList.append(u'activeTimeRanges')
-    addTitlesToCSVfile([u'activeTimeRanges.date', u'activeTimeRanges.duration'], titles)
+    addTitlesToCSVfile([u'activeTimeRanges.date', u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList))
@@ -10238,6 +10242,7 @@ def doPrintMobileDevices():
     entityActionFailedWarning([Ent.MOBILE_DEVICE, None], invalidQuery(query))
   except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
     accessErrorExit(cd)
+  sortCSVTitles([u'resourceId', u'deviceId', u'serialNumber', u'name', u'email', u'status',], titles)
   writeCSVfile(csvRows, titles, u'Mobile', todrive)
 
 GROUP_ATTRIBUTES = {
@@ -15648,6 +15653,7 @@ def doPrintCourses():
     except ValueError:
       titles[u'list'].extend(ttitles[u'list'])
       titles[u'list'].extend(stitles[u'list'])
+  sortCSVTitles([u'id', u'name', u'Aliases', u'section', u'room', u'ownerId', u'creationTine', u'updateTime'], titles)
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):
@@ -15947,6 +15953,7 @@ def doPrintCourseParticipants():
           addRowTitlesToCSVfile(flattenJSON(member, flattened={u'courseId': courseId, u'courseName': course[u'name'], u'userRole': u'STUDENT'}), csvRows, titles)
     except GAPI.forbidden:
       APIAccessDeniedExit()
+  sortCSVTitles([u'courseId', u'courseName', u'userRole', u'userId'], titles)
   writeCSVfile(csvRows, titles, u'Course Participants', todrive)
 
 def encode_multipart(fields, files, boundary=None):
@@ -16159,6 +16166,7 @@ def doPrintPrinters():
     printer[u'updateTime'] = formatLocalTimestamp(printer[u'updateTime'])
     printer[u'tags'] = delimiter.join(printer[u'tags'])
     addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
+  sortCSVTitles([u'id', u'name', u'displayName', u'description', u'createTime', u'updateTime', u'accessTime'], titles)
   writeCSVfile(csvRows, titles, u'Printers', todrive)
 
 def normalizePrinterScopeList(rawScopeList):
@@ -16615,6 +16623,7 @@ def doPrintPrintJobs():
       job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
       job[u'tags'] = delimiter.join(job[u'tags'])
       addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
+  sortCSVTitles([u'printerid', u'id', u'printerName', u'title', u'ownerId', u'createTime', u'updateTime'], titles)
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive)
 
 # gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
