@@ -15615,9 +15615,13 @@ def doPrintCourses():
     addTitleToCSVfile(u'Aliases', titles)
   sortCSVTitles(COURSE_PROPERTY_PRINT_ORDER, titles)
   if courseShowProperties[u'aliases'] or courseShowProperties[u'members'] != u'none':
-    ttitles = {u'set': set(u'teachers'), u'list': [u'teachers',]}
-    stitles = {u'set': set(u'students'), u'list': [u'students',]}
+    ttitles = {u'set': set(), u'list': []}
+    stitles = {u'set': set(), u'list': []}
     if courseShowProperties[u'members'] != u'none':
+      if courseShowProperties[u'members'] != u'students':
+        addTitlesToCSVfile([u'teachers',], ttitles)
+      if courseShowProperties[u'members'] != u'teachers':
+        addTitlesToCSVfile([u'students',], stitles)
       if countsOnly:
         teachersFields = u'nextPageToken,teachers(profile(id))'
         studentsFields = u'nextPageToken,students(profile(id))'
