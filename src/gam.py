@@ -15665,7 +15665,7 @@ def doPrintCourses():
     except ValueError:
       titles[u'list'].extend(ttitles[u'list'])
       titles[u'list'].extend(stitles[u'list'])
-  sortCSVTitles([u'id', u'name', u'Aliases', u'section', u'room', u'ownerId', u'creationTine', u'updateTime'], titles)
+  sortCSVTitles([u'id', u'name', u'Aliases', u'section', u'room', u'ownerId', u'creationTime', u'updateTime'], titles)
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):
