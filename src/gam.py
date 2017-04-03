@@ -16620,8 +16620,8 @@ def doPrintPrintJobs():
                      owner=parameters[u'owner'], offset=offset, limit=limit)
     newJobs = result[u'range'][u'jobsCount']
     totalJobs = int(result[u'range'][u'jobsTotal'])
-    if GC_Values[GC_DEBUG_LEVEL] > 0:
-      sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, jobLimit, newJobs, totalJobs))
+    if GC.Values[GC.DEBUG_LEVEL] > 0:
+      sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, parameters[u'jobLimit'], newJobs, totalJobs))
     if newJobs == 0:
       break
     jobCount += newJobs
