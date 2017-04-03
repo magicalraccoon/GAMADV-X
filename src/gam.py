@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.25'
+__version__ = u'4.44.26'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -15535,12 +15535,14 @@ def doInfoCourse():
   _doInfoCourses(getStringReturnInList(Cmd.OB_COURSE_ID))
 
 # gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>]
-#	[delimiter <String>] [alias|aliases] [show none|all|students|teachers] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
+#	[delimiter <String>] [alias|aliases] [show none|all|students|teachers] [countsonly] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
 def doPrintCourses():
 
   def _saveParticipants(course, participants, role, rtitles):
     jcount = len(participants)
     course[role] = jcount
+    if countsOnly:
+      return
     j = 0
     for member in participants:
       memberTitles = []
@@ -15570,6 +15572,7 @@ def doPrintCourses():
   titles, csvRows = initializeTitlesCSVfile([u'id',])
   teacherId = None
   studentId = None
+  countsOnly = False
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -15581,6 +15584,8 @@ def doPrintCourses():
       studentId = getEmailAddress()
     elif myarg == u'delimiter':
       delimiter = getDelimiter()
+    elif myarg == u'countsonly':
+      countsOnly = True
     else:
       _getCourseShowArguments(myarg, courseShowProperties)
   fields = u'nextPageToken,courses({0})'.format(u','.join(set(courseShowProperties[u'fields']))) if courseShowProperties[u'fields'] else None
@@ -15612,6 +15617,13 @@ def doPrintCourses():
   if courseShowProperties[u'aliases'] or courseShowProperties[u'members'] != u'none':
     ttitles = {u'set': set(u'teachers'), u'list': [u'teachers',]}
     stitles = {u'set': set(u'students'), u'list': [u'students',]}
+    if courseShowProperties[u'members'] != u'none':
+      if countsOnly:
+        teachersFields = u'nextPageToken,teachers(profile(id))'
+        studentsFields = u'nextPageToken,students(profile(id))'
+      else:
+        teachersFields = u'nextPageToken,teachers(profile)'
+        studentsFields = u'nextPageToken,students(profile)'
     i = 0
     count = len(csvRows)
     for course in csvRows:
@@ -15634,14 +15646,14 @@ def doPrintCourses():
             results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
                                     page_message=page_message,
                                     throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                    courseId=courseId, fields=u'nextPageToken,teachers(profile)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                    courseId=courseId, fields=teachersFields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
             _saveParticipants(course, results, u'teachers', ttitles)
           if courseShowProperties[u'members'] != u'teachers':
             Ent.SetGetting(Ent.STUDENT)
             results = callGAPIpages(croom.courses().students(), u'list', u'students',
                                     page_message=page_message,
                                     throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                    courseId=courseId, fields=u'nextPageToken,students(profile)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                    courseId=courseId, fields=studentsFields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
             _saveParticipants(course, results, u'students', stitles)
       except (GAPI.notFound, GAPI.forbidden):
         pass
@@ -16607,6 +16619,9 @@ def doPrintPrintJobs():
                      printerid=printerId, q=parameters[u'query'], status=parameters[u'status'], sortorder=parameters[u'sortorder'],
                      owner=parameters[u'owner'], offset=offset, limit=limit)
     newJobs = result[u'range'][u'jobsCount']
+    totalJobs = int(result[u'range'][u'jobsTotal'])
+    if GC_Values[GC_DEBUG_LEVEL] > 0:
+      sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, jobLimit, newJobs, totalJobs))
     if newJobs == 0:
       break
     jobCount += newJobs
@@ -16623,6 +16638,8 @@ def doPrintPrintJobs():
       job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
       job[u'tags'] = delimiter.join(job[u'tags'])
       addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
+    if jobCount >= totalJobs:
+      break
   sortCSVTitles([u'printerid', u'id', u'printerName', u'title', u'ownerId', u'createTime', u'updateTime'], titles)
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive)
 
