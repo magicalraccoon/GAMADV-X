@@ -15615,9 +15615,9 @@ def doPrintCourses():
     addTitleToCSVfile(u'Aliases', titles)
   sortCSVTitles(COURSE_PROPERTY_PRINT_ORDER, titles)
   if courseShowProperties[u'aliases'] or courseShowProperties[u'members'] != u'none':
-    ttitles = {u'set': set(), u'list': []}
-    stitles = {u'set': set(), u'list': []}
     if courseShowProperties[u'members'] != u'none':
+      ttitles = {u'set': set(), u'list': []}
+      stitles = {u'set': set(), u'list': []}
       if courseShowProperties[u'members'] != u'students':
         addTitlesToCSVfile([u'teachers',], ttitles)
       if courseShowProperties[u'members'] != u'teachers':
@@ -15661,15 +15661,15 @@ def doPrintCourses():
             _saveParticipants(course, results, u'students', stitles)
       except (GAPI.notFound, GAPI.forbidden):
         pass
-    ttitles[u'list'].sort()
-    stitles[u'list'].sort()
-    try:
-      cmsIndex = titles[u'list'].index(u'courseMaterialSets')
-      titles[u'list'] = titles[u'list'][:cmsIndex]+ttitles[u'list']+stitles[u'list']+titles[u'list'][cmsIndex:]
-    except ValueError:
-      titles[u'list'].extend(ttitles[u'list'])
-      titles[u'list'].extend(stitles[u'list'])
-  sortCSVTitles([u'id', u'name', u'Aliases', u'section', u'room', u'ownerId', u'creationTime', u'updateTime'], titles)
+    if courseShowProperties[u'members'] != u'none':
+      ttitles[u'list'].sort()
+      stitles[u'list'].sort()
+      try:
+        cmsIndex = titles[u'list'].index(u'courseMaterialSets')
+        titles[u'list'] = titles[u'list'][:cmsIndex]+ttitles[u'list']+stitles[u'list']+titles[u'list'][cmsIndex:]
+      except ValueError:
+        titles[u'list'].extend(ttitles[u'list'])
+        titles[u'list'].extend(stitles[u'list'])
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 def checkCourseExists(croom, courseId, i=0, count=0):
