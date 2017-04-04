@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.26'
+__version__ = u'4.44.27'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -16543,6 +16543,12 @@ def doPrintJobFetch(printerIdList):
       entityActionFailedWarning([Ent.PRINTER, printerId], str(e))
       return
   ssd = u'{"state": {"type": "DONE"}}'
+  if ((not parameters[u'sortorder']) or (parameters[u'sortorder'] == u'CREATE_TIME_DESC')) and (parameters[u'older_or_newer'] < 0):
+    timeExit = True
+  elif (parameters[u'sortorder'] == u'CREATE_TIME') and (parameters[u'older_or_newer'] > 0):
+    timeExit = True
+  else:
+    timeExit = False
   jobCount = offset = 0
   while True:
     if parameters[u'jobLimit'] == 0:
@@ -16556,6 +16562,7 @@ def doPrintJobFetch(printerIdList):
                      printerid=printerId, q=parameters[u'query'], status=parameters[u'status'], sortorder=parameters[u'sortorder'],
                      owner=parameters[u'owner'], offset=offset, limit=limit)
     newJobs = result[u'range'][u'jobsCount']
+    totalJobs = int(result[u'range'][u'jobsTotal'])
     if newJobs == 0:
       break
     jobCount += newJobs
@@ -16564,9 +16571,15 @@ def doPrintJobFetch(printerIdList):
       createTime = int(job[u'createTime'])
       if parameters[u'older_or_newer'] > 0:
         if createTime > parameters[u'age']:
+          if timeExit:
+            jobCount = totalJobs
+            break
           continue
       elif parameters[u'older_or_newer'] < 0:
         if createTime < parameters[u'age']:
+          if timeExit:
+            jobCount = totalJobs
+            break
           continue
       jobId = job[u'id']
       fileName = os.path.join(targetFolder, u'{0}-{1}'.format(cleanFilename(job[u'title']), jobId))
@@ -16577,6 +16590,8 @@ def doPrintJobFetch(printerIdList):
         result = callGCP(cp.jobs(), u'update',
                          jobid=jobId, semantic_state_diff=ssd)
         entityModifierNewValueActionPerformed([Ent.PRINTER, printerId, Ent.PRINTJOB, jobId], Act.MODIFIER_TO, fileName)
+    if jobCount >= totalJobs:
+      break
   if jobCount == 0:
     entityActionFailedWarning([Ent.PRINTER, printerId, Ent.PRINTJOB, u''], Msg.NO_PRINT_JOBS)
 
@@ -16611,6 +16626,12 @@ def doPrintPrintJobs():
     except GCP.unknownPrinter as e:
       entityActionFailedWarning([Ent.PRINTER, printerId], str(e))
       return
+  if ((not parameters[u'sortorder']) or (parameters[u'sortorder'] == u'CREATE_TIME_DESC')) and (parameters[u'older_or_newer'] < 0):
+    timeExit = True
+  elif (parameters[u'sortorder'] == u'CREATE_TIME') and (parameters[u'older_or_newer'] > 0):
+    timeExit = True
+  else:
+    timeExit = False
   jobCount = offset = 0
   while True:
     if parameters[u'jobLimit'] == 0:
@@ -16634,9 +16655,15 @@ def doPrintPrintJobs():
       createTime = int(job[u'createTime'])
       if parameters[u'older_or_newer'] > 0:
         if createTime > parameters[u'age']:
+          if timeExit:
+            jobCount = totalJobs
+            break
           continue
       elif parameters[u'older_or_newer'] < 0:
         if createTime < parameters[u'age']:
+          if timeExit:
+            jobCount = totalJobs
+            break
           continue
       job[u'createTime'] = formatLocalTimestamp(job[u'createTime'])
       job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
