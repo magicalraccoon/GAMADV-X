@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.27'
+__version__ = u'4.44.28'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20978,6 +20978,9 @@ def _getUserGmailLabels(gmail, user, i, count, **kwargs):
                       userId=u'me', **kwargs)
     if not labels:
       labels = {u'labels': []}
+    else:
+      for label in labels[u'labels']:
+        label[u'name'] = convertUTF8(label[u'name'])
     return labels
   except (GAPI.serviceNotAvailable, GAPI.badRequest):
     entityServiceNotApplicableWarning(Ent.USER, user, i, count)
@@ -21159,12 +21162,12 @@ def updateLabels(users):
 def deleteLabel(users):
   def _handleProcessGmailError(exception, ri):
     http_status, reason, message = checkGAPIError(exception)
-    entityActionFailedWarning([Ent.USER, ri[RI_ENTITY], Ent.LABEL, ri[RI_ITEM]], formatHTTPError(http_status, reason, message), int(ri[RI_J]), int(ri[RI_JCOUNT]))
+    entityActionFailedWarning([Ent.USER, ri[RI_ENTITY], Ent.LABEL, labelIdToNameMap[ri[RI_ITEM]]], formatHTTPError(http_status, reason, message), int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
   def _callbackDeleteLabel(request_id, response, exception):
     ri = request_id.splitlines()
     if exception is None:
-      entityActionPerformed([Ent.USER, ri[RI_ENTITY], Ent.LABEL, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+      entityActionPerformed([Ent.USER, ri[RI_ENTITY], Ent.LABEL, labelIdToNameMap[ri[RI_ITEM]]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
     else:
       _handleProcessGmailError(exception, ri)
 
@@ -21206,6 +21209,7 @@ def deleteLabel(users):
           entityActionFailedWarning([Ent.USER, user, Ent.LABEL, label], Msg.DOES_NOT_EXIST, i, count)
           continue
       jcount = len(del_labels)
+      labelIdToNameMap = {}
       entityPerformActionNumItems([Ent.USER, user], jcount, Ent.LABEL, i, count)
       Ind.Increment()
       svcargs = dict([(u'userId', u'me'), (u'id', None), (u'fields', u'')]+GM.Globals[GM.EXTRA_ARGS_LIST])
@@ -21216,7 +21220,8 @@ def deleteLabel(users):
         j += 1
         svcparms = svcargs.copy()
         svcparms[u'id'] = del_me[u'id']
-        dbatch.add(gmail.users().labels().delete(**svcparms), request_id=batchRequestID(user, 0, 0, j, jcount, del_me[u'name']))
+        labelIdToNameMap[del_me[u'id']] = del_me[u'name']
+        dbatch.add(gmail.users().labels().delete(**svcparms), request_id=batchRequestID(user, i, count, j, jcount, del_me[u'id']))
         bcount += 1
         if bcount == 10:
           dbatch.execute()

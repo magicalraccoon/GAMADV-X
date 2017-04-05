@@ -1,3 +1,7 @@
+4.44.28
+
+Fix bug when deleting/updating label containing accented characters.
+
 4.44.27
 
 Optimized gam print printjobs and gam printjob fetch when olderthan/newerthan <PrintJobAge> is specified so that
