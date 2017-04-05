@@ -20978,9 +20978,6 @@ def _getUserGmailLabels(gmail, user, i, count, **kwargs):
                       userId=u'me', **kwargs)
     if not labels:
       labels = {u'labels': []}
-    else:
-      for label in labels[u'labels']:
-        label[u'name'] = convertUTF8(label[u'name'])
     return labels
   except (GAPI.serviceNotAvailable, GAPI.badRequest):
     entityServiceNotApplicableWarning(Ent.USER, user, i, count)
@@ -21106,7 +21103,7 @@ def updateLabels(users):
       for label in labels[u'labels']:
         if label[u'type'] == LABEL_TYPE_SYSTEM:
           continue
-        match_result = pattern.search(label[u'name'])
+        match_result = pattern.search(convertUTF8(label[u'name']))
         if match_result is not None:
           labelMatches += 1
           try:
