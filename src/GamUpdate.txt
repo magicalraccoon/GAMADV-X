@@ -1,3 +1,18 @@
+4.44.29
+
+gam show labels now prints labels sorted by type (system, user) and name making it much easier to read.
+Added nested argument to gam show labels; this causes nested labels to be indented under their parent label
+to allow the hierarchy to be more clearly visible.
+    gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]]
+For the onlyuser, showcounts and nested arguments, if <Boolean> is omitted, True is assumed.
+
+Added buildpath argument to gam add label; this causes Gam to build all components of a multi-level label.
+If buildpath is omitted or set to False, all parent labels in a multi-level label must be present for the add to succeed.
+If buildpath is present and <Boolean> is omitted or set to True, all parent labels in a multi-level label are created
+as necessary for the add to succeed.
+    gam <UserTypeEntity> [add] label|labels <String> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread] [buildpath [<Boolean>]]
+Example: gam user user@domain.com add label "Top/Middle/Bottom" buildpath
+
 4.44.28
 
 Fix bug when deleting/updating label containing accented characters.

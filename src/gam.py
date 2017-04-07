@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.28'
+__version__ = u'4.44.29'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -9793,7 +9793,7 @@ def doPrintCrOSDevices(entityList=None):
   listLimit = 0
   startDate = endDate = None
   selectActiveTimeRanges = selectRecentUsers = False
-  select = selectLookup = False
+  selectLookup = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -9802,7 +9802,6 @@ def doPrintCrOSDevices(entityList=None):
       query = getString(Cmd.OB_QUERY)
     elif myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_CROS, crosAllowed=True, userAllowed=False)
-      select = True
     elif myarg == u'nolists':
       noLists = True
       selectActiveTimeRanges = selectRecentUsers = False
@@ -9874,6 +9873,7 @@ def doPrintCrOSDevices(entityList=None):
       addTitlesToCSVfile([u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
+    sortRows = False
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList)).replace(u'.', u'/') if fieldsList else None
     printGettingAccountEntitiesInfo(Ent.CROS_DEVICE, qualifier=queryQualifier(query))
     page_message = getPageMessage()
@@ -9891,6 +9891,7 @@ def doPrintCrOSDevices(entityList=None):
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
   else:
+    sortRows = True
     if fieldsList:
       fields = u','.join(set(fieldsList)).replace(u'.', u'/')
       selectLookup = len(fieldsList) > 1
@@ -9920,9 +9921,8 @@ def doPrintCrOSDevices(entityList=None):
         _printCrOS({u'deviceId': cros})
   if sortHeaders:
     sortCSVTitles([u'deviceId',], titles)
-  if select and orderBy and orderBy in titles[u'set']:
-    import operator
-    csvRows.sort(key=operator.itemgetter(orderBy), reverse=sortOrder == u'DESCENDING')
+  if sortRows and orderBy and orderBy in titles[u'set']:
+    csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
   writeCSVfile(csvRows, titles, u'CrOS', todrive)
 
 # gam [<CrOSTypeEntity>] print crosactivity [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>]
@@ -9971,7 +9971,6 @@ def doPrintCrOSActivity(entityList=None):
   listLimit = 0
   startDate = endDate = None
   selectActiveTimeRanges = selectRecentUsers = False
-  select = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -9980,7 +9979,6 @@ def doPrintCrOSActivity(entityList=None):
       query = getString(Cmd.OB_QUERY)
     elif myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_CROS, crosAllowed=True, userAllowed=False)
-      select = True
     elif myarg == u'listlimit':
       listLimit = getInteger(minVal=0)
     elif myarg in CROS_START_ARGUMENTS:
@@ -10008,6 +10006,7 @@ def doPrintCrOSActivity(entityList=None):
     addTitlesToCSVfile([u'activeTimeRanges.date', u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
+    sortRows = False
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList))
     printGettingAccountEntitiesInfo(Ent.CROS_DEVICE, qualifier=queryQualifier(query))
     page_message = getPageMessage()
@@ -10025,6 +10024,7 @@ def doPrintCrOSActivity(entityList=None):
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
   else:
+    sortRows = True
     fields = u','.join(set(fieldsList))
     jcount = len(entityList)
     svcargs = dict([(u'customerId', GC.Values[GC.CUSTOMER_ID]), (u'deviceId', None), (u'projection', projection), (u'fields', fields)]+GM.Globals[GM.EXTRA_ARGS_LIST])
@@ -10043,9 +10043,8 @@ def doPrintCrOSActivity(entityList=None):
         bcount = 0
     if bcount > 0:
       dbatch.execute()
-  if select and orderBy and orderBy in titles[u'set']:
-    import operator
-    csvRows.sort(key=operator.itemgetter(orderBy), reverse=sortOrder == u'DESCENDING')
+  if sortRows and orderBy and orderBy in titles[u'set']:
+    csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
   writeCSVfile(csvRows, titles, u'CrOS Activity', todrive)
 
 # gam <CrOSTypeEntity> print
@@ -14832,7 +14831,7 @@ def doPrintUsers(entityList=None):
   customFieldMask = None
   viewType = deleted_only = orderBy = sortOrder = None
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
-  select = selectLookup = False
+  selectLookup = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -14846,7 +14845,6 @@ def doPrintUsers(entityList=None):
       deleted_only = True
     elif myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS)
-      select = True
     elif myarg == u'orderby':
       orderBy = getChoice(USERS_ORDERBY_CHOICES_MAP, mapChoice=True)
       sortOrder = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
@@ -14896,6 +14894,7 @@ def doPrintUsers(entityList=None):
       unknownArgumentExit()
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
+    sortRows = False
     fields = u'nextPageToken,users({0})'.format(u','.join(set(fieldsList))).replace(u'.', u'/') if fieldsList else None
     printGettingAccountEntitiesInfo(Ent.USER, qualifier=queryQualifier(query))
     page_message = getPageMessage(showFirstLastItems=True)
@@ -14924,6 +14923,7 @@ def doPrintUsers(entityList=None):
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
   else:
+    sortRows = True
     if fieldsList:
       fields = u','.join(set(fieldsList)).replace(u'.', u'/')
       selectLookup = len(fieldsList) > 1
@@ -14953,9 +14953,10 @@ def doPrintUsers(entityList=None):
         _printUser({u'primaryEmail': normalizeEmailAddressOrUID(userEntity)})
   if sortHeaders:
     sortCSVTitles([u'primaryEmail',], titles)
-  if select and orderBy and u'name.{0}'.format(orderBy) in titles[u'set']:
-    import operator
-    csvRows.sort(key=operator.itemgetter(u'name.{0}'.format(orderBy)), reverse=sortOrder == u'DESCENDING')
+  if sortRows and orderBy:
+    orderBy = [u'name.{0}'.format(orderBy), u'primaryEmail'][orderBy == u'email']
+    if orderBy in titles[u'set']:
+      csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
   if getGroupFeed:
     addTitleToCSVfile(u'Groups', titles)
     i = 0
@@ -21002,16 +21003,20 @@ LABEL_LABEL_LIST_VISIBILITY_CHOICES_MAP = {
   }
 LABEL_MESSAGE_LIST_VISIBILITY_CHOICES = [u'hide', u'show',]
 
-# gam <UserTypeEntity> [add] label|labels <String> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
+# gam <UserTypeEntity> [add] label|labels <String> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread] [buildpath [<Boolean>]]
 def addLabel(users):
   label = getString(Cmd.OB_LABEL_NAME)
   body = {u'name': label}
+  buildPath = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'labellistvisibility':
       body[u'labelListVisibility'] = getChoice(LABEL_LABEL_LIST_VISIBILITY_CHOICES_MAP, mapChoice=True)
     elif myarg == u'messagelistvisibility':
       body[u'messageListVisibility'] = getChoice(LABEL_MESSAGE_LIST_VISIBILITY_CHOICES)
+    elif myarg == u'buildpath':
+      buildPath = getBoolean(defaultValue=True)
+      label = label.strip(u'/')
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -21020,15 +21025,68 @@ def addLabel(users):
     user, gmail = buildGAPIServiceObject(API.GMAIL, user)
     if not gmail:
       continue
-    try:
-      callGAPI(gmail.users().labels(), u'create',
-               throw_reasons=GAPI.GMAIL_THROW_REASONS+[GAPI.DUPLICATE],
-               userId=u'me', body=body, fields=u'')
-      entityActionPerformed([Ent.USER, user, Ent.LABEL, label], i, count)
-    except GAPI.duplicate:
-      entityActionFailedWarning([Ent.USER, user, Ent.LABEL, label], Msg.DUPLICATE, i, count)
-    except (GAPI.serviceNotAvailable, GAPI.badRequest):
-      entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+    if not buildPath:
+      entityPerformActionNumItems([Ent.USER, user], 1, Ent.LABEL, i, count)
+      Ind.Increment()
+      try:
+        callGAPI(gmail.users().labels(), u'create',
+                 throw_reasons=GAPI.GMAIL_THROW_REASONS+[GAPI.DUPLICATE],
+                 userId=u'me', body=body, fields=u'')
+        entityActionPerformed([Ent.USER, user, Ent.LABEL, label], i, count)
+      except GAPI.duplicate:
+        entityActionFailedWarning([Ent.USER, user, Ent.LABEL, label], Msg.DUPLICATE, i, count)
+      except (GAPI.serviceNotAvailable, GAPI.badRequest):
+        entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+      Ind.Decrement()
+    else:
+      labels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name,type)')
+      if not labels:
+        continue
+      labelParts = label.split(u'/')
+      invalid = False
+      for j, labelPart in enumerate(labelParts):
+        labelParts[j] = labelPart.strip()
+        if not labelParts[j]:
+          entityPerformActionNumItems([Ent.USER, user], 1, Ent.LABEL, i, count)
+          Ind.Increment()
+          entityActionFailedWarning([Ent.USER, user, Ent.LABEL, label], Msg.INVALID, i, count)
+          Ind.Decrement()
+          invalid = True
+          break
+      if invalid:
+        continue
+      labelSet = set([ulabel[u'name'] for ulabel in labels[u'labels'] if ulabel[u'type'] != LABEL_TYPE_SYSTEM])
+      duplicate = True
+      labelPath = u''
+      j = 0
+      for k, labelPart in enumerate(labelParts):
+        if labelPath != u'':
+          labelPath += u'/'
+        labelPath += labelPart
+        if labelPath not in labelSet:
+          if duplicate:
+            jcount = len(labelParts)-k
+            entityPerformActionNumItems([Ent.USER, user], jcount, Ent.LABEL, i, count)
+            Ind.Increment()
+            duplicate = False
+          j += 1
+          body[u'name'] = labelPath
+          try:
+            callGAPI(gmail.users().labels(), u'create',
+                     throw_reasons=GAPI.GMAIL_THROW_REASONS+[GAPI.DUPLICATE],
+                     userId=u'me', body=body, fields=u'')
+            entityActionPerformed([Ent.USER, user, Ent.LABEL, labelPath], j, jcount)
+          except GAPI.duplicate:
+            entityActionFailedWarning([Ent.USER, user, Ent.LABEL, labelPath], Msg.DUPLICATE, j, jcount)
+            break
+          except (GAPI.serviceNotAvailable, GAPI.badRequest):
+            entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+            break
+      if duplicate:
+        entityPerformActionNumItems([Ent.USER, user], 1, Ent.LABEL, i, count)
+        Ind.Increment()
+        entityActionFailedWarning([Ent.USER, user, Ent.LABEL, labelPath], Msg.DUPLICATE, i, count)
+      Ind.Decrement()
 
 # gam <UserTypeEntity> update labelsettings <LabelName> [name <String>] [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 def updateLabelSettings(users):
@@ -21230,15 +21288,62 @@ def deleteLabel(users):
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
-# gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
+# gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]]
 def showLabels(users):
-  onlyUser = showCounts = False
+  def _buildLabelTree(labels):
+    def _checkChildLabel(label):
+      if label.find(u'/') != -1:
+        (parent, _) = label.rsplit(u'/', 1)
+        if parent in labelTree:
+          if label in labelTree:
+            labelTree[parent][u'children'].append(labelTree[label])
+            del labelTree[label]
+          _checkChildLabel(parent)
+
+    labelTree = {}
+    for label in labels[u'labels']:
+      if not onlyUser or (label[u'type'] != LABEL_TYPE_SYSTEM):
+        labelTree[label[u'name']] = {u'info': label, u'children': []}
+    labelList = sorted(list(labelTree), reverse=True)
+    for label in labelList:
+      _checkChildLabel(label)
+    return labelTree
+
+  def _printFlatLabel(label):
+    printKeyValueList([label[u'name']])
+    Ind.Increment()
+    for a_key in label:
+      if a_key != u'name':
+        printKeyValueList([a_key, label[a_key]])
+    if showCounts:
+      counts = callGAPI(gmail.users().labels(), u'get',
+                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                        userId=u'me', id=label[u'id'],
+                        fields=u'messagesTotal,messagesUnread,threadsTotal,threadsUnread')
+      for a_key in counts:
+        printKeyValueList([a_key, counts[a_key]])
+    Ind.Decrement()
+
+  def _printNestedLabel(label):
+    _printFlatLabel(label[u'info'])
+    if label[u'children']:
+      Ind.Increment()
+      printKeyValueList([u'nested', len(label[u'children'])])
+      Ind.Increment()
+      for child in sorted(label[u'children'], key=lambda k: k[u'info'][u'name']):
+        _printNestedLabel(child)
+      Ind.Decrement()
+      Ind.Decrement()
+
+  onlyUser = showCounts = showNested = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'onlyuser':
-      onlyUser = True
+      onlyUser = getBoolean(defaultValue=True)
     elif myarg == u'showcounts':
-      showCounts = True
+      showCounts = getBoolean(defaultValue=True)
+    elif myarg == u'nested':
+      showNested = getBoolean(defaultValue=True)
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -21261,22 +21366,14 @@ def showLabels(users):
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
       Ind.Increment()
-      for label in labels[u'labels']:
-        if onlyUser and (label[u'type'] == LABEL_TYPE_SYSTEM):
-          continue
-        printKeyValueList([label[u'name']])
-        Ind.Increment()
-        for a_key in label:
-          if a_key != u'name':
-            printKeyValueList([a_key, label[a_key]])
-        if showCounts:
-          counts = callGAPI(gmail.users().labels(), u'get',
-                            throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                            userId=u'me', id=label[u'id'],
-                            fields=u'messagesTotal,messagesUnread,threadsTotal,threadsUnread')
-          for a_key in counts:
-            printKeyValueList([a_key, counts[a_key]])
-        Ind.Decrement()
+      if not showNested:
+        for label in sorted(labels[u'labels'], key=lambda k: (k[u'type'], k[u'name'])):
+          if not onlyUser or (label[u'type'] != LABEL_TYPE_SYSTEM):
+            _printFlatLabel(label)
+      else:
+        labelTree = _buildLabelTree(labels)
+        for label, _ in sorted(labelTree.iteritems(), key=lambda k: (k[1][u'info'][u'type'], k[1][u'info'][u'name'])):
+          _printNestedLabel(labelTree[label])
       Ind.Decrement()
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)

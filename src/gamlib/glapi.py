@@ -240,6 +240,7 @@ DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP = {
   }
 
 DRIVE3_TO_DRIVE2_FILES_FIELDS_MAP = {
+  u'allowFileDiscovery': u'withLink',
   u'createdTime': u'createdDate',
   u'expirationTime': u'expirationDate',
   u'modifiedByMe': u'modified',

@@ -1666,7 +1666,7 @@ gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [corpor
 gam <UserTypeEntity> print|show driveactivity [todrive [<ToDriveAttributes>]] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> print|show drivesettings [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> delete emptydrivefolders [corpora <CorporaAttribute>]
+gam <UserTypeEntity> delete emptydrivefolders
 gam <UserTypeEntity> empty drivetrash
 
 # Users - Deprovision
@@ -1726,12 +1726,12 @@ gam <UserTypeEntity> print forward [todrive [<ToDriveAttributes>]]
 
 # Users - Gmail - Labels/Messages
 
-gam <UserTypeEntity> [add] label|labels <String> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
+gam <UserTypeEntity> [add] label|labels <String> [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread] [buildpath [<Boolean>]]
 gam <UserTypeEntity> update labelsettings <LabelName> [name <String>] [messagelistvisibility hide|show] [labellistvisibility hide|show|showifunread]
 gam <UserTypeEntity> update label|labels [search <RegularExpression>] [replace <String>] [merge]
 gam <UserTypeEntity> delete label|labels <LabelName>|regex:<RegularExpression>|--ALL_LABELS--
 
-gam <UserTypeEntity> show labels|label [onlyuser] [showcounts]
+gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]]
 
 gam <UserTypeEntity> archive messages <GroupItem> (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_archive <Number>])|(ids <MessageIDEntity>)
 gam <UserTypeEntity> delete messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_delete|max_to_process <Number>])|(ids <MessageIDEntity>)
