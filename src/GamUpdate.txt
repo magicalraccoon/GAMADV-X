@@ -1,3 +1,13 @@
+X4.44.30
+
+Added display argument to gam show labels to allow choice of data to display.
+    gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]] [display allfields|basename|fullname]
+If display is not specified or display allfields is specified, the full name of the label and the fields (type, id, labelListVisibility, messageListVisibility) are displayed.
+If showCounts is specified, the fields (messagesTotal, messagesUnread, threadsTotal, threadsUnread) are also displayed.
+If display fullname is specified, the full name of the label, and no other fields, is displayed.
+If display basename is specified, the base name (rightmost component) of the label, and no other fields, is displayed.
+The display fullname/basename options are most useful in conjunction with nested.
+
 4.44.29
 
 gam show labels now prints labels sorted by type (system, user) and name making it much easier to read.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.29'
+__version__ = u'4.44.30'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21288,7 +21288,12 @@ def deleteLabel(users):
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
-# gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]]
+SHOW_LABELS_DISPLAY_CHOICES = [u'allfields', u'basename', u'fullname']
+LABEL_DISPLAY_FIELDS_LIST = [u'type', u'id', u'labelListVisibility', u'messageListVisibility']
+LABEL_COUNTS_FIELDS_LIST = [u'messagesTotal', u'messagesUnread', u'threadsTotal', u'threadsUnread']
+LABEL_COUNTS_FIELDS = u','.join(LABEL_COUNTS_FIELDS_LIST)
+
+# gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]] [display allfields|basename|fullname]
 def showLabels(users):
   def _buildLabelTree(labels):
     def _checkChildLabel(label):
@@ -21303,39 +21308,53 @@ def showLabels(users):
     labelTree = {}
     for label in labels[u'labels']:
       if not onlyUser or (label[u'type'] != LABEL_TYPE_SYSTEM):
+        label[u'base'] = label[u'name'].rsplit(u'/', 1)[-1]
         labelTree[label[u'name']] = {u'info': label, u'children': []}
     labelList = sorted(list(labelTree), reverse=True)
     for label in labelList:
       _checkChildLabel(label)
     return labelTree
 
+  def _printLabel(label):
+    printKeyValueList([label[nameField]])
+    if displayAllFields:
+      Ind.Increment()
+      for a_key in LABEL_DISPLAY_FIELDS_LIST:
+        if a_key in label:
+          printKeyValueList([a_key, label[a_key]])
+      if showCounts:
+        counts = callGAPI(gmail.users().labels(), u'get',
+                          throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                          userId=u'me', id=label[u'id'],
+                          fields=LABEL_COUNTS_FIELDS)
+        for a_key in LABEL_COUNTS_FIELDS_LIST:
+          printKeyValueList([a_key, counts[a_key]])
+      Ind.Decrement()
+
   def _printFlatLabel(label):
-    printKeyValueList([label[u'name']])
-    Ind.Increment()
-    for a_key in label:
-      if a_key != u'name':
-        printKeyValueList([a_key, label[a_key]])
-    if showCounts:
-      counts = callGAPI(gmail.users().labels(), u'get',
-                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                        userId=u'me', id=label[u'id'],
-                        fields=u'messagesTotal,messagesUnread,threadsTotal,threadsUnread')
-      for a_key in counts:
-        printKeyValueList([a_key, counts[a_key]])
-    Ind.Decrement()
+    _printLabel(label[u'info'])
+    if label[u'children']:
+      for child in sorted(label[u'children'], key=lambda k: k[u'info'][u'name']):
+        _printFlatLabel(child)
 
   def _printNestedLabel(label):
-    _printFlatLabel(label[u'info'])
+    _printLabel(label[u'info'])
     if label[u'children']:
       Ind.Increment()
-      printKeyValueList([u'nested', len(label[u'children'])])
-      Ind.Increment()
-      for child in sorted(label[u'children'], key=lambda k: k[u'info'][u'name']):
-        _printNestedLabel(child)
-      Ind.Decrement()
+      if displayAllFields:
+        printKeyValueList([u'nested', len(label[u'children'])])
+        Ind.Increment()
+        for child in sorted(label[u'children'], key=lambda k: k[u'info'][u'name']):
+          _printNestedLabel(child)
+        Ind.Decrement()
+      else:
+        for child in sorted(label[u'children'], key=lambda k: k[u'info'][u'name']):
+          _printNestedLabel(child)
       Ind.Decrement()
 
   onlyUser = showCounts = showNested = False
+  displayAllFields = True
+  nameField = u'name'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'onlyuser':
@@ -21344,6 +21363,10 @@ def showLabels(users):
       showCounts = getBoolean(defaultValue=True)
     elif myarg == u'nested':
       showNested = getBoolean(defaultValue=True)
+    elif myarg == u'display':
+      fields = getChoice(SHOW_LABELS_DISPLAY_CHOICES)
+      nameField = [u'base', u'name'][fields != u'basename']
+      displayAllFields = fields == u'allfields'
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -21366,12 +21389,11 @@ def showLabels(users):
         setSysExitRC(NO_ENTITIES_FOUND)
         continue
       Ind.Increment()
+      labelTree = _buildLabelTree(labels)
       if not showNested:
-        for label in sorted(labels[u'labels'], key=lambda k: (k[u'type'], k[u'name'])):
-          if not onlyUser or (label[u'type'] != LABEL_TYPE_SYSTEM):
-            _printFlatLabel(label)
+        for label, _ in sorted(labelTree.iteritems(), key=lambda k: (k[1][u'info'][u'type'], k[1][u'info'][u'name'])):
+          _printFlatLabel(labelTree[label])
       else:
-        labelTree = _buildLabelTree(labels)
         for label, _ in sorted(labelTree.iteritems(), key=lambda k: (k[1][u'info'][u'type'], k[1][u'info'][u'name'])):
           _printNestedLabel(labelTree[label])
       Ind.Decrement()
