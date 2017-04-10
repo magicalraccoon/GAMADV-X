@@ -1,4 +1,4 @@
-X4.44.30
+4.44.30
 
 Added display argument to gam show labels to allow choice of data to display.
     gam <UserTypeEntity> show labels|label [onlyuser [<Boolean>]] [showcounts [<Boolean>]] [nested [<Boolean>]] [display allfields|basename|fullname]
