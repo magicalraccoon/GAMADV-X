@@ -1,3 +1,7 @@
+4.44.31
+
+Handle additional OAuth error.
+
 4.44.30
 
 Added display argument to gam show labels to allow choice of data to display.
