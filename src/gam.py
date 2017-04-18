@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.31'
+__version__ = u'4.44.32'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4901,6 +4901,40 @@ def getCRMService(login_hint):
 
 # gam create project [<EmailAddress>]
 def doCreateProject():
+
+  def _checkClientAndSecret(simplehttp, client_id, client_secret):
+    url = u'https://www.googleapis.com/oauth2/v4/token'
+    post_data = {u'client_id': client_id, u'client_secret': client_secret,
+                 u'code': u'ThisIsAnInvalidCodeOnlyBeingUsedToTestIfClientAndSecretAreValid',
+                 u'redirect_uri': u'urn:ietf:wg:oauth:2.0:oob', u'grant_type': u'authorization_code'}
+    headers = {'Content-type': 'application/x-www-form-urlencoded'}
+    from urllib import urlencode
+    _, content = simplehttp.request(url, u'POST', urlencode(post_data), headers=headers)
+    try:
+      content = json.loads(content)
+    except ValueError:
+      print u'Unknown error: %s' % content
+      return False
+    if not u'error' in content or not u'error_description' in content:
+      print u'Unknown error: %s' % content
+      return False
+    if content[u'error'] == u'invalid_grant':
+      return True
+    if content[u'error_description'] == u'The OAuth client was not found.':
+      print u'Ooops!!\n\n%s\n\nIs not a valid client ID. Please make sure you are following the directions exactly and that there are no extra spaces in your client ID.' % client_id
+      return False
+    if content[u'error_description'] == u'Unauthorized':
+      print u'Ooops!!\n\n%s\n\nIs not a valid client secret. Please make sure you are following the directions exactly and that there are no extra spaces in your client secret.' % client_secret
+      return False
+    print u'Unknown error: %s' % content
+    return False
+
+  service_account_file = GC.Values[GC.OAUTH2SERVICE_JSON]
+  client_secrets_file = GC.Values[GC.CLIENT_SECRETS_JSON]
+  for a_file in [service_account_file, client_secrets_file]:
+    if os.path.exists(a_file):
+      print u'ERROR: %s already exists. Please delete or rename it before attempting to create another project.' % a_file
+      sys.exit(5)
   login_hint = getEmailAddress(noUid=True, optional=True)
   checkForExtraneousArguments()
   crm, httpObj = getCRMService(login_hint)
@@ -4947,8 +4981,8 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
       print status[u'error']
       sys.exit(2)
     break
-
-  _, c = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL]).request(GAM_PROJECT_APIS, u'GET')
+  simplehttp = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
+  _, c = simplehttp.request(GAM_PROJECT_APIS, u'GET')
   apis = c.splitlines()
   serveman = googleapiclient.discovery.build(u'servicemanagement', u'v1', http=httpObj, cache_discovery=False)
   Act.Set(Act.ENABLE)
@@ -4982,12 +5016,10 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
   key = callGAPI(iam.projects().serviceAccounts().keys(), u'create',
                  name=service_account[u'name'], body=body)
   oauth2service_data = base64.b64decode(key[u'privateKeyData'])
-  service_account_file = GC.Values[GC.OAUTH2SERVICE_JSON]
-  if os.path.isfile(service_account_file):
-    service_account_file = u'%s-%s' % (service_account_file, project_id)
   writeFile(service_account_file, oauth2service_data, continueOnError=False)
   console_credentials_url = u'https://console.developers.google.com/apis/credentials?project=%s' % project_id
-  print u'''Please go to:
+  while True:
+    print u'''Please go to:
 
 %s
 
@@ -4998,9 +5030,13 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
 4. Copy your "client ID" value.
 
 ''' % console_credentials_url
-  client_id = raw_input(u'Enter your Client ID: ')
-  print u'\nNow go back to your browser and copy your client secret.'
-  client_secret = raw_input(u'Enter your Client Secret: ')
+    client_id = raw_input(u'Enter your Client ID: ').strip()
+    print u'\nNow go back to your browser and copy your client secret.'
+    client_secret = raw_input(u'Enter your Client Secret: ').strip()
+    client_valid = _checkClientAndSecret(simplehttp, client_id, client_secret)
+    if client_valid:
+      break
+    print
   cs_data = u'''{
     "installed": {
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -5015,9 +5051,6 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
         "token_uri": "https://accounts.google.com/o/oauth2/token"
     }
 }''' % (client_id, client_secret, project_id)
-  client_secrets_file = GC.Values[GC.CLIENT_SECRETS_JSON]
-  if os.path.isfile(client_secrets_file):
-    client_secrets_file = u'%s-%s' % (client_secrets_file, project_id)
   writeFile(client_secrets_file, cs_data, continueOnError=False)
   print u'''Almost there! Now please switch back to your browser and:
 
@@ -21298,9 +21331,10 @@ def showLabels(users):
   def _buildLabelTree(labels):
     def _checkChildLabel(label):
       if label.find(u'/') != -1:
-        (parent, _) = label.rsplit(u'/', 1)
+        (parent, base) = label.rsplit(u'/', 1)
         if parent in labelTree:
           if label in labelTree:
+            labelTree[label][u'info'][u'base'] = base
             labelTree[parent][u'children'].append(labelTree[label])
             del labelTree[label]
           _checkChildLabel(parent)
@@ -21308,7 +21342,7 @@ def showLabels(users):
     labelTree = {}
     for label in labels[u'labels']:
       if not onlyUser or (label[u'type'] != LABEL_TYPE_SYSTEM):
-        label[u'base'] = label[u'name'].rsplit(u'/', 1)[-1]
+        label[u'base'] = label[u'name']
         labelTree[label[u'name']] = {u'info': label, u'children': []}
     labelList = sorted(list(labelTree), reverse=True)
     for label in labelList:

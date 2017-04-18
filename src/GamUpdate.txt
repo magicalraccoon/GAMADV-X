@@ -1,3 +1,10 @@
+4.44.32
+
+Update gam create project with Jay's latest changes: client_secrets.json and oauth2service.json must not exist;
+Client ID and Client Secret are validated.
+
+Fix gam show labels display basename to properly handle labels with embedded slashes.
+
 4.44.31
 
 Handle additional OAuth error.
@@ -63,8 +70,8 @@ and the remaining headers be sorted: courses, course-participants, domainaliases
 
 Added start <Date> and end <Date> arguments to gam info cros and gam print cros to allow filtering of activeTimeRanges.
 These arguments have no effect unless the activetimeranges|timeranges field name is specified.
-If start <Date> is not specifed, then there is no filtering for starting date.
-If end <Date> is not specifed, then there is no filtering for ending date.
+If start <Date> is not specified, then there is no filtering for starting date.
+If end <Date> is not specified, then there is no filtering for ending date.
     gam info cros <CrosEntity> [nolists] [listlimit <Number>] [start <Date>] [end <Date>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
     gam <CrOSTypeEntity> info [nolists] [listlimit <Number>] [start <Date>] [end <Date>]
@@ -93,7 +100,7 @@ For each CrOS device, thus will yield a space delimited list of the 10 most rece
 4.44.23
 
 When todrive is specified and gam.cfg/no_browser is true, the email regarding the upload will be sent to the
-email address specified in gam.cfg/todrive_user or the email address specifed with the tduser command line argument.
+email address specified in gam.cfg/todrive_user or the email address specified with the tduser command line argument.
 If neither of these options is specified, the email is sent to the G Suite administrator.
 Previously, the email was always sent to the G Suite administrator.
 
@@ -139,7 +146,7 @@ Email addresses in the gmail.com domain can have arbitrary dots in the name. Whe
 Google maps the name to have the dots specified when the account was set up regardless of the dots specified in the address to be added.
 Email addresses in the gmail.com domain have an equivalent email address in the googlemail.com domain. When adding such an address to a group,
 Google maps the domain name to the domain name specified when the account was set up regardless of the domain name specified in the address to be added.
-This causes erroneous deletes and duplicate adds when syncing group membership as the email address in the group may not match
+These mappings cause erroneous deletes and duplicate adds when syncing group membership as the email address in the group may not match
 the email address in the list of email addresses to sync even though they are equivalent.
 Gam now maps all email addresses in the gmail.com and googlemail.com domains to a canonical form before comparing the current group email addresses
 with the email addresses on the command line. If an email address is to be added, it is added with the email address specified on the command line.
@@ -405,7 +412,7 @@ More fixes to gam user deprovision.
 
 4.41.05
 
-Fix coding error in gam user deprovision that prevented tokens from being deleted in there were no ASPS.
+Fix coding error in gam user deprovision that prevented tokens from being deleted if there were no ASPs.
 
 4.41.04
 
