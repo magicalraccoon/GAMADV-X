@@ -1,3 +1,14 @@
+4.44.33
+
+Added never_time to gam.cfg to specify the value to be substituted whenever a Google datetime variable
+has the value "1970-01-01T00:00:00.000Z"; the default value is 'Never'. 
+To keep the Google value: never_time = 1970-01-01T00:00:00.000Z
+To use some other date/time value: never_time = 1999-12-31T23:59:59.999Z
+To use some distinguished value: never_time = 0
+To continue using Never: never_time = Never
+
+Improved Unicode character handling for gam csv and Windows.
+
 4.44.32
 
 Update gam create project with Jay's latest changes: client_secrets.json and oauth2service.json must not exist;

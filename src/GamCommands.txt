@@ -1297,7 +1297,7 @@ gam [<UserTypeEntity>] show siteacls  <SiteEntity>
 	(website|websites clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> [notprimary|primary]))|
 	(<SchemaName>.<FieldName> [multivalued|multivalue|value|multinonempty [type work|home|other|(custom <String>)]] <String>)
 
-gam create user <EmailAddress> <UserAttrubutes>*
+gam create user <EmailAddress> <UserAttributes>*
 gam update user <UserItem> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
@@ -1308,7 +1308,7 @@ gam delete users <UserTypeEntity>
 gam undelete users <UserEntity> [org|ou <OrgUnitPath>]
 gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
-gam <UserTypeEntity> update users <UserAttrubutes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
+gam <UserTypeEntity> update users <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 gam <UserTypeEntity> delete users
 gam <UserEntity> undelete users [org|ou <OrgUnitPath>]
 gam <UserTypeEntity> info users [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
