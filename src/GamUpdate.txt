@@ -1,3 +1,18 @@
+4.44.04
+
+Added charset option to file option of note option of contact attributes.
+Added charset option to file option of note option of user attributes.
+    <ContactAttributes> ::=
+	...
+	(note <String>|(file <FileName> [charset <Charset>]))|
+	...
+    <UserAttributes> ::=
+	...
+	(note|notes clear|([text_plain|text_html] <String>|(file <FileName> [charset <Charset>])))|
+	...
+    gam update contact 1234 note file contact1234notes.txt charset UTF-8
+    gam update user testuser@domain.com note file testusernotes.txt charset UTF-8
+
 4.44.33
 
 Added never_time to gam.cfg to specify the value to be substituted whenever a Google datetime variable
