@@ -1,4 +1,8 @@
-4.44.04
+4.44.35
+
+Handle ERROR: 403: domainPolicy - The domain policy has disabled third-party Drive apps
+
+4.44.34
 
 Added charset option to file option of note option of contact attributes.
 Added charset option to file option of note option of user attributes.
