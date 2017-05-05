@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.35'
+__version__ = u'4.44.36'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21969,7 +21969,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       if not convertCRNL:
         row[u'Body'] = _getMessageBody(result[u'payload'])
       else:
-        row[u'Body'] = _getMessageBody(convertCRsNLs(result[u'payload']))
+        row[u'Body'] = convertCRsNLs(_getMessageBody(result[u'payload']))
     addRowTitlesToCSVfile(row, csvRows, titles)
 
   def _callbackPrintMessage(request_id, response, exception):

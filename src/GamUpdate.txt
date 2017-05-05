@@ -1,3 +1,7 @@
+4.44.36
+
+Fix bug with print/show messages when showbody is specified.
+
 4.44.35
 
 Handle ERROR: 403: domainPolicy - The domain policy has disabled third-party Drive apps
