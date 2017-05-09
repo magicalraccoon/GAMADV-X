@@ -1446,7 +1446,7 @@ def entityBadRequestWarning(entityValueList, errMessage, i=0, count=0):
                                  currentCountNL(i, count)))
 
 def userSvcNotApplicableOrDriveDisabled(user, errMessage, i=0, count=0):
-  if errMessage.find(u'domain policy') == -1:
+  if errMessage.find(u'Drive apps') == -1:
     entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   else:
     entityActionNotPerformedWarning([Ent.USER, user], errMessage, i, count)
@@ -17878,7 +17878,7 @@ def _getDriveFileNameFromId(drive, fileId, combineTitleId=True):
         fileName += u'('+fileId+u')'
       return (fileName, [Ent.DRIVE_FILE, Ent.DRIVE_FOLDER][result[u'mimeType'] == MIMETYPE_GA_FOLDER])
   except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError,
-          GAPI.serviceNotAvailable, GAPI.authError):
+          GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy):
     pass
   return (fileId, Ent.DRIVE_FILE_OR_FOLDER_ID)
 
@@ -18122,7 +18122,7 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
                               fileId=parentId, fields=u'title,parents(id)')
             parentEntry[u'info'][u'title'] = result[u'title']
             parentEntry[u'info'][u'parents'] = result.get(u'parents', [])
-          except (GAPI.fileNotFound, GAPI.serviceNotAvailable, GAPI.authError):
+          except (GAPI.fileNotFound, GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy):
             pass
         filePathInfo[u'ids'][parentId] = parentEntry[u'info'][u'title']
         parents = parentEntry[u'info'].get(u'parents', [])
@@ -18135,7 +18135,7 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
                           fileId=parentId, fields=u'title,parents(id)')
         filePathInfo[u'ids'][parentId] = result[u'title']
         parents = result.get(u'parents', [])
-      except (GAPI.fileNotFound, GAPI.serviceNotAvailable, GAPI.authError):
+      except (GAPI.fileNotFound, GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy):
         return
     if parents:
       for lparent in parents:
@@ -20065,7 +20065,7 @@ def addDriveFilePermissions(users):
                  fileId=ri[RI_ENTITY], sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=_makePermissionBody(ri[RI_ITEM]), fields=u'')
         entityActionPerformed([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMITTEE, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
       except (GAPI.fileNotFound, GAPI.invalidSharingRequest, GAPI.forbidden,
-              GAPI.serviceNotAvailable, GAPI.authError) as e:
+              GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMITTEE, ri[RI_ITEM]], str(e), int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
   sendNotificationEmails = False
@@ -20198,7 +20198,7 @@ def deleteDriveFilePermissions(users):
                  fileId=ri[RI_ENTITY], permissionId=ri[RI_ITEM])
         entityActionPerformed([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError,
-              GAPI.badRequest, GAPI.permissionNotFound, GAPI.serviceNotAvailable, GAPI.authError) as e:
+              GAPI.badRequest, GAPI.permissionNotFound, GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], str(e), int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
   fileIdEntity = getDriveFileEntity()
