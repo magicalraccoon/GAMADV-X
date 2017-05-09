@@ -1,3 +1,9 @@
+4.44.37
+
+Following Jay's suggestion, gam delete token now reports an error if you attempt to delete a non-existent token.
+
+gam print/show messages now prints the original message when you get a non-delivery message from Google.
+
 4.44.36
 
 Fix bug with print/show messages when showbody is specified.

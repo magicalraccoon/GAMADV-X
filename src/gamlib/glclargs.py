@@ -275,6 +275,7 @@ class GamCLArgs(object):
   ARG_ORG = u'org'
   ARG_ORGS = u'orgs'
   ARG_ORGTREE = u'orgtree'
+  ARG_ORPHANS = u'orphans'
   ARG_OWNERSHIP = u'ownership'
   ARG_PERMISSIONS = u'permissions'
   ARG_PHOTO = u'photo'
