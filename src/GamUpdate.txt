@@ -1,3 +1,25 @@
+4.44.38
+
+Fix bug with print/show messages when showbody is specified.
+
+Added command to collect a users orphaned Drive files/folders into a single folder.
+Only orphaned files not in the trash are processed.
+
+    gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
+	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
+
+(orderby <DriveOrderByFieldName> [ascending|descending])* - Specify the order in which files are processed.
+
+[targetuserfoldername <DriveFileName>] - This is the parent folder name for the orphaned files; the default is "#user# orphaned files".
+In this string, #user# and #email# will be replaced by the source user email address, #username# will be replaced by the source user mail address without the domain.
+
+[preview] - If preview is specified, no files are collected; a CSV file listing the files to be collected is output.
+[todrive [<ToDriveAttributes>]] - Specifies that the CSV file be written to Google Drive.
+
+Example:
+Collect a users orphaned files into the folder "Orphans - testuser@domain.com" on their Drive.
+    gam user testuser@domain.com collect orphans targetuserfoldername "Orphans - #user#"
+
 4.44.37
 
 Following Jay's suggestion, gam delete token now reports an error if you attempt to delete a non-existent token.

@@ -1577,12 +1577,16 @@ gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttr
 gam <UserTypeEntity> add permissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendemail] [emailmessage <String>]
 gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionIDEntity>
 
+gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
+	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
+
 gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|commenter|writer|owner|editor] (orderby <DriveOrderByFieldName> [ascending|descending])*
 	[(targetfolderid <DriveFileID>)|(targetfoldername <DriveFileName>)] [targetuserfoldername <DriveFileName>]
+	[preview] [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
-	[preview] [filepath] [todrive [<ToDriveAttributes>]]
+	[filepath] [preview] [todrive [<ToDriveAttributes>]]
 gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
-	[includetrashed] [restricted [<Boolean>]] [writerscantshare [<Boolean>]] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+	[includetrashed] [restricted [<Boolean>]] [writerscantshare [<Boolean>]] [filepath] [preview] [todrive [<ToDriveAttributes>]]
 
 <DriveFieldName> ::=
 	appdatacontents|

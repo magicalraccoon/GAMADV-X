@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.37'
+__version__ = u'4.44.38'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19196,6 +19196,101 @@ def getDriveFile(users):
         break
     Ind.Decrement()
 
+# gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
+#	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
+def collectOrphans(users):
+
+  orderByList = []
+  csvFormat = False
+  todrive = {}
+  targetUserFolderPattern = u'#user# orphaned files'
+  query = u'trashed = false'
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'orderby':
+      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
+      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
+        orderByList.append(fieldName)
+      else:
+        orderByList.append(u'{0} desc'.format(fieldName))
+    elif myarg == u'targetuserfoldername':
+      targetUserFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME)
+    elif myarg == u'preview':
+      csvFormat = True
+    elif myarg == u'todrive':
+      todrive = getTodriveParameters()
+    else:
+      unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
+  if csvFormat:
+    titles, csvRows = initializeTitlesCSVfile([u'Owner', u'type', u'id', u'title'])
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, drive = buildGAPIServiceObject(API.DRIVE, user)
+    if not drive:
+      continue
+    userName, _ = splitEmailAddress(user)
+    try:
+      result = callGAPI(drive.files(), u'get',
+                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                        fileId=u'root', fields=u'id,title')
+      trgtFolderName = result[u'title']
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_ORPHAN_FILE_OR_FOLDER, Ent.TypeName(Ent.USER, user), i, count, qualifier=queryQualifier(query))
+      page_message = getPageMessageForWhom()
+      feed = callGAPIpages(drive.files(), u'list', u'items',
+                           page_message=page_message,
+                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                           q=query, orderBy=orderBy,
+                           fields=u'nextPageToken,items(id,title,parents(id),mimeType,ownedByMe)',
+                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+      trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
+      trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
+      trgtUserFolderName = trgtUserFolderName.replace(u'#username#', userName)
+      if not csvFormat:
+        result = callGAPIpages(drive.files(), u'list', u'items',
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               q=ME_IN_OWNERS_AND+u"trashed = false and mimeType = '{0}' and title = '{1}'".format(MIMETYPE_GA_FOLDER, trgtUserFolderName),
+                               fields=u'nextPageToken,items(id)')
+        if len(result) > 0:
+          trgtParentId = result[0][u'id']
+        else:
+          trgtParentId = callGAPI(drive.files(), u'insert',
+                                  throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                                  body={u'title': trgtUserFolderName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
+        newParentBody = {u'parents': [{u'id': trgtParentId}]}
+      trgtUserFolderName = os.path.join(trgtFolderName, trgtUserFolderName)
+      orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
+      del feed
+      jcount = len(orphanDriveFiles)
+      entityPerformActionNumItemsModifier([Ent.USER, user], jcount, Ent.DRIVE_ORPHAN_FILE_OR_FOLDER,
+                                          u'{0} {1}: {2}'.format(Act.MODIFIER_INTO, Ent.Singular(Ent.DRIVE_FOLDER), trgtUserFolderName), i, count)
+      Ind.Increment()
+      j = 0
+      for fileEntry in orphanDriveFiles:
+        j += 1
+        fileId = fileEntry[u'id']
+        fileName = fileEntry[u'title']
+        fileType = [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][fileEntry[u'mimeType'] != MIMETYPE_GA_FOLDER]
+        if csvFormat:
+          csvRows.append({u'Owner': user, u'type': Ent.Singular(fileType), u'id': fileId, u'title': fileName})
+          continue
+        try:
+          callGAPI(drive.files(), u'patch',
+                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                   fileId=fileId, body=newParentBody, fields=u'')
+          entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, fileType, fileName], Act.MODIFIER_INTO, None, [Ent.DRIVE_FOLDER, trgtUserFolderName], j, jcount)
+        except (GAPI.fileNotFound) as e:
+          entityActionFailedWarning([Ent.USER, user, fileType, fileName], str(e), j, jcount)
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+      Ind.Decrement()
+    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+  if csvFormat:
+    writeCSVfile(csvRows, titles, u'Orphans to Collect', todrive)
+
 # gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|commenter|writer|owner|editor] (orderby <DriveOrderByFieldName> [ascending|descending])*
 #	[(targetfolderid <DriveFileID>)|(targetfoldername <DriveFileName>)] [targetuserfoldername <DriveFileName>]
 #	[preview] [todrive [<ToDriveAttributes>]]
@@ -19218,68 +19313,74 @@ def transferDriveFiles(users):
     if jcount == 0:
       return
     j = 0
-    for childId in fileEntry[u'children']:
+    for childFileId in fileEntry[u'children']:
       j += 1
-      childEntry = fileTree.get(childId)
+      childEntry = fileTree.get(childFileId)
       if not childEntry or childEntry.get(u'xfer'):
         continue
       childEntry[u'xfer'] = True
       childFileName = childEntry[u'info'][u'title']
       childFileType = [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][childEntry[u'info'][u'mimeType'] != MIMETYPE_GA_FOLDER]
-      if childEntry[u'info'][u'ownedByMe']:
-        try:
-          Act.Set(Act.TRANSFER_OWNERSHIP)
-          callGAPI(sourceDrive.permissions(), u'insert',
-                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.INVALID_SHARING_REQUEST, GAPI.FORBIDDEN],
-                   fileId=childId, sendNotificationEmails=False, body=targetPermissionsBody, fields=u'')
-          callGAPI(targetDrive.files(), u'patch',
-                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
-                   fileId=childId, body={u'parents': _newParents(childEntry[u'info'][u'parents'], rootId)}, fields=u'')
-          entityModifierNewValueItemValueListActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, [Ent.USER, targetUser], j, jcount)
-          if retainSourceRoleBody:
-            if retainSourceRoleBody[u'role'] != u'writer':
-              Act.Set(Act.UPDATE)
-              callGAPI(targetDrive.permissions(), u'patch',
-                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
-                       fileId=childId, permissionId=sourcePermissionId, body=retainSourceRoleBody)
-            entityModifierNewValueActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], Act.MODIFIER_TO, retainSourceRoleBody[u'role'], j, jcount)
-          else:
-            Act.Set(Act.DELETE)
-            callGAPI(targetDrive.permissions(), u'delete',
-                     throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
-                     fileId=childId, permissionId=sourcePermissionId)
-            entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], j, jcount)
-        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
-          entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], str(e), j, jcount)
-        except GAPI.permissionNotFound:
-          entityDoesNotHaveItemWarning([Ent.USER, sourceUser, childFileType, childFileName, Ent.PERMISSION_ID, sourcePermissionId], j, jcount)
-        except (GAPI.invalidSharingRequest) as e:
-          entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, sourcePermissionId, str(e)), j, jcount)
-        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-          userSvcNotApplicableOrDriveDisabled(sourceUser, str(e))
+      if csvFormat:
+        if childEntry[u'info'][u'ownedByMe']:
+          csvRows.append({u'OldOwner': sourceUser, u'NewOwner': targetUser, u'type': Ent.Singular(childFileType), u'id': childFileId, u'title': childFileName})
       else:
-        if childFileType == Ent.DRIVE_FILE:
-          continue
+        if childEntry[u'info'][u'ownedByMe']:
+          try:
+            Act.Set(Act.TRANSFER_OWNERSHIP)
+            callGAPI(sourceDrive.permissions(), u'insert',
+                     throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.INVALID_SHARING_REQUEST, GAPI.FORBIDDEN],
+                     fileId=childFileId, sendNotificationEmails=False, body=targetPermissionsBody, fields=u'')
+            callGAPI(targetDrive.files(), u'patch',
+                     throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                     fileId=childFileId, body={u'parents': _newParents(childEntry[u'info'][u'parents'], rootId)}, fields=u'')
+            entityModifierNewValueItemValueListActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, [Ent.USER, targetUser], j, jcount)
+            if retainSourceRoleBody:
+              if retainSourceRoleBody[u'role'] != u'writer':
+                Act.Set(Act.UPDATE)
+                callGAPI(targetDrive.permissions(), u'patch',
+                         throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
+                         fileId=childFileId, permissionId=sourcePermissionId, body=retainSourceRoleBody)
+              entityModifierNewValueActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], Act.MODIFIER_TO, retainSourceRoleBody[u'role'], j, jcount)
+            else:
+              Act.Set(Act.DELETE)
+              callGAPI(targetDrive.permissions(), u'delete',
+                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
+                       fileId=childFileId, permissionId=sourcePermissionId)
+              entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], j, jcount)
+          except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
+            entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], str(e), j, jcount)
+          except GAPI.permissionNotFound:
+            entityDoesNotHaveItemWarning([Ent.USER, sourceUser, childFileType, childFileName, Ent.PERMISSION_ID, sourcePermissionId], j, jcount)
+          except (GAPI.invalidSharingRequest) as e:
+            entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, sourcePermissionId, str(e)), j, jcount)
+          except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+            userSvcNotApplicableOrDriveDisabled(sourceUser, str(e))
+        else:
+          if childFileType == Ent.DRIVE_FILE:
+            continue
 ### Skip if no children??
-        try:
-          result = callGAPIpages(targetDrive.files(), u'list', u'items',
-                                 throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                 q=ME_IN_OWNERS_AND+u"mimeType = '{0}' and title = '{1}'".format(MIMETYPE_GA_FOLDER, childFileName),
-                                 fields=u'nextPageToken,items(id)')
-          if len(result) > 0:
-            parentIdMap[childId] = result[0][u'id']
-          else:
-            parentIdMap[childId] = callGAPI(targetDrive.files(), u'insert',
-                                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                            body={u'parents': _newParents(childEntry[u'info'][u'parents'], rootId), u'title': childFileName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
-        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-          userSvcNotApplicableOrDriveDisabled(sourceUser, str(e))
+          try:
+            result = callGAPIpages(targetDrive.files(), u'list', u'items',
+                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                                   q=ME_IN_OWNERS_AND+u"trashed = false and mimeType = '{0}' and title = '{1}'".format(MIMETYPE_GA_FOLDER, childFileName),
+                                   fields=u'nextPageToken,items(id)')
+            if len(result) > 0:
+              parentIdMap[childFileId] = result[0][u'id']
+            else:
+              parentIdMap[childFileId] = callGAPI(targetDrive.files(), u'insert',
+                                                  throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                                                  body={u'parents': _newParents(childEntry[u'info'][u'parents'], rootId), u'title': childFileName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
+          except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+            userSvcNotApplicableOrDriveDisabled(sourceUser, str(e))
       if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER:
         Ind.Increment()
         _transferDriveFiles(childEntry, rootId)
         Ind.Decrement()
 
   targetUser = getEmailAddress()
+  csvFormat = False
+  todrive = {}
   orderByList = []
   retainSourceRoleBody = {}
   targetFolderId = targetFolderName = None
@@ -19308,6 +19409,10 @@ def transferDriveFiles(users):
       targetFolderName = getString(Cmd.OB_DRIVE_FILE_NAME)
     elif myarg == u'targetuserfoldername':
       targetUserFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME)
+    elif myarg == u'preview':
+      csvFormat = True
+    elif myarg == u'todrive':
+      todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -19369,6 +19474,8 @@ def transferDriveFiles(users):
     userSvcNotApplicableOrDriveDisabled(targetUser, str(e))
     return
   targetPermissionsBody = {u'role': u'owner', u'type': u'user', u'value': targetUser}
+  if csvFormat:
+    titles, csvRows = initializeTitlesCSVfile([u'OldOwner', u'NewOwner', u'type', u'id', u'title'])
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -19405,17 +19512,18 @@ def transferDriveFiles(users):
       targetUserFolderName = targetUserFolderPattern.replace(u'#user#', sourceUser)
       targetUserFolderName = targetUserFolderName.replace(u'#email#', sourceUser)
       targetUserFolderName = targetUserFolderName.replace(u'#username#', sourceUserName)
-      result = callGAPIpages(targetDrive.files(), u'list', u'items',
-                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             q=ME_IN_OWNERS_AND+u"mimeType = '{0}' and title = '{1}' and '{2}' in parents".format(MIMETYPE_GA_FOLDER, targetUserFolderName, targetFolderId),
-                             fields=u'nextPageToken,items(id)')
-      if len(result) > 0:
-        targetParentId = result[0][u'id']
-      else:
-        targetParentId = callGAPI(targetDrive.files(), u'insert',
-                                  throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                  body={u'parents': [{u'id': targetFolderId}], u'title': targetUserFolderName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
-      targetUserFolderName = os.path.join(targetFolderName, targetUserFolderName)
+      if not csvFormat:
+        result = callGAPIpages(targetDrive.files(), u'list', u'items',
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               q=ME_IN_OWNERS_AND+u"trashed = false and mimeType = '{0}' and title = '{1}' and '{2}' in parents".format(MIMETYPE_GA_FOLDER, targetUserFolderName, targetFolderId),
+                               fields=u'nextPageToken,items(id)')
+        if len(result) > 0:
+          targetParentId = result[0][u'id']
+        else:
+          targetParentId = callGAPI(targetDrive.files(), u'insert',
+                                    throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                                    body={u'parents': [{u'id': targetFolderId}], u'title': targetUserFolderName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
+        targetUserFolderName = os.path.join(targetFolderName, targetUserFolderName)
       fileTree = buildFileTree(sourceDriveFiles, sourceDrive)
       Ind.Increment()
       _transferDriveFiles(fileTree[sourceRoot], sourceRoot)
@@ -19423,6 +19531,8 @@ def transferDriveFiles(users):
       Ind.Decrement()
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(sourceUser, str(e), i, count)
+  if csvFormat:
+    writeCSVfile(csvRows, titles, u'Files to Transfer', todrive)
 
 def validateUserGetPermissionId(user, i=0, count=0):
   _, drive = buildGAPIServiceObject(API.DRIVE, user)
@@ -21922,7 +22032,8 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
           headers += u'Body:\n'
           data = Ind.INDENT_SPACES_PER_LEVEL
       if part[u'mimeType'] == u'text/plain':
-        data += dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))+u'\n'
+        if u'data' in part[u'body']:
+          data += dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))+u'\n'
       else:
         data += _getPartsData(part, part[u'mimeType'] == u'message/rfc822')
     if getOrigMsg:
@@ -24691,6 +24802,15 @@ USER_COMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: Act.CLAIM,
      CMD_FUNCTION:
        {Cmd.ARG_OWNERSHIP: 	claimDriveFolderOwnership,
+       },
+     CMD_OBJ_ALIASES:
+       {
+       },
+    },
+  u'collect':
+    {CMD_ACTION: Act.COLLECT,
+     CMD_FUNCTION:
+       {Cmd.ARG_ORPHANS:	collectOrphans,
        },
      CMD_OBJ_ALIASES:
        {
