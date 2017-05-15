@@ -1,8 +1,12 @@
+4.44.39
+
+When collecting orphaned files into a target folder, the folder is not created unless orphaned files are located.
+
 4.44.38
 
 Fix bug with print/show messages when showbody is specified.
 
-Added command to collect a users orphaned Drive files/folders into a single folder.
+Added command to collect a users orphaned Drive files/folders into a target folder.
 Only orphaned files not in the trash are processed.
 
     gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*

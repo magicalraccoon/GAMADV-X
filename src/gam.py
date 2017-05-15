@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.38'
+__version__ = u'4.44.39'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -304,6 +304,7 @@ ENTITY_IS_A_USER_RC = 20
 ENTITY_IS_A_USER_ALIAS_RC = 21
 ENTITY_IS_A_GROUP_RC = 22
 ENTITY_IS_A_GROUP_ALIAS_RC = 23
+ORPHANS_COLLECTED_RC = 30
 # Warnings/Errors
 AC_FAILED_RC = 50
 AC_NOT_PERFORMED_RC = 51
@@ -1916,7 +1917,7 @@ def SetGlobalVariables():
                                          u''))
 
   def _getCfgBoolean(sectionName, itemName):
-    value = GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True).lower()
+    value = GM.Globals[GM.PARSER].get(sectionName, itemName).lower()
     if value in TRUE_VALUES:
       return True
     if value in FALSE_VALUES:
@@ -1926,7 +1927,7 @@ def SetGlobalVariables():
     return False
 
   def _getCfgInteger(sectionName, itemName):
-    value = GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True)
+    value = GM.Globals[GM.PARSER].get(sectionName, itemName)
     minVal, maxVal = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
     try:
       number = int(value)
@@ -1939,7 +1940,7 @@ def SetGlobalVariables():
     return 0
 
   def _getCfgSection(sectionName, itemName):
-    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True))
+    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName))
     if (not value) or (value.upper() == configparser.DEFAULTSECT):
       return configparser.DEFAULTSECT
     if GM.Globals[GM.PARSER].has_section(value):
@@ -1949,7 +1950,7 @@ def SetGlobalVariables():
     return configparser.DEFAULTSECT
 
   def _getCfgString(sectionName, itemName):
-    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True))
+    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName))
     minLen, maxLen = GC.VAR_INFO[itemName].get(GC.VAR_LIMITS, (None, None))
     if ((minLen is None) or (len(value) >= minLen)) and ((maxLen is None) or (len(value) <= maxLen)):
       return value
@@ -1958,7 +1959,7 @@ def SetGlobalVariables():
     return u''
 
   def _getCfgTimezone(sectionName, itemName):
-    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True).lower())
+    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName).lower())
     if value == u'utc':
       return None
     if value == u'local':
@@ -1972,16 +1973,16 @@ def SetGlobalVariables():
     return u''
 
   def _getCfgDirectory(sectionName, itemName):
-    dirPath = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True)))
+    dirPath = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName)))
     if (not dirPath) or (not os.path.isabs(dirPath)):
       if (sectionName != configparser.DEFAULTSECT) and (GM.Globals[GM.PARSER].has_option(sectionName, itemName)):
-        dirPath = os.path.join(os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(configparser.DEFAULTSECT, itemName, raw=True))), dirPath)
+        dirPath = os.path.join(os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(configparser.DEFAULTSECT, itemName))), dirPath)
       if not os.path.isabs(dirPath):
         dirPath = os.path.join(GM.Globals[GM.GAM_CFG_PATH], dirPath)
     return dirPath
 
   def _getCfgFile(sectionName, itemName):
-    value = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True)))
+    value = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName)))
     if value and not os.path.isabs(value):
       value = os.path.expanduser(os.path.join(_getCfgDirectory(sectionName, GC.CONFIG_DIR), value))
     return value
@@ -2010,7 +2011,7 @@ def SetGlobalVariables():
     printKeyValueList([Ent.Singular(Ent.SECTION), sectionName]) # Do not use printEntity
     Ind.Increment()
     for itemName in sorted(GC.VAR_INFO):
-      cfgValue = GM.Globals[GM.PARSER].get(sectionName, itemName, raw=True)
+      cfgValue = GM.Globals[GM.PARSER].get(sectionName, itemName)
       if GC.VAR_INFO[itemName][GC.VAR_TYPE] not in [GC.TYPE_BOOLEAN, GC.TYPE_INTEGER]:
         cfgValue = _quoteStringIfLeadingTrailingBlanks(cfgValue)
       if GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_FILE:
@@ -2116,17 +2117,17 @@ def SetGlobalVariables():
       for itemName, itemEntry in iteritems(GC.VAR_INFO):
         if itemEntry[GC.VAR_TYPE] != GC.TYPE_DIRECTORY:
           _getDefault(itemName, itemEntry, oldGamPath)
-      GM.Globals[GM.PARSER] = configparser.SafeConfigParser(defaults=collections.OrderedDict(sorted(GC.Defaults.items(), key=lambda t: t[0])))
+      GM.Globals[GM.PARSER] = configparser.RawConfigParser(defaults=collections.OrderedDict(sorted(GC.Defaults.items(), key=lambda t: t[0])))
       _checkMakeDir(GC.CONFIG_DIR)
       _checkMakeDir(GC.CACHE_DIR)
       _checkMakeDir(GC.DRIVE_DIR)
       for itemName in GC.VAR_INFO:
         if GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_FILE:
-          srcFile = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(configparser.DEFAULTSECT, itemName, raw=True)))
+          srcFile = os.path.expanduser(_stripStringQuotes(GM.Globals[GM.PARSER].get(configparser.DEFAULTSECT, itemName)))
           _copyCfgFile(srcFile, GC.CONFIG_DIR, oldGamPath)
       _writeGamCfgFile(GM.Globals[GM.PARSER], GM.Globals[GM.GAM_CFG_FILE], Act.INITIALIZE)
     else:
-      GM.Globals[GM.PARSER] = configparser.SafeConfigParser(defaults=collections.OrderedDict(sorted(GC.Defaults.items(), key=lambda t: t[0])))
+      GM.Globals[GM.PARSER] = configparser.RawConfigParser(defaults=collections.OrderedDict(sorted(GC.Defaults.items(), key=lambda t: t[0])))
       _readGamCfgFile(GM.Globals[GM.PARSER], GM.Globals[GM.GAM_CFG_FILE])
     GM.Globals[GM.LAST_UPDATE_CHECK_TXT] = os.path.join(_getCfgDirectory(configparser.DEFAULTSECT, GC.CONFIG_DIR), FN_LAST_UPDATE_CHECK_TXT)
   status = {u'errors': False}
@@ -19232,21 +19233,24 @@ def collectOrphans(users):
       continue
     userName, _ = splitEmailAddress(user)
     try:
-      result = callGAPI(drive.files(), u'get',
-                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                        fileId=u'root', fields=u'id,title')
-      trgtFolderName = result[u'title']
       printGettingAllEntityItemsForWhom(Ent.DRIVE_ORPHAN_FILE_OR_FOLDER, Ent.TypeName(Ent.USER, user), i, count, qualifier=queryQualifier(query))
       page_message = getPageMessageForWhom()
       feed = callGAPIpages(drive.files(), u'list', u'items',
                            page_message=page_message,
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                            q=query, orderBy=orderBy,
-                           fields=u'nextPageToken,items(id,title,parents(id),mimeType,ownedByMe)',
+                           fields=u'nextPageToken,items(id,title,parents(id),mimeType)',
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#username#', userName)
+      orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
+      del feed
+      jcount = len(orphanDriveFiles)
+      entityPerformActionNumItemsModifier([Ent.USER, user], jcount, Ent.DRIVE_ORPHAN_FILE_OR_FOLDER,
+                                          u'{0} {1}: {2}'.format(Act.MODIFIER_INTO, Ent.Singular(Ent.DRIVE_FOLDER), trgtUserFolderName), i, count)
+      if jcount == 0:
+        continue
       if not csvFormat:
         result = callGAPIpages(drive.files(), u'list', u'items',
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
@@ -19259,12 +19263,7 @@ def collectOrphans(users):
                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                                   body={u'title': trgtUserFolderName, u'mimeType': MIMETYPE_GA_FOLDER}, fields=u'id')[u'id']
         newParentBody = {u'parents': [{u'id': trgtParentId}]}
-      trgtUserFolderName = os.path.join(trgtFolderName, trgtUserFolderName)
-      orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
-      del feed
-      jcount = len(orphanDriveFiles)
-      entityPerformActionNumItemsModifier([Ent.USER, user], jcount, Ent.DRIVE_ORPHAN_FILE_OR_FOLDER,
-                                          u'{0} {1}: {2}'.format(Act.MODIFIER_INTO, Ent.Singular(Ent.DRIVE_FOLDER), trgtUserFolderName), i, count)
+      setSysExitRC(ORPHANS_COLLECTED_RC)
       Ind.Increment()
       j = 0
       for fileEntry in orphanDriveFiles:
