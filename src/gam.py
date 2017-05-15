@@ -19233,7 +19233,7 @@ def collectOrphans(users):
       continue
     userName, _ = splitEmailAddress(user)
     try:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_ORPHAN_FILE_OR_FOLDER, Ent.TypeName(Ent.USER, user), i, count, qualifier=queryQualifier(query))
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, Ent.TypeName(Ent.USER, user), i, count, qualifier=queryQualifier(query))
       page_message = getPageMessageForWhom()
       feed = callGAPIpages(drive.files(), u'list', u'items',
                            page_message=page_message,
