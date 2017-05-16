@@ -1,3 +1,16 @@
+4.44.40
+
+Added arguments to show messages/threads to display plain text attachments. Selected attachments can be shown by specifying an attachmentnamepattern.
+    gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
+
+Show all attachments:
+    gam user testuser@domain.com show messages showattachments
+Show attachments named sample.txt:
+    gam user testuser@domain.com show messages showattachments attachmentnamepattern "sample.txt"
+Show attachments with 2017 in their name:
+    gam user testuser@domain.com show messages showattachments attachmentnamepattern ".*2017.*"
+
 4.44.39
 
 When collecting orphaned files into a target folder, the folder is not created unless orphaned files are located.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.39'
+__version__ = u'4.44.40'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4906,7 +4906,6 @@ def checkServiceAccount(users):
 
 def getCRMService(login_hint):
   from oauth2client.contrib.dictionary_storage import DictionaryStorage
-  login_hint = getValidateLoginHint(login_hint)
   scope = u'https://www.googleapis.com/auth/cloud-platform'
   client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
   client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
@@ -4940,46 +4939,79 @@ def doCreateProject():
     try:
       content = json.loads(content)
     except ValueError:
-      print u'Unknown error: %s' % content
+      sys.stderr.write(u'Unknown error: {0}\n'.format(content))
       return False
     if not u'error' in content or not u'error_description' in content:
-      print u'Unknown error: %s' % content
+      sys.stderr.write(u'Unknown error: {0}\n'.format(content))
       return False
     if content[u'error'] == u'invalid_grant':
       return True
     if content[u'error_description'] == u'The OAuth client was not found.':
-      print u'Ooops!!\n\n%s\n\nIs not a valid client ID. Please make sure you are following the directions exactly and that there are no extra spaces in your client ID.' % client_id
+      sys.stderr.write(u'Ooops!!\n\n{0}\n\nIs not a valid client ID. Please make sure you are following the directions exactly and that there are no extra spaces in your client ID.\n'.format(client_id))
       return False
     if content[u'error_description'] == u'Unauthorized':
-      print u'Ooops!!\n\n%s\n\nIs not a valid client secret. Please make sure you are following the directions exactly and that there are no extra spaces in your client secret.' % client_secret
+      sys.stderr.write(u'Ooops!!\n\n{0}\n\nIs not a valid client secret. Please make sure you are following the directions exactly and that there are no extra spaces in your client secret.\n'.format(client_secret))
       return False
-    print u'Unknown error: %s' % content
+    sys.stderr.write(u'Unknown error: {0}\n'.format(content))
     return False
 
   service_account_file = GC.Values[GC.OAUTH2SERVICE_JSON]
   client_secrets_file = GC.Values[GC.CLIENT_SECRETS_JSON]
   for a_file in [service_account_file, client_secrets_file]:
     if os.path.exists(a_file):
-      print u'ERROR: %s already exists. Please delete or rename it before attempting to create another project.' % a_file
-      sys.exit(5)
+      systemErrorExit(USAGE_ERROR_RC, u'{0} already exists. Please delete or rename it before attempting to create another project.'.format(a_file))
   login_hint = getEmailAddress(noUid=True, optional=True)
   checkForExtraneousArguments()
+  login_hint = getValidateLoginHint(login_hint)
+  login_domain = getEmailAddressDomain(login_hint)
   crm, httpObj = getCRMService(login_hint)
   project_id = u'gam-project'
   for i in range(3):
-    project_id += u'-%s' % u''.join(random.choice(string.digits+string.ascii_lowercase) for i in range(3))
+    project_id += u'-%s' % u''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
   project_name = u'project:%s' % project_id
   body = {u'projectId': project_id, u'name': u'GAM Project'}
   while True:
     create_again = False
     sys.stdout.write(u'Creating project "{0}"...\n'.format(body[u'name']))
-    create_operation = callGAPI(crm.projects(), u'create', body=body)
+    create_operation = callGAPI(crm.projects(), u'create',
+                                body=body)
     operation_name = create_operation[u'name']
     time.sleep(5) # Google recommends always waiting at least 5 seconds
     for i in range(1, 5):
       sys.stdout.write(u'Checking project status...\n')
-      status = callGAPI(crm.operations(), u'get', name=operation_name)
+      status = callGAPI(crm.operations(), u'get',
+                        name=operation_name)
       if u'error' in status:
+        if status[u'error'].get(u'message', u'') == u'No permission to create project in organization':
+          sys.stdout.write(u'Hmm... Looks like you have no rights to your Google Cloud Organization.\nAttempting to fix that...\n')
+          getorg = callGAPI(crm.organizations(), u'search',
+                            body={u'filter': u'domain:{0}'.format(login_domain)})
+          try:
+            organization = getorg[u'organizations'][0][u'name']
+            sys.stdout.write(u'Your organization name is {0}\n'.format(organization))
+          except (KeyError, IndexError):
+            systemErrorExit(3, u'You have no rights to create projects for your organization and you don\'t seem to be a super admin! Sorry, there\'s nothing more I can do.')
+          org_policy = callGAPI(crm.organizations(), u'getIamPolicy',
+                                resource=organization, body={})
+          if u'bindings' not in org_policy:
+            org_policy[u'bindings'] = []
+            sys.stdout.write(u'Looks like no one has rights to your Google Cloud Organization. Attempting to give you create rights...\n')
+          else:
+            sys.stdout.write(u'The following rights seem to exist:\n')
+            for a_policy in org_policy[u'bindings']:
+              if u'role' in a_policy:
+                sys.stdout.write(u'  Role: {0}\n'.format(a_policy[u'role']))
+              if u'members' in a_policy:
+                sys.stdout.write(u'  Members:\n')
+                for member in a_policy[u'members']:
+                  sys.stdout.write(u'    {0}\n'.format(member))
+          my_role = u'roles/resourcemanager.projectCreator'
+          sys.stdout.write(u'Giving {0} the role of {1}...\n'.format(login_hint, my_role))
+          org_policy[u'bindings'].append({u'role': my_role, u'members': [u'user:{0}'.format(login_hint)]})
+          callGAPI(crm.organizations(), u'setIamPolicy',
+                   resource=organization, body={u'policy': org_policy})
+          create_again = True
+          break
         try:
           if status[u'error'][u'details'][0][u'violations'][0][u'description'] == u'Callers must accept Terms of Service':
             readStdin(u'''Please go to:
@@ -4991,8 +5023,7 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
             break
         except (IndexError, KeyError):
           pass
-        sys.stdout.write(str(status)+u'\n')
-        sys.exit(1)
+        systemErrorExit(1, str(status)+u'\n')
       if status.get(u'done', False):
         break
       sleep_time = i ** 2
@@ -5000,12 +5031,10 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
       time.sleep(sleep_time)
     if create_again:
       continue
-    if not u'done' in status or not status[u'done']:
-      sys.stdout.write(u'Failed to create project: {0}\n'.format(status))
-      sys.exit(1)
+    if not status.get(u'done', False):
+      systemErrorExit(1, u'Failed to create project: {0}\n'.format(status))
     elif u'error' in status:
-      sys.stdout.write(status[u'error']+u'\n')
-      sys.exit(2)
+      systemErrorExit(2, status[u'error']+u'\n')
     break
   simplehttp = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
   _, c = simplehttp.request(GAM_PROJECT_APIS, u'GET')
@@ -5095,6 +5124,7 @@ def doDeleteProjects():
   # Deletes all projects with ID gam-project-*
   login_hint = getEmailAddress(noUid=True, optional=True)
   checkForExtraneousArguments()
+  login_hint = getValidateLoginHint(login_hint)
   crm, _ = getCRMService(login_hint)
   projects = callGAPIpages(crm.projects(), u'list', items=u'projects')
   gam_pids = [project[u'projectId'] for project in projects if project[u'projectId'].startswith(u'gam-project-')]
@@ -19200,7 +19230,6 @@ def getDriveFile(users):
 # gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
 #	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
 def collectOrphans(users):
-
   orderByList = []
   csvFormat = False
   todrive = {}
@@ -19238,8 +19267,7 @@ def collectOrphans(users):
       feed = callGAPIpages(drive.files(), u'list', u'items',
                            page_message=page_message,
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           q=query, orderBy=orderBy,
-                           fields=u'nextPageToken,items(id,title,parents(id),mimeType)',
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,items(id,title,parents(id),mimeType)',
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
@@ -22017,7 +22045,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     errMsg = getHTTPError(_GMAIL_ERROR_REASON_TO_MESSAGE_MAP, http_status, reason, message)
     entityActionFailedWarning([Ent.USER, ri[RI_ENTITY], entityType, ri[RI_ITEM]], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
-  def _getPartsData(payload, getOrigMsg):
+  def _getBodyData(payload, getOrigMsg):
     data = headers = u''
     for part in payload.get(u'parts', []):
       if getOrigMsg:
@@ -22034,7 +22062,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
         if u'data' in part[u'body']:
           data += dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))+u'\n'
       else:
-        data += _getPartsData(part, part[u'mimeType'] == u'message/rfc822')
+        data += _getBodyData(part, part[u'mimeType'] == u'message/rfc822')
     if getOrigMsg:
       data = data.replace(u'\n', u'\n{0}'.format(Ind.INDENT_SPACES_PER_LEVEL)).rstrip()
     return headers+data
@@ -22042,10 +22070,37 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
   def _getMessageBody(payload):
     if payload[u'body'][u'size']:
       return dehtml(base64.urlsafe_b64decode(str(payload[u'body'][u'data'])))
-    data = _getPartsData(payload, False)
+    data = _getBodyData(payload, False)
     if data:
       return data
     return u'Body not available'
+
+  ATTACHMENT_NAME_PATTERN = re.compile(r'^.*name="(.*?)".*$')
+
+  def _showAttachments(messageId, payload, attachmentNamePattern):
+    for part in payload.get(u'parts', []):
+      if part[u'mimeType'] == u'text/plain':
+        if u'attachmentId' in part[u'body']:
+          for header in part[u'headers']:
+            if header[u'name'] == u'Content-Type':
+              mg = ATTACHMENT_NAME_PATTERN.match(header[u'value'])
+              if mg:
+                attachmentName = mg.group(1)
+              if (not attachmentNamePattern) or attachmentNamePattern.match(attachmentName):
+                try:
+                  result = callGAPI(gmail.users().messages().attachments(), u'get',
+                                    throw_reasons=GAPI.GMAIL_THROW_REASONS+[GAPI.NOT_FOUND],
+                                    messageId=messageId, id=part[u'body'][u'attachmentId'], userId=u'me')
+                  if u'data' in result:
+                    printKeyValueList([u'Attachment', attachmentName])
+                    Ind.Increment()
+                    printKeyValueList([Ind.MultiLineText(dehtml(base64.urlsafe_b64decode(str(result[u'data'])))+u'\n')])
+                    Ind.Decrement()
+                except (GAPI.serviceNotAvailable, GAPI.badRequest, GAPI.notFound):
+                  pass
+              break
+      else:
+        _showAttachments(messageId, part, attachmentNamePattern)
 
   def _showMessage(result, j, jcount):
     printEntity([Ent.MESSAGE, result[u'id']], j, jcount)
@@ -22071,6 +22126,8 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       Ind.Increment()
       printKeyValueList([Ind.MultiLineText(_getMessageBody(result[u'payload']))])
       Ind.Decrement()
+    if show_attachments:
+      _showAttachments(result[u'id'], result[u'payload'], attachmentNamePattern)
     Ind.Decrement()
 
   def _callbackShowMessage(request_id, response, exception):
@@ -22187,8 +22244,8 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
   maxToProcess = 0
   convertCRNL = GC.Values[GC.CSV_OUTPUT_CONVERT_CR_NL]
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
-  show_body = show_labels = show_size = show_snippet = False
-  messageEntity = None
+  show_attachments = show_body = show_labels = show_size = show_snippet = False
+  attachmentNamePattern = messageEntity = None
   headersToShow = [u'Date', u'Subject', u'From', u'Reply-To', u'To', u'Delivered-To', u'Content-Type', u'Message-ID']
   if csvFormat:
     todrive = {}
@@ -22233,6 +22290,10 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       show_size = True
     elif myarg == u'showsnippet':
       show_snippet = True
+    elif myarg == u'showattachments':
+      show_attachments = True
+    elif myarg == u'attachmentnamepattern':
+      attachmentNamePattern = getREPattern()
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     elif myarg == u'delimiter':
@@ -22312,19 +22373,23 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       addTitleToCSVfile(u'Body', titles)
     writeCSVfile(csvRows, titles, u'Messages', todrive)
 
-# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 def printMessages(users):
   _printShowMessagesThreads(users, Ent.MESSAGE, True)
 
-# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>)
+#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 def printThreads(users):
   _printShowMessagesThreads(users, Ent.THREAD, True)
 
-# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl]
+# gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
+#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
 def showMessages(users):
   _printShowMessagesThreads(users, Ent.MESSAGE, False)
 
-# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>) [headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl]
+# gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>)
+#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
 def showThreads(users):
   _printShowMessagesThreads(users, Ent.THREAD, False)
 

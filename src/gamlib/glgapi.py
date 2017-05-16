@@ -83,6 +83,8 @@ RESOURCE_NOT_FOUND = u'resourceNotFound'
 SERVICE_LIMIT = u'serviceLimit'
 SERVICE_NOT_AVAILABLE = u'serviceNotAvailable'
 SYSTEM_ERROR = u'systemError'
+TEAMDRIVE_MEMBERSHIP_REQUIRED = u'teamDriveMembershipRequired'
+TEAMDRIVES_PARENT_LIMIT = u'teamDrivesParentLimit'
 TIME_RANGE_EMPTY = u'timeRangeEmpty'
 UNKNOWN_ERROR = u'unknownError'
 USER_NOT_FOUND = u'userNotFound'
@@ -283,6 +285,10 @@ class serviceNotAvailable(Exception):
   pass
 class systemError(Exception):
   pass
+class teamDriveMembershipRequired(Exception):
+  pass
+class teamDrivesParentLimit(Exception):
+  pass
 class timeRangeEmpty(Exception):
   pass
 class unknownError(Exception):
@@ -351,6 +357,8 @@ REASON_EXCEPTION_MAP = {
   SERVICE_LIMIT: serviceLimit,
   SERVICE_NOT_AVAILABLE: serviceNotAvailable,
   SYSTEM_ERROR: systemError,
+  TEAMDRIVE_MEMBERSHIP_REQUIRED: teamDriveMembershipRequired,
+  TEAMDRIVES_PARENT_LIMIT: teamDrivesParentLimit,
   TIME_RANGE_EMPTY: timeRangeEmpty,
   UNKNOWN_ERROR: unknownError,
   USER_NOT_FOUND: userNotFound,
