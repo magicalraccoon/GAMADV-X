@@ -1,3 +1,7 @@
+4.44.41
+
+Update gam print drivesettings to handle teamDriveThemes columns.
+
 4.44.40
 
 Added arguments to show messages/threads to display plain text attachments. Selected attachments can be shown by specifying an attachmentnamepattern.

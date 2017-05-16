@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.40'
+__version__ = u'4.44.41'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -18095,16 +18095,23 @@ def printDriveActivity(users):
 
 # gam <UserTypeEntity> print|show drivesettings [todrive [<ToDriveAttributes>]]
 def printDriveSettings(users):
+
+  def _addSetting(row, titles, setting, value):
+    row[setting] = value
+    if setting not in titles[u'set']:
+      addTitleToCSVfile(setting, titles)
+
   todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'email', u'name'])
+  titles, csvRows = initializeTitlesCSVfile([u'email', u'name', u'DRIVE', u'GMAIL', u'PHOTOS', u'domainSharingPolicy',
+                                             u'folderColorPalette', u'languageCode', u'largestChangeId', u'permissionId',
+                                             u'quotaBytesTotal', u'quotaBytesUsedAggregate', u'quotaBytesUsed', u'quotaBytesUsedInTrash', u'quotaType',
+                                             u'rootFolderId', u'teamDriveThemes'])
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
     else:
       unknownArgumentExit()
-  dont_show = [u'kind', u'etag', u'selfLink', u'additionalRoleInfo', u'exportFormats', u'features',
-               u'importFormats', u'isCurrentAppInstalled', u'maxUploadSizes', u'user']
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -18115,25 +18122,26 @@ def printDriveSettings(users):
     try:
       feed = callGAPI(drive.about(), u'get',
                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS)
-      if feed:
-        row = {u'email': user}
-        for setting in feed:
-          if setting in dont_show:
-            continue
-          if setting == u'quotaBytesByService':
-            for subsetting in feed[setting]:
-              my_name = subsetting[u'serviceName']
-              row[my_name] = formatFileSize(int(subsetting[u'bytesUsed']))
-              if my_name not in titles[u'set']:
-                addTitleToCSVfile(my_name, titles)
-          else:
-            row[setting] = feed[setting]
-            if setting not in titles[u'set']:
-              addTitleToCSVfile(setting, titles)
-        csvRows.append(row)
+      row = {u'email': user}
+      for setting in [u'name', u'domainSharingPolicy',
+                      u'folderColorPalette', u'languageCode', u'largestChangeId', u'permissionId',
+                      u'quotaBytesTotal', u'quotaBytesUsedAggregate', u'quotaBytesUsed', u'quotaBytesUsedInTrash', u'quotaType',
+                      u'rootFolderId']:
+        row[setting] = feed[setting]
+      for setting in feed[u'quotaBytesByService']:
+        _addSetting(row, titles, setting[u'serviceName'], formatFileSize(int(setting[u'bytesUsed'])))
+      teamDriveThemes = feed.get(u'teamDriveThemes', [])
+      jcount = len(feed[u'teamDriveThemes'])
+      row[u'teamDriveThemes'] = jcount
+      j = 0
+      for setting in teamDriveThemes:
+        _addSetting(row, titles, u'teamDriveThemes.{0}.id'.format(j), setting[u'id'])
+        _addSetting(row, titles, u'teamDriveThemes.{0}.backgroundImageLink'.format(j), setting[u'backgroundImageLink'])
+        _addSetting(row, titles, u'teamDriveThemes.{0}.colorRgb'.format(j), setting[u'colorRgb'])
+        j += 1
+      csvRows.append(row)
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
-  sortCSVTitles([u'email', u'name'], titles)
   writeCSVfile(csvRows, titles, u'User Drive Settings', todrive)
 
 def initFilePathInfo():
