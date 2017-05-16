@@ -22217,7 +22217,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       _handlePrintGmailError(exception, ri)
 
   def _batchPrintShowMessagesThreads(service, user, jcount, messageIds, callback):
-    svcargs = dict([(u'userId', u'me'), (u'id', None), (u'format', [u'metadata', u'full'][show_body])]+GM.Globals[GM.EXTRA_ARGS_LIST])
+    svcargs = dict([(u'userId', u'me'), (u'id', None), (u'format', [u'metadata', u'full'][show_body or show_attachments])]+GM.Globals[GM.EXTRA_ARGS_LIST])
     dbatch = googleapiclient.http.BatchHttpRequest(callback=callback)
     bcount = 0
     j = 0
