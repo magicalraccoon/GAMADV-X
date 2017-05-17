@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.42'
+__version__ = u'4.44.43'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19275,12 +19275,12 @@ def collectOrphans(users):
       feed = callGAPIpages(drive.files(), u'list', u'items',
                            page_message=page_message,
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=u'nextPageToken,items(id,title,parents(id),mimeType)',
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,items(id,title,parents(id),mimeType,ownedByMe)',
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#username#', userName)
-      orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
+      orphanDriveFiles = [f_file for f_file in feed if (not f_file.get(u'parents')) and f_file['ownedByMe']]
       del feed
       jcount = len(orphanDriveFiles)
       entityPerformActionNumItemsModifier([Ent.USER, user], jcount, Ent.DRIVE_ORPHAN_FILE_OR_FOLDER,
