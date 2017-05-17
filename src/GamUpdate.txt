@@ -1,3 +1,7 @@
+4.44.42
+
+Fix bug in add/update drivefileacl where role commenter was not properly handled.
+
 4.44.41
 
 Update gam print drivesettings to handle teamDriveThemes columns.

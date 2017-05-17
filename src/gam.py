@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.41'
+__version__ = u'4.44.42'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20050,7 +20050,7 @@ def addDriveFileACL(users):
       body[u'withLink'] = not getBoolean(defaultValue=True)
     elif myarg == u'role':
       roleLocation = Cmd.Location()
-      body[u'role'] = getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True)
+      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
       if body[u'role'] == u'owner':
         sendNotificationEmails = True
     elif myarg == u'expiration':
@@ -20115,7 +20115,7 @@ def updateDriveFileACLs(users):
     elif myarg in [u'allowfilediscovery', u'discoverable']:
       body[u'withLink'] = not getBoolean(defaultValue=True)
     elif myarg == u'role':
-      body[u'role'] = getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True)
+      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
       if body[u'role'] == u'owner':
         transferOwnership = True
     elif myarg == u'expiration':
