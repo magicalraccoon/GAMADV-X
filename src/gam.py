@@ -22053,6 +22053,16 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     errMsg = getHTTPError(_GMAIL_ERROR_REASON_TO_MESSAGE_MAP, http_status, reason, message)
     entityActionFailedWarning([Ent.USER, ri[RI_ENTITY], entityType, ri[RI_ITEM]], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
+  HEADER_ENCODE_PATTERN = re.compile(r'=\?(.*?)\?Q\?(.*?)\?=')
+
+  def _decodeHeader(header):
+    from email.header import decode_header
+    while True:
+      mg = HEADER_ENCODE_PATTERN.search(header)
+      if not mg:
+        return header
+      header = header[:mg.start()]+decode_header(mg.group())[0][0].decode(mg.group(1)).encode('utf8')+header[mg.end():]
+
   def _getBodyData(payload, getOrigMsg):
     data = headers = u''
     for part in payload.get(u'parts', []):
@@ -22062,13 +22072,16 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
             if name == header[u'name'].lower():
               if not headers:
                 headers = u'---------- Original message ----------\n'
-              headers += formatKeyValueList(u'', [SMTP_HEADERS_MAP.get(name, header[u'name']), header[u'value']], u'\n')
+              headers += formatKeyValueList(u'', [SMTP_HEADERS_MAP.get(name, header[u'name']), _decodeHeader(header[u'value'])], u'\n')
         if headers:
           headers += u'Body:\n'
           data = Ind.INDENT_SPACES_PER_LEVEL
-      if part[u'mimeType'] in [u'text/plain', u'text/rfc822-headers']:
+      if part[u'mimeType'] == u'text/plain':
         if u'data' in part[u'body']:
           data += base64.urlsafe_b64decode(str(part[u'body'][u'data']))+u'\n'
+      elif part[u'mimeType'] == u'text/rfc822-headers':
+        if u'data' in part[u'body']:
+          data += _decodeHeader(base64.urlsafe_b64decode(str(part[u'body'][u'data']))+u'\n')
       else:
         data += _getBodyData(part, part[u'mimeType'] == u'message/rfc822')
     if getOrigMsg:
@@ -22118,7 +22131,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     for name in headersToShow:
       for header in result[u'payload'][u'headers']:
         if name == header[u'name'].lower():
-          printKeyValueList([SMTP_HEADERS_MAP.get(name, header[u'name']), header[u'value']])
+          printKeyValueList([SMTP_HEADERS_MAP.get(name, header[u'name']), _decodeHeader(header[u'value'])])
     if show_size:
       printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])
     if show_labels:
@@ -22155,9 +22168,9 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
         if name == header[u'name'].lower():
           j += 1
           if j == 1:
-            row[SMTP_HEADERS_MAP.get(name, header[u'name'])] = header[u'value']
+            row[SMTP_HEADERS_MAP.get(name, header[u'name'])] = _decodeHeader(header[u'value'])
           else:
-            row[u'{0} {1}'.format(SMTP_HEADERS_MAP.get(name, header[u'name']), j)] = header[u'value']
+            row[u'{0} {1}'.format(SMTP_HEADERS_MAP.get(name, header[u'name']), j)] = _decodeHeader(header[u'value'])
     if show_size:
       row[u'SizeEstimate'] = result[u'sizeEstimate']
     if show_labels:
