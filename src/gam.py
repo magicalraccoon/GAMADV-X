@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.43'
+__version__ = u'4.44.44'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22066,9 +22066,9 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
         if headers:
           headers += u'Body:\n'
           data = Ind.INDENT_SPACES_PER_LEVEL
-      if part[u'mimeType'] == u'text/plain':
+      if part[u'mimeType'] in [u'text/plain', u'text/rfc822-headers']:
         if u'data' in part[u'body']:
-          data += dehtml(base64.urlsafe_b64decode(str(part[u'body'][u'data'])))+u'\n'
+          data += base64.urlsafe_b64decode(str(part[u'body'][u'data']))+u'\n'
       else:
         data += _getBodyData(part, part[u'mimeType'] == u'message/rfc822')
     if getOrigMsg:
@@ -22077,7 +22077,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
 
   def _getMessageBody(payload):
     if payload[u'body'][u'size']:
-      return dehtml(base64.urlsafe_b64decode(str(payload[u'body'][u'data'])))
+      return base64.urlsafe_b64decode(str(payload[u'body'][u'data']))
     data = _getBodyData(payload, False)
     if data:
       return data
@@ -22102,7 +22102,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
                   if u'data' in result:
                     printKeyValueList([u'Attachment', attachmentName])
                     Ind.Increment()
-                    printKeyValueList([Ind.MultiLineText(dehtml(base64.urlsafe_b64decode(str(result[u'data'])))+u'\n')])
+                    printKeyValueList([Ind.MultiLineText(base64.urlsafe_b64decode(str(result[u'data']))+u'\n')])
                     Ind.Decrement()
                 except (GAPI.serviceNotAvailable, GAPI.badRequest, GAPI.notFound):
                   pass

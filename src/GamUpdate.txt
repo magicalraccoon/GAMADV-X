@@ -1,3 +1,7 @@
+4.44.44
+
+Process text/rfc822-headers in print/show messages when showbody is specified.
+
 4.44.43
 
 When collecting orphaned files into a target folder, only orphaned files owned by the user are collected.
