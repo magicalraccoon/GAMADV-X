@@ -4053,15 +4053,18 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
   return flattened
 
 # Show a json object
-def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, level=0):
+def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, dictObjectsKey=None, subObjectKey=None, level=0):
   if skipObjects is None:
     skipObjects = []
   if timeObjects is None:
     timeObjects = []
+  if dictObjectsKey is None:
+    dictObjectsKey = {}
   if object_name in [u'kind', u'etag', u'etags'] or object_name in skipObjects:
     return
   if object_name is not None:
     printJSONKey(object_name)
+    subObjectKey = dictObjectsKey.get(object_name)
   if isinstance(object_value, list):
     if len(object_value) == 1 and isinstance(object_value[0], non_compound_types):
       if object_name is not None:
@@ -4072,11 +4075,11 @@ def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, leve
     if object_name is not None:
       printBlankLine()
       Ind.Increment()
-    for sub_value in object_value:
-      if isinstance(sub_value, non_compound_types):
-        printKeyValueList([sub_value])
+    for subValue in object_value:
+      if isinstance(subValue, non_compound_types):
+        printKeyValueList([subValue])
       else:
-        showJSON(None, sub_value, skipObjects, timeObjects, level+1)
+        showJSON(None, subValue, skipObjects, timeObjects, dictObjectsKey, subObjectKey, level+1)
     if object_name is not None:
       Ind.Decrement()
   elif isinstance(object_value, dict):
@@ -4086,9 +4089,14 @@ def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, leve
       Ind.Increment()
     elif level > 0:
       indentAfterFirst = unindentAfterLast = True
-    for sub_object in sorted(object_value):
-      if sub_object not in skipObjects:
-        showJSON(sub_object, object_value[sub_object], skipObjects, timeObjects, level+1)
+    subObjects = sorted(object_value)
+    if subObjectKey and (subObjectKey in subObjects):
+      subObjects.remove(subObjectKey)
+      subObjects.insert(0, subObjectKey)
+      subObjectKey = None
+    for subObject in subObjects:
+      if subObject not in skipObjects:
+        showJSON(subObject, object_value[subObject], skipObjects, timeObjects, dictObjectsKey, subObjectKey, level+1)
         if indentAfterFirst:
           Ind.Increment()
           indentAfterFirst = False
@@ -18380,7 +18388,7 @@ def showDriveFileInfo(users):
             printKeyValueList([u'path', path])
           Ind.Decrement()
         _mapDriveFieldNames(result, user)
-        showJSON(None, result, skipObjects, DRIVEFILE_FIELDS_TIME_OBJECTS)
+        showJSON(None, result, skipObjects, DRIVEFILE_FIELDS_TIME_OBJECTS, {u'owners': u'displayName', u'parents': u'id', u'permissions': u'name'})
         Ind.Decrement()
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
@@ -19242,7 +19250,7 @@ def collectOrphans(users):
   csvFormat = False
   todrive = {}
   targetUserFolderPattern = u'#user# orphaned files'
-  query = u'trashed = false'
+  query = ME_IN_OWNERS_AND+u'trashed = false'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'orderby':
@@ -19275,12 +19283,12 @@ def collectOrphans(users):
       feed = callGAPIpages(drive.files(), u'list', u'items',
                            page_message=page_message,
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=u'nextPageToken,items(id,title,parents(id),mimeType,ownedByMe)',
+                           q=query, orderBy=orderBy, fields=u'nextPageToken,items(id,title,parents(id),mimeType)',
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
       trgtUserFolderName = trgtUserFolderName.replace(u'#username#', userName)
-      orphanDriveFiles = [f_file for f_file in feed if (not f_file.get(u'parents')) and f_file['ownedByMe']]
+      orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
       del feed
       jcount = len(orphanDriveFiles)
       entityPerformActionNumItemsModifier([Ent.USER, user], jcount, Ent.DRIVE_ORPHAN_FILE_OR_FOLDER,

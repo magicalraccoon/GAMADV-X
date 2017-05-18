@@ -1,3 +1,7 @@
+4.44.46
+
+Placed name at top of permissions section for gam show fileinfo.
+
 4.44.45
 
 Handle internationalized headers in gam print/show messages.
