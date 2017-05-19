@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.48'
+__version__ = u'4.44.49'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22093,6 +22093,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
 
   def _decodeHeader(header):
     from email.header import decode_header
+    header = header.decode(u'utf-8', u'replace').encode(u'utf-8')
     while True:
       mg = HEADER_ENCODE_PATTERN.search(header)
       if not mg:

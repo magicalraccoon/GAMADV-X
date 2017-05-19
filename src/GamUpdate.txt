@@ -1,3 +1,7 @@
+4.44.49
+
+Handle incorrectly encoded internationalized headers in gam print/show messages.
+
 4.44.48
 
 Updated gam create group to avoid Google API issue that generated an error when the group description contains a newline.
