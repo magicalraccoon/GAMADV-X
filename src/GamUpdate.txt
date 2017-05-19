@@ -1,3 +1,7 @@
+4.44.48
+
+Updated gam create group to avoid Google API issue that generated an error when the group description contains a newline.
+
 4.44.47
 
 Updated gam create/update group to use update semantics for group settings to avoid unexpected results due to Google issue #32460496.

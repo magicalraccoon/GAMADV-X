@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.47'
+__version__ = u'4.44.48'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -10441,13 +10441,17 @@ def doCreateGroup():
     if myarg == u'name':
       body[u'name'] = getString(Cmd.OB_STRING)
     elif myarg == u'description':
-      body[u'description'] = getString(Cmd.OB_STRING, minLen=0).replace(u'\\n', u'\n')
+      description = getString(Cmd.OB_STRING, minLen=0).replace(u'\\n', u'\n')
+      if description.find(u'\n') != -1:
+        gs_body[u'description'] = description
+      else:
+        body[u'description'] = description
     else:
       getGroupAttrValue(myarg, gs_body)
   body.setdefault(u'name', body[u'email'])
   try:
     callGAPI(cd.groups(), u'insert',
-             throw_reasons=[GAPI.DUPLICATE, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID, GAPI.INVALID_INPUT],
+             throw_reasons=GAPI.GROUP_CREATE_THROW_REASONS,
              body=body, fields=u'')
     errMsg = u''
     if gs_body and not GroupIsAbuseOrPostmaster(body[u'email']):
@@ -10467,7 +10471,7 @@ def doCreateGroup():
     entityActionPerformedMessage([Ent.GROUP, body[u'email']], errMsg)
   except GAPI.duplicate:
     entityDuplicateWarning(Ent.GROUP, body[u'email'])
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.permissionDenied, GAPI.backendError, GAPI.systemError) as e:
+  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.invalid, GAPI.invalidInput, GAPI.badRequest, GAPI.permissionDenied, GAPI.backendError, GAPI.systemError) as e:
     entityActionFailedWarning([Ent.GROUP, body[u'email']], str(e))
 
 def checkGroupExists(cd, group, i=0, count=0):
@@ -10616,7 +10620,7 @@ def doUpdateGroups():
       if body or (group.find(u'@') == -1): # group settings API won't take uid so we make sure cd API is used so that we can grab real email.
         try:
           group = callGAPI(cd.groups(), u'patch',
-                           throw_reasons=GAPI.GROUP_GET_THROW_REASONS, retry_reasons=GAPI.GROUP_GET_RETRY_REASONS,
+                           throw_reasons=GAPI.GROUP_UPDATE_THROW_REASONS, retry_reasons=GAPI.GROUP_GET_RETRY_REASONS,
                            groupKey=group, body=body, fields=u'email')[u'email']
         except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.backendError, GAPI.badRequest):
           entityUnknownWarning(Ent.GROUP, group, i, count)
@@ -10636,7 +10640,7 @@ def doUpdateGroups():
               errMsg = Msg.API_ERROR_SETTINGS
           else:
             errMsg = Msg.API_ERROR_SETTINGS
-        except (GAPI.permissionDenied) as e:
+        except (GAPI.permissionDenied, GAPI.invalid, GAPI.invalidInput) as e:
           entityActionFailedWarning([Ent.GROUP, group], str(e), i, count)
           continue
         except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
