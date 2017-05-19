@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.46'
+__version__ = u'4.44.47'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1627,9 +1627,14 @@ def entityActionPerformed(entityValueList, i=0, count=0):
                                  currentCountNL(i, count)))
 
 def entityActionPerformedMessage(entityValueList, message, i=0, count=0):
-  writeStdout(formatKeyValueList(Ind.Spaces(),
-                                 Ent.FormatEntityValueList(entityValueList)+[Act.Performed(), message],
-                                 currentCountNL(i, count)))
+  if message:
+    writeStdout(formatKeyValueList(Ind.Spaces(),
+                                   Ent.FormatEntityValueList(entityValueList)+[Act.Performed(), message],
+                                   currentCountNL(i, count)))
+  else:
+    writeStdout(formatKeyValueList(Ind.Spaces(),
+                                   Ent.FormatEntityValueList(entityValueList)+[Act.Performed()],
+                                   currentCountNL(i, count)))
 
 def entityModifierNewValueActionPerformed(entityValueList, modifier, newValue, i=0, count=0):
   writeStdout(formatKeyValueList(Ind.Spaces(),
@@ -10447,15 +10452,22 @@ def doCreateGroup():
     errMsg = u''
     if gs_body and not GroupIsAbuseOrPostmaster(body[u'email']):
       gs = buildGAPIObject(API.GROUPSSETTINGS)
-      result = callGAPI(gs.groups(), u'patch',
-                        soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
-                        groupUniqueId=body[u'email'], body=gs_body, fields=u'')
-      if result is None:
+      settings = callGAPI(gs.groups(), u'get',
+                          soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
+                          groupUniqueId=body[u'email'], fields=u'*')
+      if settings is not None:
+        settings.update(gs_body)
+        result = callGAPI(gs.groups(), u'update',
+                          soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
+                          groupUniqueId=body[u'email'], body=settings, fields=u'')
+        if result is None:
+          errMsg = Msg.API_ERROR_SETTINGS
+      else:
         errMsg = Msg.API_ERROR_SETTINGS
     entityActionPerformedMessage([Ent.GROUP, body[u'email']], errMsg)
   except GAPI.duplicate:
     entityDuplicateWarning(Ent.GROUP, body[u'email'])
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError, GAPI.invalid, GAPI.invalidInput) as e:
+  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.permissionDenied, GAPI.backendError, GAPI.systemError) as e:
     entityActionFailedWarning([Ent.GROUP, body[u'email']], str(e))
 
 def checkGroupExists(cd, group, i=0, count=0):
@@ -10612,11 +10624,21 @@ def doUpdateGroups():
       errMsg = u''
       if gs_body and not GroupIsAbuseOrPostmaster(group):
         try:
-          result = callGAPI(gs.groups(), u'patch',
-                            soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
-                            groupUniqueId=group, body=gs_body, fields=u'')
-          if result is None:
+          settings = callGAPI(gs.groups(), u'get',
+                              soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
+                              groupUniqueId=group, fields=u'*')
+          if settings is not None:
+            settings.update(gs_body)
+            result = callGAPI(gs.groups(), u'update',
+                              soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
+                              groupUniqueId=group, body=settings, fields=u'')
+            if result is None:
+              errMsg = Msg.API_ERROR_SETTINGS
+          else:
             errMsg = Msg.API_ERROR_SETTINGS
+        except (GAPI.permissionDenied) as e:
+          entityActionFailedWarning([Ent.GROUP, group], str(e), i, count)
+          continue
         except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
           entityUnknownWarning(Ent.GROUP, group, i, count)
           continue
@@ -10837,6 +10859,8 @@ def infoGroups(entityList):
         settings = callGAPI(gs.groups(), u'get',
                             soft_errors=True, throw_reasons=GAPI.GROUP_SETTINGS_THROW_REASONS, retry_reasons=GAPI.GROUP_SETTINGS_RETRY_REASONS,
                             groupUniqueId=group, fields=gsfields) # Use email address retrieved from cd since GS API doesn't support uid
+        if settings is None:
+          settings = {}
       if getGroups:
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
                                userKey=group, fields=u'nextPageToken,groups(name,email)')
