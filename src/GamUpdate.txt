@@ -1,3 +1,7 @@
+4.44.50
+
+Fix bug affecting internationalized headers in gam print/show messages.
+
 4.44.49
 
 Handle incorrectly encoded internationalized headers in gam print/show messages.
