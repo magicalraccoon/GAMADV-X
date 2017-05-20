@@ -1,3 +1,7 @@
+4.44.51
+
+Courtesy of Jay, show detailed license counts for gam info customer/domain/instance.
+
 4.44.50
 
 Fix bug affecting internationalized headers in gam print/show messages.

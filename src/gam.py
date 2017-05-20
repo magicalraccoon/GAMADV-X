@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.50'
+__version__ = u'4.44.51'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6269,9 +6269,19 @@ def doPrintAdmins():
   except (GAPI.badRequest, GAPI.customerNotFound, GAPI.forbidden):
     accessErrorExit(cd)
 
+USER_COUNTS_MAP = {
+  u'accounts:num_users': u'Total Users',
+  u'accounts:gsuite_basic_total_licenses': u'G Suite Basic Licenses',
+  u'accounts:gsuite_basic_used_licenses': u'G Suite Basic Users',
+  u'accounts:gsuite_enterprise_total_licenses': u'G Suite Enterprise Licenses',
+  u'accounts:gsuite_enterprise_used_licenses': u'G Suite Enterprise Users',
+  u'accounts:gsuite_unlimited_total_licenses': u'G Suite Business Licenses',
+  u'accounts:gsuite_unlimited_used_licenses': u'G Suite Business Users'
+  }
+
 def _showCustomerLicenseInfo(customerId):
   rep = buildGAPIObject(API.REPORTS)
-  parameters = u'accounts:num_users,accounts:apps_total_licenses,accounts:apps_used_licenses'
+  parameters = u','.join(USER_COUNTS_MAP)
   try_date = str(datetime.date.today())
   while True:
     try:
@@ -6288,17 +6298,10 @@ def _showCustomerLicenseInfo(customerId):
   printKeyValueList([u'User counts as of {0}:'.format(try_date)])
   Ind.Increment()
   for item in usage[0][u'parameters']:
-    if not u'intValue' in item or int(item[u'intValue']) == 0:
-      continue
-    api_name = name = item[u'name']
-    api_value = int(item[u'intValue'])
-    if api_name == u'accounts:num_users':
-      name = u'Total Users'
-    elif api_name == u'accounts:apps_total_licenses':
-      name = u'G Suite Basic Licenses'
-    elif api_name == u'accounts:apps_used_licenses':
-      name = u'G Suite Basic Users'
-    printKeyValueList([name, u'{:,}'.format(api_value)])
+    api_name = USER_COUNTS_MAP.get(item[u'name'])
+    api_value = int(item.get(u'intValue', 0))
+    if api_name and api_value:
+      printKeyValueList([api_name, u'{:,}'.format(api_value)])
   Ind.Decrement()
 
 # gam info customer
