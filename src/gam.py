@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.51'
+__version__ = u'4.44.52'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3079,7 +3079,7 @@ GROUP_ROLES_MAP = {
   }
 
 # Turn the entity into a list of Users/CrOS devices
-def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False, groupUserMembersOnly=True):
+def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=False, includeSuspendedInAll=False, groupUserMembersOnly=True):
   def _addGroupMembersToUsers(group, domains, recursive):
     doNotExist = 0
     try:
@@ -3135,7 +3135,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
                              fields=u'nextPageToken,users(primaryEmail,suspended)',
                              maxResults=GC.Values[GC.USER_MAX_RESULTS])
       for user in result:
-        if not user[u'suspended']:
+        if includeSuspendedInAll or not user[u'suspended']:
           entityList.append(user[u'primaryEmail'])
       printGettingAccountEntitiesDoneInfo(len(entityList))
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
@@ -14696,6 +14696,8 @@ def infoUsers(entityList):
   fields = u','.join(set(fieldsList)).replace(u'.', u'/') if fieldsList else None
   if getLicenses:
     lic = buildGAPIObject(API.LICENSING)
+  if isinstance(entityList, dict):
+    entityList[u'includeSuspendedInAll'] = True
   i, count, entityList = getEntityArgument(entityList)
   for userEmail in entityList:
     i += 1
@@ -14903,7 +14905,7 @@ def infoUsers(entityList):
 
 # gam info users <UserTypeEntity> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 def doInfoUsers():
-  infoUsers(getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS)[1])
+  infoUsers(getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS, delayGet=True)[1])
 
 # gam info user <UserItem> [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] [fields <UserFieldNameList>] [products|product <ProductIDList>] [skus|sku <SKUIDList>] [formatjson]
 # gam info user

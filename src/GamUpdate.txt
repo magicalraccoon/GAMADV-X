@@ -1,3 +1,7 @@
+4.44.52
+
+When all users is specified with gam info users. suspended users are now included.
+
 4.44.51
 
 Courtesy of Jay, show detailed license counts for gam info customer/domain/instance.
