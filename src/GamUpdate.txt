@@ -1,6 +1,6 @@
 4.44.52
 
-When all users is specified with gam info users. suspended users are now included.
+When all users is specified with gam info users, suspended users are now included.
 
 4.44.51
 
