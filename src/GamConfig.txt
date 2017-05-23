@@ -117,10 +117,6 @@ csv_output_field_delimiter
 	Each of the gam print courses|groups|users  commands has a delimiter <String> argument that can override this value.
 	Default: ' '
 	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
-csv_output_item_count_columns
-	When writing repeating items to a CSV file, should a column specifying the number of elements in a repeating item be included.
-	Default: True
-	Environment variable: GAM_CSV_OUTPUT_ITEM_COUNT_COLUMNS
 csv_output_users_audit
 	Gam print commands that print objects belonging to users don't print rows for users that don't have any of the objects.
 	The objects are: calendars, calendar ACLs, calendar events, delegates, filters, forwarding addresses, sendas addresses,
@@ -267,7 +263,6 @@ Section: DEFAULT
   csv_output_convert_cr_nl = false
   csv_output_column_delimiter = ,
   csv_output_field_delimiter = ' '
-  csv_output_item_count_columns = true
   csv_output_users_audit = false
   customer_id =
   debug_level = 0
@@ -385,7 +380,6 @@ csv_input_column_delimiter = ,
 csv_output_convert_cr_nl = false
 csv_output_column_delimiter = ,
 csv_output_field_delimiter = ' '
-csv_output_item_count_columns = true
 csv_output_users_audit = false
 customer_id = 0000000000
 debug_level = 0
