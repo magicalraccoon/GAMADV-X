@@ -688,11 +688,26 @@ The output from each of the gam info user ~User commands will be combined into t
     gam redirect csv UserDelegates.csv multiprocess csv Users.csv gam user ~User print delegates
 The output from each of the gam user ~User print delegates commands will be combined into the single file UserDelegates.csv.
 
-Added show_multi_info to gam.cfg.
-    show_multi_info
-	Enable/disable showing multiprocess info in redirected stdout/stderr
+Added show_multiprocess_info to gam.cfg.
+    show_multiprocess_info
+	Enable/disable showing multiprocess info in redirected stdout/stderr with gam csv
 	Default: False
 Example:
+$ gam config show_multiprocess_info false redirect stdout ./Users.txt multiprocess csv Users.csv gam info user ~primaryEmail
+$ more Users.txt
+User: testuser1@domain.com (1/1)
+  Settings:
+    First Name: Test
+    Last Name: User1
+    Full Name: Test User1
+...
+User: testuser2@domain.com@ (1/1)
+  Settings:
+    First Name: Test
+    Last Name: User2
+    Full Name: Test User2
+...
+
 $ gam config show_multiprocess_info true redirect stdout ./Users.txt multiprocess csv Users.csv gam info user ~primaryEmail
 $ more Users.txt
 stdout:      0, Start: 2017-01-26T11:35:00.897773-08:00, Cmd: /Users/admin/gam config show_multiprocess_info true redirect stdout ./Users.txt multiprocess csv Users.csv gam info user ~primaryEmail
