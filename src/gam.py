@@ -4046,7 +4046,7 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
   elif isinstance(structure, (list, collections.deque)):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
-    if GC.Values[GC.CSV_OUTPUT_ITEM_COUNT_COLUMNS] and key not in noLenObjects:
+    if key not in noLenObjects:
       flattened[((path+u'.') if path else u'')+key] = listLen
     for i in xrange(listLen):
       flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, timeObjects, noLenObjects)
@@ -18574,15 +18574,12 @@ def printDriveFileList(users):
       if not isinstance(f_file[attrib], dict):
         if isinstance(f_file[attrib], list):
           if f_file[attrib]:
+            if attrib not in titles[u'set']:
+              addTitleToCSVfile(attrib, titles)
             if isinstance(f_file[attrib][0], non_compound_types):
-              if attrib not in titles[u'set']:
-                addTitleToCSVfile(attrib, titles)
               row[attrib] = delimiter.join(f_file[attrib])
             else:
-              if GC.Values[GC.CSV_OUTPUT_ITEM_COUNT_COLUMNS]:
-                if attrib not in titles[u'set']:
-                  addTitleToCSVfile(attrib, titles)
-                row[attrib] = len(f_file[attrib])
+              row[attrib] = len(f_file[attrib])
               for j, l_attrib in enumerate(f_file[attrib]):
                 for list_attrib in l_attrib:
                   if list_attrib in [u'kind', u'etag', u'selfLink']:
