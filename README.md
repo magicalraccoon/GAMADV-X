@@ -80,6 +80,7 @@ Section: DEFAULT
   csv_output_column_delimiter = ,
   csv_output_convert_cr_nl = false
   csv_output_field_delimiter = ' '
+  csv_output_users_audit = false
   customer_id = my_customer
   debug_level = 0
   device_max_results = 500
@@ -91,11 +92,12 @@ Section: DEFAULT
   member_max_results = 200
   message_batch_size = 1000
   message_max_results = 1000
+  never_time = Never
   no_browser = false
   no_cache = false
   no_update_check = false
   no_verify_ssl = false
-  num_threads = 25
+  num_threads = 5
   oauth2_txt = oauth2.txt ; /Users/admin/.gam/oauth2.txt
   oauth2service_json = oauth2service.json ; /Users/admin/.gam/oauth2service.json
   section = ''
@@ -105,6 +107,7 @@ Section: DEFAULT
   show_multiprocess_info = false
   timezone = utc
   todrive_conversion = true
+  todrive_localcopy = false
   todrive_parent = root
   todrive_timestamp = false
   todrive_user = ''
