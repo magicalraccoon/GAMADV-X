@@ -100,6 +100,7 @@ If an item contains spaces, it should be surrounded by ".
 <DriveFilePermission> ::= anyone|anyonewithlink|user:<EmailAddress>|group:<EmailAddress>|domain:<DomainName>|domainwithlink:<DomainName>;<DriveFileACLRole>
 <DriveFilePermissionID> ::= anyone|anyonewithlink|id:<String>
 <DriveFilePermissionIDorEmail> ::= <DriveFilePermissionID>|<EmailAddress>
+<DriveFileRevisionID> ::= <String>
 <EmailAddress> ::= <String>@<DomainName>
 <EmailItem> ::= <EmailAddress>|<UniqueID>|<String>
 <EventColorIndex> ::== <Number in range 1-11>
@@ -1551,7 +1552,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] <DriveFileAddAttributes>*
 gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] <DriveFileUpdateAttributes>*
 gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive] <DriveFileCopyAttributes>*
-gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>] [nocache]
+gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <DriveFileRevisionID>] [nocache]
 gam <UserTypeEntity> delete drivefile <DriveFileEntity> [purge|untrash|trash]
 gam <UserTypeEntity> purge drivefile <DriveFileEntity>
 gam <UserTypeEntity> trash drivefile <DriveFileEntity>
@@ -1576,6 +1577,11 @@ gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttributes>]] [showtitles]
 gam <UserTypeEntity> add permissions <DriveFileEntity> <DriveFilePermissionEntity> [expiration <Time>] [sendemail] [emailmessage <String>]
 gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionIDEntity>
+
+gam <UserTypeEntity> delete filerevision <DriveFileEntity> <DriveFileRevisionID> [showtitles]
+gam <UserTypeEntity> info filerevision <DriveFileEntity> <DriveFileRevisionID> [showtitles]
+gam <UserTypeEntity> show filerevisions <DriveFileEntity> [showtitles]
+gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [showtitles]
 
 gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])*
 	[filepath] [preview] [todrive [<ToDriveAttributes>]]
@@ -1661,7 +1667,6 @@ gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|com
 	viewedbymedate|viewedbymetime
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*|(fields <DriveFiledNameList>)]
-gam <UserTypeEntity> show filerevisions <DriveFileEntity>
 gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)]

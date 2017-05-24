@@ -1,3 +1,11 @@
+4.44.54
+
+Extended commands for managing Drive file revisions.
+    gam <UserTypeEntity> delete filerevision <DriveFileEntity> <DriveFileRevisionID> [showtitles]
+    gam <UserTypeEntity> info filerevision <DriveFileEntity> <DriveFileRevisionID> [showtitles]
+    gam <UserTypeEntity> show filerevisions <DriveFileEntity> [showtitles]
+    gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [showtitles]
+
 4.44.53
 
 Modified progress messages in gam claim ownership to match those in gam transfer ownership.

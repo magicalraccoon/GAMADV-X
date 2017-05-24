@@ -80,6 +80,8 @@ RATE_LIMIT_EXCEEDED = u'rateLimitExceeded'
 REQUIRED = u'required'
 RESOURCE_ID_NOT_FOUND = u'resourceIdNotFound'
 RESOURCE_NOT_FOUND = u'resourceNotFound'
+REVISION_DELETION_NOT_SUPPORTED = u'revisionDeletionNotSupported'
+REVISION_NOT_FOUND = u'revisionNotFound'
 SERVICE_LIMIT = u'serviceLimit'
 SERVICE_NOT_AVAILABLE = u'serviceNotAvailable'
 SYSTEM_ERROR = u'systemError'
@@ -158,6 +160,7 @@ REASON_MESSAGE_MAP = {
     (u'Org unit not found', ORGUNIT_NOT_FOUND),
     (u'Permission not found', PERMISSION_NOT_FOUND),
     (u'Resource Not Found', RESOURCE_NOT_FOUND),
+    (u'Revision not found', REVISION_NOT_FOUND),
     (u'Not Found', NOT_FOUND),
     ],
   REQUIRED: [
@@ -283,6 +286,10 @@ class resourceIdNotFound(Exception):
   pass
 class resourceNotFound(Exception):
   pass
+class revisionDeletionNotSupported(Exception):
+  pass
+class revisionNotFound(Exception):
+  pass
 class serviceLimit(Exception):
   pass
 class serviceNotAvailable(Exception):
@@ -358,6 +365,8 @@ REASON_EXCEPTION_MAP = {
   REQUIRED: required,
   RESOURCE_ID_NOT_FOUND: resourceIdNotFound,
   RESOURCE_NOT_FOUND: resourceNotFound,
+  REVISION_DELETION_NOT_SUPPORTED: revisionDeletionNotSupported,
+  REVISION_NOT_FOUND: revisionNotFound,
   SERVICE_LIMIT: serviceLimit,
   SERVICE_NOT_AVAILABLE: serviceNotAvailable,
   SYSTEM_ERROR: systemError,
