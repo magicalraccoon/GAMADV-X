@@ -28,6 +28,7 @@ BAD_GATEWAY = u'badGateway'
 BAD_REQUEST = u'badRequest'
 CANNOT_CHANGE_OWN_ACL = u'cannotChangeOwnAcl'
 CANNOT_CHANGE_OWNER_ACL = u'cannotChangeOwnerAcl'
+CANNOT_DELETE_ONLY_REVISION = u'cannotDeleteOnlyRevision'
 CANNOT_DELETE_PRIMARY_CALENDAR = u'cannotDeletePrimaryCalendar'
 CANNOT_DELETE_PRIMARY_SENDAS = u'cannotDeletePrimarySendAs'
 CONDITION_NOT_MET = u'conditionNotMet'
@@ -186,6 +187,8 @@ class cannotChangeOwnAcl(Exception):
   pass
 class cannotChangeOwnerAcl(Exception):
   pass
+class cannotDeleteOnlyRevision(Exception):
+  pass
 class cannotDeletePrimaryCalendar(Exception):
   pass
 class cannotDeletePrimarySendAs(Exception):
@@ -315,6 +318,7 @@ REASON_EXCEPTION_MAP = {
   BAD_REQUEST: badRequest,
   CANNOT_CHANGE_OWN_ACL: cannotChangeOwnAcl,
   CANNOT_CHANGE_OWNER_ACL: cannotChangeOwnerAcl,
+  CANNOT_DELETE_ONLY_REVISION: cannotDeleteOnlyRevision,
   CANNOT_DELETE_PRIMARY_CALENDAR: cannotDeletePrimaryCalendar,
   CANNOT_DELETE_PRIMARY_SENDAS: cannotDeletePrimarySendAs,
   CONDITION_NOT_MET: conditionNotMet,
