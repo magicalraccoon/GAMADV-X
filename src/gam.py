@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.55'
+__version__ = u'4.44.56'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5342,13 +5342,16 @@ def doReport():
         user = normalizeEmailAddressOrUID(user)
       while True:
         try:
-          feed = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports',
-                               page_message=page_message,
-                               throw_reasons=[GAPI.INVALID, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
-                               date=try_date, userKey=user, customerId=customerId, filters=filters, parameters=parameters,
-                               maxResults=maxResults)
-          while feed:
-            user_report = feed.popleft()
+          usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports',
+                                page_message=page_message,
+                                throw_reasons=[GAPI.INVALID, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
+                                date=try_date, userKey=user, customerId=customerId, filters=filters, parameters=parameters,
+                                maxResults=maxResults)
+          if not usage:
+            printWarningMessage(DATA_NOT_AVALIABLE_RC, Msg.NO_REPORT_AVAILABLE.format(report))
+            return
+          while usage:
+            user_report = usage.popleft()
             if u'entity' not in user_report:
               continue
             row = {u'email': user_report[u'entity'][u'userEmail'], u'date': try_date}
@@ -5394,6 +5397,9 @@ def doReport():
         usage = callGAPIpages(rep.customerUsageReports(), u'get', u'usageReports',
                               throw_reasons=[GAPI.INVALID, GAPI.FORBIDDEN],
                               customerId=customerId, date=try_date, parameters=parameters)
+        if not usage:
+          printWarningMessage(DATA_NOT_AVALIABLE_RC, Msg.NO_REPORT_AVAILABLE.format(report))
+          return
         for item in usage[0][u'parameters']:
           if u'name' not in item:
             continue
@@ -6295,14 +6301,17 @@ def _showCustomerLicenseInfo(customerId):
         return
     except GAPI.forbidden:
       accessErrorExit(None)
-  printKeyValueList([u'User counts as of {0}:'.format(try_date)])
-  Ind.Increment()
-  for item in usage[0][u'parameters']:
-    api_name = USER_COUNTS_MAP.get(item[u'name'])
-    api_value = int(item.get(u'intValue', 0))
-    if api_name and api_value:
-      printKeyValueList([api_name, u'{:,}'.format(api_value)])
-  Ind.Decrement()
+  if usage:
+    printKeyValueList([u'User counts as of {0}:'.format(try_date)])
+    Ind.Increment()
+    for item in usage[0][u'parameters']:
+      api_name = USER_COUNTS_MAP.get(item[u'name'])
+      api_value = int(item.get(u'intValue', 0))
+      if api_name and api_value:
+        printKeyValueList([api_name, u'{:,}'.format(api_value)])
+    Ind.Decrement()
+  else:
+    printWarningMessage(DATA_NOT_AVALIABLE_RC, Msg.NO_USER_COUNTS_DATA_AVAILABLE)
 
 # gam info customer
 def doInfoCustomer():
@@ -17857,7 +17866,19 @@ def printCalendarEvents(users):
 def showCalendarEvents(users):
   printShowCalendarEvents(users, False)
 
-def doDriveSearch(drive, user, i, count, query=None, parentQuery=False):
+QUERY_SHORTCUTS_MAP = {
+  u'allfiles': u"mimeType != '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'allfolders': u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'allitems': u'',
+  u'myfiles': ME_IN_OWNERS_AND+u"mimeType != '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'myfolders': ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'myitems': ME_IN_OWNERS,
+  u'othersfiles': NOT_ME_IN_OWNERS_AND+u"mimeType != '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'othersfolders': NOT_ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER),
+  u'othersitems': NOT_ME_IN_OWNERS,
+  }
+
+def doDriveSearch(drive, user, i, count, query=None, parentQuery=False, orderBy=None):
   if GC.Values[GC.SHOW_GETTINGS]:
     printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
   page_message = getPageMessageForWhom(noNL=True)
@@ -17865,7 +17886,7 @@ def doDriveSearch(drive, user, i, count, query=None, parentQuery=False):
     files = callGAPIpages(drive.files(), u'list', u'items',
                           page_message=page_message,
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
-                          q=query, fields=u'nextPageToken,items(id)', maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                          q=query, orderBy=orderBy, fields=u'nextPageToken,items(id)', maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     if files or not parentQuery:
       return [f_file[u'id'] for f_file in files]
     entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
@@ -17907,7 +17928,7 @@ def cleanFileIDsList(fileIdEntity, fileIds):
 def initDriveFileEntity():
   return {u'list': [], u'query': None, u'dict': None, u'root': []}
 
-def getDriveFileEntity(orphansOK=False):
+def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
   fileIdEntity = initDriveFileEntity()
   entitySelector = getEntitySelector()
   if entitySelector:
@@ -17918,7 +17939,7 @@ def getDriveFileEntity(orphansOK=False):
       cleanFileIDsList(fileIdEntity, entityList)
   else:
     myarg = getString(Cmd.OB_DRIVE_FILE_ID, checkBlank=True)
-    mycmd = myarg.lower()
+    mycmd = myarg.lower().replace(u'_', u'').replace(u'-', u'')
     if mycmd == u'id':
       cleanFileIDsList(fileIdEntity, getStringReturnInList(Cmd.OB_DRIVE_FILE_ID))
     elif mycmd[:3] == u'id:':
@@ -17939,6 +17960,8 @@ def getDriveFileEntity(orphansOK=False):
       fileIdEntity[u'query'] = u"title = '{0}'".format(getString(Cmd.OB_DRIVE_FILE_NAME))
     elif mycmd[:17] == u'anydrivefilename:':
       fileIdEntity[u'query'] = u"title = '{0}'".format(myarg[17:])
+    elif queryShortcutsOK and mycmd in QUERY_SHORTCUTS_MAP:
+      fileIdEntity[u'query'] = QUERY_SHORTCUTS_MAP[mycmd]
     elif mycmd in [u'root', u'mydrive']:
       cleanFileIDsList(fileIdEntity, [u'root',])
     elif orphansOK and mycmd == u'orphans':
@@ -17962,7 +17985,7 @@ def _getDriveFileNameFromId(drive, fileId, combineTitleId=True):
     pass
   return (fileId, Ent.DRIVE_FILE_OR_FOLDER_ID)
 
-def _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, drive=None, entityType=None):
+def _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, drive=None, entityType=None, orderBy=None):
   if fileIdEntity[u'dict']:
     cleanFileIDsList(fileIdEntity, fileIdEntity[u'dict'][user])
   if not drive:
@@ -17972,7 +17995,7 @@ def _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, driv
   else:
     user = convertUserUIDtoEmailAddress(user)
   if parameters[DFA_PARENTQUERY]:
-    more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY], parentQuery=True)
+    more_parents = doDriveSearch(drive, user, i, count, query=parameters[DFA_PARENTQUERY], parentQuery=True, orderBy=orderBy)
     if more_parents is None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
@@ -17980,7 +18003,7 @@ def _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, driv
     for a_parent in more_parents:
       body[u'parents'].append({u'id': a_parent})
   if fileIdEntity[u'query']:
-    fileIdEntity[u'list'] = doDriveSearch(drive, user, i, count, query=fileIdEntity[u'query'])
+    fileIdEntity[u'list'] = doDriveSearch(drive, user, i, count, query=fileIdEntity[u'query'], orderBy=orderBy)
     if fileIdEntity[u'list'] is None:
       setSysExitRC(NO_ENTITIES_FOUND)
       return (user, None, 0)
@@ -18261,6 +18284,39 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
     _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[u'title'])
   return ([Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER], filePaths)
 
+DRIVEFILE_ORDERBY_CHOICES_MAP = {
+  u'createddate': u'createdDate',
+  u'createdtime': u'createdDate',
+  u'folder': u'folder',
+  u'lastviewedbyme': u'lastViewedByMeDate',
+  u'lastviewedbymedate': u'lastViewedByMeDate',
+  u'lastviewedbymetime': u'lastViewedByMeDate',
+  u'lastviewedbyuser': u'lastViewedByMeDate',
+  u'modifiedbyme': u'modifiedByMeDate',
+  u'modifiedbymedate': u'modifiedByMeDate',
+  u'modifiedbymetime': u'modifiedByMeDate',
+  u'modifiedbyuser': u'modifiedByMeDate',
+  u'modifieddate': u'modifiedDate',
+  u'modifiedtime': u'modifiedDate',
+  u'name': u'title',
+  u'quotabytesused': u'quotaBytesUsed',
+  u'quotaused': u'quotaBytesUsed',
+  u'recency': u'recency',
+  u'sharedwithmedate': u'sharedWithMeDate',
+  u'sharedwithmetime': u'sharedWithMeDate',
+  u'starred': u'starred',
+  u'title': u'title',
+  u'viewedbymedate': u'lastViewedByMeDate',
+  u'viewedbymetime': u'lastViewedByMeDate',
+  }
+
+def getDrivefileOrderBy(orderByList):
+  fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
+  if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
+    orderByList.append(fieldName)
+  else:
+    orderByList.append(u'{0} desc'.format(fieldName))
+
 def _setRoleConvertCommenterToReader(body, role):
   body[u'role'] = role
   if role == u'commenter':
@@ -18358,7 +18414,7 @@ FILEINFO_FIELDS_TITLES = [u'title', u'mimeType']
 FILEPATH_TITLES = [u'title', u'id', u'mimeType', u'parents']
 FILEPATH_FIELDS = [u'title', u'id', u'mimeType', u'parents(id)']
 
-# gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)]
+# gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def showFileInfo(users):
   def _setSelectionFields():
     skipObjects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
@@ -18373,10 +18429,13 @@ def showFileInfo(users):
   skipObjects = []
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
+  orderByList = []
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'filepath':
       filepath = True
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'allfields':
       fieldsList = []
     elif myarg in DRIVEFILE_FIELDS_CHOICES_MAP:
@@ -18394,6 +18453,7 @@ def showFileInfo(users):
           invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICES_MAP)+list(DRIVEFILE_LABEL_CHOICES_MAP))
     else:
       unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
   if fieldsList or labelsList:
     _setSelectionFields()
     fields = u','.join(set(fieldsList)).replace(u'.', u'/')
@@ -18405,7 +18465,7 @@ def showFileInfo(users):
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Ent.DRIVE_FILE_OR_FOLDER)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Ent.DRIVE_FILE_OR_FOLDER, orderBy=orderBy)
     if jcount == 0:
       continue
     if filepath:
@@ -18485,7 +18545,7 @@ def _selectRevisionIds(drive, fileId, origUser, user, i, count, j, jcount, revis
   revisionIds = []
   try:
     results = callGAPIpages(drive.revisions(), u'list', u'items',
-                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST],
+                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST, GAPI.USER_ACCESS],
                             fileId=fileId, fields=u'nextPageToken,items(id,modifiedDate)')
     numRevisions = len(results)
     if numRevisions > 0:
@@ -18546,7 +18606,7 @@ def _selectRevisionIds(drive, fileId, origUser, user, i, count, j, jcount, revis
             count += 1
         if count >= numRevisions:
           del revisionIds[0]
-  except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
+  except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest, GAPI.userAccess) as e:
     entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
   except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
     userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -18618,13 +18678,13 @@ def deleteFileRevisions(users):
           if not previewDelete:
             callGAPI(drive.revisions(), u'delete',
                      throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR,
-                                                                  GAPI.BAD_REQUEST, GAPI.REVISION_NOT_FOUND],
+                                                                  GAPI.BAD_REQUEST, GAPI.REVISION_NOT_FOUND, GAPI.USER_ACCESS],
                      fileId=fileId, revisionId=revisionId)
             entityActionPerformed([Ent.USER, user, entityType, fileName, Ent.DRIVE_FILE_REVISION, revisionId], k, kcount)
           else:
             entityActionNotPerformedWarning([Ent.USER, user, entityType, fileName, Ent.DRIVE_FILE_REVISION, revisionId], Msg.PREVIEW_ONLY, k, kcount)
         Ind.Decrement()
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest, GAPI.userAccess) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except GAPI.revisionNotFound:
         entityDoesNotHaveItemWarning([Ent.USER, user, entityType, fileName, Ent.DRIVE_FILE_REVISION, revisionId], k, kcount)
@@ -18762,6 +18822,7 @@ def _printShowFileRevisions(users, csvFormat):
   body, parameters = initializeDriveFileAttributes()
   revisionsEntity = None
   oneItemPerRow = previewDelete = showTitles = False
+  orderByList = []
   fileNameTitle = u'title'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -18769,8 +18830,10 @@ def _printShowFileRevisions(users, csvFormat):
       todrive = getTodriveParameters()
     elif myarg == u'select':
       revisionsEntity = getRevisionsEntity()
-    elif myarg == u'oneitemperrow':
+    elif csvFormat and myarg == u'oneitemperrow':
       oneItemPerRow = True
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'previewdelete':
       previewDelete = True
     elif myarg == u'showtitles':
@@ -18792,6 +18855,7 @@ def _printShowFileRevisions(users, csvFormat):
           invalidChoiceExit(list(FILEREVISIONS_FIELDS_CHOICES_MAP))
     else:
       unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
   if fieldsList:
     fields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList)).replace(u'.', u'/'))
   else:
@@ -18801,7 +18865,7 @@ def _printShowFileRevisions(users, csvFormat):
   for user in users:
     i += 1
     origUser = user
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat])
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy)
     if jcount == 0:
       continue
     Ind.Increment()
@@ -18814,7 +18878,7 @@ def _printShowFileRevisions(users, csvFormat):
         if showTitles:
           fileName, entityType = _getDriveFileNameFromId(drive, fileId, not csvFormat)
         results = callGAPIpages(drive.revisions(), u'list', u'items',
-                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST],
+                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST, GAPI.USER_ACCESS],
                                 fileId=fileId, fields=fields)
         if revisionsEntity:
           results = _selectRevisionResults(results, fileId, origUser, revisionsEntity, previewDelete)
@@ -18844,7 +18908,7 @@ def _printShowFileRevisions(users, csvFormat):
               addRowTitlesToCSVfile(flattenJSON({u'revisions': results}, flattened={u'Owner': user, u'id': fileId, fileNameTitle: fileName}, timeObjects=timeObjects), csvRows, titles)
             else:
               addRowTitlesToCSVfile(flattenJSON({u'revisions': results}, flattened={u'Owner': user, u'id': fileId}, timeObjects=timeObjects), csvRows, titles)
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest, GAPI.userAccess) as e:
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -18857,13 +18921,13 @@ def _printShowFileRevisions(users, csvFormat):
       sortCSVTitles([u'Owner', u'id', fileNameTitle], titles)
     writeCSVfile(csvRows, titles, u'Drive File Revisions', todrive)
 
-# gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [select <DriveFileRevisionIDEntity>] [previewdelete]
-#	[showtitles] [oneitemperrow] [<DriveFieldName>*|(fields <DriveFieldNameList>)]
+# gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [select <DriveFileRevisionIDEntity>] [previewdelete]
+#	[showtitles] [<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def printFileRevisions(users):
   _printShowFileRevisions(users, True)
 
 # gam <UserTypeEntity> show filerevisions <DriveFileEntity> [select <DriveFileRevisionIDEntity>] [previewdelete]
-#	[showtitles] [<DriveFieldName>*|(fields <DriveFieldNameList>)]
+#	[showtitles] [<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])
 def showFileRevisions(users):
   _printShowFileRevisions(users, False)
 
@@ -18920,39 +18984,13 @@ def addFilePathsToRow(drive, fileTree, fileEntryInfo, filePathInfo, row, titles)
     row[key] = path
     k += 1
 
-DRIVEFILE_ORDERBY_CHOICES_MAP = {
-  u'createddate': u'createdDate',
-  u'createdtime': u'createdDate',
-  u'folder': u'folder',
-  u'lastviewedbyme': u'lastViewedByMeDate',
-  u'lastviewedbymedate': u'lastViewedByMeDate',
-  u'lastviewedbymetime': u'lastViewedByMeDate',
-  u'lastviewedbyuser': u'lastViewedByMeDate',
-  u'modifiedbyme': u'modifiedByMeDate',
-  u'modifiedbymedate': u'modifiedByMeDate',
-  u'modifiedbymetime': u'modifiedByMeDate',
-  u'modifiedbyuser': u'modifiedByMeDate',
-  u'modifieddate': u'modifiedDate',
-  u'modifiedtime': u'modifiedDate',
-  u'name': u'title',
-  u'quotabytesused': u'quotaBytesUsed',
-  u'quotaused': u'quotaBytesUsed',
-  u'recency': u'recency',
-  u'sharedwithmedate': u'sharedWithMeDate',
-  u'sharedwithmetime': u'sharedWithMeDate',
-  u'starred': u'starred',
-  u'title': u'title',
-  u'viewedbymedate': u'lastViewedByMeDate',
-  u'viewedbymetime': u'lastViewedByMeDate',
-  }
-
 SHOW_OWNED_BY_CHOICES_MAP = {u'any': None, u'me': True, u'others': False}
 FILELIST_TITLES = [u'id', u'mimeType', u'parents']
 FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 # gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)]
-#	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>|orphans] [depth <Number>]
-#	[filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveOrderByFieldName> [ascending|descending])* [delimiter <String>]
+#	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>] [select <DriveFileEntity>|orphans] [depth <Number>]
+#	[filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <String>]
 def printFileList(users):
   def _setSelectionFields():
     if fileIdEntity:
@@ -19047,11 +19085,7 @@ def printFileList(users):
     elif myarg == u'filepath':
       filepath = True
     elif myarg == u'orderby':
-      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'query':
       if query:
         query += u' and '+getString(Cmd.OB_QUERY)
@@ -19061,8 +19095,16 @@ def printFileList(users):
       query = getString(Cmd.OB_QUERY, minLen=0)
       if not query:
         query = None
+    elif myarg in QUERY_SHORTCUTS_MAP:
+      query = _stripMeInOwners(query)
+      query = _stripNotMeInOwners(query)
+      if query:
+        query += u' and '+QUERY_SHORTCUTS_MAP[myarg]
+      else:
+        query = QUERY_SHORTCUTS_MAP[myarg]
     elif myarg == u'select':
-      fileIdEntity = getDriveFileEntity(orphansOK=True)
+      fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
+      query = None
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'allfields':
@@ -19184,15 +19226,31 @@ def printFileList(users):
                                              Cmd.Argument(GM.Globals[GM.ENTITY_CL_START]+1)),
                todrive)
 
-# gam <UserTypeEntity> show filepath <DriveFileEntity>
-def showFilePath(users):
+def _printShowFilePaths(users, csvFormat):
+  if csvFormat:
+    fileNameTitle = u'title'
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile([u'Owner', u'id', fileNameTitle])
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
-  checkForExtraneousArguments()
+  oneItemPerRow = False
+  orderByList = []
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif csvFormat and myarg == u'oneitemperrow':
+      oneItemPerRow = True
+      addTitlesToCSVfile([u'path',], titles)
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
+    else:
+      unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Ent.DRIVE_FILE_OR_FOLDER)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=Ent.DRIVE_FILE_OR_FOLDER, orderBy=orderBy)
     if jcount == 0:
       continue
     filePathInfo = initFilePathInfo()
@@ -19205,22 +19263,44 @@ def showFilePath(users):
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
                           fileId=fileId, fields=u'title,parents(id),mimeType')
         entityType, paths = getFilePaths(drive, None, result, filePathInfo)
-        kcount = len(paths)
-        entityPerformActionNumItems([entityType, u'{0} ({1})'.format(result[u'title'], fileId)], kcount, Ent.DRIVE_PATH, j, jcount)
-        Ind.Increment()
-        k = 0
-        for path in paths:
-          k += 1
-          printEntity([Ent.DRIVE_PATH, path], k, kcount)
-        Ind.Decrement()
+        if not csvFormat:
+          kcount = len(paths)
+          entityPerformActionNumItems([entityType, u'{0} ({1})'.format(result[u'title'], fileId)], kcount, Ent.DRIVE_PATH, j, jcount)
+          Ind.Increment()
+          k = 0
+          for path in paths:
+            k += 1
+            printEntity([Ent.DRIVE_PATH, path], k, kcount)
+          Ind.Decrement()
+        else:
+          if oneItemPerRow:
+            if paths:
+              for path in paths:
+                csvRows.append({u'Owner': user, u'id': fileId, fileNameTitle: result[u'title'], u'path': path})
+            else:
+              csvRows.append({u'Owner': user, u'id': fileId, fileNameTitle: result[u'title']})
+          else:
+            addRowTitlesToCSVfile(flattenJSON({u'paths': paths}, flattened={u'Owner': user, u'id': fileId, fileNameTitle: result[u'title']}), csvRows, titles)
       except GAPI.fileNotFound:
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], Msg.DOES_NOT_EXIST, j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
         break
     Ind.Decrement()
+  if csvFormat:
+    if not oneItemPerRow:
+      sortCSVTitles([u'Owner', u'id', fileNameTitle, u'paths'], titles)
+    writeCSVfile(csvRows, titles, u'Drive File Paths', todrive)
 
-# gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)] [select <DriveFileEntity>|orphans] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
+# gam <UserTypeEntity> print filepaths <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+def printFilePaths(users):
+  _printShowFilePaths(users, True)
+
+# gam <UserTypeEntity> show filepaths <DriveFileEntity> (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+def showFilePaths(users):
+  _printShowFilePaths(users, False)
+
+# gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)] [select <DriveFileEntity>|orphans] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [depth <Number>]
 def showFileTree(users):
   def _showDriveFolderContents(fileEntry, depth):
     for childId in fileEntry[u'children']:
@@ -19242,13 +19322,9 @@ def showFileTree(users):
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'select':
-      fileIdEntity = getDriveFileEntity(orphansOK=True)
+      fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
     elif myarg == u'orderby':
-      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'anyowner':
@@ -19680,7 +19756,7 @@ def getDriveFile(users):
         break
     Ind.Decrement()
 
-# gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 #	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
 def collectOrphans(users):
   orderByList = []
@@ -19691,11 +19767,7 @@ def collectOrphans(users):
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'orderby':
-      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'targetuserfoldername':
       targetUserFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME)
     elif myarg == u'preview':
@@ -19771,7 +19843,7 @@ def collectOrphans(users):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Orphans to Collect', todrive)
 
-# gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|commenter|writer|owner|editor] (orderby <DriveOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|commenter|writer|owner|editor] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 #	[(targetfolderid <DriveFileID>)|(targetfoldername <DriveFileName>)] [targetuserfoldername <DriveFileName>]
 #	[preview] [todrive [<ToDriveAttributes>]]
 def transferDrive(users):
@@ -19877,11 +19949,7 @@ def transferDrive(users):
         retainSourceRole = u'writer'
       _setRoleConvertCommenterToReader(retainSourceRoleBody, retainSourceRole)
     elif myarg == u'orderby':
-      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'targetfolderid':
       targetFolderIdLocation = Cmd.Location()
       targetFolderId = getString(Cmd.OB_DRIVE_FILE_ID)
@@ -20026,7 +20094,8 @@ def validateUserGetPermissionId(user, i=0, count=0):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
   return None
 
-# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveOrderByFieldName> [ascending|descending])* [preview] [filepath] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+#	[preview] [filepath] [todrive [<ToDriveAttributes>]]
 def transferOwnership(users):
 
   def _identifyFilesToTransfer(fileEntry, trashed):
@@ -20052,11 +20121,7 @@ def transferOwnership(users):
     if myarg == u'includetrashed':
       trashed = True
     elif myarg == u'orderby':
-      fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'preview':
       csvFormat = True
     elif myarg == u'filepath':
@@ -20854,25 +20919,29 @@ def _printShowDriveFileACLs(users, csvFormat):
   fileIdEntity = getDriveFileEntity()
   body, parameters = initializeDriveFileAttributes()
   oneItemPerRow = showTitles = False
+  orderByList = []
   fileNameTitle = u'title'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'oneitemperrow':
+    elif csvFormat and myarg == u'oneitemperrow':
       oneItemPerRow = True
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'showtitles':
       showTitles = True
       if csvFormat:
         addTitlesToCSVfile([fileNameTitle], titles)
     else:
       unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
   printKeys = DRIVEFILE_ACL_KEY_PRINT_ORDER
   timeObjects = DRIVEFILE_ACL_TIME_OBJECTS[:]
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat])
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, body, parameters, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy)
     if jcount == 0:
       continue
     Ind.Increment()
@@ -20921,11 +20990,11 @@ def _printShowDriveFileACLs(users, csvFormat):
     sortCSVTitles([u'Owner', u'id', fileNameTitle], titles)
     writeCSVfile(csvRows, titles, u'Drive File ACLs', todrive)
 
-# gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttributes>]] [showtitles] [oneitemperrow]
+# gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [showtitles] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def printDriveFileACLs(users):
   _printShowDriveFileACLs(users, True)
 
-# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
+# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def showDriveFileACLs(users):
   _printShowDriveFileACLs(users, False)
 
@@ -25551,6 +25620,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_EVENTS:		printCalendarEvents,
         Cmd.ARG_FILEINFO:	showFileInfo,
         Cmd.ARG_FILELIST:	printFileList,
+        Cmd.ARG_FILEPATHS:	printFilePaths,
         Cmd.ARG_FILEREVISIONS:	printFileRevisions,
         Cmd.ARG_FILTERS:	printFilters,
         Cmd.ARG_FORWARD:	printForward,
@@ -25575,6 +25645,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DELEGATE:	Cmd.ARG_DELEGATES,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILEPATH:	Cmd.ARG_FILEPATHS,
         Cmd.ARG_FILEREVISION:	Cmd.ARG_FILEREVISIONS,
         Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
@@ -25616,7 +25687,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_EVENTS:		showCalendarEvents,
         Cmd.ARG_FILEINFO:	showFileInfo,
         Cmd.ARG_FILELIST:	printFileList,
-        Cmd.ARG_FILEPATH:	showFilePath,
+        Cmd.ARG_FILEPATHS:	showFilePaths,
         Cmd.ARG_FILEREVISIONS:	showFileRevisions,
         Cmd.ARG_FILETREE:	showFileTree,
         Cmd.ARG_FILTERS:	showFilters,
@@ -25650,6 +25721,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_DELEGATE:	Cmd.ARG_DELEGATES,
         Cmd.ARG_DRIVEFILEACL:	Cmd.ARG_DRIVEFILEACLS,
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
+        Cmd.ARG_FILEPATH:	Cmd.ARG_FILEPATHS,
         Cmd.ARG_FILEREVISION:	Cmd.ARG_FILEREVISIONS,
         Cmd.ARG_FILTER:		Cmd.ARG_FILTERS,
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
