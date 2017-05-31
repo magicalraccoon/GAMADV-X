@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.44.57'
+__version__ = u'4.44.58'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -984,7 +984,7 @@ def getKeywordAttribute(UProp, keywords, attrdict, **opts):
   missingChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST])
 
 def orgUnitPathQuery(path):
-  return u"orgUnitPath='{0}'".format(path.replace(u"'", u"\'"))
+  return u"orgUnitPath='{0}'".format(path.replace(u"'", u"\'")) if path != u'/' else None
 
 def makeOrgUnitPathAbsolute(path):
   if path == u'/':
@@ -2212,7 +2212,7 @@ def SetGlobalVariables():
   if prevOauth2serviceJson != GC.Values[GC.OAUTH2SERVICE_JSON]:
     GM.Globals[GM.OAUTH2SERVICE_JSON_DATA] = None
     GM.Globals[GM.OAUTH2_CLIENT_ID] = None
-# redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>]] [stdout <FileName> [append]] [stderr <FileName> [append]
+# redirect csv <FileName> [multiprocess] [append] [noheader] [charset <CharSet>] [columndelimiter <Character>]]
 # redirect stdout <FileName> [multiprocess] [append]
 # redirect stdout null
 # redirect stderr <FileName> [multiprocess] [append]
@@ -14359,7 +14359,7 @@ def doCreateUser():
   except GAPI.invalidOrgunit:
     entityActionFailedWarning([Ent.USER, user], Msg.INVALID_ORGUNIT)
 
-# gam <UserTypeEntity> update user <UserAttributes>
+# gam <UserTypeEntity> update user <UserAttributes> [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 def updateUsers(entityList):
   cd = buildGAPIObject(API.DIRECTORY)
   body, admin_body, createIfNotFound = getUserAttributes(cd, True)
@@ -14414,11 +14414,11 @@ def updateUsers(entityList):
     except GAPI.invalidOrgunit:
       entityActionFailedWarning([Ent.USER, user], Msg.INVALID_ORGUNIT, i, count)
 
-# gam update users <UserTypeEntity> <UserAttributes>
+# gam update users <UserTypeEntity> <UserAttributes> [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 def doUpdateUsers():
   updateUsers(getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS)[1])
 
-# gam update user <UserItem> <UserAttributes>
+# gam update user <UserItem> <UserAttributes> [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>] [createifnotfound]
 def doUpdateUser():
   updateUsers(getStringReturnInList(Cmd.OB_USER_ITEM))
 

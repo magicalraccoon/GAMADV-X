@@ -1,3 +1,7 @@
+4.44.58
+
+Fix issue where gam org "/" ... fails when a domain has a very large number of users.
+
 4.44.57
 
 Added additional query shortcuts.
@@ -231,7 +235,7 @@ Only orphaned files not in the trash are processed.
     gam <UserTypeEntity> collect orphans (orderby <DriveOrderByFieldName> [ascending|descending])*
 	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
 
-(orderby <DriveOrderByFieldName> [ascending|descending])* - Specify the order in which files are processed.
+	(orderby <DriveOrderByFieldName> [ascending|descending])* - Specify the order in which files are processed.
 
 [targetuserfoldername <DriveFileName>] - This is the parent folder name for the orphaned files; the default is "#user# orphaned files".
 In this string, #user# and #email# will be replaced by the source user email address, #username# will be replaced by the source user mail address without the domain.
