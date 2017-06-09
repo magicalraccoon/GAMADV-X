@@ -1,3 +1,7 @@
+4.44.59
+
+Error handling cleanup.
+
 4.44.58
 
 Fix issue where gam org "/" ... fails when a domain has a very large number of users.
