@@ -1,3 +1,7 @@
+4.44.60
+
+Improve getUsersToModify memory use.
+
 4.44.59
 
 Error handling cleanup.
