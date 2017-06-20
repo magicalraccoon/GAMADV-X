@@ -1,3 +1,7 @@
+4.44.63
+
+Handle international characters in socket error message.
+
 4.44.62
 
 Sort rows in gam report customer.
