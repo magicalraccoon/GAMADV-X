@@ -1,3 +1,19 @@
+4.44.64
+
+When gam copy drivefile is copying a folder and the parentname <DriveFolderName> option is specified, the folder is copied to the root folder,
+not <DriveFolderName>; this has been corrected.
+
+Added depth <Number> argument to gam copy drivefile to control folder copying.
+    gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]]
+	[parentid <DriveFolderID>] [parentname <DriveFolderName>]
+
+To copy a folder, you must specify the recursive argument; this copies the folder and all of its descendants to the new location.
+Specifying depth <Number> allows you to specify that you do not want to copy all descendants but only decendants to the specified depth.
+depth -1 (or depth not specified) - copy the folder and all descendants
+depth 0 - copy the folder and no descendants
+depth 1 - copy the folder and its immediate descendants
+denth N - copy the folder and N levels of descendants
+
 4.44.63
 
 Handle international characters in socket error message.
