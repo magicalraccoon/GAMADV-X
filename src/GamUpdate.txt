@@ -1,3 +1,7 @@
+4.45.04
+
+Update googleapiclient library from 1.6.1 to 1.6.2.
+
 4.45.03
 
 * Suspend/Unsuspend Users

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.45.03'
+__version__ = u'4.45.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2172,7 +2172,7 @@ def SetGlobalVariables():
           value = [FALSE, TRUE][getBoolean()]
         elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_INTEGER:
           minVal, maxVal = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
-          value = unicode(getInteger(minVal=minVal, maxVal=maxVal))
+          value = text_type(getInteger(minVal=minVal, maxVal=maxVal))
         elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_TIMEZONE:
           value = getString(Cmd.OB_STRING, checkBlank=True)
         else:
@@ -5394,7 +5394,7 @@ def doReport():
     else:
       unknownArgumentExit()
   if try_date is None:
-    try_date = unicode(datetime.date.today())
+    try_date = text_type(datetime.date.today())
   if report == u'user':
     if select:
       page_message = None
@@ -6363,7 +6363,7 @@ USER_COUNTS_MAP = {
 def _showCustomerLicenseInfo(customerId):
   rep = buildGAPIObject(API.REPORTS)
   parameters = u','.join(USER_COUNTS_MAP)
-  try_date = unicode(datetime.date.today())
+  try_date = text_type(datetime.date.today())
   while True:
     try:
       usage = callGAPIpages(rep.customerUsageReports(), u'get', u'usageReports',
@@ -10577,7 +10577,7 @@ def doPrintMobileDevices():
               appDetails = []
               for field in [u'displayName', u'packageName', u'versionName']:
                 appDetails.append(app.get(field, u'<None>'))
-              appDetails.append(unicode(app.get(u'versionCode', u'<None>')))
+              appDetails.append(text_type(app.get(u'versionCode', u'<None>')))
               permissions = app.get(u'permission', [])
               if permissions:
                 appDetails.append(u'/'.join(permissions))

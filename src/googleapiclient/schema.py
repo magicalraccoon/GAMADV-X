@@ -161,14 +161,13 @@ class Schemas(object):
     # Return with trailing comma and newline removed.
     return self._prettyPrintSchema(schema, dent=1)[:-2]
 
-  def get(self, name, default=None):
+  def get(self, name):
     """Get deserialized JSON schema from the schema name.
 
     Args:
       name: string, Schema name.
-      default: object, return value if name not found.
     """
-    return self.schemas.get(name, default)
+    return self.schemas[name]
 
 
 class _SchemaToStruct(object):
