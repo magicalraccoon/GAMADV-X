@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.45.04'
+__version__ = u'4.45.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19314,26 +19314,26 @@ def printFileList(users):
       skipObjects.extend([field for field in OWNED_BY_ME_FIELDS_TITLES if field not in fieldsList])
       fieldsList.extend(OWNED_BY_ME_FIELDS_TITLES)
 
-  def _printFileInfo(drive, f_file):
-    if showOwnedBy is not None and f_file.get(u'ownedByMe', showOwnedBy) != showOwnedBy:
+  def _printFileInfo(drive, fileInfo):
+    if showOwnedBy is not None and fileInfo.get(u'ownedByMe', showOwnedBy) != showOwnedBy:
       return
     row = {u'Owner': user}
     if filepath:
-      addFilePathsToRow(drive, fileTree, f_file, filePathInfo, row, titles)
-    _mapDriveFieldNames(f_file)
-    for attrib in f_file:
+      addFilePathsToRow(drive, fileTree, fileInfo, filePathInfo, row, titles)
+    _mapDriveFieldNames(fileInfo)
+    for attrib in fileInfo:
       if attrib in skipObjects:
         continue
-      if not isinstance(f_file[attrib], dict):
-        if isinstance(f_file[attrib], list):
-          if f_file[attrib]:
+      if not isinstance(fileInfo[attrib], dict):
+        if isinstance(fileInfo[attrib], list):
+          if fileInfo[attrib]:
             if attrib not in titles[u'set']:
               addTitleToCSVfile(attrib, titles)
-            if isinstance(f_file[attrib][0], non_compound_types):
-              row[attrib] = delimiter.join(f_file[attrib])
+            if isinstance(fileInfo[attrib][0], non_compound_types):
+              row[attrib] = delimiter.join(fileInfo[attrib])
             else:
-              row[attrib] = len(f_file[attrib])
-              for j, l_attrib in enumerate(f_file[attrib]):
+              row[attrib] = len(fileInfo[attrib])
+              for j, l_attrib in enumerate(fileInfo[attrib]):
                 for list_attrib in l_attrib:
                   if list_attrib in [u'kind', u'etag', u'selfLink']:
                     continue
@@ -19341,26 +19341,26 @@ def printFileList(users):
                   row[x_attrib] = l_attrib[list_attrib]
                   if x_attrib not in titles[u'set']:
                     addTitleToCSVfile(x_attrib, titles)
-        elif isinstance(f_file[attrib], non_compound_types):
+        elif isinstance(fileInfo[attrib], non_compound_types):
           if attrib not in DRIVEFILE_FIELDS_TIME_OBJECTS:
-            row[attrib] = f_file[attrib]
+            row[attrib] = fileInfo[attrib]
           else:
-            row[attrib] = formatLocalTime(f_file[attrib])
+            row[attrib] = formatLocalTime(fileInfo[attrib])
           if attrib not in titles[u'set']:
             addTitleToCSVfile(attrib, titles)
         else:
-          writeStderr(u'{0}: {1}, Attribute: {2}, Unknown type: {3}\n'.format(Ent.Singular(Ent.DRIVE_FILE_ID), f_file[u'id'], attrib, type(f_file[attrib])))
+          writeStderr(u'{0}: {1}, Attribute: {2}, Unknown type: {3}\n'.format(Ent.Singular(Ent.DRIVE_FILE_ID), fileInfo[u'id'], attrib, type(fileInfo[attrib])))
       elif attrib == u'labels':
-        for dict_attrib in f_file[attrib]:
-          row[dict_attrib] = f_file[attrib][dict_attrib]
+        for dict_attrib in fileInfo[attrib]:
+          row[dict_attrib] = fileInfo[attrib][dict_attrib]
           if dict_attrib not in titles[u'set']:
             addTitleToCSVfile(dict_attrib, titles)
       else:
-        for dict_attrib in f_file[attrib]:
+        for dict_attrib in fileInfo[attrib]:
           if dict_attrib in [u'kind', u'etag']:
             continue
           x_attrib = u'{0}.{1}'.format(attrib, dict_attrib)
-          row[x_attrib] = f_file[attrib][dict_attrib]
+          row[x_attrib] = fileInfo[attrib][dict_attrib]
           if x_attrib not in titles[u'set']:
             addTitleToCSVfile(x_attrib, titles)
     csvRows.append(row)
@@ -21718,13 +21718,13 @@ def _printShowTokens(entityType, users, csvFormat):
   def _showToken(token, j, jcount):
     printKeyValueListWithCount([u'Client ID', token[u'clientId']], j, jcount)
     Ind.Increment()
-    for item in token:
+    for item in sorted(token):
       if item not in [u'clientId', u'scopes']:
         printKeyValueList([item, token.get(item, u'')])
     item = u'scopes'
     printKeyValueList([item, None])
     Ind.Increment()
-    for it in token.get(item, []):
+    for it in sorted(token.get(item, [])):
       printKeyValueList([it])
     Ind.Decrement()
     Ind.Decrement()
@@ -23530,7 +23530,7 @@ def _printShowDelegates(users, csvFormat):
         delegates = []
       jcount = len(delegates)
       if not csvFormat:
-        entityPerformActionNumItems([Ent.USER, delegatorEmail], jcount, Ent.DELEGATE, i, count)
+        entityPerformActionNumItems([Ent.DELEGATOR, delegatorEmail], jcount, Ent.DELEGATE, i, count)
         Ind.Increment()
         j = 0
         for delegate in delegates:
@@ -23570,9 +23570,9 @@ FILTER_ADD_LABEL_TO_ARGUMENT_MAP = {
 
 FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP = {
   u'IMPORTANT': u'notimportant',
-  u'UNREAD': u'markread',
   u'INBOX': u'archive',
   u'SPAM': u'neverspam',
+  u'UNREAD': u'markread',
   }
 
 def _printFilter(user, userFilter, labels):
@@ -23610,7 +23610,7 @@ def _showFilter(userFilter, j, jcount, labels):
   printEntitiesCount(Ent.CRITERIA, None)
   Ind.Increment()
   if u'criteria' in userFilter:
-    for item in userFilter[u'criteria']:
+    for item in sorted(userFilter[u'criteria']):
       if item in [u'hasAttachment', u'excludeChats']:
         printKeyValueList([item])
       elif item == u'size':
@@ -23625,12 +23625,12 @@ def _showFilter(userFilter, j, jcount, labels):
   printEntitiesCount(Ent.ACTION, None)
   Ind.Increment()
   if u'action' in userFilter:
-    for labelId in userFilter[u'action'].get(u'addLabelIds', []):
+    for labelId in sorted(userFilter[u'action'].get(u'addLabelIds', [])):
       if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
         printKeyValueList([FILTER_ADD_LABEL_TO_ARGUMENT_MAP[labelId]])
       else:
         printKeyValueList([u'label "{0}"'.format(_getLabelName(labels, labelId))])
-    for labelId in userFilter[u'action'].get(u'removeLabelIds', []):
+    for labelId in sorted(userFilter[u'action'].get(u'removeLabelIds', [])):
       if labelId in FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP:
         printKeyValueList([FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]])
     Ind.Decrement()
