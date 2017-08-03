@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.46.00'
+__version__ = u'4.46.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -20518,13 +20518,14 @@ def copyDriveFile(users):
     Act.Set(Act.CREATE)
     entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId], i, count)
     Act.Set(Act.COPY)
-    source_children = callGAPI(drive.children(), u'list',
-                               folderId=folderId, fields=u'items(id)')
-    jcount = len(source_children[u'items']) if (source_children and (u'items' in source_children)) else 0
+    source_children = callGAPIpages(drive.children(), u'list', u'items',
+                                    folderId=folderId, fields=u'nextPageToken,items(id)',
+                                    maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    jcount = len(source_children)
     if jcount > 0:
       Ind.Increment()
       j = 0
-      for child in source_children[u'items']:
+      for child in source_children:
         j += 1
         metadata = callGAPI(drive.files(), u'get',
                             fileId=child[u'id'], fields=u'id,title,mimeType')
