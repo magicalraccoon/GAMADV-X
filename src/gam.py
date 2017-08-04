@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.46.02'
+__version__ = u'4.46.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -13799,16 +13799,18 @@ def _showVaultHold(hold, cd):
   showJSON(None, hold, timeObjects=VAULT_HOLD_TIME_OBJECTS)
   Ind.Decrement()
 
-# gam info vaulthold|hold <HoldItem> matter <MatterItem>
+# gam info vaulthold|hold <HoldItem> matter <MatterItem> [shownames]
 def doInfoVaultHold():
   v = buildGAPIObject(API.VAULT)
   holdName = getString(Cmd.OB_HOLD_ITEM)
-  matterId = None
+  cd = matterId = None
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'matter':
       matterId, matterNameId = getMatterItem(v)
       holdId, holdName, holdNameId = convertHoldNameToID(v, holdName, matterId, matterNameId)
+    elif myarg == u'shownames':
+      cd = buildGAPIObject(API.DIRECTORY)
     else:
       unknownArgumentExit()
   if matterId is None:
@@ -13818,7 +13820,7 @@ def doInfoVaultHold():
                     throw_reasons=[GAPI.NOT_FOUND, GAPI.BAD_REQUEST, GAPI.FORBIDDEN],
                     matterId=matterId, holdId=holdId)
     entityActionPerformed([Ent.VAULT_MATTER, matterNameId, Ent.VAULT_HOLD, formatHoldNameId(hold[u'name'], hold[u'holdId'])])
-    _showVaultHold(hold, buildGAPIObject(API.DIRECTORY))
+    _showVaultHold(hold, cd)
   except (GAPI.notFound, GAPI.badRequest, GAPI.forbidden) as e:
     entityActionFailedWarning([Ent.VAULT_MATTER, matterNameId, Ent.VAULT_HOLD, holdNameId], str(e))
 
@@ -13909,11 +13911,11 @@ def _doPrintShowVaultHolds(csvFormat):
     sortCSVTitles(initialTitles, titles)
     writeCSVfile(csvRows, titles, u'Vault Holds', todrive)
 
-# gam print vaultholds|holds [todrive [<ToDriveAttributes>]] [matters <MatterItemList>]
+# gam print vaultholds|holds [todrive [<ToDriveAttributes>]] [matters <MatterItemList>] [shownames]
 def doPrintVaultHolds():
   _doPrintShowVaultHolds(True)
 
-# gam show vaultholds|holds [matters <MatterItemList>]
+# gam show vaultholds|holds [matters <MatterItemList>] [shownames]
 def doShowVaultHolds():
   _doPrintShowVaultHolds(False)
 
