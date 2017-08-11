@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.01'
+__version__ = u'4.47.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3257,11 +3257,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     groups = convertEntityToList(entity)
     recursive = False
     domains = []
-    roles = []
+    rolesSet = set()
     while Cmd.ArgumentsRemaining():
       myarg = getArgument()
       if myarg in GROUP_ROLES_MAP:
-        roles.append(GROUP_ROLES_MAP[myarg])
+        rolesSet.add(GROUP_ROLES_MAP[myarg])
       elif myarg == u'primarydomain':
         domains.append(GC.Values[GC.DOMAIN])
       elif myarg == u'domains':
@@ -3273,8 +3273,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       else:
         Cmd.Backup()
         missingArgumentExit(u'end')
-    if roles:
-      memberRole = u','.join(roles)
+    if rolesSet:
+      memberRole = u','.join(rolesSet)
     for group in groups:
       if validateEmailAddressOrUID(group):
         doNotExist += _addGroupMembersToUsers(normalizeEmailAddressOrUID(group), domains, recursive)
@@ -3359,7 +3359,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           result = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
                                  page_message=page_message,
                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                 courseId=courseId, fields=u'nextPageToken,teachers/profile/emailAddress', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                 courseId=courseId, fields=u'nextPageToken,teachers/profile/emailAddress',
+                                 pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
           while result:
             teacher = result.popleft()
             email = teacher[u'profile'].get(u'emailAddress', None)
@@ -3372,7 +3373,8 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
           result = callGAPIpages(croom.courses().students(), u'list', u'students',
                                  page_message=page_message,
                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                 courseId=courseId, fields=u'nextPageToken,students/profile/emailAddress', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                 courseId=courseId, fields=u'nextPageToken,students/profile/emailAddress',
+                                 pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
           while result:
             student = result.popleft()
             email = student[u'profile'].get(u'emailAddress', None)
@@ -11104,21 +11106,18 @@ def doUpdateGroups():
   else: #clear
     suspended = False
     fields = [u'email', u'id']
-    rolesList = []
+    rolesSet = set()
     while Cmd.ArgumentsRemaining():
       myarg = getArgument()
       if myarg in GROUP_ROLES_MAP:
-        rolesList.append(GROUP_ROLES_MAP[myarg])
+        rolesSet.add(GROUP_ROLES_MAP[myarg])
       elif myarg == u'suspended':
         suspended = True
         fields.append(u'status')
       else:
         unknownArgumentExit()
     Act.Set(Act.REMOVE)
-    if rolesList:
-      roles = u','.join(sorted(set(rolesList)))
-    else:
-      roles = Ent.ROLE_MEMBER
+    roles = u','.join(sorted(rolesSet)) if rolesSet else Ent.ROLE_MEMBER
     i = 0
     count = len(entityList)
     for group in entityList:
@@ -11178,12 +11177,15 @@ def infoGroups(entityList):
   groups = collections.deque()
   members = collections.deque()
   cdfieldsList = gsfieldsList = None
+  rolesSet = set()
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'nousers':
       getUsers = False
     elif myarg == u'noaliases':
       getAliases = False
+    elif myarg in GROUP_ROLES_MAP:
+      rolesSet.add(GROUP_ROLES_MAP[myarg])
     elif myarg == u'groups':
       getGroups = True
     elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
@@ -11216,6 +11218,7 @@ def infoGroups(entityList):
     else:
       unknownArgumentExit()
   cdfields = u','.join(set(cdfieldsList)) if cdfieldsList else None
+  roles = u','.join(rolesSet) if rolesSet else None
   if gsfieldsList is None:
     getSettings = True
     gsfields = None
@@ -11249,7 +11252,8 @@ def infoGroups(entityList):
       if getUsers:
         members = callGAPIpages(cd.members(), u'list', u'members',
                                 throw_reasons=GAPI.MEMBERS_THROW_REASONS, retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
-                                groupKey=group, fields=u'nextPageToken,members(email,id,role,status,type)', maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                groupKey=group, roles=roles, fields=u'nextPageToken,members(email,id,role,status,type)',
+                                maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
       if formatJSON:
         basic_info.update(settings)
         if getGroups:
@@ -11311,7 +11315,7 @@ def infoGroups(entityList):
     except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.invalid, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.GROUP, group, i, count)
 
-# gam info groups <GroupEntity> [noaliases] [nousers] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
+# gam info groups <GroupEntity> [members] [managers] [owners] [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
 def doInfoGroups():
   infoGroups(getEntityList(Cmd.OB_GROUP_ENTITY))
 
@@ -11502,7 +11506,7 @@ def doPrintGroups():
   nativeTitles = []
   titles, csvRows = initializeTitlesCSVfile(None)
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
-  rolesList = []
+  rolesSet = set()
   entitySelection = None
   groupData = {}
   while Cmd.ArgumentsRemaining():
@@ -11546,17 +11550,17 @@ def doPrintGroups():
         else:
           invalidChoiceExit(list(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP)+list(GROUP_ATTRIBUTES), True)
     elif myarg in [u'members', u'memberscount']:
-      rolesList.append(Ent.ROLE_MEMBER)
+      rolesSet.add(Ent.ROLE_MEMBER)
       members = True
       if myarg == u'memberscount':
         membersCountOnly = True
     elif myarg in [u'managers', u'managerscount']:
-      rolesList.append(Ent.ROLE_MANAGER)
+      rolesSet.add(Ent.ROLE_MANAGER)
       managers = True
       if myarg == u'managerscount':
         managersCountOnly = True
     elif myarg in [u'owners', u'ownerscount']:
-      rolesList.append(Ent.ROLE_OWNER)
+      rolesSet.add(Ent.ROLE_OWNER)
       owners = True
       if myarg == u'ownerscount':
         ownersCountOnly = True
@@ -11578,7 +11582,7 @@ def doPrintGroups():
     convertTiNativeTitles(fieldsTitles, titles, nativeTitles)
   if getSettings:
     gs = buildGAPIObject(API.GROUPSSETTINGS)
-  roles = u','.join(sorted(set(rolesList)))
+  roles = u','.join(rolesSet) if rolesSet else None
   rolesOrSettings = roles or getSettings
   if roles:
     if members:
@@ -11671,12 +11675,13 @@ def doPrintGroups():
     sortCSVTitles([fieldsTitles[u'email']], titles)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
 
-def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level):
+def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, noduplicates, recursive, level):
   try:
     printGettingAllEntityItemsForWhom(Ent.MEMBER, groupEmail, i, count)
     groupMembers = callGAPIpages(cd.members(), u'list', u'members',
                                  throw_reasons=GAPI.MEMBERS_THROW_REASONS, retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
-                                 groupKey=groupEmail, fields=u'nextPageToken,members(email,id,role,status,type)', maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                 groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role,status,type)',
+                                 maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
     if not recursive:
       if noduplicates:
         for member in groupMembers:
@@ -11697,7 +11702,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
           member[u'subgroup'] = groupEmail
           membersList.append(member)
         elif member[u'type'] == u'GROUP':
-          getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
+          getGroupMembers(cd, member[u'email'], roles, membersList, membersSet, i, count, noduplicates, recursive, level+1)
   except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
     entityUnknownWarning(Ent.GROUP, groupEmail, i, count)
 
@@ -11715,7 +11720,7 @@ GROUPMEMBERS_FIELD_NAMES_MAP = {
 GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'status']
 
 # gam print group-members|groups-members [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
-#	[membernames] <MemberFiledName>* [fields <MembersFieldNameList>] [noduplicates] [recursive]
+#	[members] [managers] [owners] [membernames] <MemberFiledName>* [fields <MembersFieldNameList>] [noduplicates] [recursive]
 def doPrintGroupMembers():
   cd = buildGAPIObject(API.DIRECTORY)
   groupname = membernames = noduplicates = recursive = False
@@ -11726,6 +11731,7 @@ def doPrintGroupMembers():
   titles, csvRows = initializeTitlesCSVfile(None)
   entityList = None
   userFieldsList = []
+  rolesSet = set()
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -11738,6 +11744,8 @@ def doPrintGroupMembers():
       kwargs[u'userKey'] = getEmailAddress()
       kwargs.pop(u'customer', None)
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.MEMBER), kwargs[u'userKey'])
+    elif myarg in GROUP_ROLES_MAP:
+      rolesSet.add(GROUP_ROLES_MAP[myarg])
     elif myarg == u'group':
       entityList = [getEmailAddress()]
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.GROUP), entityList[0])
@@ -11806,6 +11814,7 @@ def doPrintGroupMembers():
     addTitlesToCSVfile([u'name'], titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
   userFields = u','.join(set(userFieldsList)).replace(u'.', u'/') if userFieldsList else None
+  roles = u','.join(rolesSet) if rolesSet else None
   membersSet = set()
   level = 0
   i = 0
@@ -11817,7 +11826,7 @@ def doPrintGroupMembers():
     else:
       groupEmail = convertUIDtoEmailAddress(group, cd, u'group')
     membersList = []
-    getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level)
+    getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, noduplicates, recursive, level)
     for member in membersList:
       row = {}
       if groupname:
@@ -12673,7 +12682,7 @@ def _getCalendarListEventsDisplayProperty(myarg, calendarEventEntity):
   return _getCalendarListEventsProperty(myarg, LIST_EVENTS_DISPLAY_PROPERTIES, calendarEventEntity[u'kwargs'])
 
 def initCalendarEventEntity():
-  return {u'list': [], u'queries': [], u'kwargs': {}, u'dict': None, u'matches': []}
+  return {u'list': [], u'queries': [], u'kwargs': {}, u'dict': None, u'matches': [], u'maxinstances': -1}
 
 def getCalendarEventEntity(noIds=False):
   calendarEventEntity = initCalendarEventEntity()
@@ -12700,6 +12709,8 @@ def getCalendarEventEntity(noIds=False):
       else:
         matchPattern = convertEntityToList(getString(Cmd.OB_EMAIL_ADDRESS, minLen=0))
       calendarEventEntity[u'matches'].append((matchField, matchPattern))
+    elif myarg == u'maxinstances':
+      calendarEventEntity[u'maxinstances'] = getInteger(minVal=-1)
     elif _getCalendarListEventsProperty(myarg, LIST_EVENTS_SELECT_PROPERTIES, calendarEventEntity[u'kwargs']):
       pass
     else:
@@ -12718,9 +12729,11 @@ CALENDAR_EVENT_STATUS_CHOICES = [u'confirmed', u'tentative', u'cancelled',]
 CALENDAR_EVENT_TRANSPARENCY_CHOICES = [u'opaque', u'transparent',]
 CALENDAR_EVENT_VISIBILITY_CHOICES = [u'default', u'public', u'private', u'confedential']
 
-def _getCalendarEventAttribute(myarg, body, parameters, updateCmd):
-  if not updateCmd and myarg in [u'id', u'eventid']:
+def _getCalendarEventAttribute(myarg, body, parameters, function):
+  if function == u'insert' and myarg in [u'id', u'eventid']:
     body[u'id'] = getEventID()
+  elif function == u'import' and myarg == u'icaluid':
+    body[u'iCalUID'] = getString(Cmd.OB_ICALUID)
   elif myarg == u'description':
     body[u'description'] = getString(Cmd.OB_STRING, minLen=0).replace(u'\\n', u'\n')
   elif myarg == u'location':
@@ -12744,9 +12757,9 @@ def _getCalendarEventAttribute(myarg, body, parameters, updateCmd):
   elif myarg == u'optionalattendee':
     body.setdefault(u'attendees', [])
     body[u'attendees'].append({u'email': getEmailAddress(noUid=True), u'optional': True})
-  elif myarg == u'sendnotifications':
+  elif function != u'import' and myarg == u'sendnotifications':
     parameters[u'sendNotifications'] = getBoolean()
-  elif myarg == u'notifyattendees':
+  elif function != u'import' and myarg == u'notifyattendees':
     parameters[u'sendNotifications'] = True
   elif myarg == u'anyonecanaddself':
     body[u'anyoneCanAddSelf'] = getBoolean(True)
@@ -12786,14 +12799,20 @@ def _getCalendarEventAttribute(myarg, body, parameters, updateCmd):
     body[u'extendedProperties'].setdefault(u'shared', {})
     key = getString(Cmd.OB_PROPERTY_KEY)
     body[u'extendedProperties'][u'shared'][key] = getString(Cmd.OB_PROPERTY_VALUE, minLen=0)
-  elif updateCmd and myarg == u'clearprivateproperty':
+  elif function == u'update' and myarg == u'clearprivateproperty':
     body.setdefault(u'extendedProperties', {})
     body[u'extendedProperties'].setdefault(u'private', {})
     body[u'extendedProperties'][u'private'][getString(Cmd.OB_PROPERTY_KEY)] = None
-  elif updateCmd and myarg == u'clearsharedproperty':
+  elif function == u'update' and myarg == u'clearsharedproperty':
     body.setdefault(u'extendedProperties', {})
     body[u'extendedProperties'].setdefault(u'shared', {})
     body[u'extendedProperties'][u'shared'][getString(Cmd.OB_PROPERTY_KEY)] = None
+  elif function == u'import' and myarg == u'organizername':
+    body.setdefault(u'orgainzer', {})
+    body[u'orgainzer'][u'displayName'] = getString(Cmd.OB_NAME)
+  elif function == u'import' and myarg == u'organizeremail':
+    body.setdefault(u'orgainzer', {})
+    body[u'orgainzer'][u'email'] = getEmailAddress(noUid=True)
   else:
     return False
   return True
@@ -12837,7 +12856,8 @@ def _validateCalendarGetEventIDs(origUser, user, cal, calId, j, jcount, calendar
           calendarEventEntity[u'kwargs'][u'q'] = calendarEventEntity[u'queries'][0]
         events = callGAPIpages(cal.events(), u'list', u'items',
                                throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                               calendarId=calId, fields=u'nextPageToken,items({0})'.format(fields), **calendarEventEntity[u'kwargs'])
+                               calendarId=calId, fields=u'nextPageToken,items({0})'.format(fields),
+                               maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
         while events:
           event = events.popleft()
           for match in calendarEventEntity[u'matches']:
@@ -12850,7 +12870,8 @@ def _validateCalendarGetEventIDs(origUser, user, cal, calId, j, jcount, calendar
           calendarEventEntity[u'kwargs'][u'q'] = query
           events = callGAPIpages(cal.events(), u'list', u'items',
                                  throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                 calendarId=calId, fields=u'nextPageToken,items({0})'.format(fields), **calendarEventEntity[u'kwargs'])
+                                 calendarId=calId, fields=u'nextPageToken,items({0})'.format(fields),
+                                 maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
           while events:
             event = events.popleft()
             for match in calendarEventEntity[u'matches']:
@@ -12895,7 +12916,8 @@ def _validateCalendarGetEvents(user, cal, calId, j, jcount, calendarEventEntity,
         calendarEventEntity[u'kwargs'][u'q'] = calendarEventEntity[u'queries'][0]
       events = callGAPIpages(cal.events(), u'list', u'items',
                              throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                             calendarId=calId, fields=u'nextPageToken,items', **calendarEventEntity[u'kwargs'])
+                             calendarId=calId, fields=u'nextPageToken,items',
+                             maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
       while events:
         event = events.popleft()
         for match in calendarEventEntity[u'matches']:
@@ -12908,7 +12930,8 @@ def _validateCalendarGetEvents(user, cal, calId, j, jcount, calendarEventEntity,
         calendarEventEntity[u'kwargs'][u'q'] = query
         events = callGAPIpages(cal.events(), u'list', u'items',
                                throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                               calendarId=calId, fields=u'nextPageToken,items', **calendarEventEntity[u'kwargs'])
+                               calendarId=calId, fields=u'nextPageToken,items',
+                               maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
         while events:
           event = events.popleft()
           for match in calendarEventEntity[u'matches']:
@@ -12946,7 +12969,7 @@ def _checkIfEventRecurrenceTimeZoneRequired(body, parameters):
       body[u'end'][u'timeZone'] = timeZone
   return False
 
-def _setEventRecurrenceTimeZone(cal, calId, body):
+def _setEventRecurrenceTimeZone(cal, calId, body, i, count):
   try:
     timeZone = callGAPI(cal.calendars(), u'get',
                         throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID],
@@ -12955,22 +12978,30 @@ def _setEventRecurrenceTimeZone(cal, calId, body):
       body[u'start'][u'timeZone'] = timeZone
     if u'end' in body:
       body[u'end'][u'timeZone'] = timeZone
-  except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.notACalendarUser, GAPI.notFound, GAPI.forbidden, GAPI.invalid):
-    return False
-  return True
+    return True
+  except (GAPI.notACalendarUser, GAPI.notFound, GAPI.forbidden, GAPI.invalid) as e:
+    entityActionFailedWarning([Ent.CALENDAR, calId], str(e), i, count)
+  except (GAPI.serviceNotAvailable, GAPI.authError):
+    entityServiceNotApplicableWarning(Ent.CALENDAR, calId, i, count)
+  return False
 
-def _addCalendarEvents(user, cal, calIds, count,
+def _addCalendarEvents(user, cal, function, calIds, count,
                        eventRecurrenceTimeZoneRequired, sendNotifications, body):
   i = 0
   for calId in calIds:
     i += 1
     calId = normalizeCalendarId(calId, user)
-    if eventRecurrenceTimeZoneRequired and not _setEventRecurrenceTimeZone(cal, calId, body):
+    if eventRecurrenceTimeZoneRequired and not _setEventRecurrenceTimeZone(cal, calId, body, i, count):
       continue
     try:
-      event = callGAPI(cal.events(), u'insert',
-                       throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.INVALID, GAPI.REQUIRED, GAPI.TIME_RANGE_EMPTY, GAPI.DUPLICATE, GAPI.FORBIDDEN],
-                       calendarId=calId, sendNotifications=sendNotifications, body=body, fields=u'id')
+      if function == u'insert':
+        event = callGAPI(cal.events(), u'insert',
+                         throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.INVALID, GAPI.REQUIRED, GAPI.TIME_RANGE_EMPTY, GAPI.DUPLICATE, GAPI.FORBIDDEN],
+                         calendarId=calId, sendNotifications=sendNotifications, body=body, fields=u'id')
+      else:
+        event = callGAPI(cal.events(), u'import_',
+                         throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.INVALID, GAPI.REQUIRED, GAPI.TIME_RANGE_EMPTY, GAPI.DUPLICATE, GAPI.FORBIDDEN],
+                         calendarId=calId, body=body, fields=u'id')
       entityActionPerformed([Ent.CALENDAR, calId, Ent.EVENT, event[u'id']], i, count)
     except (GAPI.invalid, GAPI.required, GAPI.timeRangeEmpty) as e:
       entityActionFailedWarning([Ent.CALENDAR, calId, Ent.EVENT, u''], str(e), i, count)
@@ -12993,7 +13024,7 @@ def _updateDeleteCalendarEvents(origUser, user, cal, calIds, count, function, ca
     calId, cal, calEventIds, jcount = _validateCalendarGetEventIDs(origUser, user, cal, calId, i, count, calendarEventEntity, doIt)
     if jcount == 0:
       continue
-    if eventRecurrenceTimeZoneRequired and not _setEventRecurrenceTimeZone(cal, calId, body):
+    if eventRecurrenceTimeZoneRequired and not _setEventRecurrenceTimeZone(cal, calId, body, i, count):
       continue
     Ind.Increment()
     j = 0
@@ -13074,12 +13105,12 @@ def _moveCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity,
 
 EVENT_PRINT_ORDER = [u'id', u'summary', u'description', u'location',
                      u'start', u'end', u'endTimeUnspecified',
-                     u'creator', u'organizer', u'status', u'created', u'updated',]
+                     u'creator', u'organizer', u'status', u'created', u'updated', u'iCalUID']
 
 EVENT_TIME_OBJECTS = [u'created', u'updated', u'dateTime']
 
-def _showCalendarEvent(event, k, kcount):
-  printEntity([Ent.EVENT, event[u'id']], k, kcount)
+def _showCalendarEvent(entityType, event, k, kcount):
+  printEntity([entityType, event[u'id']], k, kcount)
   skipObjects = [u'id',]
   Ind.Increment()
   for field in EVENT_PRINT_ORDER:
@@ -13104,7 +13135,21 @@ def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity)
         event = callGAPI(cal.events(), u'get',
                          throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.DELETED, GAPI.FORBIDDEN],
                          calendarId=calId, eventId=eventId)
-        _showCalendarEvent(event, j, jcount)
+        if calendarEventEntity[u'maxinstances'] == -1 or u'recurrence' not in event:
+          _showCalendarEvent(Ent.EVENT, event, j, jcount)
+        else:
+          instances = callGAPIpages(cal.events(), u'instances', u'items',
+                                    throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.DELETED, GAPI.FORBIDDEN],
+                                    calendarId=calId, eventId=eventId,
+                                    maxItems=calendarEventEntity[u'maxinstances'], maxResults=GC.Values[GC.EVENT_MAX_RESULTS])
+          lcount = len(instances)
+          entityPerformActionNumItems([Ent.EVENT, event[u'id']], lcount, Ent.INSTANCE, j, jcount)
+          Ind.Increment()
+          l = 0
+          for instance in instances:
+            l += 1
+            _showCalendarEvent(Ent.INSTANCE, instance, l, lcount)
+          Ind.Decrement()
       except (GAPI.notFound, GAPI.deleted) as e:
         if not checkCalendarExists(cal, calId):
           entityUnknownWarning(Ent.CALENDAR, calId, i, count)
@@ -13129,7 +13174,7 @@ def _printShowCalendarEvents(user, cal, calIds, count, calendarEventEntity, csvF
       j = 0
       for event in events:
         j += 1
-        _showCalendarEvent(event, j, jcount)
+        _showCalendarEvent(Ent.EVENT, event, j, jcount)
       Ind.Decrement()
     elif events:
       for event in events:
@@ -13140,17 +13185,26 @@ def _printShowCalendarEvents(user, cal, calIds, count, calendarEventEntity, csvF
     elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
       csvRows.append({u'calendarId': calId, u'primaryEmail': user})
 
-# gam calendars <UserEntity> add event <EventAddAttributes>+
-# gam calendar <UserItem> addevent <EventAddAttributes>+
-def doCalendarsAddEvent(cal, calIds):
+def _doCalendarsInsertImportEvent(cal, calIds, function):
   body = {}
   parameters = {u'sendNotifications': None}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if not _getCalendarEventAttribute(myarg, body, parameters, False):
+    if not _getCalendarEventAttribute(myarg, body, parameters, function):
       unknownArgumentExit()
-  _addCalendarEvents(None, cal, calIds, len(calIds),
+  if (function == u'import') and (u'iCalUID' not in body):
+    missingArgumentExit(Cmd.OB_ICALUID)
+  _addCalendarEvents(None, cal, function, calIds, len(calIds),
                      _checkIfEventRecurrenceTimeZoneRequired(body, parameters), parameters[u'sendNotifications'], body)
+
+# gam calendars <UserEntity> add event [id <String>] <EventAddAttributes>+
+# gam calendar <UserItem> addevent [id <String>] <EventAddAttributes>+
+def doCalendarsAddEvent(cal, calIds):
+  _doCalendarsInsertImportEvent(cal, calIds, u'insert')
+
+# gam calendars <UserEntity> import event icaluid <iCalUID> <EventImportAttributes>+
+def doCalendarsImportEvent(cal, calIds):
+  _doCalendarsInsertImportEvent(cal, calIds, u'import')
 
 # gam calendars <UserEntity> update event <EventEntity> <EventUpdateAttributes>+
 def doCalendarsUpdateEvents(cal, calIds):
@@ -13159,7 +13213,7 @@ def doCalendarsUpdateEvents(cal, calIds):
   parameters = {u'sendNotifications': None}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if _getCalendarEventAttribute(myarg, body, parameters, True):
+    if _getCalendarEventAttribute(myarg, body, parameters, u'update'):
       pass
     else:
       unknownArgumentExit()
@@ -16831,7 +16885,7 @@ def doPrintCourses():
     all_courses = callGAPIpages(croom.courses(), u'list', u'courses',
                                 page_message=page_message,
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                teacherId=teacherId, studentId=studentId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS], fields=fields)
+                                teacherId=teacherId, studentId=studentId, fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
   except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
     if (not studentId) and teacherId:
       entityUnknownWarning(Ent.TEACHER, teacherId)
@@ -18695,15 +18749,16 @@ def transferCalendars(users):
           entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
     Ind.Decrement()
 
-# gam <UserTypeEntity> add event <CalendarEntity> [id <String>] <EventAddAttributes>+
-def addCalendarEvent(users):
+def _insertImportCalendarEvent(users, function):
   calendarEntity = getCalendarEntity()
   body = {}
   parameters = {u'sendNotifications': None}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if not _getCalendarEventAttribute(myarg, body, parameters, False):
+    if not _getCalendarEventAttribute(myarg, body, parameters, function):
       unknownArgumentExit()
+  if (function == u'import') and (u'iCalUID' not in body):
+    missingArgumentExit(Cmd.OB_ICALUID)
   eventRecurrenceTimeZoneRequired = _checkIfEventRecurrenceTimeZoneRequired(body, parameters)
   sendNotifications = parameters[u'sendNotifications']
   i, count, users = getEntityArgument(users)
@@ -18713,11 +18768,19 @@ def addCalendarEvent(users):
     if jcount == 0:
       continue
     Ind.Increment()
-    status = _addCalendarEvents(user, cal, calIds, jcount,
+    status = _addCalendarEvents(user, cal, function, calIds, jcount,
                                 eventRecurrenceTimeZoneRequired, sendNotifications, body)
     Ind.Decrement()
     if not status:
       return
+
+# gam <UserTypeEntity> add event <CalendarEntity> [id <String>] <EventAddAttributes>+
+def addCalendarEvent(users):
+  _insertImportCalendarEvent(users, u'insert')
+
+# gam <UserTypeEntity> import event <CalendarEntity> icaluid <iCalUID> <EventImportAttributes>+
+def importCalendarEvent(users):
+  _insertImportCalendarEvent(users, u'import')
 
 # gam <UserTypeEntity> update events <CalendarEntity> <EventEntity> <EventUpdateAttributes>+
 def updateCalendarEvents(users):
@@ -18727,7 +18790,7 @@ def updateCalendarEvents(users):
   parameters = {u'sendNotifications': None}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if _getCalendarEventAttribute(myarg, body, parameters, True):
+    if _getCalendarEventAttribute(myarg, body, parameters, u'update'):
       pass
     else:
       unknownArgumentExit()
@@ -19162,6 +19225,8 @@ def getDriveFileParentAttribute(myarg, parameters):
     parameters[DFA_PARENTIDS].append(getString(Cmd.OB_DRIVE_FOLDER_ID))
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and title = '{1}' and trashed = false".format(MIMETYPE_GA_FOLDER, getString(Cmd.OB_DRIVE_FOLDER_NAME))
+  elif myarg == u'anyparentname':
+    parameters[DFA_PARENTQUERY] = u"mimeType = '{0}' and title = '{1}' and trashed = false".format(MIMETYPE_GA_FOLDER, getString(Cmd.OB_DRIVE_FOLDER_NAME))
   else:
     return False
   return True
@@ -19633,7 +19698,7 @@ def _selectRevisionIds(drive, fileId, origUser, user, i, count, j, jcount, revis
   try:
     results = callGAPIpages(drive.revisions(), u'list', u'items',
                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST, GAPI.USER_ACCESS],
-                            fileId=fileId, fields=u'nextPageToken,items(id,modifiedDate)')
+                            fileId=fileId, fields=u'nextPageToken,items(id,modifiedDate)', maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     numRevisions = len(results)
     if numRevisions > 0:
       if revisionsEntity[u'count']:
@@ -19963,7 +20028,7 @@ def _printShowFileRevisions(users, csvFormat):
           fileName, entityType = _getDriveFileNameFromId(drive, fileId, not csvFormat)
         results = callGAPIpages(drive.revisions(), u'list', u'items',
                                 throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.BAD_REQUEST, GAPI.USER_ACCESS],
-                                fileId=fileId, fields=fields)
+                                fileId=fileId, fields=fields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         if revisionsEntity:
           results = _selectRevisionResults(results, fileId, origUser, revisionsEntity, previewDelete)
         if not csvFormat:
@@ -23531,7 +23596,8 @@ def _processMessagesThreads(users, entityType):
         listResult = callGAPIpages(service, u'list', listType,
                                    page_message=page_message, maxItems=[0, maxToProcess][quick],
                                    throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType), maxResults=GC.Values[GC.MESSAGE_MAX_RESULTS])
+                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType),
+                                   maxResults=GC.Values[GC.MESSAGE_MAX_RESULTS])
         messageIds = [message[u'id'] for message in listResult]
       else:
         # Need to get authorization set up for batch
@@ -23992,7 +24058,8 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
         listResult = callGAPIpages(service, u'list', listType,
                                    page_message=page_message, maxItems=[0, maxToProcess][quick],
                                    throw_reasons=GAPI.GMAIL_THROW_REASONS,
-                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType), maxResults=GC.Values[GC.MESSAGE_MAX_RESULTS])
+                                   userId=u'me', q=query, includeSpamTrash=includeSpamTrash, fields=u'nextPageToken,{0}(id)'.format(listType),
+                                   maxResults=GC.Values[GC.MESSAGE_MAX_RESULTS])
         messageIds = [message[u'id'] for message in listResult]
       else:
         # Need to get authorization set up for batch
@@ -26306,6 +26373,15 @@ CALENDARS_SUBCOMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:	CALENDARS_SUBCOMMANDS_OBJECT_ALIASES,
     },
+  u'import':
+    {CMD_ACTION: Act.IMPORT,
+     CMD_FUNCTION:
+       {Cmd.ARG_EVENT:	doCalendarsImportEvent,
+       },
+     CMD_OBJ_ALIASES:
+       {Cmd.ARG_EVENTS:	Cmd.ARG_EVENT,
+       },
+    },
   u'update':
     {CMD_ACTION: Act.UPDATE,
      CMD_FUNCTION:
@@ -26748,6 +26824,15 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {
+       },
+    },
+  u'import':
+    {CMD_ACTION: Act.IMPORT,
+     CMD_FUNCTION:
+       {Cmd.ARG_EVENT:		importCalendarEvent,
+       },
+     CMD_OBJ_ALIASES:
+       {Cmd.ARG_EVENTS:		Cmd.ARG_EVENT,
        },
     },
   u'info':
