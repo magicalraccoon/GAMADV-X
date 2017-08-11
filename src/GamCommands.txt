@@ -1658,7 +1658,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 	ignoredefaultvisibility|
 	(parentid <DriveFolderID>)|
 	(parentname <DriveFolderName>)|
-	(anyparentname <DriveFolderName>)|
+	(sharedparentname <DriveFolderName>)|
 	usecontentasindexabletext
 
 <DriveFileUpdateAttributes> ::=
@@ -1667,7 +1667,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 	(removeparents <DriveFolderIDList>)|
 	(parentid <DriveFolderID>)|
 	(parentname <DriveFolderName>)|
-	(anyparentname <DriveFolderName>)|
+	(sharedparentname <DriveFolderName>)|
 	(modifieddate|modifiedtime <Time>)|
 	usecontentasindexabletext
 
@@ -1676,7 +1676,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 	ignoredefaultvisibility|
 	(parentid <DriveFolderID>)|
 	(parentname <DriveFolderName>)|
-	(anyparentname <DriveFolderName>)
+	(sharedparentname <DriveFolderName>)
 
 <DriveFileOrderByFieldName> ::=
 	createddate|createdtime|

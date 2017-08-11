@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.02'
+__version__ = u'4.47.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19226,7 +19226,7 @@ def getDriveFileParentAttribute(myarg, parameters):
     parameters[DFA_PARENTIDS].append(getString(Cmd.OB_DRIVE_FOLDER_ID))
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = ME_IN_OWNERS_AND+u"mimeType = '{0}' and title = '{1}' and trashed = false".format(MIMETYPE_GA_FOLDER, getString(Cmd.OB_DRIVE_FOLDER_NAME))
-  elif myarg == u'anyparentname':
+  elif myarg == u'sharedparentname':
     parameters[DFA_PARENTQUERY] = u"mimeType = '{0}' and title = '{1}' and trashed = false".format(MIMETYPE_GA_FOLDER, getString(Cmd.OB_DRIVE_FOLDER_NAME))
   else:
     return False
