@@ -22,10 +22,7 @@ not just the user in the command. This is typically used to specify a shared fol
 	ignoredefaultvisibility|
 	(parentid <DriveFolderID>)|
 	(parentname <DriveFolderName>)|
-	(anyparentname <DriveFolderName>)|
-	(teamdriveparent <TeamDriveName>)|
-	(teamdriveparentid <TeamDriveID>|<DriveFolderID>)|
-	(teamdriveparentname <DriveFolderName>)
+	(anyparentname <DriveFolderName>)
     gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]] <DriveFileCopyAttributes>*
 
     <DriveFileUpdateAttributes> ::=
@@ -37,7 +34,7 @@ not just the user in the command. This is typically used to specify a shared fol
 	(anyparentname <DriveFolderName>)|
 	(modifieddate|modifiedtime <Time>)|
 	usecontentasindexabletext
-    gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]] <DriveFileCopyAttributes>*
+    gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] <DriveFileUpdateAttributes>*
 
 parentid <DriveFolderID> - Specify parent folder by Id
 parentname <FolderName> - Specify parent folder by name, folder is owned by user in command
