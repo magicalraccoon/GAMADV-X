@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.04'
+__version__ = u'4.47.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11692,13 +11692,26 @@ def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, no
           membersList.append(member)
       else:
         membersList.extend(groupMembers)
+    elif noduplicates:
+      groupMemberList = []
+      for member in groupMembers:
+        if member[u'type'] == u'USER':
+          if member[u'id'] in membersSet:
+            continue
+          membersSet.add(member[u'id'])
+          member[u'level'] = level
+          member[u'subgroup'] = groupEmail
+          membersList.append(member)
+        elif member[u'type'] == u'GROUP':
+          if member[u'id'] in membersSet:
+            continue
+          membersSet.add(member[u'id'])
+          groupMemberList.append(member[u'email'])
+      for member in groupMemberList:
+        getGroupMembers(cd, member, roles, membersList, membersSet, i, count, noduplicates, recursive, level+1)
     else:
       for member in groupMembers:
         if member[u'type'] == u'USER':
-          if noduplicates:
-            if member[u'id'] in membersSet:
-              continue
-            membersSet.add(member[u'id'])
           member[u'level'] = level
           member[u'subgroup'] = groupEmail
           membersList.append(member)
@@ -19489,6 +19502,8 @@ def _mapDrivePermissionNames(permission):
     permission[u'role'] = permission[u'additionalRoles'].pop(0)
     if not permission[u'additionalRoles']:
       del permission[u'additionalRoles']
+  if permission[u'type'] in [u'user', u'group']:
+    permission.pop(u'withLink', None)
 
 def _mapDriveFieldNames(f_file):
   capabilities = f_file.get(u'capabilities')
@@ -21725,8 +21740,10 @@ def addDriveFileACL(users):
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'withlink':
+      withLinkLocation = Cmd.Location()
       body[u'withLink'] = True
     elif myarg in [u'allowfilediscovery', u'discoverable']:
+      withLinkLocation = Cmd.Location()
       body[u'withLink'] = not getBoolean(defaultValue=True)
     elif myarg == u'role':
       roleLocation = Cmd.Location()
@@ -21749,6 +21766,9 @@ def addDriveFileACL(users):
   if body[u'role'] == u'owner' and body[u'type'] != u'user':
     Cmd.SetLocation(roleLocation)
     usageErrorExit(Msg.INVALID_OWNER_TYPE.format(body[u'role'], body[u'type']))
+  if u'withLink' in body and body[u'type'] in [u'user', u'group']:
+    Cmd.SetLocation(withLinkLocation-1)
+    usageErrorExit(Msg.WITHLINK_INCOMPATIBILITY.format(body[u'type']))
   printKeys = DRIVEFILE_ACL_KEY_PRINT_ORDER
   timeObjects = DRIVEFILE_ACL_TIME_OBJECTS[:]
   i, count, users = getEntityArgument(users)
@@ -21768,14 +21788,14 @@ def addDriveFileACL(users):
           fileName, entityType = _getDriveFileNameFromId(drive, fileId)
         permission = callGAPI(drive.permissions(), u'insert',
                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR,
-                                                                           GAPI.INVALID_SHARING_REQUEST],
+                                                                           GAPI.INVALID_SHARING_REQUEST, GAPI.CANNOT_SHARE_GROUPS_WITHLINK, GAPI.CANNOT_SHARE_USERS_WITHLINK],
                               fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage,
                               body=body)
         entityActionPerformed([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
         _showDriveFilePermission(permission, printKeys, timeObjects)
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.cannotShareGroupsWithLink, GAPI.cannotShareUsersWithLink) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
-      except (GAPI.invalidSharingRequest) as e:
+      except GAPI.invalidSharingRequest as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -21834,12 +21854,14 @@ def updateDriveFileACLs(users):
         permission = callGAPI(drive.permissions(), u'patch',
                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR,
                                                                            GAPI.BAD_REQUEST, GAPI.INVALID_OWNERSHIP_TRANSFER,
+                                                                           GAPI.CANNOT_SHARE_GROUPS_WITHLINK, GAPI.CANNOT_SHARE_USERS_WITHLINK,
                                                                            GAPI.PERMISSION_NOT_FOUND],
                               fileId=fileId, permissionId=permissionId, removeExpiration=removeExpiration,
                               transferOwnership=_transferOwnership, body=body)
         entityActionPerformed([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
         _showDriveFilePermission(permission, printKeys, timeObjects)
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest, GAPI.invalidOwnershipTransfer) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.badRequest,
+              GAPI.invalidOwnershipTransfer, GAPI.cannotShareGroupsWithLink, GAPI.cannotShareUsersWithLink) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except GAPI.permissionNotFound:
         entityDoesNotHaveItemWarning([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
@@ -21890,11 +21912,12 @@ def addDriveFilePermissions(users):
       waitOnFailure(1, 10, reason, message)
       try:
         callGAPI(drive.permissions(), u'insert',
-                 throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.INVALID_SHARING_REQUEST],
+                 throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR, GAPI.INVALID_SHARING_REQUEST,
+                                                              GAPI.CANNOT_SHARE_GROUPS_WITHLINK, GAPI.CANNOT_SHARE_USERS_WITHLINK],
                  retry_reasons=[GAPI.SERVICE_LIMIT],
                  fileId=ri[RI_ENTITY], sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=_makePermissionBody(ri[RI_ITEM]), fields=u'')
         entityActionPerformed([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMITTEE, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
-      except (GAPI.fileNotFound, GAPI.invalidSharingRequest, GAPI.forbidden,
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.invalidSharingRequest, GAPI.cannotShareGroupsWithLink, GAPI.cannotShareUsersWithLink,
               GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMITTEE, ri[RI_ITEM]], str(e), int(ri[RI_J]), int(ri[RI_JCOUNT]))
 
