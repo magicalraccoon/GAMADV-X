@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.08'
+__version__ = u'4.47.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2934,6 +2934,10 @@ def buildGAPIServiceObject(api, user):
   return (userEmail, service)
 
 def initGDataObject(gdataObj, api):
+  if hasattr(sys, u'_MEIPASS') and not GM.Globals[GM.CACERTS_TXT]:
+    GM.Globals[GM.CACERTS_TXT] = os.path.join(sys._MEIPASS, u'httplib2', u'cacerts.txt')
+    os.environ['REQUESTS_CA_BUNDLE'] = GM.Globals[GM.CACERTS_TXT]
+    os.environ['DEFAULT_CA_BUNDLE_PATH'] = GM.Globals[GM.CACERTS_TXT]
   _, _, api_version, cred_family = API.getVersion(api)
   disc_file, discovery = readDiscoveryFile(api_version)
   GM.Globals[GM.CURRENT_API_USER] = None
@@ -16686,6 +16690,8 @@ def getCourseAttribute(myarg, body, croom):
     body[u'room'] = getString(Cmd.OB_STRING, minLen=0)
   elif myarg in [u'state', u'status']:
     body[u'courseState'] = getCourseState(croom)
+  elif myarg == u'teacher':
+    body[u'ownerId'] = getEmailAddress()
   else:
     unknownArgumentExit()
 
@@ -16697,8 +16703,6 @@ def doCreateCourse():
     myarg = getArgument()
     if myarg in [u'alias', u'id']:
       body[u'id'] = getCourseAlias()
-    elif myarg == u'teacher':
-      body[u'ownerId'] = getEmailAddress()
     else:
       getCourseAttribute(myarg, body, croom)
   try:
