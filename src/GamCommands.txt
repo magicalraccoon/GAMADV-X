@@ -167,7 +167,8 @@ If an item contains spaces, it should be surrounded by ".
 	(tdtitle <String>)|
 	(tdparent id:<DriveFolderID>|<DriveFolderName>)|(tdfileid <DriveFileID>)
 	(tdtimestamp [<Boolean>] [tddaysoffset <Number>] [tdhoursoffset <Number])|
-	(tdlocalcopy [<Boolean>])
+	(tdlocalcopy [<Boolean>])|
+	(tdnobrowser [<Boolean>])
 <TransferID> ::= <String>
 <URI> ::= <String>
 <URL> ::= <String>
