@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.18'
+__version__ = u'4.47.19'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21617,14 +21617,13 @@ def transferOwnership(users):
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       return
-    fileTreeEntry = fileTree[fileEntry[u'id']]
     for childEntryInfo in children:
       childFileId = childEntryInfo[u'id']
-      fileTreeEntry[u'children'].append({u'id': childFileId})
+      if filepath:
+        fileTree[childFileId] = {u'info': childEntryInfo}
       if childFileId in filesTransferred:
         continue
       filesTransferred.add(childFileId)
-      fileTree[childFileId] = {u'info': childEntryInfo, u'children': []}
       if trashed or not childEntryInfo[u'labels'][u'trashed']:
         if childEntryInfo[u'ownedByMe']:
           filesToTransfer[childFileId] = {u'name': childEntryInfo[u'title'], u'type': [Ent.DRIVE_FILE, Ent.DRIVE_FOLDER][childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER]}
@@ -21712,11 +21711,11 @@ def transferOwnership(users):
         continue
       filesTransferred.add(fileId)
       filesToTransfer = {}
+      if not buildTree and filepath:
+        fileTree[fileId] = {u'info': fileEntryInfo}
       if trashed or not fileEntryInfo[u'labels'][u'trashed']:
         if fileEntryInfo[u'ownedByMe']:
           filesToTransfer[fileId] = {u'name': fileEntryInfo[u'title'], u'type': entityType}
-        if not buildTree:
-          fileTree[fileId] = {u'info': fileEntryInfo, u'children': []}
         if fileEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if buildTree:
             fileEntry = fileTree.get(fileEntryInfo[u'id'])
