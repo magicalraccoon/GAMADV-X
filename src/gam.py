@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.24'
+__version__ = u'4.47.25'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -155,8 +155,8 @@ FN_LAST_UPDATE_CHECK_TXT = u'lastupdatecheck.txt'
 FN_GAMCOMMANDS_TXT = u'GamCommands.txt'
 
 # Python 2.7 values
+DEFAULT_CSV_READ_MODE = u'rbU'
 DEFAULT_FILE_APPEND_MODE = u'ab'
-DEFAULT_FILE_READ_MODE = u'rb'
 DEFAULT_FILE_WRITE_MODE = u'wb'
 
 # Google API constants
@@ -1968,7 +1968,7 @@ def openCSVFileReader(filename):
     fieldnames = shlexSplitList(getString(Cmd.OB_FIELD_NAME_LIST))
   else:
     fieldnames = None
-  f = openFile(filename, mode=DEFAULT_FILE_READ_MODE)
+  f = openFile(filename, mode=DEFAULT_CSV_READ_MODE)
   csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter))
   return (f, csvFile)
 
