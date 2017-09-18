@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.47.26'
+__version__ = u'4.48.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -223,8 +223,10 @@ VX_FILES_ID_FILENAME = u'{0}(id,{1})'.format(VX_PAGES_FILES, VX_FILENAME)
 VX_ID_FILENAME = u'id,{0}'.format(VX_FILENAME)
 VX_ID_FILENAME_MIMETYPE = u'id,{0},mimeType'.format(VX_FILENAME)
 VX_ID_FILENAME_MIMETYPE_OWNEDBYME = u'id,{0},mimeType,ownedByMe'.format(VX_FILENAME)
+VX_ID_FILENAME_PARENTS_MIMETYPE = u'id,{0},{1},mimeType'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME = u'id,{0},{1},mimeType,ownedByMe'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED = u'id,{0},{1},mimeType,ownedByMe,{2}'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
+VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER = u'id,{0},{1},mimeType,ownedByMe,{2},owners(emailAddress)'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_ID_MIMETYPE_CANEDIT = u'id,mimeType,capabilities(canEdit)'
 VX_NPT_FILES_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_FILES)
 VX_NPT_FILES_ID = u'nextPageToken,{0}(id)'.format(VX_PAGES_FILES)
@@ -979,90 +981,6 @@ def getInteger(minVal=None, maxVal=None):
       pass
     invalidArgumentExit(integerLimits(minVal, maxVal))
   missingArgumentExit(integerLimits(minVal, maxVal))
-
-# a|b|c|(custom_type <String>)
-# if argument == CUSTOM_TYPE_EXPLICIT[PTKW_CL_TYPE_KEYWORD]:
-#   getKeywordAttribute(CUSTOM_TYPE_EXPLICIT, attrdict)
-
-#CUSTOM_TYPE_EXPLICIT = {
-#    PTKW_CL_TYPE_KEYWORD: u'type',
-#    PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom_type',
-#    PTKW_ATTR_TYPE_KEYWORD: u'type',
-#    PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom',
-#    PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-#    PTKW_KEYWORD_LIST: [u'custom_type', u'a', u'b', u'c']
-#    }
-
-# a|b|c
-# if argument == CUSTOM_TYPE_NOCUSTOM[PTKW_CL_TYPE_KEYWORD]:
-#   getKeywordAttribute(CUSTOM_TYPE_NOCUSTOM, attrdict)
-
-#CUSTOM_TYPE_NOCUSTOM = {
-#    PTKW_CL_TYPE_KEYWORD: u'type',
-#    PTKW_CL_CUSTOMTYPE_KEYWORD: u'type',
-#    PTKW_ATTR_TYPE_KEYWORD: u'type',
-#    PTKW_ATTR_TYPE_CUSTOM_VALUE: None,
-#    PTKW_ATTR_CUSTOMTYPE_KEYWORD: None,
-#    PTKW_KEYWORD_LIST: [u'a', u'b', u'c']
-#    }
-
-# a|b|c|<String>
-# if argument == CUSTOM_TYPE_IMPLICIT[PTKW_CL_TYPE_KEYWORD]:
-#   getKeywordAttribute(CUSTOM_TYPE_IMPLICIT, attrdict)
-
-#CUSTOM_TYPE_IMPLICIT = {
-#    PTKW_CL_TYPE_KEYWORD: u'type',
-#    PTKW_CL_CUSTOMTYPE_KEYWORD: None,
-#    PTKW_ATTR_TYPE_KEYWORD: u'type',
-#    PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom',
-#    PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-#    PTKW_KEYWORD_LIST: [u'a', u'b', u'c']
-#    }
-
-# (a|b|c) | (custom_type <String>)
-# if argument == CUSTOM_TYPE_IMPLICIT[PTKW_CL_TYPE_KEYWORD]:
-#   getKeywordAttribute(CUSTOM_TYPE_IMPLICIT, attrdict)
-# elif argument == CUSTOM_TYPE_IMPLICIT[PTKW_CL_CUSTOMTYPE_KEYWORD]:
-#   attrdict[CUSTOM_TYPE_DIFFERENT_KEYWORD[PTKW_ATTR_TYPE_KEYWORD] = CUSTOM_TYPE_DIFFERENT_KEYWORD[PTKW_ATTR_CUSTOMTYPE_KEYWORD]
-#   attrdict[CUSTOM_TYPE_DIFFERENT_KEYWORD[PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getValue()
-
-#CUSTOM_TYPE_DIFFERENT_KEYWORD = {
-#    PTKW_CL_TYPE_KEYWORD: u'type',
-#    PTKW_CL_CUSTOMTYPE_KEYWORD: u'custom_type',
-#    PTKW_ATTR_TYPE_KEYWORD: u'type',
-#    PTKW_ATTR_TYPE_CUSTOM_VALUE: u'custom',
-#    PTKW_ATTR_CUSTOMTYPE_KEYWORD: u'customType',
-#    PTKW_KEYWORD_LIST: [u'a', u'b', u'c']
-#    }
-def getKeywordAttribute(UProp, keywords, attrdict, **opts):
-  if Cmd.ArgumentsRemaining():
-    keyword = Cmd.Current().strip().lower()
-    if keyword in keywords[UProp.PTKW_KEYWORD_LIST]:
-      Cmd.Advance()
-      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keyword
-      if keyword != keywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
-        return
-      if Cmd.ArgumentsRemaining():
-        customType = Cmd.Current().strip()
-        if customType:
-          Cmd.Advance()
-          attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
-          attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = customType
-          return
-      missingArgumentExit(u'custom attribute type')
-    elif DEFAULT_CHOICE in opts:
-      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
-      return
-    elif not keywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
-      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
-      attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = Cmd.Current()
-      Cmd.Advance()
-      return
-    invalidChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST], False)
-  elif DEFAULT_CHOICE in opts:
-    attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
-    return
-  missingChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST])
 
 def orgUnitPathQuery(path):
   return u"orgUnitPath='{0}'".format(path.replace(u"'", u"\'")) if path != u'/' else None
@@ -2417,6 +2335,10 @@ def SetGlobalVariables():
 def doGAMCheckForUpdates(forceCheck=False):
   import calendar
 
+  def _gamLatestVersionNotAvailable():
+    if forceCheck:
+      systemErrorExit(NETWORK_ERROR_RC, Msg.GAM_LATEST_VERSION_NOT_AVAILABLE)
+
   current_version = __version__
   now_time = calendar.timegm(time.gmtime())
   if forceCheck:
@@ -2432,9 +2354,13 @@ def doGAMCheckForUpdates(forceCheck=False):
     try:
       release_data = json.loads(c)
     except ValueError:
+      _gamLatestVersionNotAvailable()
       return
     if isinstance(release_data, list):
       release_data = release_data[0] # only care about latest release
+    if not isinstance(release_data, dict) or u'tag_name' not in release_data:
+      _gamLatestVersionNotAvailable()
+      return
     latest_version = release_data[u'tag_name']
     if latest_version[0].lower() == u'v':
       latest_version = latest_version[1:]
@@ -10060,13 +9986,14 @@ def updateCrOSDevices(entityList):
   cd = buildGAPIObject(API.DIRECTORY)
   update_body = {}
   action_body = {}
+  orgUnitPath = None
   ackWipe = quickCrOSMove = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg in UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP:
       up = UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'orgUnitPath':
-        update_body[up] = getOrgUnitItem(pathOnly=True)
+        orgUnitPath = getOrgUnitItem()
       elif up == u'notes':
         update_body[up] = getString(Cmd.OB_STRING, minLen=0).replace(u'\\n', u'\n')
       else:
@@ -10087,6 +10014,7 @@ def updateCrOSDevices(entityList):
     Cmd.SetLocation(actionLocation-1)
     usageErrorExit(Msg.ARE_MUTUALLY_EXCLUSIVE.format(u'action', u'<CrOSAttributes>'))
   i, count, entityList = getEntityArgument(entityList)
+  function = None
   if action_body:
     if action_body[u'action'] == u'deprovision' and not ackWipe:
       stderrWarningMsg(Msg.REFUSING_TO_DEPROVISION_DEVICES.format(count))
@@ -10094,18 +10022,18 @@ def updateCrOSDevices(entityList):
     function = u'action'
     parmId = u'resourceId'
     kwargs = {parmId: None, u'body': action_body}
-  elif update_body:
-    if len(update_body) != 1 or u'orgUnitPath' not in update_body:
+  else:
+    if update_body:
       function = u'update'
       parmId = u'deviceId'
       kwargs = {parmId: None, u'body': update_body, u'fields': u''}
-    else:
+    if orgUnitPath:
       Act.Set(Act.ADD)
-      orgUnitPath = checkOrgUnitPathExists(cd, update_body[u'orgUnitPath'])
+      orgUnitPath = checkOrgUnitPathExists(cd, orgUnitPath)
       if orgUnitPath:
         _batchMoveCrOSesToOrgUnit(cd, orgUnitPath, 0, 0, entityList, quickCrOSMove)
-      return
-  else:
+      Act.Set(Act.UPDATE)
+  if function is None:
     return
   for deviceId in entityList:
     i += 1
@@ -15426,16 +15354,69 @@ ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
 def getUserAttributes(cd, updateCmd, noUid=False):
   from gamlib import gluprop as UProp
 
+  def getKeywordAttribute(UProp, keywords, attrdict, **opts):
+    if Cmd.ArgumentsRemaining():
+      keyword = Cmd.Current().strip().lower()
+      if keyword in keywords[UProp.PTKW_KEYWORD_LIST]:
+        Cmd.Advance()
+        if keyword != keywords[UProp.PTKW_CL_CUSTOM_KEYWORD]:
+          attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keyword
+          return
+        if Cmd.ArgumentsRemaining():
+          customType = Cmd.Current().strip()
+          if customType:
+            Cmd.Advance()
+            if keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]:
+              attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+            attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = customType
+            return
+        missingArgumentExit(u'custom attribute type')
+      elif DEFAULT_CHOICE in opts:
+        attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
+        return
+      elif keywords[UProp.PTKW_CL_CUSTOM_KEYWORD]:
+        if keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]:
+          attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = keywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
+        attrdict[keywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = Cmd.Current()
+        Cmd.Advance()
+        return
+      invalidChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST], False)
+    elif DEFAULT_CHOICE in opts:
+      attrdict[keywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = opts[DEFAULT_CHOICE]
+      return
+    missingChoiceExit(keywords[UProp.PTKW_KEYWORD_LIST])
+
+  def primaryNotPrimary(pnp, entry):
+    if pnp == u'notprimary':
+      return True
+    if pnp == u'primary':
+      entry[u'primary'] = True
+      primary[u'location'] = Cmd.Location()
+      return True
+    return False
+
+  def getPrimaryNotPrimaryChoice(entry, defaultChoice):
+    if getChoice(Cmd.PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=defaultChoice, mapChoice=True):
+      entry[u'primary'] = True
+      primary[u'location'] = Cmd.Location()
+
   def clearBodyList(body, itemName):
     if itemName in body:
       del body[itemName]
     body.setdefault(itemName, None)
 
-  def appendItemToBodyList(body, itemName, itemValue, checkBlankField=None):
+  def appendItemToBodyList(body, itemName, itemValue, checkBlankField=None, checkSystemId=False):
     if (itemName in body) and (body[itemName] is None):
       del body[itemName]
     body.setdefault(itemName, [])
     if checkBlankField is None or itemValue[checkBlankField]:
+# Throw an error if multiple items are marked primary
+      if itemValue.get(u'primary', False):
+        for citem in body[itemName]:
+          if citem.get(u'primary', False):
+            if not checkSystemId or itemValue.get(u'systemId') == citem.get(u'systemId'):
+              Cmd.SetLocation(primary[u'location']-1)
+              usageErrorExit(Msg.MULTIPLE_ITEMS_MARKED_PRIMARY.format(itemName))
       body[itemName].append(itemValue)
 
   def gen_sha512_hash(password):
@@ -15466,6 +15447,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
   need_to_hash_password = True
   admin_body = {}
   notify = {}
+  primary = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'notify':
@@ -15517,7 +15499,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getChoice([clTypeKeyword,])
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         if checkArgumentPresent(Cmd.UNSTRUCTURED_FORMATTED_ARGUMENT):
           entry[u'sourceIsStructured'] = False
@@ -15528,10 +15510,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
             value = getString(Cmd.OB_STRING, minLen=0)
             if value:
               entry[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
-          elif argument == u'notprimary':
-            break
-          elif argument == u'primary':
-            entry[u'primary'] = True
+          elif primaryNotPrimary(argument, entry):
             break
           else:
             unknownArgumentExit()
@@ -15541,14 +15520,14 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
-        getChoice([clTypeKeyword,])
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         getChoice([UProp.IM_PROTOCOLS[UProp.PTKW_CL_TYPE_KEYWORD],])
         getKeywordAttribute(UProp, UProp.IM_PROTOCOLS, entry)
         # Backwards compatability: notprimary|primary on either side of IM address
-        entry[u'primary'] = getChoice(Cmd.PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        getPrimaryNotPrimaryChoice(entry, False)
         entry[u'im'] = getString(Cmd.OB_STRING, minLen=0)
-        entry[u'primary'] = getChoice(Cmd.PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=entry[u'primary'], mapChoice=True)
+        getPrimaryNotPrimaryChoice(entry, entry.get(u'primary', False))
         appendItemToBodyList(body, up, entry, u'im')
       elif up == u'locations':
         if checkArgumentPresent(Cmd.CLEAR_NONE_ARGUMENT):
@@ -15599,16 +15578,12 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           if argument == clTypeKeyword:
             getKeywordAttribute(UProp, typeKeywords, entry)
           elif argument == typeKeywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
-#            entry[typeKeywords[UProp.PTKW_ATTR_TYPE_KEYWORD]] = typeKeywords[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
             entry[typeKeywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(Cmd.OB_STRING)
           elif argument in ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
             value = getString(Cmd.OB_STRING, minLen=0)
             if value:
               entry[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = value
-          elif argument == u'notprimary':
-            break
-          elif argument == u'primary':
-            entry[u'primary'] = True
+          elif primaryNotPrimary(argument, entry):
             break
           else:
             unknownArgumentExit()
@@ -15624,10 +15599,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
             getKeywordAttribute(UProp, typeKeywords, entry)
           elif argument == u'value':
             entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
-          elif argument == u'notprimary':
-            break
-          elif argument == u'primary':
-            entry[u'primary'] = True
+          elif primaryNotPrimary(argument, entry):
             break
           else:
             unknownArgumentExit()
@@ -15654,6 +15626,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           elif argument == u'gecos':
             entry[u'gecos'] = getString(Cmd.OB_STRING, minLen=0)
           elif argument in [u'primary']:
+            primary[u'location'] = Cmd.Location()
             entry[u'primary'] = getBoolean()
           elif argument == u'endposix':
             break
@@ -15663,12 +15636,13 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           missingArgumentExit(u'username <String>')
         if u'uid' not in entry:
           missingArgumentExit(u'uid <Integer>')
-        appendItemToBodyList(body, up, entry)
+        appendItemToBodyList(body, up, entry, checkSystemId=True)
       elif up == u'relations':
         if checkArgumentPresent(Cmd.CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
         entry = {}
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
@@ -15677,6 +15651,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'address'] = getEmailAddress(noUid=True, minLen=0)
         appendItemToBodyList(body, up, entry, u'address')
@@ -15703,6 +15678,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
@@ -15711,9 +15687,10 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           clearBodyList(body, up)
           continue
         entry = {}
+        getChoice([clTypeKeyword], defaultChoice=None)
         getKeywordAttribute(UProp, typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_URL, minLen=0)
-        entry[u'primary'] = getChoice(Cmd.PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        getPrimaryNotPrimaryChoice(entry, False)
         appendItemToBodyList(body, up, entry, u'value')
     elif myarg == u'clearschema':
       if not updateCmd:
@@ -16100,23 +16077,6 @@ USER_SSH_PROPERTY_PRINT_ORDER = [
   u'fingerprint',
   ]
 
-def _showType(up, row, typeKey, typeCustomValue, customTypeKey):
-  if typeKey in row:
-    if (row[typeKey] != typeCustomValue) or (not customTypeKey in row) or (not row[customTypeKey]):
-      printKeyValueList([typeKey, row[typeKey]])
-    elif up in [u'emails', u'externalIds', u'relations', u'websites']:
-      printKeyValueList([typeKey, row[customTypeKey]])
-    else:
-      printKeyValueList([typeKey, row[typeKey]])
-      Ind.Increment()
-      printKeyValueList([customTypeKey, row[customTypeKey]])
-      Ind.Decrement()
-    return True
-  elif customTypeKey in row:
-    printKeyValueList([customTypeKey, row[customTypeKey]])
-    return True
-  return False
-#
 USER_ARGUMENT_TO_PROPERTY_MAP = {
   u'address': [u'addresses',],
   u'addresses': [u'addresses',],
@@ -16187,6 +16147,21 @@ USER_TIME_OBJECTS = [u'creationTime', u'deletionTime', u'lastLoginTime']
 
 def infoUsers(entityList):
   from gamlib import gluprop as UProp
+
+  def _showType(up, row, typeKey, typeCustomValue, customTypeKey):
+    if typeKey in row:
+      if row[typeKey] != typeCustomValue or not row.get(customTypeKey):
+        printKeyValueList([typeKey, row[typeKey]])
+      else:
+        printKeyValueList([typeKey, row[typeKey]])
+        Ind.Increment()
+        printKeyValueList([customTypeKey, row[customTypeKey]])
+        Ind.Decrement()
+      return True
+    elif customTypeKey in row:
+      printKeyValueList([customTypeKey, row[customTypeKey]])
+      return True
+    return False
 
   def _callbackGetLicense(request_id, response, exception):
     if exception is None:
@@ -19742,12 +19717,33 @@ MIMETYPE_CHOICE_MAP = {
   u'gdirectory': MIMETYPE_GA_FOLDER,
   u'gform': MIMETYPE_GA_FORM,
   u'gfusion': MIMETYPE_GA_FUSIONTABLE,
+  u'gmap': MIMETYPE_GA_MAP,
   u'gpresentation': MIMETYPE_GA_PRESENTATION,
   u'gscript': MIMETYPE_GA_SCRIPT,
   u'gsite': MIMETYPE_GA_SITES,
   u'gsheet': MIMETYPE_GA_SPREADSHEET,
   u'gspreadsheet': MIMETYPE_GA_SPREADSHEET,
   }
+
+def initMimeTypeCheck():
+  return {u'mimeTypes': set(), u'reverse': False}
+
+def getMimeTypeCheck(mimeTypeCheck):
+  mimeTypeCheck[u'reverse'] = True if checkArgumentPresent([u'not',]) else False
+  for mimeType in getString(Cmd.OB_MIMETYPE_LIST).lower().replace(u',', u' ').split():
+    if mimeType in MIMETYPE_CHOICE_MAP:
+      mimeTypeCheck[u'mimeTypes'].add(MIMETYPE_CHOICE_MAP[mimeType])
+    elif mimeType.startswith(APPLICATION_VND_GOOGLE_APPS):
+      mimeTypeCheck[u'mimeTypes'].add(mimeType)
+    else:
+      invalidChoiceExit(list(MIMETYPE_CHOICE_MAP), True)
+
+def checkMimeType(mimeTypeCheck, fileEntry):
+  if not mimeTypeCheck[u'mimeTypes']:
+    return True
+  if not mimeTypeCheck[u'reverse']:
+    return fileEntry[u'mimeType'] in mimeTypeCheck[u'mimeTypes']
+  return fileEntry[u'mimeType'] not in mimeTypeCheck[u'mimeTypes']
 
 def initializeDriveFileAttributes():
   return {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None,
@@ -19760,7 +19756,7 @@ def getDriveFileParentAttribute(myarg, parameters):
     parameters[DFA_PARENTIDS].append(getString(Cmd.OB_DRIVE_FOLDER_ID))
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = VX_MY_NON_TRASHED_FOLDER_NAME.format(getString(Cmd.OB_DRIVE_FOLDER_NAME))
-  elif myarg == u'sharedparentname':
+  elif myarg in [u'anyownerparentname', u'sharedparentname']:
     parameters[DFA_PARENTQUERY] = VX_ANY_NON_TRASHED_FOLDER_NAME.format(getString(Cmd.OB_DRIVE_FOLDER_NAME))
   else:
     return False
@@ -20101,7 +20097,7 @@ def getFilePaths(drive, fileTree, initialResult, filePathInfo):
       filePathInfo[u'localPaths'][parentId] = filePathInfo[u'allPaths'][parentId]
     fplist = []
     _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[VX_FILENAME])
-  return ([Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER], filePaths)
+  return (_getEntityMimeType(initialResult), filePaths)
 
 DRIVEFILE_ORDERBY_CHOICE_MAP = {
   u'createddate': VX_CREATED_TIME,
@@ -20297,7 +20293,7 @@ def showFileInfo(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+GAPI.DRIVE_ACCESS_THROW_REASONS,
                           fileId=fileId, fields=fields)
-        printEntity([[Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], u'{0} ({1})'.format(result[VX_FILENAME], fileId)], j, jcount)
+        printEntity([_getEntityMimeType(result), u'{0} ({1})'.format(result[VX_FILENAME], fileId)], j, jcount)
         Ind.Increment()
         if filepath:
           _, paths = getFilePaths(drive, None, result, filePathInfo)
@@ -20807,8 +20803,9 @@ FILELIST_TITLES = [u'id', u'mimeType', u'parents']
 FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 # gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)]
-#	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>] [select <DriveFileEntity>|orphans] [depth <Number>]
-#	[filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <String>]
+#	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>]
+#	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [mimetype [not] <MimeTypeList>] [depth <Number>]
+#	[filepath] [buildtree] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <String>]
 def printFileList(users):
   def _setSelectionFields():
     if fileIdEntity:
@@ -20820,9 +20817,15 @@ def printFileList(users):
     if showOwnedBy is not None:
       skipObjects.extend([field for field in OWNED_BY_ME_FIELDS_TITLES if field not in fieldsList])
       fieldsList.extend(OWNED_BY_ME_FIELDS_TITLES)
+    if mimeTypeCheck[u'mimeTypes']:
+      if u'mimeType' not in fieldsList:
+        skipObjects.append(u'mimeType')
+        fieldsList.append(u'mimeType')
 
   def _printFileInfo(drive, fileInfo):
     if showOwnedBy is not None and fileInfo.get(u'ownedByMe', showOwnedBy) != showOwnedBy:
+      return
+    if not checkMimeType(mimeTypeCheck, fileInfo):
       return
     row = {u'Owner': user}
     if filepath:
@@ -20873,14 +20876,36 @@ def printFileList(users):
     csvRows.append(row)
 
   def _printDriveFolderContents(drive, fileEntry, depth):
-    for childId in fileEntry[u'children']:
-      childEntry = fileTree.get(childId)
+    for childFileId in fileEntry[u'children']:
+      childEntry = fileTree.get(childFileId)
       if childEntry:
-        if not childEntry[u'info'].get(u'prnt', False):
-          childEntry[u'info'][u'prnt'] = True
+        if childFileId not in filesPrinted:
+          filesPrinted.add(childFileId)
           _printFileInfo(drive, childEntry[u'info'].copy())
-        if maxdepth == -1 or depth < maxdepth:
+        if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
           _printDriveFolderContents(drive, childEntry, depth+1)
+
+  def _printChildDriveFolderContents(drive, fileEntry, user, i, count, depth):
+    q = VX_WITH_PARENTS.format(fileEntry[u'id'])
+    if selectSubQuery:
+      q += ' and '+selectSubQuery
+    try:
+      children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               q=q, fields=pagesfields,
+                               maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+      return
+    for childEntryInfo in children:
+      childFileId = childEntryInfo[u'id']
+      if filepath:
+        fileTree[childFileId] = {u'info': childEntryInfo}
+      if childFileId not in filesPrinted:
+        filesPrinted.add(childFileId)
+        _printFileInfo(drive, childEntryInfo.copy())
+      if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
+        _printChildDriveFolderContents(drive, childEntryInfo, user, i, count, depth+1)
 
   allfields = filepath = False
   todrive = {}
@@ -20888,11 +20913,14 @@ def printFileList(users):
   fieldsList = []
   labelsList = []
   orderByList = []
-  skipObjects = [u'prnt',]
+  skipObjects = []
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = ME_IN_OWNERS
+  selectSubQuery = None
   fileIdEntity = {}
   showOwnedBy = fileTree = None
+  buildTree = False
+  mimeTypeCheck = initMimeTypeCheck()
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -20900,6 +20928,8 @@ def printFileList(users):
       todrive = getTodriveParameters()
     elif myarg == u'filepath':
       filepath = True
+    elif myarg == u'buildtree':
+      buildTree = True
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'query':
@@ -20921,6 +20951,10 @@ def printFileList(users):
     elif myarg == u'select':
       fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
       query = None
+    elif myarg == u'selectsubquery':
+      selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
+      if not selectSubQuery:
+        selectSubQuery = None
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'allfields':
@@ -20960,13 +20994,17 @@ def printFileList(users):
             query = ME_IN_OWNERS_AND+query
         else:
           query = ME_IN_OWNERS
+    elif myarg == u'showmimetype':
+      getMimeTypeCheck(mimeTypeCheck)
     elif myarg == u'delimiter':
       delimiter = getDelimiter()
     else:
       unknownArgumentExit()
-  if not fileIdEntity and maxdepth != -1:
-    fileIdEntity = initDriveFileEntity()
-    cleanFileIDsList(fileIdEntity, [u'root',])
+  if not fileIdEntity:
+    buildTree = True
+    if maxdepth != -1:
+      fileIdEntity = initDriveFileEntity()
+      cleanFileIDsList(fileIdEntity, [u'root',])
   if fieldsList or labelsList:
     _setSelectionFields()
     fields = u''
@@ -20976,14 +21014,15 @@ def printFileList(users):
         fields += u','
     if labelsList:
       fields += u'labels({0})'.format(u','.join(set(labelsList)))
-    fields = VX_NPT_FILES_FIELDLIST.format(fields)
+    pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
   elif not allfields:
     for field in [u'title', u'alternatelink']:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICE_MAP[field]]}, fieldsList, titles)
     _setSelectionFields()
-    fields = VX_NPT_FILES_FIELDLIST.format(u','.join(set(fieldsList))).replace(u'.', u'/')
+    fields = u','.join(set(fieldsList)).replace(u'.', u'/')
+    pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
   else:
-    fields = u'*'
+    fields = pagesfields = u'*'
     skipObjects.extend([u'kind', u'etag'])
   orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
@@ -21000,41 +21039,54 @@ def printFileList(users):
       continue
     if filepath:
       filePathInfo = initFilePathInfo()
-    try:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
-      page_message = getPageMessageForWhom()
-      feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                           page_message=page_message,
-                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.FILE_NOT_FOUND],
-                           q=query, orderBy=orderBy, fields=fields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-      if not fileIdEntity:
+    filesPrinted = set()
+    if buildTree:
+      try:
+        printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
+        page_message = getPageMessageForWhom()
+        feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                             page_message=page_message,
+                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.FILE_NOT_FOUND],
+                             q=query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         if filepath:
           fileTree = buildFileTree(feed, drive)
-          for f_file in feed:
-            _printFileInfo(drive, f_file)
-        else:
-          while feed:
-            _printFileInfo(drive, feed.popleft())
+      except (GAPI.invalidQuery, GAPI.invalid):
+        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
+        break
+      except GAPI.fileNotFound:
+        printGettingEntityItemsForWhomDoneInfo(0)
+        continue
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        continue
+    else:
+      fileTree = {}
+    if not fileIdEntity:
+      if filepath:
+        for f_file in feed:
+          _printFileInfo(drive, f_file)
       else:
-        user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, drive=drive)
-        if jcount == 0:
-          continue
-        fileTree = buildFileTree(feed, drive)
-        j = 0
-        for fileId in fileIdEntity[u'list']:
-          j += 1
-          fileEntry = fileTree.get(fileId)
-          if fileEntry:
-            _printDriveFolderContents(drive, fileEntry, 0)
-          else:
-            entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
-    except (GAPI.invalidQuery, GAPI.invalid):
-      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
-      break
-    except GAPI.fileNotFound:
-      printGettingEntityItemsForWhomDoneInfo(0)
-    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        while feed:
+          _printFileInfo(drive, feed.popleft())
+    else:
+      user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, drive=drive)
+      if jcount == 0:
+        continue
+      j = 0
+      for fileId in fileIdEntity[u'list']:
+        j += 1
+        try:
+          fileEntryInfo = callGAPI(drive.files(), u'get',
+                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
+                                   fileId=fileId, fields=fields)
+          if filepath:
+            fileTree[fileId] = {u'info': fileEntryInfo}
+          _printChildDriveFolderContents(drive, fileEntryInfo, user, i, count, 0)
+        except GAPI.fileNotFound:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
   sortCSVTitles([u'Owner', u'id', fileNameTitle], titles)
   writeCSVfile(csvRows, titles,
                u'{0} {1} Drive Files'.format(Cmd.Argument(GM.Globals[GM.ENTITY_CL_START]),
@@ -21114,28 +21166,61 @@ def printFilePaths(users):
 def showFilePaths(users):
   _printShowFilePaths(users, False)
 
-# gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)] [select <DriveFileEntity>|orphans] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [depth <Number>]
+FILETREE_SHOW_CHOICES = [u'all', u'files', u'folders']
+
+# gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)]
+#	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [showmimetype [not] <MimeTypeList>] [depth <Number>]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def showFileTree(users):
   def _showDriveFolderContents(fileEntry, depth):
     for childId in fileEntry[u'children']:
       childEntry = fileTree.get(childId)
       if childEntry:
-        printKeyValueList([childEntry[u'info'][VX_FILENAME]])
-        if maxdepth == -1 or depth < maxdepth:
+        if checkMimeType(mimeTypeCheck, childEntry[u'info']):
+          printKeyValueList([childEntry[u'info'][VX_FILENAME]])
+        if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
           Ind.Increment()
           _showDriveFolderContents(childEntry, depth+1)
           Ind.Decrement()
+
+  def _showChildDriveFolderContents(drive, fileEntry, user, i, count, depth):
+    q = VX_WITH_PARENTS.format(fileEntry[u'id'])
+    if selectSubQuery:
+      q += ' and '+selectSubQuery
+    try:
+      children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               q=q, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
+                               maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+      return
+    for childEntryInfo in children:
+      if checkMimeType(mimeTypeCheck, childEntryInfo):
+        printKeyValueList([childEntryInfo[VX_FILENAME]])
+      if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
+        Ind.Increment()
+        _showChildDriveFolderContents(drive, childEntryInfo, user, i, count, depth+1)
+        Ind.Decrement()
 
   maxdepth = -1
   query = ME_IN_OWNERS
   fileIdEntity = initDriveFileEntity()
   cleanFileIDsList(fileIdEntity, [u'root',])
+  selectSubQuery = None
   showOwnedBy = fileTree = None
+  buildTree = True
+  mimeTypeCheck = initMimeTypeCheck()
   orderByList = []
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'select':
       fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
+      buildTree = False
+    elif myarg == u'selectsubquery':
+      selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
+      if not selectSubQuery:
+        selectSubQuery = None
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'depth':
@@ -21150,6 +21235,8 @@ def showFileTree(users):
         query = NOT_ME_IN_OWNERS
       else:
         query = ME_IN_OWNERS
+    elif myarg == u'showmimetype':
+      getMimeTypeCheck(mimeTypeCheck)
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -21160,34 +21247,52 @@ def showFileTree(users):
     user, drive = buildGAPIServiceObject(API.DRIVE, user)
     if not drive:
       continue
-    try:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
-      page_message = getPageMessageForWhom()
-      feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                           page_message=page_message,
-                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
-                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-      user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, drive=drive, entityType=Ent.DRIVE_FOLDER)
-      if jcount == 0:
-        continue
-      j = 0
-      fileTree = buildFileTree(feed, drive)
-      Ind.Increment()
-      for fileId in fileIdEntity[u'list']:
-        j += 1
+    if buildTree:
+      try:
+        printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
+        page_message = getPageMessageForWhom()
+        feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                             page_message=page_message,
+                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                             q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
+                             maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+        fileTree = buildFileTree(feed, drive)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+    else:
+      fileTree = {}
+    user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, drive=drive, entityType=Ent.DRIVE_FOLDER)
+    if jcount == 0:
+      continue
+    j = 0
+    Ind.Increment()
+    for fileId in fileIdEntity[u'list']:
+      j += 1
+      if buildTree:
         fileEntry = fileTree.get(fileId)
-        if fileEntry:
-          fileEntryInfo = fileEntry[u'info']
-          printEntity([_getEntityMimeType(fileEntryInfo), fileEntryInfo[VX_FILENAME]], j, jcount)
-          Ind.Increment()
-          _showDriveFolderContents(fileEntry, 0)
-          Ind.Decrement()
-        else:
+        if not fileEntry:
           entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+          continue
+        fileEntryInfo = fileEntry[u'info']
+      else:
+        try:
+          fileEntryInfo = callGAPI(drive.files(), u'get',
+                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
+                                   fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE)
+        except GAPI.fileNotFound:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+          continue
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+      printEntity([_getEntityMimeType(fileEntryInfo), fileEntryInfo[VX_FILENAME]], j, jcount)
+      Ind.Increment()
+      if buildTree:
+        _showDriveFolderContents(fileEntry, 0)
+      else:
+        _showChildDriveFolderContents(drive, fileEntryInfo, user, i, count, 0)
       Ind.Decrement()
-    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+    Ind.Decrement()
 
 # gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] [<DriveFileAttributes>]
 def addDriveFile(users):
@@ -21228,7 +21333,7 @@ def addDriveFile(users):
       if parameters[DFA_LOCALFILENAME]:
         entityModifierNewValueActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, titleInfo], Act.MODIFIER_WITH_CONTENT_FROM, parameters[DFA_LOCALFILENAME], i, count)
       else:
-        entityActionPerformed([Ent.USER, user, [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], titleInfo], i, count)
+        entityActionPerformed([Ent.USER, user, _getEntityMimeType(result), titleInfo], i, count)
     except GAPI.forbidden as e:
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, body[VX_FILENAME]], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
@@ -21303,7 +21408,7 @@ def updateDriveFile(users):
                               useContentAsIndexableText=parameters[DFA_USE_CONTENT_AS_INDEXABLE_TEXT],
                               addParents=u','.join(parameters[DFA_ADD_PARENTS]), removeParents=u','.join(parameters[DFA_REMOVE_PARENTS]),
                               body=body, fields=VX_ID_FILENAME_MIMETYPE, **kwargs)
-            entityActionPerformed([Ent.USER, user, [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][result[u'mimeType'] != MIMETYPE_GA_FOLDER], result[VX_FILENAME]], j, jcount)
+            entityActionPerformed([Ent.USER, user, _getEntityMimeType(result), result[VX_FILENAME]], j, jcount)
         except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions) as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
@@ -21663,7 +21768,7 @@ def collectOrphans(users):
         j += 1
         fileId = fileEntry[u'id']
         fileName = fileEntry[VX_FILENAME]
-        fileType = [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][fileEntry[u'mimeType'] != MIMETYPE_GA_FOLDER]
+        fileType = _getEntityMimeType(fileEntry)
         if csvFormat:
           csvRows.append({u'Owner': user, u'type': Ent.Singular(fileType), u'id': fileId, VX_FILENAME: fileName})
           continue
@@ -21703,7 +21808,7 @@ def transferDrive(users):
   def _transferFile(childEntry, rootId, i, count, j, jcount):
     childFileId = childEntry[u'id']
     childFileName = childEntry[VX_FILENAME]
-    childFileType = [Ent.DRIVE_FOLDER, Ent.DRIVE_FILE][childEntry[u'mimeType'] != MIMETYPE_GA_FOLDER]
+    childFileType = _getEntityMimeType(childEntry)
     if csvFormat:
       if childEntry[u'ownedByMe']:
         csvRows.append({u'OldOwner': sourceUser, u'NewOwner': targetUser, u'type': Ent.Singular(childFileType), u'id': childFileId, VX_FILENAME: childFileName})
@@ -22101,32 +22206,36 @@ def transferOwnership(users):
     j = 0
     for fileId in fileIdEntity[u'list']:
       j += 1
-      try:
-        fileEntryInfo = callGAPI(drive.files(), u'get',
-                                 throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
-                                 fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED)
-      except GAPI.fileNotFound:
-        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
-        continue
-      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
-        break
+      if buildTree:
+        fileEntry = fileTree.get(fileId)
+        if not fileEntry:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+        fileEntryInfo = fileEntry[u'info']
+      else:
+        try:
+          fileEntryInfo = callGAPI(drive.files(), u'get',
+                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
+                                   fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED)
+        except GAPI.fileNotFound:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+          continue
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+        if filepath:
+          fileTree[fileId] = {u'info': fileEntryInfo}
       entityType = _getEntityMimeType(fileEntryInfo)
       entityPerformActionItemValue([Ent.USER, user], entityType, u'{0} ({1})'.format(fileEntryInfo[VX_FILENAME], fileId), j, jcount)
       if fileId in filesTransferred:
         continue
       filesTransferred.add(fileId)
       filesToTransfer = {}
-      if not buildTree and filepath:
-        fileTree[fileId] = {u'info': fileEntryInfo}
       if trashed or not fileEntryInfo[u'labels'][u'trashed']:
         if fileEntryInfo[u'ownedByMe'] and fileEntryInfo[VX_FILENAME] != u'My Drive':
           filesToTransfer[fileId] = {VX_FILENAME: fileEntryInfo[VX_FILENAME], u'type': entityType}
         if fileEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if buildTree:
-            fileEntry = fileTree.get(fileEntryInfo[u'id'])
-            if fileEntry:
-              _identifyFilesToTransfer(fileEntry)
+            _identifyFilesToTransfer(fileEntry)
           else:
             _identifyChildrenToTransfer(fileEntryInfo, user, i, count)
       if csvFormat:
@@ -22184,7 +22293,7 @@ def transferOwnership(users):
     writeCSVfile(csvRows, titles, u'Files to Transfer Ownership', todrive)
 
 # gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
-#	[includetrashed] [restricted [<Boolean>]] [writerscantshare [<Boolean>]] [preview] [filepath] [todrive [<ToDriveAttributes>]]
+#	[includetrashed] [restricted [<Boolean>]] [writerscantshare [<Boolean>]] [preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
 def claimOwnership(users):
   def _identifyFilesToClaim(fileEntry, skipids):
     for childFileId in fileEntry[u'children']:
@@ -22200,6 +22309,28 @@ def claimOwnership(users):
           if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
             _identifyFilesToClaim(childEntry, skipids)
 
+  def _identifyChildrenToClaim(fileEntry, skipIds, user, i, count):
+    try:
+      children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               q=VX_WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
+                               maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+      return
+    for childEntryInfo in children:
+      childFileId = childEntryInfo[u'id']
+      if childFileId not in skipIds and (trashed or not childEntryInfo[u'labels'][u'trashed']):
+        if filepath:
+          fileTree[childFileId] = {u'info': childEntryInfo}
+        owner = childEntryInfo[u'owners'][0][u'emailAddress']
+        if not childEntryInfo[u'ownedByMe'] and owner not in skipusers:
+          filesToClaim.setdefault(owner, {})
+          if childFileId not in filesToClaim[owner]:
+            filesToClaim[owner][childFileId] = {VX_FILENAME: childEntryInfo[VX_FILENAME], u'type': _getEntityMimeType(childEntryInfo)}
+        if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
+          _identifyChildrenToClaim(childEntryInfo, skipIds, user, i, count)
+
   fileIdEntity = getDriveFileEntity()
   skipFileIdEntity = initDriveFileEntity()
   body = {}
@@ -22208,6 +22339,7 @@ def claimOwnership(users):
   csvFormat = filepath = trashed = False
   todrive = {}
   fileTree = None
+  buildTree = False
   bodyShare = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -22227,6 +22359,8 @@ def claimOwnership(users):
       csvFormat = True
     elif myarg == u'filepath':
       filepath = True
+    elif myarg == u'buildtree':
+      buildTree = True
     elif myarg == u'todrive':
       todrive = getTodriveParameters()
     else:
@@ -22257,38 +22391,57 @@ def claimOwnership(users):
     bodyAdd = {u'role': u'writer', u'type': u'user', u'value': user}
     if skipFileIdEntity[u'query'] or skipFileIdEntity[u'root']:
       _validateUserGetFileIDs(origUser, i, count, skipFileIdEntity, drive=drive)
-    try:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count)
-      page_message = getPageMessageForWhom()
-      feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                           page_message=page_message,
-                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
-                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
-      continue
-    fileTree = buildFileTree(feed, drive)
+    if buildTree:
+      try:
+        printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count)
+        page_message = getPageMessageForWhom()
+        feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                             page_message=page_message,
+                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                             fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
+                             maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        continue
+      fileTree = buildFileTree(feed, drive)
+    else:
+      fileTree = {}
     Ind.Increment()
     j = 0
     for fileId in fileIdEntity[u'list']:
       j += 1
       filesToClaim = {}
-      fileEntry = fileTree.get(fileId)
-      if not fileEntry:
-        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
-        continue
-      fileEntryInfo = fileEntry[u'info']
+      if buildTree:
+        fileEntry = fileTree.get(fileId)
+        if not fileEntry:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+          continue
+        fileEntryInfo = fileEntry[u'info']
+      else:
+        try:
+          fileEntryInfo = callGAPI(drive.files(), u'get',
+                                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND],
+                                   fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER)
+        except GAPI.fileNotFound:
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
+          continue
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+        if filepath:
+          fileTree[fileId] = {u'info': fileEntryInfo}
       entityType = _getEntityMimeType(fileEntryInfo)
-      fileDesc = u'{0} ({1})'.format(fileEntryInfo[VX_FILENAME], fileId)
-      entityPerformActionItemValue([Ent.USER, user], entityType, fileDesc, j, jcount)
-      if not fileEntryInfo[u'ownedByMe'] and fileId not in skipFileIdEntity[u'list']:
+      entityPerformActionItemValue([Ent.USER, user], entityType, u'{0} ({1})'.format(fileEntryInfo[VX_FILENAME], fileId), j, jcount)
+      if fileId not in skipFileIdEntity[u'list'] and (trashed or not fileEntryInfo[u'labels'][u'trashed']):
         owner = fileEntryInfo[u'owners'][0][u'emailAddress']
-        if trashed or not fileEntryInfo[u'labels'][u'trashed'] and owner not in skipusers:
+        if not fileEntryInfo[u'ownedByMe'] and owner not in skipusers:
           filesToClaim.setdefault(owner, {})
           if fileId not in filesToClaim[owner]:
             filesToClaim[owner][fileId] = {VX_FILENAME: fileEntryInfo[VX_FILENAME], u'type': entityType}
-      _identifyFilesToClaim(fileEntry, skipFileIdEntity[u'list'])
+        if buildTree:
+          _identifyFilesToClaim(fileEntry, skipFileIdEntity[u'list'])
+        else:
+          _identifyChildrenToClaim(fileEntryInfo, skipFileIdEntity[u'list'], user, i, count)
       if csvFormat:
         for oldOwner in filesToClaim:
           for claimFileId, fileInfo in iteritems(filesToClaim[oldOwner]):
