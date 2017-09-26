@@ -1,3 +1,7 @@
+4.48.04
+
+Update passlib to 1.7.1.
+
 4.48.03
 
 Import a message into a user's mailbox, with standard email delivery scanning and classification similar to receiving via SMTP.
