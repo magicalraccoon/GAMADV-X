@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.01'
+__version__ = u'4.48.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -150,6 +150,7 @@ SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 SECONDS_PER_DAY = 86400
 SECONDS_PER_WEEK = 604800
+UTF8 = u'utf-8'
 FN_GAM_CFG = u'gam.cfg'
 FN_LAST_UPDATE_CHECK_TXT = u'lastupdatecheck.txt'
 FN_GAMCOMMANDS_TXT = u'GamCommands.txt'
@@ -475,7 +476,7 @@ class _DeHTMLParser(HTMLParser):
 def dehtml(text):
   try:
     parser = _DeHTMLParser()
-    parser.feed(text.encode(u'utf-8'))
+    parser.feed(text.encode(UTF8))
     parser.close()
     return parser.text()
   except HTMLParseError:
@@ -1805,7 +1806,7 @@ class UTF8Recoder(object):
     return self
 
   def next(self):
-    return self.reader.next().encode(u'utf-8')
+    return self.reader.next().encode(UTF8)
 
 class UnicodeDictReader(object):
   """
@@ -1813,10 +1814,10 @@ class UnicodeDictReader(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', fieldnames=None, **kwds):
+  def __init__(self, f, dialect=csv.excel, encoding=UTF8, fieldnames=None, **kwds):
     self.encoding = encoding
     try:
-      self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != u'utf-8' else f, dialect=dialect, **kwds)
+      self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != UTF8 else f, dialect=dialect, **kwds)
       if not fieldnames:
         self.fieldnames = self.reader.next()
         if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
@@ -1838,7 +1839,7 @@ class UnicodeDictReader(object):
     l = len(row)
     if l < self.numfields:
       row += ['']*(self.numfields-l) # Must be '', not u''
-    return dict((self.fieldnames[x], text_type(row[x], u'utf-8')) for x in range(self.numfields))
+    return dict((self.fieldnames[x], text_type(row[x], UTF8)) for x in range(self.numfields))
 #
 class UnicodeWriter(object):
   """
@@ -1846,7 +1847,7 @@ class UnicodeWriter(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', **kwds):
+  def __init__(self, f, dialect=csv.excel, encoding=UTF8, **kwds):
     # Redirect output to a queue
     import cStringIO
     self.queue = cStringIO.StringIO()
@@ -1856,10 +1857,10 @@ class UnicodeWriter(object):
     self.encoder = codecs.getincrementalencoder(self.encoding)()
 
   def writerow(self, row):
-    self.writer.writerow([text_type(s).encode(u'utf-8') for s in row])
-    if self.encoding != u'utf-8':
+    self.writer.writerow([text_type(s).encode(UTF8) for s in row])
+    if self.encoding != UTF8:
       # Fetch UTF-8 output from the queue, reencode it into the target encoding and write to the target stream
-      self.stream.write(self.encoder.encode(self.queue.getvalue().decode(u'utf-8')))
+      self.stream.write(self.encoder.encode(self.queue.getvalue().decode(UTF8)))
     else:
       # Fetch UTF-8 output from the queue and write to the target stream
       self.stream.write(self.queue.getvalue())
@@ -1871,7 +1872,7 @@ class UnicodeWriter(object):
       self.writerow(row)
 #
 class UnicodeDictWriter(csv.DictWriter, object):
-  def __init__(self, f, fieldnames, dialect=u'nixstdout', encoding=u'utf-8', *args, **kwds):
+  def __init__(self, f, fieldnames, dialect=u'nixstdout', encoding=UTF8, *args, **kwds):
     super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=dialect, *args, **kwds)
     self.writer = UnicodeWriter(f, dialect, encoding, **kwds)
 
@@ -3537,7 +3538,7 @@ def getEntitiesFromFile(shlexSplit):
   entitySet = set()
   entityList = []
   f = openFile(filename)
-  uf = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
+  uf = UTF8Recoder(f, encoding) if encoding != UTF8 else f
   for row in uf:
     for item in splitEntityList(row.strip(), dataDelimiter, shlexSplit):
       item = item.strip()
@@ -4361,10 +4362,10 @@ def initializeLogging():
   logging.getLogger().addHandler(nh)
 
 def resetDefaultEncodingToUTF8():
-  if sys.getdefaultencoding().upper() != u'UTF-8':
+  if sys.getdefaultencoding().upper() != UTF8:
     reload(sys)
     if hasattr(sys, u'setdefaultencoding'):
-      sys.setdefaultencoding(u'UTF-8')
+      sys.setdefaultencoding(UTF8)
 
 def CSVFileQueueHandler(mpQueue):
   global Cmd
@@ -4690,7 +4691,7 @@ def doBatch(threadBatch=False):
       unknownArgumentExit()
   items = collections.deque()
   f = openFile(filename)
-  batchFile = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
+  batchFile = UTF8Recoder(f, encoding) if encoding != UTF8 else f
   errors = 0
   try:
     for line in batchFile:
@@ -15274,6 +15275,35 @@ def doPrintDomainSiteActivity():
   _printSiteActivity([GC.Values[GC.DOMAIN],], Ent.DOMAIN)
 
 # User commands utilities
+RT_PATTERN = re.compile(r'(?s){RT}.*?{(.+?)}.*?{/RT}')
+RT_OPEN_PATTERN = re.compile(r'{RT}')
+RT_CLOSE_PATTERN = re.compile(r'{/RT}')
+RT_STRIP_PATTERN = re.compile(r'(?s){RT}.*?{/RT}')
+RT_TAG_REPLACE_PATTERN = re.compile(r'{(.*?)}')
+
+def _processTags(tagReplacements, message):
+  while True:
+    match = RT_PATTERN.search(message)
+    if not match:
+      break
+    if tagReplacements.get(match.group(1)):
+      message = RT_OPEN_PATTERN.sub(u'', message, count=1)
+      message = RT_CLOSE_PATTERN.sub(u'', message, count=1)
+    else:
+      message = RT_STRIP_PATTERN.sub(u'', message, count=1)
+  while True:
+    match = RT_TAG_REPLACE_PATTERN.search(message)
+    if not match:
+      break
+    message = re.sub(match.group(0), tagReplacements.get(match.group(1), u''), message)
+  return message
+
+# Substitute for #user#, #email#, #usernamne#
+def _substituteForUser(field, user, userName):
+  if field.find(u'#') == -1:
+    return field
+  return field.replace(u'#user#', user).replace(u'#email#', user).replace(u'#username#', userName)
+
 UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP = {
   u'address': u'addresses',
   u'addresses': u'addresses',
@@ -15766,9 +15796,7 @@ def changeAdminStatus(cd, user, admin_body, i=0, count=0):
 
 def sendCreateUserNotification(notify, body):
   def _makeSubstitutions(field):
-    notify[field] = notify[field].replace(u'#user#', body[u'primaryEmail'])
-    notify[field] = notify[field].replace(u'#email#', body[u'primaryEmail'])
-    notify[field] = notify[field].replace(u'#username#', userName)
+    notify[field] = _substituteForUser(notify[field], body[u'primaryEmail'], userName)
     notify[field] = notify[field].replace(u'#domain#', domain)
     notify[field] = notify[field].replace(u'#givenname#', body[u'name'][u'givenName'])
     notify[field] = notify[field].replace(u'#familyname#', body[u'name'][u'familyName'])
@@ -21752,9 +21780,7 @@ def collectOrphans(users):
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                            q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-      trgtUserFolderName = targetUserFolderPattern.replace(u'#user#', user)
-      trgtUserFolderName = trgtUserFolderName.replace(u'#email#', user)
-      trgtUserFolderName = trgtUserFolderName.replace(u'#username#', userName)
+      trgtUserFolderName = _substituteForUser(targetUserFolderPattern, user, userName)
       orphanDriveFiles = [f_file for f_file in feed if not f_file.get(u'parents')]
       del feed
       jcount = len(orphanDriveFiles)
@@ -22048,9 +22074,7 @@ def transferDrive(users):
       printKeyValueList([u'Source drive size', formatFileSize(sourceDriveSize),
                          u'Target drive free', formatFileSize(targetDriveFree)])
       targetDriveFree = targetDriveFree - sourceDriveSize # prep targetDriveFree for next user
-      targetUserFolderName = targetUserFolderPattern.replace(u'#user#', sourceUser)
-      targetUserFolderName = targetUserFolderName.replace(u'#email#', sourceUser)
-      targetUserFolderName = targetUserFolderName.replace(u'#username#', sourceUserName)
+      targetUserFolderName = _substituteForUser(targetUserFolderPattern, sourceUser, sourceUserName)
       if not csvFormat:
         try:
           result = callGAPIpages(targetDrive.files(), u'list', VX_PAGES_FILES,
@@ -23363,9 +23387,7 @@ def updatePhoto(users):
   for user in users:
     i += 1
     user, userName, _ = splitEmailAddressOrUID(user)
-    filename = filenamePattern.replace(u'#user#', user)
-    filename = filename.replace(u'#email#', user)
-    filename = filename.replace(u'#username#', userName)
+    filename = _substituteForUser(filenamePattern, user, userName)
     if p.match(filename):
       try:
         status, image_data = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL]).request(filename, u'GET')
@@ -24315,6 +24337,53 @@ def printLabels(users):
 def showLabels(users):
   printShowLabels(users, False)
 
+def _initLabelNameMap(userGmailLabels):
+  baseLabelNameMap = {
+    u'INBOX': u'INBOX', u'SPAM': u'SPAM', u'TRASH': u'TRASH',
+    u'UNREAD': u'UNREAD', u'STARRED': u'STARRED', u'IMPORTANT': u'IMPORTANT',
+    u'SENT': u'SENT', u'DRAFT': u'DRAFT',
+    u'CATEGORY_PERSONAL': u'CATEGORY_PERSONAL',
+    u'CATEGORY_SOCIAL': u'CATEGORY_SOCIAL',
+    u'CATEGORY_PROMOTIONS': u'CATEGORY_PROMOTIONS',
+    u'CATEGORY_UPDATES': u'CATEGORY_UPDATES',
+    u'CATEGORY_FORUMS': u'CATEGORY_FORUMS',
+    }
+
+  labelNameMap = baseLabelNameMap.copy()
+  for label in userGmailLabels[u'labels']:
+    if label[u'type'] == u'system':
+      labelNameMap[label[u'id']] = label[u'id']
+    else:
+      labelNameMap[label[u'name']] = label[u'id']
+  return labelNameMap
+
+def _convertLabelNamesToIds(gmail, bodyLabels, labelNameMap, addLabelIfMissing):
+  labelIds = []
+  for label in bodyLabels:
+    if label.upper() in labelNameMap:
+      label = label.upper()
+    if label not in labelNameMap:
+      results = callGAPI(gmail.users().labels(), u'create',
+                         userId=u'me', body={u'labelListVisibility': u'labelShow', u'messageListVisibility': u'show', u'name': label}, fields=u'id')
+      labelNameMap[label] = results[u'id']
+    try:
+      labelIds.append(labelNameMap[label])
+    except KeyError:
+      pass
+    if addLabelIfMissing:
+      if label.find(u'/') != -1:
+        # make sure to create parent labels for proper nesting
+        parent_label = label[:label.rfind(u'/')]
+        while True:
+          if not parent_label in labelNameMap:
+            result = callGAPI(gmail.users().labels(), u'create',
+                              userId=u'me', body={u'name': parent_label}, fields=u'id')
+            labelNameMap[parent_label] = result[u'id']
+          if parent_label.find(u'/') == -1:
+            break
+          parent_label = parent_label[:parent_label.rfind(u'/')]
+  return labelIds
+
 # gam <UserTypeEntity> archive messages <GroupItem> (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_archive <Number>])|(ids <MessageIDEntity>)
 def archiveMessages(users):
   gm = buildGAPIObject(API.GROUPSMIGRATION)
@@ -24426,51 +24495,6 @@ def archiveMessages(users):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
 def _processMessagesThreads(users, entityType):
-  def _initLabelNameMap():
-    baseLabelNameMap = {
-      u'INBOX': u'INBOX', u'SPAM': u'SPAM', u'TRASH': u'TRASH',
-      u'UNREAD': u'UNREAD', u'STARRED': u'STARRED', u'IMPORTANT': u'IMPORTANT',
-      u'SENT': u'SENT', u'DRAFT': u'DRAFT',
-      u'CATEGORY_PERSONAL': u'CATEGORY_PERSONAL',
-      u'CATEGORY_SOCIAL': u'CATEGORY_SOCIAL',
-      u'CATEGORY_PROMOTIONS': u'CATEGORY_PROMOTIONS',
-      u'CATEGORY_UPDATES': u'CATEGORY_UPDATES',
-      u'CATEGORY_FORUMS': u'CATEGORY_FORUMS',
-      }
-
-    labelNameMap = baseLabelNameMap.copy()
-    for label in userGmailLabels[u'labels']:
-      if label[u'type'] == u'system':
-        labelNameMap[label[u'id']] = label[u'id']
-      else:
-        labelNameMap[label[u'name']] = label[u'id']
-    return labelNameMap
-
-  def _convertLabelNamesToIds(bodyLabels, labelNameMap, addLabelIfMissing):
-    labelIds = []
-    for label in bodyLabels:
-      if label not in labelNameMap:
-        results = callGAPI(gmail.users().labels(), u'create',
-                           userId=u'me', body={u'labelListVisibility': u'labelShow', u'messageListVisibility': u'show', u'name': label}, fields=u'id')
-        labelNameMap[label] = results[u'id']
-      try:
-        labelIds.append(labelNameMap[label])
-      except KeyError:
-        pass
-      if addLabelIfMissing:
-        if label.find(u'/') != -1:
-          # make sure to create parent labels for proper nesting
-          parent_label = label[:label.rfind(u'/')]
-          while True:
-            if not parent_label in labelNameMap:
-              result = callGAPI(gmail.users().labels(), u'create',
-                                userId=u'me', body={u'name': parent_label}, fields=u'id')
-              labelNameMap[parent_label] = result[u'id']
-            if parent_label.find(u'/') == -1:
-              break
-            parent_label = parent_label[:parent_label.rfind(u'/')]
-    return labelIds
-
   def _batchDeleteModifyMessages(gmail, function, user, jcount, messageIds, body):
     mcount = 0
     bcount = min(jcount-mcount, GC.Values[GC.MESSAGE_BATCH_SIZE])
@@ -24592,9 +24616,9 @@ def _processMessagesThreads(users, entityType):
         userGmailLabels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name,type)')
         if not userGmailLabels:
           continue
-        labelNameMap = _initLabelNameMap()
-        addLabelIds = _convertLabelNamesToIds(addLabelNames, labelNameMap, True)
-        removeLabelIds = _convertLabelNamesToIds(removeLabelNames, labelNameMap, False)
+        labelNameMap = _initLabelNameMap(userGmailLabels)
+        addLabelIds = _convertLabelNamesToIds(gmail, addLabelNames, labelNameMap, True)
+        removeLabelIds = _convertLabelNamesToIds(gmail, removeLabelNames, labelNameMap, False)
       if messageEntity is None:
         printGettingAllEntityItemsForWhom(Ent.MESSAGE, user, i, count)
         page_message = getPageMessage()
@@ -24747,6 +24771,240 @@ SMTP_HEADERS_MAP = {
   u'x400-trace': u'X400-Trace',
   }
 
+SMTP_ADDRESS_HEADERS = [
+  u'Bcc',
+  u'Cc',
+  u'Delivered-To',
+  u'From',
+  u'Reply-To',
+  u'Resent-Bcc',
+  u'Resent-Cc',
+  u'Resent-Reply-To',
+  u'Resent-Sender',
+  u'Resent-To',
+  u'Sender',
+  u'To',
+  ]
+
+SMTP_DATE_HEADERS = [
+  u'date',
+  u'delivery-date',
+  u'expires',
+  u'expiry-date',
+  u'latest-delivery-time',
+  u'reply-by',
+  u'resent-date',
+  ]
+
+SMTP_NAME_ADDRESS_PATTERN = re.compile(r'^(.+?)\s*<(.+)>$')
+
+def _importInsertMessage(users, importMsg):
+  from email import Charset
+  from email.generator import Generator
+  from email.header import Header
+  from email.mime.text import MIMEText
+  from email.mime.audio import MIMEAudio
+  from email.mime.base import MIMEBase
+  from email.mime.image import MIMEImage
+  from email.mime.multipart import MIMEMultipart
+  from email.utils import formatdate
+  from tempfile import TemporaryFile
+
+  def _appendToHeader(header, value):
+    try:
+      header.append(value)
+    except UnicodeDecodeError:
+      header.append(value, UTF8)
+
+  labelNameMap = {}
+  addLabelNames = []
+  msgHTML = msgText = u''
+  msgHeaders = {}
+  tagReplacements = {}
+  attachments = []
+  internalDateSource = u'receivedTime'
+  deleted = neverMarkSpam = processForCalendar = False
+  substituteForUserInHeaders = substituteForUserInReplace = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg in SMTP_HEADERS_MAP:
+      if myarg in SMTP_DATE_HEADERS:
+        msgDate, _, _ = getTimeOrDeltaFromNow(True)
+        msgHeaders[SMTP_HEADERS_MAP[myarg]] = formatdate(time.mktime(msgDate.timetuple()) + msgDate.microsecond / 1E6, True)
+        if myarg == u'date':
+          internalDateSource = u'dateHeader'
+      else:
+        value = getString(Cmd.OB_STRING)
+        if (value.find(u'#user#') >= 0) or (value.find(u'#email#') >= 0) or (value.find(u'#username#') >= 0):
+          substituteForUserInHeaders = True
+        msgHeaders[SMTP_HEADERS_MAP[myarg]] = value
+    elif myarg == u'header':
+      header = getString(Cmd.OB_STRING, minLen=1).lower()
+      value = getString(Cmd.OB_STRING)
+      if (value.find(u'#user#') >= 0) or (value.find(u'#email#') >= 0) or (value.find(u'#username#') >= 0):
+        substituteForUserInHeaders = True
+      msgHeaders[SMTP_HEADERS_MAP.get(header, header)] = value
+    elif myarg == u'textmessage':
+      msgText = getString(Cmd.OB_STRING)
+    elif myarg == u'textfile':
+      filename = getString(Cmd.OB_FILE_NAME)
+      encoding = getCharSet()
+      msgText = readFile(filename, encoding=encoding)
+    elif myarg == u'htmlmessage':
+      msgHTML = getString(Cmd.OB_STRING)
+    elif myarg == u'htmlfile':
+      filename = getString(Cmd.OB_FILE_NAME)
+      encoding = getCharSet()
+      msgHTML = readFile(filename, encoding=encoding)
+    elif myarg == u'replace':
+      matchTag = getString(Cmd.OB_TAG)
+      matchReplacement = getString(Cmd.OB_STRING, minLen=0)
+      tagReplacements[matchTag] = matchReplacement
+      if (matchReplacement.find(u'#user#') >= 0) or (matchReplacement.find(u'#email#') >= 0) or (matchReplacement.find(u'#username#') >= 0):
+        substituteForUserInReplace = True
+    elif myarg == u'addlabel':
+      addLabelNames.append(getString(Cmd.OB_LABEL_NAME, minLen=1))
+    elif myarg == u'attach':
+      attachments.append(getString(Cmd.OB_FILE_NAME, minLen=1))
+    elif myarg == u'deleted':
+      deleted = getBoolean(True)
+    elif importMsg and myarg == u'nevermarkspam':
+      neverMarkSpam = getBoolean(True)
+    elif importMsg and myarg == u'processforcalendar':
+      processForCalendar = getBoolean(True)
+    else:
+      unknownArgumentExit()
+  if not msgText and not msgHTML:
+    missingArgumentExit(u'textmessage|textfile|htmlmessage|htmlfile')
+  msgText = msgText.replace(u'\r', u'').replace(u'\\n', u'\n')
+  msgHTML = msgHTML.replace(u'\r', u'').replace(u'\\n', u'<br/>')
+  if u'To' not in msgHeaders:
+    msgHeaders[u'To'] = u'#user#'
+    substituteForUserInHeaders = True
+  if u'From' not in msgHeaders:
+    msgHeaders[u'From'] = _getValueFromOAuth(u'email')
+  kwargs = {u'internalDateSource': internalDateSource, u'deleted': deleted}
+  if importMsg:
+    function = u'import_'
+    kwargs.update({u'neverMarkSpam': neverMarkSpam, u'processForCalendar': processForCalendar})
+  else:
+    function = u'insert'
+  Charset.add_charset(UTF8, Charset.QP, Charset.QP, UTF8)
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, gmail = buildGAPIServiceObject(API.GMAIL, user)
+    if not gmail:
+      continue
+    userName, _ = splitEmailAddress(user)
+    tmpText = msgText[:]
+    tmpHTML = msgHTML[:]
+    if tagReplacements:
+      if not substituteForUserInReplace:
+        tmpText = _processTags(tagReplacements, tmpText)
+        tmpHTML = _processTags(tagReplacements, tmpHTML)
+      else:
+        tmpReplacements = tagReplacements.copy()
+        for tag in tmpReplacements:
+          tmpReplacements[tag] = _substituteForUser(tmpReplacements[tag], user, userName)
+        tmpText = _processTags(tmpReplacements, tmpText)
+        tmpHTML = _processTags(tmpReplacements, tmpHTML)
+    if attachments:
+      if tmpText and tmpHTML:
+        message = MIMEMultipart(u'alternative')
+        textpart = MIMEText(tmpText, u'plain', UTF8)
+        message.attach(textpart)
+        htmlpart = MIMEText(tmpHTML, u'html', UTF8)
+        message.attach(htmlpart)
+      elif tmpHTML:
+        message = MIMEMultipart()
+        htmlpart = MIMEText(tmpHTML, u'html', UTF8)
+        message.attach(htmlpart)
+      else:
+        message = MIMEMultipart()
+        textpart = MIMEText(tmpText, u'plain', UTF8)
+        message.attach(textpart)
+      for attachFilename in attachments:
+        try:
+          attachFd = openFile(attachFilename, u'rb')
+          attachContentType, attachEncoding = mimetypes.guess_type(attachFilename)
+          if attachContentType is None or attachEncoding is not None:
+            attachContentType = u'application/octet-stream'
+          main_type, sub_type = attachContentType.split('/', 1)
+          if main_type == u'text':
+            msg = MIMEText(attachFd.read(), _subtype=sub_type)
+          elif main_type == u'image':
+            msg = MIMEImage(attachFd.read(), _subtype=sub_type)
+          elif main_type == u'audio':
+            msg = MIMEAudio(attachFd.read(), _subtype=sub_type)
+          else:
+            msg = MIMEBase(main_type, sub_type)
+            msg.set_payload(attachFd.read())
+          attachFd.close()
+          msg.add_header(u'Content-Disposition', u'attachment', filename=attachFilename)
+          message.attach(msg)
+        except IOError as e:
+          usageErrorExit(u'{0}: {1}'.format(attachFilename, str(e)))
+    else:
+      if tmpText and tmpHTML:
+        message = MIMEMultipart(u'alternative')
+        textpart = MIMEText(tmpText, u'plain', UTF8)
+        message.attach(textpart)
+        htmlpart = MIMEText(tmpHTML, u'html', UTF8)
+        message.attach(htmlpart)
+      elif tmpHTML:
+        message = MIMEText(tmpHTML, u'html', UTF8)
+      else:
+        message = MIMEText(tmpText, u'plain', UTF8)
+    for header, value in iteritems(msgHeaders):
+      if substituteForUserInHeaders:
+        value = _substituteForUser(value, user, userName)
+      message[header] = Header()
+      if header in SMTP_ADDRESS_HEADERS:
+        match = SMTP_NAME_ADDRESS_PATTERN.match(value.strip())
+        if match:
+          _appendToHeader(message[header], match.group(1))
+          _appendToHeader(message[header], match.group(2))
+        else:
+          _appendToHeader(message[header], value)
+      else:
+        _appendToHeader(message[header], value)
+    tmpFile = TemporaryFile()
+    g = Generator(tmpFile, False)
+    g.flatten(message)
+    tmpFile.seek(0)
+    body = {u'raw': base64.urlsafe_b64encode(tmpFile.read())}
+    tmpFile.close()
+    try:
+      if addLabelNames:
+        userGmailLabels = _getUserGmailLabels(gmail, user, i, count, fields=u'labels(id,name,type)')
+        if not userGmailLabels:
+          continue
+        labelNameMap = _initLabelNameMap(userGmailLabels)
+        body[u'labelIds'] = _convertLabelNamesToIds(gmail, addLabelNames, labelNameMap, True)
+      else:
+        body[u'labelIds'] = [u'INBOX',]
+      result = callGAPI(gmail.users().messages(), function,
+                        throw_reasons=GAPI.GMAIL_THROW_REASONS,
+                        userId=u'me', body=body, **kwargs)
+      entityActionPerformed([Ent.USER, user, Ent.MESSAGE, result[u'id']], i, count)
+    except (GAPI.serviceNotAvailable, GAPI.badRequest):
+      entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+
+# gam <UserTypeEntity> import message (<SMTPDateHeader> <Time>)* (<SMTPHeader> <String>)* (header <String> <String>)* (addlabel <LabelName>)*
+#	(textmessage <String>)|(textfile <FileName> [charset <CharSet>]) (htmlmessage <String>)|(htmlfile <FileName> [charset <CharSet>])
+#	(replace <Tag> <String>)* (attach <FileName>)*
+#	[deleted [<Boolean>]] [nevermarkspam [<Boolean>]] [processforcalendar [<Boolean>]]
+def importMessage(users):
+  _importInsertMessage(users, True)
+
+# gam <UserTypeEntity> insert message (<SMTPDateHeader> <Time>)* (<SMTPHeader> <String>)* (header <String> <String>)* (addlabel <LabelName>)*
+#	(textmessage <String>)|(textfile <FileName> [charset <CharSet>]) (htmlmessage <String>)|(htmlfile <FileName> [charset <CharSet>])
+#	(replace <Tag> <String>)* (attach <FileName>)*
+#	[deleted [<Boolean>]]
+def insertMessage(users):
+  _importInsertMessage(users, False)
+
 def _printShowMessagesThreads(users, entityType, csvFormat):
 
   _GMAIL_ERROR_REASON_TO_MESSAGE_MAP = {GAPI.NOT_FOUND: Msg.DOES_NOT_EXIST, GAPI.INVALID_MESSAGE_ID: Msg.INVALID_MESSAGE_ID}
@@ -24765,12 +25023,12 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
 
   def _decodeHeader(header):
     from email.header import decode_header
-    header = header.encode(u'utf-8', u'replace').decode(u'utf-8')
+    header = header.encode(UTF8, u'replace').decode(UTF8)
     while True:
       mg = HEADER_ENCODE_PATTERN.search(header)
       if not mg:
         return header
-      header = header[:mg.start()]+decode_header(mg.group())[0][0].decode(mg.group(1)).encode('utf8')+header[mg.end():]
+      header = header[:mg.start()]+decode_header(mg.group())[0][0].decode(mg.group(1)).encode(UTF8)+header[mg.end():]
 
   def _getBodyData(payload, getOrigMsg):
     data = headers = u''
@@ -24845,7 +25103,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       printKeyValueList([u'SizeEstimate', result[u'sizeEstimate']])
     if show_labels:
       messageLabels = []
-      for labelId in result[u'labelIds']:
+      for labelId in result.get(u'labelIds', []):
         for label in labels[u'labels']:
           if label[u'id'] == labelId:
             messageLabels.append(label[u'name'])
@@ -25106,22 +25364,22 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     writeCSVfile(csvRows, titles, u'Messages', todrive)
 
 # gam <UserTypeEntity> print message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
+#	[headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 def printMessages(users):
   _printShowMessagesThreads(users, Ent.MESSAGE, True)
 
 # gam <UserTypeEntity> print thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>)
-#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
+#	[headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <String>] [todrive [<ToDriveAttributes>]]
 def printThreads(users):
   _printShowMessagesThreads(users, Ent.THREAD, True)
 
 # gam <UserTypeEntity> show message|messages (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
+#	[headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
 def showMessages(users):
   _printShowMessagesThreads(users, Ent.MESSAGE, False)
 
 # gam <UserTypeEntity> show thread|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show <Number>] [includespamtrash])|(ids <ThreadIDEntity>)
-#	[headers <String>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
+#	[headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
 def showThreads(users):
   _printShowMessagesThreads(users, Ent.THREAD, False)
 
@@ -26115,29 +26373,6 @@ def _showSendAs(result, j, jcount, formatSig):
       signature = u'None'
     printKeyValueList([u'Signature', convertCRsNLs(signature)])
   Ind.Decrement()
-
-RT_PATTERN = re.compile(r'(?s){RT}.*?{(.+?)}.*?{/RT}')
-RT_OPEN_PATTERN = re.compile(r'{RT}')
-RT_CLOSE_PATTERN = re.compile(r'{/RT}')
-RT_STRIP_PATTERN = re.compile(r'(?s){RT}.*?{/RT}')
-RT_TAG_REPLACE_PATTERN = re.compile(r'{(.*?)}')
-
-def _processTags(tagReplacements, message):
-  while True:
-    match = RT_PATTERN.search(message)
-    if not match:
-      break
-    if tagReplacements.get(match.group(1)):
-      message = RT_OPEN_PATTERN.sub(u'', message, count=1)
-      message = RT_CLOSE_PATTERN.sub(u'', message, count=1)
-    else:
-      message = RT_STRIP_PATTERN.sub(u'', message, count=1)
-  while True:
-    match = RT_TAG_REPLACE_PATTERN.search(message)
-    if not match:
-      break
-    message = re.sub(match.group(0), tagReplacements.get(match.group(1), u''), message)
-  return message
 
 def _processSignature(tagReplacements, signature, html):
   if signature:
@@ -27839,9 +28074,11 @@ USER_COMMANDS_WITH_OBJECTS = {
     {CMD_ACTION: Act.IMPORT,
      CMD_FUNCTION:
        {Cmd.ARG_EVENT:		importCalendarEvent,
+        Cmd.ARG_MESSAGE:	importMessage,
        },
      CMD_OBJ_ALIASES:
        {Cmd.ARG_EVENTS:		Cmd.ARG_EVENT,
+        Cmd.ARG_MESSAGES:	Cmd.ARG_MESSAGE,
        },
     },
   u'info':
@@ -27870,6 +28107,15 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
         Cmd.ARG_USER:		Cmd.ARG_USERS,
+       },
+    },
+  u'insert':
+    {CMD_ACTION: Act.INSERT,
+     CMD_FUNCTION:
+       {Cmd.ARG_MESSAGE:	insertMessage,
+       },
+     CMD_OBJ_ALIASES:
+       {Cmd.ARG_MESSAGES:	Cmd.ARG_MESSAGE,
        },
     },
   u'modify':
