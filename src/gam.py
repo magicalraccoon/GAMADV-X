@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.04'
+__version__ = u'4.48.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -28587,33 +28587,6 @@ def doLoop():
 #
 if sys.platform.startswith('win'):
   from multiprocessing import freeze_support
-  try:
-    import multiprocessing.popen_spawn_win32 as forking
-  except ImportError:
-    import multiprocessing.forking as forking
-
-  # First define a modified version of Popen.
-  class _Popen(forking.Popen):
-    def __init__(self, *args, **kw):
-      if hasattr(sys, 'frozen'):
-        # We have to set original _MEIPASS2 value from sys._MEIPASS
-        # to get --onefile mode working.
-        os.putenv('_MEIPASS2', sys._MEIPASS)
-      try:
-        super(_Popen, self).__init__(*args, **kw)
-      finally:
-        if hasattr(sys, 'frozen'):
-          # On some platforms (e.g. AIX) 'os.unsetenv()' is not
-          # available. In those cases we cannot delete the variable
-          # but only set it to the empty string. The bootloader
-          # can handle this case.
-          if hasattr(os, 'unsetenv'):
-            os.unsetenv('_MEIPASS2')
-          else:
-            os.putenv('_MEIPASS2', '')
-
-  # Second override 'Popen' class with our modified version.
-  forking.Popen = _Popen
 
   def win32_unicode_argv():
     from ctypes import POINTER, byref, cdll, c_int, windll
