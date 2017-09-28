@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.05'
+__version__ = u'4.48.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4102,7 +4102,7 @@ def sortCSVTitles(firstTitle, titles):
   for title in restoreTitles[::-1]:
     titles[u'list'].insert(0, title)
 
-def writeCSVfile(csvRows, titles, list_type, todrive):
+def writeCSVfile(csvRows, titles, list_type, todrive, quotechar='"'):
 
   def writeCSVData(writer):
     try:
@@ -4118,7 +4118,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     csvFile = StringIOobject()
     writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
                                dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
-                               quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+                               quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
     if writeCSVData(writer):
       try:
         GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD].write(csvFile.getvalue())
@@ -4132,7 +4132,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     if csvFile:
       writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
                                  dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
-                                 quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+                                 quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
       writeCSVData(writer)
       closeFile(csvFile)
 
@@ -4140,7 +4140,7 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
     csvFile = StringIOobject()
     writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
                             dialect=u'nixstdout',
-                            quoting=csv.QUOTE_MINIMAL, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
+                            quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER]))
     if writeCSVData(writer):
       if GC.Values[GC.TODRIVE_CONVERSION]:
         columns = len(titles[u'list'])
@@ -6626,7 +6626,11 @@ def doUpdateCustomer():
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
 
-SERVICE_NAME_TO_ID_MAP = {u'Drive and Docs': u'55656082996', u'Google+': u'553547912911',}
+SERVICE_NAME_TO_ID_MAP = {
+  u'Drive and Docs': u'55656082996',
+  u'Google+': u'553547912911',
+  u'Calendar': u'435070579839'
+  }
 
 def appID2app(dt, appID):
   for serviceName, serviceID in iteritems(SERVICE_NAME_TO_ID_MAP):
@@ -6648,6 +6652,7 @@ SERVICE_NAME_CHOICE_MAP = {
   u'drive and docs': u'Drive and Docs',
   u'googledrive': u'Drive and Docs',
   u'gdrive': u'Drive and Docs',
+  u'calendar': u'Calendar',
   }
 
 def getService(dt):
