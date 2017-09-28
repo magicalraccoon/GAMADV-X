@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.06'
+__version__ = u'4.48.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6699,9 +6699,9 @@ def doCreateDataTransfer():
     else:
       parameters[myarg.upper()] = getString(Cmd.OB_PARAMETER_VALUE).upper().split(u',')
   body[u'applicationDataTransfers'] = [{u'applicationId': serviceID}]
-  for key in parameters:
+  for key, value in iteritems(parameters):
     body[u'applicationDataTransfers'][0].setdefault(u'applicationTransferParams', [])
-    body[u'applicationDataTransfers'][0][u'applicationTransferParams'].append({u'key': key, u'value': parameters[key]})
+    body[u'applicationDataTransfers'][0][u'applicationTransferParams'].append({u'key': key, u'value': value})
   result = callGAPI(dt.transfers(), u'insert',
                     body=body, fields=u'id')
   entityActionPerformed([Ent.TRANSFER_REQUEST, None])
@@ -16194,7 +16194,7 @@ USER_TIME_OBJECTS = [u'creationTime', u'deletionTime', u'lastLoginTime']
 def infoUsers(entityList):
   from gamlib import gluprop as UProp
 
-  def _showType(up, row, typeKey, typeCustomValue, customTypeKey):
+  def _showType(row, typeKey, typeCustomValue, customTypeKey):
     if typeKey in row:
       if row[typeKey] != typeCustomValue or not row.get(customTypeKey):
         printKeyValueList([typeKey, row[typeKey]])
@@ -16330,7 +16330,7 @@ def infoUsers(entityList):
             Ind.Increment()
             if isinstance(propertyValue, list):
               for row in propertyValue:
-                _showType(up, row, typeKey, typeCustomValue, customTypeKey)
+                _showType(row, typeKey, typeCustomValue, customTypeKey)
                 Ind.Increment()
                 for key in row:
                   if key in [typeKey, customTypeKey]:
@@ -16346,7 +16346,7 @@ def infoUsers(entityList):
             Ind.Increment()
             if isinstance(propertyValue, list):
               for row in propertyValue:
-                _showType(up, row, typeKey, typeCustomValue, customTypeKey)
+                _showType(row, typeKey, typeCustomValue, customTypeKey)
                 Ind.Increment()
                 for key in USER_ADDRESSES_PROPERTY_PRINT_ORDER:
                   if key in row:
@@ -16369,7 +16369,7 @@ def infoUsers(entityList):
                   needTitle = False
                   printKeyValueList([propertyTitle, None])
                   Ind.Increment()
-                if not _showType(up, row, typeKey, typeCustomValue, customTypeKey):
+                if not _showType(row, typeKey, typeCustomValue, customTypeKey):
                   if not getAliases:
                     continue
                   printKeyValueList([typeKey, u'alias'])
@@ -16392,9 +16392,9 @@ def infoUsers(entityList):
               protocolCustomValue = UProp.IM_PROTOCOLS[UProp.PTKW_ATTR_TYPE_CUSTOM_VALUE]
               customProtocolKey = UProp.IM_PROTOCOLS[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]
               for row in propertyValue:
-                _showType(up, row, typeKey, typeCustomValue, customTypeKey)
+                _showType(row, typeKey, typeCustomValue, customTypeKey)
                 Ind.Increment()
-                _showType(up, row, protocolKey, protocolCustomValue, customProtocolKey)
+                _showType(row, protocolKey, protocolCustomValue, customProtocolKey)
                 for key in row:
                   if key in [typeKey, customTypeKey, protocolKey, customProtocolKey]:
                     continue
@@ -16425,7 +16425,7 @@ def infoUsers(entityList):
             Ind.Increment()
             if isinstance(propertyValue, list):
               for row in propertyValue:
-                _showType(up, row, typeKey, typeCustomValue, customTypeKey)
+                _showType(row, typeKey, typeCustomValue, customTypeKey)
                 Ind.Increment()
                 for key in USER_LOCATIONS_PROPERTY_PRINT_ORDER:
                   if key in row:
@@ -16483,7 +16483,7 @@ def infoUsers(entityList):
                 printKeyValueList([field])
                 Ind.Increment()
                 for an_item in propertyValue[schema][field]:
-                  _showType(up, an_item, typeKey, typeCustomValue, customTypeKey)
+                  _showType(an_item, typeKey, typeCustomValue, customTypeKey)
                   Ind.Increment()
                   printKeyValueList([u'value', an_item[u'value']])
                   Ind.Decrement()
@@ -26555,6 +26555,313 @@ def printSendAs(users):
 def showSendAs(users):
   _printShowSendAs(users, False)
 
+SHEET_VALUE_INPUT_OPTIONS_MAP = {
+  u'raw': u'RAW',
+  u'userentered': u'USER_ENTERED',
+  }
+SHEET_DIMENSIONS_MAP = {
+  u'rows': u'ROWS',
+  u'columns': u'COLUMNS',
+  }
+SHEET_VALUE_RENDER_OPTIONS_MAP = {
+  u'formula': u'FORMULA',
+  u'formattedvalue': u'FORMATTED_VALUE',
+  u'unformattedvalue': u'UNFORMATTED_VALUE',
+  }
+SHEET_DATETIME_RENDER_OPTIONS_MAP = {
+  u'serialnumber': u'SERIAL_NUMBER',
+  u'formattedstring': u'FORMATTED_STRING',
+  }
+SHEET_INSERT_DATA_OPTIONS_MAP = {
+  u'overwrite': u'OVERWRITE',
+  u'insertrows': u'INSERT_ROWS',
+  }
+
+def _validateUserGetSheetIDs(user, i, count, fileIdEntity, showEntityType):
+  user, _, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.SPREADSHEET if showEntityType else None)
+  if jcount == 0:
+    return (user, None, 0)
+  user, sheet = buildGAPIServiceObject(API.SHEETS, user)
+  if not sheet:
+    return (user, None, 0)
+  return (user, sheet, jcount)
+
+def _getSpreadsheetRangesValues(append):
+  spreadsheetRangesValues = {}
+  kwargs = {
+    u'valueInputOption': u'USER_ENTERED',
+    u'includeValuesInResponse': False,
+    u'responseValueRenderOption': u'FORMATTED_VALUE',
+    u'responseDateTimeRenderOption': u'FORMATTED_STRING',
+    }
+  if append:
+    kwargs[u'insertDataOption'] = u'INSERT_ROWS'
+  majorDimension = u'ROWS'
+  formatJSON = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'range':
+      if append and spreadsheetRangesValues:
+        usageErrorExit(u'Only one range may be specified')
+      spreadsheetRange = getString(Cmd.OB_SPREAD_SHEET_RANGE)
+      spreadsheetValues = getString(Cmd.OB_SPREAD_SHEET_VALUES)
+      try:
+        spreadsheetRangesValues[spreadsheetRange] = json.loads(spreadsheetValues)
+      except (ValueError, IndexError, KeyError, SyntaxError) as e:
+        Cmd.Backup()
+        usageErrorExit(u'{0}: {1}'.format(str(e), spreadsheetValues))
+    elif myarg in SHEET_VALUE_INPUT_OPTIONS_MAP:
+      kwargs[u'valueInputOption'] = SHEET_VALUE_INPUT_OPTIONS_MAP[myarg]
+    elif myarg == u'includevaluesinresponse':
+      kwargs[u'includeValuesInResponse'] = getBoolean(True)
+    elif myarg in SHEET_DIMENSIONS_MAP:
+      majorDimension = SHEET_DIMENSIONS_MAP[myarg]
+    elif myarg in SHEET_VALUE_RENDER_OPTIONS_MAP:
+      kwargs[u'responseValueRenderOption'] = SHEET_VALUE_RENDER_OPTIONS_MAP[myarg]
+    elif myarg in SHEET_DATETIME_RENDER_OPTIONS_MAP:
+      kwargs[u'responseDateTimeRenderOption'] = SHEET_DATETIME_RENDER_OPTIONS_MAP[myarg]
+    elif append and myarg in SHEET_INSERT_DATA_OPTIONS_MAP:
+      kwargs[u'insertDataOption'] = SHEET_INSERT_DATA_OPTIONS_MAP[myarg]
+    elif myarg == "formatjson":
+      formatJSON = True
+    else:
+      unknownArgumentExit()
+  return (kwargs, spreadsheetRangesValues, majorDimension, formatJSON)
+
+def _showValueRange(valueRange):
+  Ind.Increment()
+  printKeyValueList([u'majorDimension', valueRange[u'majorDimension']])
+  printKeyValueList([u'range', valueRange[u'range']])
+  printKeyValueList([u'value', u'{{"values": {0}}}'.format(json.dumps(valueRange.get(u'values', []), ensure_ascii=False, sort_keys=False))])
+  Ind.Decrement()
+
+def _showUpdateValuesResponse(result, k, kcount):
+  printKeyValueListWithCount([u'range', result[u'updatedData'][u'range']], k, kcount)
+  Ind.Increment()
+  for field in [u'updatedRows', u'updatedColumns', u'updatedCells']:
+    printKeyValueList([field, result[field]])
+  printKeyValueList([u'updatedData', u''])
+  _showValueRange(result[u'updatedData'])
+  Ind.Decrement()
+
+# gam <UserTypeEntity> append sheetrange <DriveFileEntity> (range <SpreadsheetRange> <SpreadsheetValues>) [overwrite|insertrows]
+#	[raw|userentered] [rows|columns] [serialnumber|formattedstring] [formula|formattedvalue|unformattedvalue]
+#	[includevaluesinresponse [<Boolean>]]
+def appendSheetRanges(users):
+  spreadsheetIdEntity = getDriveFileEntity()
+  kwargs, spreadsheetRangesValues, majorDimension, formatJSON = _getSpreadsheetRangesValues(True)
+  spreadsheetRanges = list(spreadsheetRangesValues)
+  kcount = len(spreadsheetRanges)
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, sheet, jcount = _validateUserGetSheetIDs(user, i, count, spreadsheetIdEntity, not formatJSON)
+    if jcount == 0:
+      continue
+    Ind.Increment()
+    j = 0
+    for spreadsheetId in spreadsheetIdEntity[u'list']:
+      j += 1
+      if not formatJSON:
+        entityPerformActionNumItems([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], kcount, Ent.SPREADSHEET_RANGE, j, jcount)
+      Ind.Increment()
+      k = 0
+      for spreadsheetRange in spreadsheetRanges:
+        body = {u'range': spreadsheetRange, u'majorDimension': majorDimension, u'values': spreadsheetRangesValues[spreadsheetRange][u'values']}
+        k += 1
+        try:
+          result = callGAPI(sheet.spreadsheets().values(), u'append',
+                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+GAPI.SHEETS_ACCESS_THROW_REASONS,
+                            spreadsheetId=spreadsheetId, range=spreadsheetRange, body=body, **kwargs)
+          if formatJSON:
+            result.update({u'User': user, u'spreadsheetId': spreadsheetId})
+            printLine(json.dumps(result, ensure_ascii=False, sort_keys=False))
+            continue
+          _showUpdateValuesResponse(result[u'updates'], k, kcount)
+        except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
+          entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], str(e), j, jcount)
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+      Ind.Decrement()
+    Ind.Decrement()
+
+# gam <UserTypeEntity> update sheetrange <DriveFileEntity> (range <SpreadsheetRange> <SpreadsheetValues>)*
+#	[raw|userentered] [rows|columns] [serialnumber|formattedstring] [formula|formattedvalue|unformattedvalue]
+#	[includevaluesinresponse [<Boolean>]]
+def updateSheetRanges(users):
+  spreadsheetIdEntity = getDriveFileEntity()
+  body, spreadsheetRangesValues, majorDimension, formatJSON = _getSpreadsheetRangesValues(False)
+  spreadsheetRanges = list(spreadsheetRangesValues)
+  kcount = len(spreadsheetRanges)
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, sheet, jcount = _validateUserGetSheetIDs(user, i, count, spreadsheetIdEntity, not formatJSON)
+    if jcount == 0:
+      continue
+    Ind.Increment()
+    j = 0
+    for spreadsheetId in spreadsheetIdEntity[u'list']:
+      j += 1
+      if not formatJSON:
+        entityPerformActionNumItems([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], kcount, Ent.SPREADSHEET_RANGE, j, jcount)
+      Ind.Increment()
+      body[u'data'] = [{u'range': spreadsheetRange, u'majorDimension': majorDimension, u'values': spreadsheetRangesValues[spreadsheetRange][u'values']} for spreadsheetRange in spreadsheetRanges]
+      try:
+        result = callGAPI(sheet.spreadsheets().values(), u'batchUpdate',
+                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+GAPI.SHEETS_ACCESS_THROW_REASONS,
+                          spreadsheetId=spreadsheetId, body=body)
+        if formatJSON:
+          result.update({u'User': user, u'spreadsheetId': spreadsheetId})
+          printLine(json.dumps(result, ensure_ascii=False, sort_keys=False))
+          continue
+        for field in [u'totalUpdatedRows', u'totalUpdatedColumns', u'totalUpdatedCells', u'totalUpdatedSheets']:
+          printKeyValueList([field, result[field]])
+        k = 0
+        for response in result.get(u'responses', []):
+          k += 1
+          _showUpdateValuesResponse(response, k, kcount)
+      except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
+        entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], str(e), j, jcount)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        break
+      Ind.Decrement()
+    Ind.Decrement()
+
+# gam <UserTypeEntity> clear sheetrange <DriveFileEntity> (range <SpreadsheetRange>)*
+def clearSheetRanges(users):
+  spreadsheetIdEntity = getDriveFileEntity()
+  body = {u'ranges': []}
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'range':
+      body[u'ranges'].append(getString(Cmd.OB_SPREAD_SHEET_RANGE))
+    else:
+      unknownArgumentExit()
+  kcount = len(body[u'ranges'])
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, sheet, jcount = _validateUserGetSheetIDs(user, i, count, spreadsheetIdEntity, True)
+    if jcount == 0:
+      continue
+    Ind.Increment()
+    j = 0
+    for spreadsheetId in spreadsheetIdEntity[u'list']:
+      j += 1
+      entityPerformActionNumItems([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], kcount, Ent.SPREADSHEET_RANGE, j, jcount)
+      Ind.Increment()
+      try:
+        result = callGAPIitems(sheet.spreadsheets().values(), u'batchClear', u'clearedRanges',
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+GAPI.SHEETS_ACCESS_THROW_REASONS,
+                               spreadsheetId=spreadsheetId, body=body)
+        k = 0
+        for clearedRange in result:
+          k += 1
+          printKeyValueListWithCount([u'range', clearedRange], k, kcount)
+      except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
+        entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], str(e), j, jcount)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        break
+      Ind.Decrement()
+    Ind.Decrement()
+
+PRINT_SHEETS_TITLES = [u'User', u'spreadsheetId', u'range', u'majorDimension', u'values']
+PRINT_SHEETS_JSON_TITLES = [u'User', u'spreadsheetId', u'JSON']
+
+def _printShowSheetRanges(users, csvFormat):
+  if csvFormat:
+    todrive = {}
+    titles, csvRows = initializeTitlesCSVfile(PRINT_SHEETS_TITLES)
+  spreadsheetIdEntity = getDriveFileEntity()
+  spreadsheetRanges = []
+  kwargs = {
+    u'majorDimension': u'ROWS',
+    u'valueRenderOption': u'FORMATTED_VALUE',
+    u'dateTimeRenderOption': u'FORMATTED_STRING',
+    }
+  formatJSON = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if csvFormat and myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif myarg == u'range':
+      spreadsheetRanges.append(getString(Cmd.OB_SPREAD_SHEET_RANGE))
+    elif myarg in SHEET_DIMENSIONS_MAP:
+      kwargs[u'majorDimension'] = SHEET_DIMENSIONS_MAP[myarg]
+    elif myarg in SHEET_VALUE_RENDER_OPTIONS_MAP:
+      kwargs[u'valueRenderOption'] = SHEET_VALUE_RENDER_OPTIONS_MAP[myarg]
+    elif myarg in SHEET_DATETIME_RENDER_OPTIONS_MAP:
+      kwargs[u'dateTimeRenderOption'] = SHEET_DATETIME_RENDER_OPTIONS_MAP[myarg]
+    elif myarg == "formatjson":
+      formatJSON = True
+      if csvFormat:
+        titles, csvRows = initializeTitlesCSVfile(PRINT_SHEETS_JSON_TITLES)
+    else:
+      unknownArgumentExit()
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, sheet, jcount = _validateUserGetSheetIDs(user, i, count, spreadsheetIdEntity, not csvFormat and not formatJSON)
+    if jcount == 0:
+      continue
+    Ind.Increment()
+    j = 0
+    for spreadsheetId in spreadsheetIdEntity[u'list']:
+      j += 1
+      try:
+        result = callGAPIitems(sheet.spreadsheets().values(), u'batchGet', u'valueRanges',
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+GAPI.SHEETS_ACCESS_THROW_REASONS,
+                               spreadsheetId=spreadsheetId, ranges=spreadsheetRanges, **kwargs)
+        kcount = len(result)
+        if not csvFormat:
+          if formatJSON:
+            for valueRange in result:
+              valueRange.update({u'User': user, u'spreadsheetId': spreadsheetId})
+              printLine(json.dumps(valueRange, ensure_ascii=False, sort_keys=False))
+            continue
+          entityPerformActionNumItems([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], kcount, Ent.SPREADSHEET_RANGE, j, jcount)
+          Ind.Increment()
+          k = 0
+          for valueRange in result:
+            k += 1
+            printKeyValueListWithCount([u'range', valueRange[u'range']], k, kcount)
+            _showValueRange(valueRange)
+          Ind.Decrement()
+        elif result:
+          if formatJSON:
+            csvRows.append({u'User': user, u'spreadsheetId': spreadsheetId, u'JSON': json.dumps(result, ensure_ascii=False, sort_keys=False)})
+          else:
+            addRowTitlesToCSVfile(flattenJSON(result, flattened={u'User': user, u'spreadsheetId': spreadsheetId}), csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'User': user})
+      except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
+        entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], str(e), j, jcount)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        break
+    Ind.Decrement()
+  if csvFormat:
+    if formatJSON:
+      sortCSVTitles(PRINT_SHEETS_JSON_TITLES, titles)
+      writeCSVfile(csvRows, titles, u'Spreadsheet', todrive, "'")
+    else:
+      sortCSVTitles(PRINT_SHEETS_TITLES, titles)
+      writeCSVfile(csvRows, titles, u'Spreadsheet', todrive)
+
+# gam <UserTypeEntity> print sheetrange <DriveFileEntity> (range <SpreadsheetRange>)*  [todrive [<ToDriveAttributes>]]
+#	[rows|columns] [serialnumber|formattedstring] [formula|formattedvalue|unformattedvalue]
+def printSheetRanges(users):
+  _printShowSheetRanges(users, True)
+
+# gam <UserTypeEntity> show sheetrange <DriveFileEntity> (range <SpreadsheetRange>)*
+#	[rows|columns] [serialnumber|formattedstring] [formula|formattedvalue|unformattedvalue]
+def showSheetRanges(users):
+  _printShowSheetRanges(users, False)
+
 # gam <UserTypeEntity> add smime file <FileName> [password <Password>] [sendas|sendasemail <EmailAddress>] [default]
 def addSmime(users):
   sendAsEmailBase = None
@@ -27937,6 +28244,15 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
        },
     },
+  u'append':
+    {CMD_ACTION: Act.APPEND,
+     CMD_FUNCTION:
+       {Cmd.ARG_SHEETRANGES:	appendSheetRanges,
+       },
+     CMD_OBJ_ALIASES:
+       {Cmd.ARG_SHEETRANGE:	Cmd.ARG_SHEETRANGES,
+       },
+    },
   u'archive':
     {CMD_ACTION: Act.ARCHIVE,
      CMD_FUNCTION:
@@ -27962,6 +28278,15 @@ USER_COMMANDS_WITH_OBJECTS = {
        },
      CMD_OBJ_ALIASES:
        {
+       },
+    },
+  u'clear':
+    {CMD_ACTION: Act.CLEAR,
+     CMD_FUNCTION:
+       {Cmd.ARG_SHEETRANGES:	clearSheetRanges,
+       },
+     CMD_OBJ_ALIASES:
+       {Cmd.ARG_SHEETRANGE:	Cmd.ARG_SHEETRANGES,
        },
     },
   u'collect':
@@ -28178,6 +28503,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_LABELS:		printLabels,
         Cmd.ARG_MESSAGES:	printMessages,
         Cmd.ARG_SENDAS:		printSendAs,
+        Cmd.ARG_SHEETRANGES:	printSheetRanges,
         Cmd.ARG_SMIMES:		printSmimes,
         Cmd.ARG_SITES:		printUserSites,
         Cmd.ARG_SITEACTIVITY:	printUserSiteActivity,
@@ -28200,6 +28526,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_FORWARDINGADDRESS:	Cmd.ARG_FORWARDINGADDRESSES,
         Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
+        Cmd.ARG_SHEETRANGE:	Cmd.ARG_SHEETRANGES,
         Cmd.ARG_SIG:		Cmd.ARG_SENDAS,
         Cmd.ARG_SIGNATURE:	Cmd.ARG_SENDAS,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
@@ -28251,6 +28578,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_POP:		showPop,
         Cmd.ARG_PROFILE:	showProfile,
         Cmd.ARG_SENDAS:		showSendAs,
+        Cmd.ARG_SHEETRANGES:	showSheetRanges,
         Cmd.ARG_SMIMES:		showSmimes,
         Cmd.ARG_SIGNATURE:	showSignature,
         Cmd.ARG_SITES:		showUserSites,
@@ -28279,6 +28607,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_POP3:		Cmd.ARG_POP,
         Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
         Cmd.ARG_MESSAGE:	Cmd.ARG_MESSAGES,
+        Cmd.ARG_SHEETRANGE:	Cmd.ARG_SHEETRANGES,
         Cmd.ARG_SIG:		Cmd.ARG_SIGNATURE,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
@@ -28380,6 +28709,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_LICENSE:	updateLicense,
         Cmd.ARG_PHOTO:		updatePhoto,
         Cmd.ARG_SENDAS:		updateSendAs,
+        Cmd.ARG_SHEETRANGES:	updateSheetRanges,
         Cmd.ARG_SMIME:		updateSmime,
         Cmd.ARG_SITES:		updateUserSites,
         Cmd.ARG_SITEACLS:	processUserSiteACLs,
@@ -28396,6 +28726,7 @@ USER_COMMANDS_WITH_OBJECTS = {
         Cmd.ARG_EVENT:		Cmd.ARG_EVENTS,
         Cmd.ARG_LABEL:		Cmd.ARG_LABELS,
         Cmd.ARG_LICENCE:	Cmd.ARG_LICENSE,
+        Cmd.ARG_SHEETRANGE:	Cmd.ARG_SHEETRANGES,
         Cmd.ARG_SITE:		Cmd.ARG_SITES,
         Cmd.ARG_SITEACL:	Cmd.ARG_SITEACLS,
         Cmd.ARG_USER:		Cmd.ARG_USERS,
