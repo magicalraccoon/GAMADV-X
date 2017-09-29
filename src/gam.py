@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.07'
+__version__ = u'4.48.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -26636,12 +26636,13 @@ def _showValueRange(valueRange):
   Ind.Decrement()
 
 def _showUpdateValuesResponse(result, k, kcount):
-  printKeyValueListWithCount([u'range', result[u'updatedData'][u'range']], k, kcount)
+  printKeyValueListWithCount([u'updatedRange', result[u'updatedRange']], k, kcount)
   Ind.Increment()
   for field in [u'updatedRows', u'updatedColumns', u'updatedCells']:
     printKeyValueList([field, result[field]])
-  printKeyValueList([u'updatedData', u''])
-  _showValueRange(result[u'updatedData'])
+  if u'updatedData' in result:
+    printKeyValueList([u'updatedData', u''])
+    _showValueRange(result[u'updatedData'])
   Ind.Decrement()
 
 # gam <UserTypeEntity> append sheetrange <DriveFileEntity> (range <SpreadsheetRange> <SpreadsheetValues>) [overwrite|insertrows]
