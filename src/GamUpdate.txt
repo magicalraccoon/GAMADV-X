@@ -1,3 +1,7 @@
+4.48.10
+
+Clean up gam import/insert message code.
+
 4.48.09
 
 Added formatjson to gam clear sheetrange.
