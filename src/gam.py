@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.16'
+__version__ = u'4.48.17'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -17363,7 +17363,16 @@ def doInfoCourses():
 def doInfoCourse():
   _doInfoCourses(getStringReturnInList(Cmd.OB_COURSE_ID))
 
-# gam print courses [todrive [<ToDriveAttributes>]] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>])
+def _getCourseStates(croom, courseStates):
+  validStates = [state.lower() for state in croom._rootDesc[u'schemas'][u'Course'][u'properties'][u'courseState'][u'enum'] if state != u'COURSE_STATE_UNSPECIFIED']
+  stateNameList = getString(Cmd.OB_COURSE_STATE_LIST).lower().replace(u',', u' ').split()
+  for state in stateNameList:
+    if state in validStates:
+      courseStates.append(state.upper())
+    else:
+      invalidChoiceExit(validStates, True)
+
+# gam print courses [todrive [<ToDriveAttributes>]] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>])
 #	[owneremail] [alias|aliases] [delimiter <Character>] [show none|all|students|teachers] [countsonly] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
 def doPrintCourses():
 
@@ -17403,6 +17412,7 @@ def doPrintCourses():
   courses = []
   teacherId = None
   studentId = None
+  courseStates = []
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -17414,6 +17424,8 @@ def doPrintCourses():
       teacherId = getEmailAddress()
     elif myarg == u'student':
       studentId = getEmailAddress()
+    elif myarg in [u'state', u'states', u'status']:
+      _getCourseStates(croom, courseStates)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     else:
@@ -17430,7 +17442,8 @@ def doPrintCourses():
       all_courses = callGAPIpages(croom.courses(), u'list', u'courses',
                                   page_message=page_message,
                                   throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
+                                  fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
     except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
       if (not studentId) and teacherId:
         entityUnknownWarning(Ent.TEACHER, teacherId)
@@ -17747,7 +17760,7 @@ def doCourseSyncParticipants(courseIdList, getEntityListArg):
       _batchAddParticipantsToCourse(croom, courseId, i, count, list(syncParticipantsSet-currentParticipantsSet), role)
       _batchRemoveParticipantsFromCourse(croom, courseId, i, count, list(currentParticipantsSet-syncParticipantsSet), role)
 
-# gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
+# gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>]) [show all|students|teachers]
 def doPrintCourseParticipants():
   croom = buildGAPIObject(API.CLASSROOM)
   todrive = {}
@@ -17755,6 +17768,7 @@ def doPrintCourseParticipants():
   courses = []
   teacherId = None
   studentId = None
+  courseStates = []
   showMembers = u'all'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -17766,6 +17780,8 @@ def doPrintCourseParticipants():
       teacherId = getEmailAddress()
     elif myarg == u'student':
       studentId = getEmailAddress()
+    elif myarg in [u'state', u'states', u'status']:
+      _getCourseStates(croom, courseStates)
     elif myarg == u'show':
       showMembers = getChoice([u'all', u'students', u'teachers'])
     else:
@@ -17777,7 +17793,8 @@ def doPrintCourseParticipants():
       all_courses = callGAPIpages(croom.courses(), u'list', u'courses',
                                   page_message=page_message,
                                   throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
+                                  fields=u'nextPageToken,courses(id,name)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
     except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
       if not studentId:
         entityUnknownWarning(Ent.TEACHER, teacherId)
@@ -17793,7 +17810,7 @@ def doPrintCourseParticipants():
       try:
         info = callGAPI(croom.courses(), u'get',
                         throw_reasons=[GAPI.NOT_FOUND],
-                        id=courseId)
+                        id=courseId, fields=u'id,name')
         all_courses.append(info)
       except GAPI.notFound:
         entityDoesNotExistWarning(Ent.COURSE, courseId)
