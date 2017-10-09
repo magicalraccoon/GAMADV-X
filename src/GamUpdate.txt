@@ -1,3 +1,7 @@
+4.48.22
+
+Correct processing of owneremail option in gam info/print courses.
+
 4.48.21
 
 Eliminate superfluous header `capabilities` in gam print filelist.
