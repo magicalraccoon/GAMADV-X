@@ -1,3 +1,7 @@
+4.48.21
+
+Eliminate superfluous header `capabilities` in gam print filelist.
+
 4.48.20
 
 Handle uncopyable files in gam copy drivefile.

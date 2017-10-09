@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.20'
+__version__ = u'4.48.21'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19843,14 +19843,14 @@ def _getDriveFileParentInfo(user, i, count, body, parameters, drive):
   return True
 
 DRIVEFILE_LABEL_CHOICE_MAP = {
-  u'restricted': u'restricted',
   u'restrict': u'restricted',
-  u'starred': u'starred',
+  u'restricted': u'restricted',
   u'star': u'starred',
-  u'trashed': u'trashed',
+  u'starred': u'starred',
   u'trash': u'trashed',
-  u'viewed': u'viewed',
+  u'trashed': u'trashed',
   u'view': u'viewed',
+  u'viewed': u'viewed',
   }
 
 MIMETYPE_CHOICE_MAP = {
@@ -21176,6 +21176,7 @@ def printFileList(users):
     addTitlesToCSVfile([u'paths',], titles)
   _mapDrive3TitlesToDrive2(titles[u'list'], API.DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP)
   titles[u'set'] = set(titles[u'list'])
+  removeTitlesFromCSVfile([u'capabilities',], titles)
   fileNameTitle = VX_FILENAME
   i, count, users = getEntityArgument(users)
   for user in users:
