@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.26'
+__version__ = u'4.48.27'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -427,6 +427,7 @@ def flushStdout():
     systemErrorExit(FILE_ERROR_RC, e)
 
 def writeStderr(data):
+  flushStdout()
   try:
     GM.Globals[GM.STDERR].get(GM.REDIRECT_MULTI_FD, sys.stderr).write(data)
   except IOError as e:
@@ -2561,7 +2562,6 @@ def checkGDataError(e, service):
 def waitOnFailure(n, retries, error_code, error_message):
   wait_on_fail = min(2 ** n, 60)+float(random.randint(1, 1000)) / 1000
   if n > 3:
-    flushStdout()
     writeStderr(u'Temporary error: {0} - {1}, Backing off: {2} seconds, Retry: {3}/{4}\n'.format(error_code, error_message, int(wait_on_fail), n, retries))
     flushStderr()
   time.sleep(wait_on_fail)
