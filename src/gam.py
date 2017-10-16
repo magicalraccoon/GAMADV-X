@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.28'
+__version__ = u'4.48.29'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21017,7 +21017,7 @@ FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 # gam <UserTypeEntity> print|show filelist [todrive [<ToDriveAttributes>]] [anyowner|(showownedby any|me|others)]
 #	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>]
-#	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [mimetype [not] <MimeTypeList>] [depth <Number>]
+#	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [mimetype [not] <MimeTypeList>] [depth <Number>] [showparent]
 #	[filepath] [buildtree] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <Character>]
 def printFileList(users):
   def _setSelectionFields():
@@ -21120,7 +21120,7 @@ def printFileList(users):
       if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
         _printChildDriveFolderContents(drive, childEntryInfo, user, i, count, depth+1)
 
-  allfields = filepath = False
+  allfields = buildTree = filepath = showParent = False
   todrive = {}
   maxdepth = -1
   fieldsList = []
@@ -21132,7 +21132,6 @@ def printFileList(users):
   selectSubQuery = None
   fileIdEntity = {}
   showOwnedBy = fileTree = None
-  buildTree = False
   mimeTypeCheck = initMimeTypeCheck()
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
@@ -21143,6 +21142,8 @@ def printFileList(users):
       filepath = True
     elif myarg == u'buildtree':
       buildTree = True
+    elif myarg == u'showparent':
+      showParent = getBoolean(True)
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'query':
@@ -21295,7 +21296,12 @@ def printFileList(users):
                                    fileId=fileId, fields=fields)
           if filepath:
             fileTree[fileId] = {u'info': fileEntryInfo}
-          _printChildDriveFolderContents(drive, fileEntryInfo, user, i, count, 0)
+          if showParent or fileEntryInfo[u'mimeType'] != MIMETYPE_GA_FOLDER:
+            if fileId not in filesPrinted:
+              filesPrinted.add(fileId)
+              _printFileInfo(drive, fileEntryInfo.copy())
+          if fileEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
+            _printChildDriveFolderContents(drive, fileEntryInfo, user, i, count, 0)
         except GAPI.fileNotFound:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
