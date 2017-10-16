@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.27'
+__version__ = u'4.48.28'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -18003,9 +18003,10 @@ def encode_multipart(fields, files, boundary=None):
 # gam printer register
 def doPrinterRegister():
   cp = buildGAPIObject(API.CLOUDPRINT)
+  checkForExtraneousArguments()
   form_fields = {u'name': u'GAM',
                  u'proxy': u'GAM',
-                 u'uuid': cp._http.request.credentials.id_token[u'sub'],
+                 u'uuid': _getValueFromOAuth(u'sub'),
                  u'manufacturer': __author__,
                  u'model': u'cp1',
                  u'gcp_version': u'2.0',
@@ -18036,6 +18037,10 @@ def doPrinterRegister():
   _, result = cp._http.request(uri='https://www.google.com/cloudprint/register', method='POST', body=body, headers=headers)
   result = checkCloudPrintResult(result)
   entityActionPerformed([Ent.PRINTER, result[u'printers'][0][u'id']])
+
+# gam printer <String> register
+def doPrinterRegisterId(printerIdList):
+  doPrinterRegister()
 #
 PRINTER_UPDATE_ITEMS_CHOICE_MAP = {
   u'currentquota': u'currentQuota',
@@ -19389,18 +19394,18 @@ def printCalendarACLs(users):
 def showCalendarACLs(users):
   printShowCalendarACLs(users, False)
 
-# gam <UserTypeEntity> transfer calendars <UserItem> <CalendarEntity> [keepuser] [retainrole <CalendarACLRole>]
+# gam <UserTypeEntity> transfer calendars <UserItem> <CalendarEntity> [keepuser | (retainrole <CalendarACLRole>)]
 def transferCalendars(users):
   targetUser = getEmailAddress()
   calendarEntity = getCalendarEntity(noSelectionKwargs={u'minAccessRole': u'owner', u'showHidden': True})
   giveForbiddenWarnings = not calendarEntity[u'all']
-  retainSourceRoleBody = {}
+  retainRoleBody = {u'role': u'none'}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'keepuser':
-      retainSourceRoleBody = {u'role': u'owner'}
+      retainRoleBody[u'role'] = u'owner'
     elif myarg == u'retainrole':
-      retainSourceRoleBody[u'role'] = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
+      retainRoleBody[u'role'] = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
     else:
       unknownArgumentExit()
   targetUser, targetCal = validateCalendar(targetUser)
@@ -19434,28 +19439,27 @@ def transferCalendars(users):
       except (GAPI.notFound, GAPI.invalid):
         entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
         continue
-      if retainSourceRoleBody:
-        Act.Set(Act.RETAIN)
+      Act.Set(Act.RETAIN)
+      if retainRoleBody[u'role'] != u'none':
         try:
           callGAPI(targetCal.acl(), u'patch',
                    throw_reasons=[GAPI.NOT_FOUND, GAPI.INVALID, GAPI.INVALID_PARAMETER, GAPI.INVALID_SCOPE_VALUE, GAPI.ILLEGAL_ACCESS_ROLE_FOR_DEFAULT,
                                   GAPI.CANNOT_CHANGE_OWN_ACL, GAPI.CANNOT_CHANGE_OWNER_ACL, GAPI.FORBIDDEN],
-                   calendarId=calId, ruleId=sourceRuleId, body=retainSourceRoleBody, fields=u'')
-          entityActionPerformed([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainSourceRoleBody[u'role'])], j, jcount)
+                   calendarId=calId, ruleId=sourceRuleId, body=retainRoleBody, fields=u'')
+          entityActionPerformed([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainRoleBody[u'role'])], j, jcount)
         except GAPI.notFound as e:
           if not checkCalendarExists(targetCal, calId):
             entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
           else:
-            entityActionFailedWarning([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainSourceRoleBody[u'role'])], str(e), j, jcount)
+            entityActionFailedWarning([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainRoleBody[u'role'])], str(e), j, jcount)
         except (GAPI.invalid, GAPI.invalidParameter, GAPI.invalidScopeValue, GAPI.illegalAccessRoleForDefault, GAPI.forbidden, GAPI.cannotChangeOwnAcl, GAPI.cannotChangeOwnerAcl) as e:
-          entityActionFailedWarning([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainSourceRoleBody[u'role'])], str(e), j, jcount)
+          entityActionFailedWarning([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainRoleBody[u'role'])], str(e), j, jcount)
       else:
-        Act.Set(Act.DELETE)
         try:
           callGAPI(targetCal.acl(), u'delete',
                    throw_reasons=[GAPI.NOT_FOUND, GAPI.INVALID],
                    calendarId=calId, ruleId=sourceRuleId)
-          entityActionPerformed([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, None)], j, jcount)
+          entityActionPerformed([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLScopeRole(sourceRuleId, retainRoleBody[u'role'])], j, jcount)
         except (GAPI.notFound, GAPI.invalid):
           entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
     Ind.Decrement()
@@ -22015,8 +22019,21 @@ def collectOrphans(users):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Orphans to Collect', todrive)
 
-# gam <UserTypeEntity> transfer drive <UserItem> [keepuser] [retainrole reader|commenter|writer|owner|editor] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+DRIVEFILE_ACL_ROLES_MAP = {
+  u'commenter': u'commenter',
+  u'editor': u'writer',
+  u'organizer': u'organizer',
+  u'owner': u'owner',
+  u'read': u'reader',
+  u'reader': u'reader',
+  u'writer': u'writer',
+  }
+
+DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # anyone must be first element
+
+# gam <UserTypeEntity> transfer drive <UserItem> [select <DriveFileEntity>] [keepuser | (retainrole reader|commenter|writer|editor|none)]
 #	[(targetfolderid <DriveFolderID>)|(targetfoldername <DriveFolderName>)] [targetuserfoldername <DriveFolderName>]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
 #	[preview] [todrive [<ToDriveAttributes>]]
 def transferDrive(users):
 
@@ -22050,19 +22067,17 @@ def transferDrive(users):
                  throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
                  fileId=childFileId, body={u'parents': _newParents(childEntry[u'parents'], rootId)}, fields=u'')
         entityModifierNewValueItemValueListActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, [Ent.USER, targetUser], j, jcount)
-        if retainSourceRoleBody:
-          if retainSourceRoleBody[u'role'] != u'writer':
-            Act.Set(Act.UPDATE)
+        Act.Set(Act.RETAIN)
+        if retainRoleBody[u'role'] != u'none':
+          if retainRoleBody[u'role'] != u'writer':
             callGAPI(targetDrive.permissions(), u'patch',
                      throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
-                     fileId=childFileId, permissionId=sourcePermissionId, body=retainSourceRoleBody, fields=u'')
-          entityModifierNewValueActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], Act.MODIFIER_TO, retainSourceRoleBody[u'role'], j, jcount)
+                     fileId=childFileId, permissionId=sourcePermissionId, body=retainRoleBody, fields=u'')
         else:
-          Act.Set(Act.DELETE)
           callGAPI(targetDrive.permissions(), u'delete',
                    throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
                    fileId=childFileId, permissionId=sourcePermissionId)
-          entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, u'owner'], j, jcount)
+        entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, retainRoleBody[u'role']], j, jcount)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
         entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], str(e), j, jcount)
       except GAPI.permissionNotFound:
@@ -22139,19 +22154,19 @@ def transferDrive(users):
   csvFormat = False
   todrive = {}
   orderByList = []
-  retainSourceRoleBody = {}
+  retainRoleBody = {u'role': u'none'}
   targetFolderId = targetFolderName = None
   targetUserFolderPattern = u'#user# old files'
   parentIdMap = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'keepuser':
-      retainSourceRoleBody[u'body'] = u'writer'
+      retainRoleBody[u'role'] = u'writer'
     elif myarg == u'retainrole':
-      retainSourceRole = getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True)
-      if retainSourceRole == u'owner':
-        retainSourceRole = u'writer'
-      _setRoleConvertCommenterToReader(retainSourceRoleBody, retainSourceRole)
+      aclRolesMap = DRIVEFILE_ACL_ROLES_MAP.copy()
+      aclRolesMap[u'owner'] = u'writer'
+      aclRolesMap[u'none'] = u'none'
+      _setRoleConvertCommenterToReader(retainRoleBody, getChoice(aclRolesMap, mapChoice=True))
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'targetfolderid':
@@ -22327,7 +22342,8 @@ def validateUserGetPermissionId(user, i=0, count=0):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
   return None
 
-# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
 #	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
 def transferOwnership(users):
   def _identifyFilesToTransfer(fileEntry):
@@ -22517,8 +22533,11 @@ def transferOwnership(users):
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Files to Transfer Ownership', todrive)
 
-# gam <UserTypeEntity> claim ownership <DriveFileEntity> [skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
-#	[includetrashed] [restricted [<Boolean>]] [writerscanshare|writerscantshare [<Boolean>]] [preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> claim ownership <DriveFileEntity> [includetrashed]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
+#	[skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
+#	[restricted [<Boolean>]] [writerscanshare|writerscantshare [<Boolean>]] [keepuser | (retainrole reader|commenter|writer|editor|none)]
+#	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]d
 def claimOwnership(users):
   def _identifyFilesToClaim(fileEntry, skipids):
     for childFileId in fileEntry[u'children']:
@@ -22538,7 +22557,7 @@ def claimOwnership(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                               q=VX_WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
+                               orderBy=orderBy, q=VX_WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -22556,19 +22575,56 @@ def claimOwnership(users):
         if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER:
           _identifyChildrenToClaim(childEntryInfo, skipIds, user, i, count)
 
+  def _processRetainedRole(user, i, count, oldOwner, entityType, fileDesc, l, lcount):
+    oldOwnerPermissionId = oldOwnerPermissionIds.get(oldOwner)
+    if oldOwnerPermissionId is None:
+      oldOwnerPermissionId = validateUserGetPermissionId(oldOwner, 0, 0)
+      oldOwnerPermissionIds[oldOwner] = oldOwnerPermissionId
+    if oldOwnerPermissionId is None:
+      return
+    Act.Set(Act.RETAIN)
+    try:
+      if retainRoleBody[u'role'] != u'none':
+        if retainRoleBody[u'role'] != u'writer':
+          callGAPI(sourceDrive.permissions(), u'patch',
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
+                   fileId=fileId, permissionId=oldOwnerPermissionId, body=retainRoleBody, fields=u'')
+      else:
+        callGAPI(sourceDrive.permissions(), u'delete',
+                 throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
+                 fileId=fileId, permissionId=oldOwnerPermissionId)
+      entityActionPerformed([Ent.USER, oldOwner, entityType, fileDesc, Ent.ROLE, retainRoleBody[u'role']], l, lcount)
+    except GAPI.permissionNotFound:
+      entityDoesNotHaveItemWarning([Ent.USER, oldOwner, entityType, fileDesc, Ent.PERMISSION_ID, oldOwnerPermissionId], l, lcount)
+    except GAPI.badRequest as e:
+      entityActionFailedWarning([Ent.USER, oldOwner, entityType, fileDesc], str(e), l, lcount)
+    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+      userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+    Act.Set(Act.CLAIM_OWNERSHIP)
+
   fileIdEntity = getDriveFileEntity()
   skipFileIdEntity = initDriveFileEntity()
+  orderByList = []
   body = {}
   skipusers = []
   subdomains = []
   csvFormat = filepath = trashed = False
   todrive = {}
+  retainRoleBody = {u'role': u'writer'}
+  oldOwnerPermissionIds = {}
   fileTree = None
   buildTree = False
   bodyShare = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'skipids':
+    if myarg == u'keepuser':
+      retainRoleBody[u'role'] = u'writer'
+    elif myarg == u'retainrole':
+      aclRolesMap = DRIVEFILE_ACL_ROLES_MAP.copy()
+      aclRolesMap[u'owner'] = u'writer'
+      aclRolesMap[u'none'] = u'none'
+      _setRoleConvertCommenterToReader(retainRoleBody, getChoice(aclRolesMap, mapChoice=True))
+    elif myarg == u'skipids':
       skipFileIdEntity = getDriveFileEntity()
     elif myarg == u'skipusers':
       _, skipusers = getEntityToModify(defaultEntityType=Cmd.ENTITY_USERS)
@@ -22576,6 +22632,8 @@ def claimOwnership(users):
       subdomains = getEntityList(Cmd.OB_DOMAIN_NAME_ENTITY)
     elif myarg == u'includetrashed':
       trashed = True
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'restricted':
       bodyShare[u'labels'][u'restricted'] = getBoolean(True)
     elif myarg == u'writerscanshare':
@@ -22593,6 +22651,7 @@ def claimOwnership(users):
     else:
       unknownArgumentExit()
   Act.Set(Act.CLAIM_OWNERSHIP)
+  orderBy = u','.join(orderByList) if orderByList else None
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'NewOwner', u'OldOwner', u'type', u'id', VX_FILENAME])
     if filepath:
@@ -22625,7 +22684,7 @@ def claimOwnership(users):
         feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                              page_message=page_message,
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
+                             orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNER,
                              maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -22687,32 +22746,35 @@ def claimOwnership(users):
         _, userdomain = splitEmailAddress(oldOwner)
         lcount = len(filesToClaim[oldOwner])
         if userdomain == GC.Values[GC.DOMAIN] or userdomain in subdomains:
-          _, source_drive = buildGAPIServiceObject(API.DRIVE, oldOwner)
-          entityPerformActionNumItemsModifier([Ent.USER, user], lcount, Ent.DRIVE_FILE_OR_FOLDER, u'{0} {1}: {2}'.format(Act.MODIFIER_FROM, Ent.Singular(Ent.USER), oldOwner), k, kcount)
+          _, sourceDrive = buildGAPIServiceObject(API.DRIVE, oldOwner)
+          entityPerformActionNumItemsModifier([Ent.USER, user], lcount, Ent.DRIVE_FILE_OR_FOLDER,
+                                              u'{0} {1}: {2}'.format(Act.MODIFIER_FROM, Ent.Singular(Ent.USER), oldOwner), k, kcount)
           Ind.Increment()
           l = 0
           for fileId, fileInfo in iteritems(filesToClaim[oldOwner]):
             l += 1
             if bodyShare:
-              callGAPI(source_drive.files(), u'patch',
+              callGAPI(sourceDrive.files(), u'patch',
                        fileId=fileId, body=bodyShare, fields=u'')
             entityType = fileInfo[u'type']
             fileDesc = u'{0} ({1})'.format(fileInfo[VX_FILENAME], fileId)
             try:
-              callGAPI(source_drive.permissions(), u'patch',
+              callGAPI(sourceDrive.permissions(), u'patch',
                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND, GAPI.FORBIDDEN],
                        fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body, fields=u'')
               entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, entityType, fileDesc], Act.MODIFIER_FROM, None, [Ent.USER, oldOwner], l, lcount)
+              _processRetainedRole(user, i, count, oldOwner, entityType, fileDesc, l, lcount)
             except GAPI.permissionNotFound:
               # if claimer not in ACL (file might be visible for all with link)
               try:
-                callGAPI(source_drive.permissions(), u'insert',
+                callGAPI(sourceDrive.permissions(), u'insert',
                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST, GAPI.FILE_NOT_FOUND, GAPI.FORBIDDEN],
                          fileId=fileId, sendNotificationEmails=False, body=bodyAdd, fields=u'')
-                callGAPI(source_drive.permissions(), u'patch',
+                callGAPI(sourceDrive.permissions(), u'patch',
                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FILE_NOT_FOUND, GAPI.PERMISSION_NOT_FOUND],
                          fileId=fileId, permissionId=permissionId, transferOwnership=True, body=body, fields=u'')
                 entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, entityType, fileDesc], Act.MODIFIER_FROM, None, [Ent.USER, oldOwner], l, lcount)
+                _processRetainedRole(user, i, count, oldOwner, entityType, fileDesc, l, lcount)
               except GAPI.invalidSharingRequest as e:
                 entityActionFailedWarning([Ent.USER, user, entityType, fileDesc], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), l, lcount)
               except GAPI.permissionNotFound:
@@ -22854,18 +22916,6 @@ def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
     else:
       printKeyValueList([key, formatLocalTime(value)])
   Ind.Decrement()
-
-DRIVEFILE_ACL_ROLES_MAP = {
-  u'commenter': u'commenter',
-  u'editor': u'writer',
-  u'organizer': u'organizer',
-  u'owner': u'owner',
-  u'read': u'reader',
-  u'reader': u'reader',
-  u'writer': u'writer',
-  }
-
-DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # anyone must be first element
 
 # gam <UserTypeEntity> add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
 #	(role reader|commenter|writer|owner|editor|organizer) [withlink|(allowfilediscovery|discoverable [<Boolean>])] [expiration <Time>] [sendmail] [emailmessage <String>] [showtitles]
@@ -28448,6 +28498,7 @@ PRINTER_SUBCOMMANDS = {
   u'add':	{CMD_ACTION: Act.ADD, CMD_FUNCTION: doPrinterAddACL},
   u'delete':	{CMD_ACTION: Act.DELETE, CMD_FUNCTION: doPrinterDeleteACLs},
   u'printacls':	{CMD_ACTION: Act.SHOW, CMD_FUNCTION: doPrinterPrintACLs},
+  u'register':	{CMD_ACTION: Act.REGISTER, CMD_FUNCTION: doPrinterRegisterId},
   u'showacls':	{CMD_ACTION: Act.SHOW, CMD_FUNCTION: doPrinterShowACLs},
   u'sync':	{CMD_ACTION: Act.SYNC, CMD_FUNCTION: doPrinterSyncACLs},
   u'wipe':	{CMD_ACTION: Act.DELETE, CMD_FUNCTION: doPrinterWipeACLs},
