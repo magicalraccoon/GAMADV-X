@@ -1,3 +1,7 @@
+4.48.31
+
+Added additional error handling to gam copy drivefile.
+
 4.48.30
 
 Code cleanup.
