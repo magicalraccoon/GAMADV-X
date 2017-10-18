@@ -1,3 +1,7 @@
+4.48.32
+
+Fixed additional error handling in gam copy drivefile.
+
 4.48.31
 
 Added additional error handling to gam copy drivefile.
