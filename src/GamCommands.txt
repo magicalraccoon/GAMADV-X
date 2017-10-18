@@ -1853,6 +1853,83 @@ gam <UserTypeEntity> print drivefileacls <DriveFileEntity> [todrive [<ToDriveAtt
 gam <UserTypeEntity> add permissions <DriveFileEntity> <DriveFilePermissionEntity> [expires|expiration <Time>] [sendemail] [emailmessage <String>]
 gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionIDEntity>
 
+<RevisionsFieldName> ::=
+	filesize|
+	id|
+	lastmodifyinguser|
+	lastmodifyingusername|
+	md5checksum|
+	mimetype|
+	modifieddate|
+	modifiedtime|
+	originalfilename|
+	pinned|
+	published|
+	publishedauto|
+	publishedoutsidedomain|
+	size
+<RevisionsFieldNameList> ::= "<RevisionsFieldName>(,<RevisionsFieldName>)*"
+
+gam <UserTypeEntity> delete filerevisions <DriveFileEntity> select <DriveFileRevisionIDEntity> [previewdelete]
+	[showtitles] [doit] [max_to_delete <Number>]
+gam <UserTypeEntity> show filerevisions <DriveFileEntity> [select <DriveFileRevisionIDEntity>] [previewdelete]
+	[showtitles] [<RevisionsFieldName>*|(fields <RevisionsFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [select <DriveFileRevisionIDEntity>] [previewdelete]
+	[showtitles] [<RevisionsFieldName>*|(fields <RevisionsFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+
+gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed]
+	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
+	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> claim ownership <DriveFileEntity> [includetrashed]
+	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
+	[skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
+	[restricted [<Boolean>]] [writerscanshare|writerscantshare [<Boolean>]] [keepuser | (retainrole reader|commenter|writer|editor|none)]
+	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
+
+gam <UserTypeEntity> transfer drive <UserItem> [select <DriveFileEntity>] [keepuser | (retainrole reader|commenter|writer|editor|none)]
+	[(targetfolderid <DriveFolderID>)|(targetfoldername <DriveFolderName>)] [targetuserfoldername <DriveFolderName>]
+	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
+	[preview] [todrive [<ToDriveAttributes>]]
+
+gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
+
+<DriveParentsSubfieldName> ::=
+	parents.id|
+	parents.isroot
+
+<DrivePermissionsSubfieldName> ::=
+	permissions.additionalroles|
+	permissions.allowfilediscovery|
+	permissions.deleted|
+	permissions.displayname|
+	permissions.domain|
+	permissions.emailaddress|
+	permissions.expirationdate|
+	permissions.expirationtime|
+	permissions.id|
+	permissions.name|
+	permissions.photolink|
+	permissions.role|
+	permissions.teamdrivepermissiondetails|
+	permissions.type|
+	permissions.withlink
+
+<DrivePropertiesSubfieldName> ::=
+	properties.key|
+	properties.value|
+	properties.visibility
+
+<DriveSharingUserSubfieldName> ::=
+	sharinguser.displayname|
+	sharinguser.emailaddress|
+	sharinguser.isauthenticateduser|
+	sharinguser.me|
+	sharinguser.name|
+	sharinguser.permissionid|
+	sharinguser.photolink|
+	sharinguser.picture
+
 <DriveFieldName> ::=
 	alternatelink|
 	appdatacontents|
@@ -1886,13 +1963,18 @@ gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionID
 	ownernames|
 	owners|
 	parents|
+	<DriveParentsSubfieldName>|
 	permissions|
+	<DrivePermissionsSubfieldName>|
+	properties|
+	<DrivePropertiesSubfieldName>|
 	quotabytesused|quotaused|
 	restricted|
 	shareable|
 	shared|
 	sharedwithmedate|sharedwithmetime|
 	sharinguser|
+	<DriveSharingUserSubfieldName>|
 	size|
 	spaces|
 	starred|
@@ -1908,46 +1990,6 @@ gam <UserTypeEntity> delete permissions <DriveFileEntity> <DriveFilePermissionID
 	webviewlink|
 	writerscanshare
 <DriveFieldNameList> ::= "<DriveFieldName>(,<DriveFieldName>)*"
-
-<RevisionsFieldName> ::=
-	filesize|
-	id|
-	lastmodifyinguser|
-	lastmodifyingusername|
-	md5checksum|
-	mimetype|
-	modifieddate|
-	modifiedtime|
-	originalfilename|
-	pinned|
-	published|
-	publishedauto|
-	publishedoutsidedomain|
-	size
-
-gam <UserTypeEntity> delete filerevisions <DriveFileEntity> select <DriveFileRevisionIDEntity> [previewdelete]
-	[showtitles] [doit] [max_to_delete <Number>]
-gam <UserTypeEntity> show filerevisions <DriveFileEntity> [select <DriveFileRevisionIDEntity>] [previewdelete]
-	[showtitles] [<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
-gam <UserTypeEntity> print filerevisions <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [select <DriveFileRevisionIDEntity>] [previewdelete]
-	[showtitles] [<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
-
-gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed]
-	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
-	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
-gam <UserTypeEntity> claim ownership <DriveFileEntity> [includetrashed]
-	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
-	[skipids <DriveFileEntity>] [skipusers <UserTypeEntity>] [subdomains <DomainNameEntity>]
-	[restricted [<Boolean>]] [writerscanshare|writerscantshare [<Boolean>]] [keepuser | (retainrole reader|commenter|writer|editor|none)]
-	[preview] [filepath] [buildtree] [todrive [<ToDriveAttributes>]]
-
-gam <UserTypeEntity> transfer drive <UserItem> [select <DriveFileEntity>] [keepuser | (retainrole reader|commenter|writer|editor|none)]
-	[(targetfolderid <DriveFolderID>)|(targetfoldername <DriveFolderName>)] [targetuserfoldername <DriveFolderName>]
-	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
-	[preview] [todrive [<ToDriveAttributes>]]
-
-gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascending|descending])*
-	[targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 gam <UserTypeEntity> show filepath <DriveFileEntity> (orderby <DriveFileOrderByFieldName> [ascending|descending])*
