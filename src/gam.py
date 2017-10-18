@@ -20486,7 +20486,7 @@ DRIVEFILE_FIELDS_TIME_OBJECTS = [VX_CREATED_TIME, VX_VIEWED_BY_ME_TIME, VX_MODIF
 
 FILEINFO_FIELDS_TITLES = [VX_FILENAME, u'mimeType']
 FILEPATH_FIELDS_TITLES = [VX_FILENAME, u'id', u'mimeType', u'parents']
-FILEPATH_FIELDS = [VX_FILENAME, u'id', u'mimeType', u'parents.id']
+FILEPATH_FIELDS = [VX_FILENAME, u'id', u'mimeType', u'parents/id']
 
 def _getFieldSubField(field, fieldsList, titles):
   field, subField = field.split(u'.', 1)
