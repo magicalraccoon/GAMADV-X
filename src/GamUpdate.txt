@@ -1,9 +1,15 @@
+4.48.35
+
+Allow user attribute gender to be cleared.
+<UserAttributes> ::=
+	(gender clear|(female|male|unknown|(other <String>) [addressmeas <String>]))
+
 4.48.34
 
 Added new user attributes.
 <UserAttributes> ::=
-	(gender type female|male|unknown|(other <String>) [addressmeas <String>])|
-	(keyword|keywords clear|(type occupation|outlook|(custom <string>) <String>))|
+	(gender female|male|unknown|(other <String>) [addressmeas <String>])|
+	(keyword|keywords clear|(occupation|outlook|(custom <string>) <String>))|
 	(language|languages clear|<LanguageList>)|
 <UserFieldName> ::=
 	gender|
