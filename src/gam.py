@@ -4119,7 +4119,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive, quotechar=None):
       writer = UnicodeDictWriter(csvFile, titles[u'list'], GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
                                  quoting=csv.QUOTE_MINIMAL, quotechar=quotechar,
                                  delimiter=delimiter, lineterminator=str(GC.Values[GC.CSV_OUTPUT_LINE_TERMINATOR]))
-)
       writeCSVData(writer)
       closeFile(csvFile)
 
