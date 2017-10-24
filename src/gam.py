@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.37'
+__version__ = u'4.48.39'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1212,14 +1212,14 @@ def getCharSet():
     return getString(Cmd.OB_CHAR_SET)
   return GC.Values[GC.CHARSET]
 
-def getCharacter():
+def getCharacter(minLen=1, maxLen=1):
   if Cmd.ArgumentsRemaining():
     argstr = Cmd.Current().decode(u'string_escape')
     if argstr:
-      if len(argstr) == 1:
+      if (len(argstr) >= minLen) and (len(argstr) <= maxLen):
         Cmd.Advance()
         return argstr
-      invalidArgumentExit(u'{0} for {1}'.format(integerLimits(1, 1, Msg.STRING_LENGTH), Cmd.OB_CHARACTER))
+      invalidArgumentExit(u'{0} for {1}'.format(integerLimits(minLen, maxLen, Msg.STRING_LENGTH), Cmd.OB_CHARACTER))
     emptyArgumentExit(Cmd.OB_CHARACTER)
   missingArgumentExit(Cmd.OB_CHARACTER)
 
@@ -1769,10 +1769,10 @@ class UnicodeDictReader(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=UTF8, fieldnames=None, **kwds):
+  def __init__(self, f, fieldnames=None, encoding=UTF8, **kwds):
     self.encoding = encoding
     try:
-      self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != UTF8 else f, dialect=dialect, **kwds)
+      self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != UTF8 else f, dialect=csv.excel, **kwds)
       if not fieldnames:
         self.fieldnames = self.reader.next()
         if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
@@ -1802,11 +1802,11 @@ class UnicodeWriter(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=UTF8, **kwds):
+  def __init__(self, f, encoding, **kwds):
     # Redirect output to a queue
     import cStringIO
     self.queue = cStringIO.StringIO()
-    self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
+    self.writer = csv.writer(self.queue, **kwds)
     self.stream = f
     self.encoding = encoding
     self.encoder = codecs.getincrementalencoder(self.encoding)()
@@ -1827,9 +1827,9 @@ class UnicodeWriter(object):
       self.writerow(row)
 #
 class UnicodeDictWriter(csv.DictWriter, object):
-  def __init__(self, f, fieldnames, dialect=u'nixstdout', encoding=UTF8, *args, **kwds):
-    super(UnicodeDictWriter, self).__init__(f, fieldnames, dialect=dialect, *args, **kwds)
-    self.writer = UnicodeWriter(f, dialect, encoding, **kwds)
+  def __init__(self, f, fieldnames, encoding, **kwds):
+    super(UnicodeDictWriter, self).__init__(f, fieldnames, **kwds)
+    self.writer = UnicodeWriter(f, encoding, **kwds)
 
 # Open a CSV file, get optional arguments [charset <String>] [columndelimiter <Character>] [quotechar <Character>] [fields <FieldNameList>]
 def openCSVFileReader(filename):
@@ -1847,7 +1847,7 @@ def openCSVFileReader(filename):
   else:
     fieldnames = None
   f = openFile(filename, mode=DEFAULT_CSV_READ_MODE)
-  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(delimiter), quotechar=str(quotechar))
+  csvFile = UnicodeDictReader(f, fieldnames=fieldnames, encoding=encoding, delimiter=str(delimiter), quotechar=str(quotechar))
   return (f, csvFile)
 
 # Set global variables from config file
@@ -1943,6 +1943,16 @@ def SetGlobalVariables():
     status[u'errors'] = True
     return False
 
+  def _getCfgCharacter(sectionName, itemName):
+    value = _stripStringQuotes(GM.Globals[GM.PARSER].get(sectionName, itemName))
+    value = value.decode(u'string_escape')
+    minLen, maxLen = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
+    if (len(value) >= minLen) and (len(value) <= maxLen):
+      return value
+    _printValueError(sectionName, itemName, u'"{0}"'.format(value), u'{0}: {1}'.format(Msg.EXPECTED, integerLimits(minLen, maxLen, Msg.STRING_LENGTH)))
+    status[u'errors'] = True
+    return u''
+
   def _getCfgInteger(sectionName, itemName):
     value = GM.Globals[GM.PARSER].get(sectionName, itemName)
     minVal, maxVal = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
@@ -2031,13 +2041,16 @@ def SetGlobalVariables():
     Ind.Increment()
     for itemName in sorted(GC.VAR_INFO):
       cfgValue = GM.Globals[GM.PARSER].get(sectionName, itemName)
-      if GC.VAR_INFO[itemName][GC.VAR_TYPE] not in [GC.TYPE_BOOLEAN, GC.TYPE_INTEGER]:
+      varType = GC.VAR_INFO[itemName][GC.VAR_TYPE]
+      if itemName == GC.CSV_OUTPUT_LINE_TERMINATOR:
+        cfgValue = repr(str(cfgValue))
+      elif varType not in [GC.TYPE_BOOLEAN, GC.TYPE_INTEGER]:
         cfgValue = _quoteStringIfLeadingTrailingBlanks(cfgValue)
-      if GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_FILE:
+      if varType == GC.TYPE_FILE:
         expdValue = _getCfgFile(sectionName, itemName)
         if cfgValue != u"''" and cfgValue != expdValue:
           cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
-      elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_DIRECTORY:
+      elif varType == GC.TYPE_DIRECTORY:
         expdValue = _getCfgDirectory(sectionName, itemName)
         if cfgValue != u"''" and cfgValue != expdValue:
           cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
@@ -2175,12 +2188,16 @@ def SetGlobalVariables():
         if itemName is None:
           break
         checkArgumentPresent([u'=',])
-        if GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_BOOLEAN:
+        varType = GC.VAR_INFO[itemName][GC.VAR_TYPE]
+        if varType == GC.TYPE_BOOLEAN:
           value = [FALSE, TRUE][getBoolean()]
-        elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_INTEGER:
+        elif varType == GC.TYPE_CHARACTER:
+          minLen, maxLen = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
+          value = getCharacter(minLen, maxLen)
+        elif varType == GC.TYPE_INTEGER:
           minVal, maxVal = GC.VAR_INFO[itemName][GC.VAR_LIMITS]
           value = text_type(getInteger(minVal=minVal, maxVal=maxVal))
-        elif GC.VAR_INFO[itemName][GC.VAR_TYPE] == GC.TYPE_TIMEZONE:
+        elif varType == GC.TYPE_TIMEZONE:
           value = getString(Cmd.OB_STRING, checkBlank=True)
         else:
           minLen, maxLen = GC.VAR_INFO[itemName].get(GC.VAR_LIMITS, (0, None))
@@ -2197,6 +2214,8 @@ def SetGlobalVariables():
     varType = GC.VAR_INFO[itemName][GC.VAR_TYPE]
     if varType == GC.TYPE_BOOLEAN:
       GC.Values[itemName] = _getCfgBoolean(sectionName, itemName)
+    elif varType == GC.TYPE_CHARACTER:
+      GC.Values[itemName] = _getCfgCharacter(sectionName, itemName)
     elif varType == GC.TYPE_INTEGER:
       GC.Values[itemName] = _getCfgInteger(sectionName, itemName)
     elif varType == GC.TYPE_STRING:
@@ -4083,9 +4102,9 @@ def writeCSVfile(csvRows, titles, list_type, todrive, quotechar=None):
 
   def writeCSVToStdout():
     csvFile = StringIOobject()
-    writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                               dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
-                               quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=delimiter)
+    writer = UnicodeDictWriter(csvFile, titles[u'list'], GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
+                               quoting=csv.QUOTE_MINIMAL, quotechar=quotechar,
+                               delimiter=delimiter, lineterminator='\n')
     if writeCSVData(writer):
       try:
         GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD].write(csvFile.getvalue())
@@ -4097,17 +4116,18 @@ def writeCSVfile(csvRows, titles, list_type, todrive, quotechar=None):
   def writeCSVToFile():
     csvFile = openFile(GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME], GM.Globals[GM.CSVFILE][GM.REDIRECT_MODE], continueOnError=True)
     if csvFile:
-      writer = UnicodeDictWriter(csvFile, fieldnames=titles[u'list'],
-                                 dialect=u'nixstdout', encoding=GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
-                                 quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=delimiter)
+      writer = UnicodeDictWriter(csvFile, titles[u'list'], GM.Globals[GM.CSVFILE][GM.REDIRECT_ENCODING],
+                                 quoting=csv.QUOTE_MINIMAL, quotechar=quotechar,
+                                 delimiter=delimiter, lineterminator=str(GC.Values[GC.CSV_OUTPUT_LINE_TERMINATOR]))
+)
       writeCSVData(writer)
       closeFile(csvFile)
 
   def writeCSVToDrive():
     csvFile = StringIOobject()
-    writer = csv.DictWriter(csvFile, fieldnames=titles[u'list'],
-                            dialect=u'nixstdout',
-                            quoting=csv.QUOTE_MINIMAL, quotechar=quotechar, delimiter=delimiter)
+    writer = csv.DictWriter(csvFile, titles[u'list'], UTF8,
+                            quoting=csv.QUOTE_MINIMAL, quotechar=quotechar,
+                            delimiter=delimiter, lineterminator='\n')
     if writeCSVData(writer):
       if GC.Values[GC.TODRIVE_CONVERSION]:
         columns = len(titles[u'list'])
@@ -4162,7 +4182,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive, quotechar=None):
     quotechar = GM.Globals[GM.CSVFILE][GM.REDIRECT_QUOTE_CHAR]
   quotechar = str(quotechar)
   delimiter = str(GM.Globals[GM.CSVFILE][GM.REDIRECT_COLUMN_DELIMITER])
-  csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   if (not todrive) or todrive[u'localcopy']:
     if GM.Globals[GM.CSVFILE][GM.REDIRECT_NAME] == u'-':
       if GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD]:
