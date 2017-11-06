@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.45'
+__version__ = u'4.48.46'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -738,11 +738,165 @@ def getChoiceAndValue(item, choices, delimiter):
     missingArgumentExit(item)
   invalidChoiceExit(choices, False)
 
+WEBCOLOR_MAP = {
+  u'aliceblue': u'#f0f8ff',
+  u'antiquewhite': u'#faebd7',
+  u'aqua': u'#00ffff',
+  u'aquamarine': u'#7fffd4',
+  u'azure': u'#f0ffff',
+  u'beige': u'#f5f5dc',
+  u'bisque': u'#ffe4c4',
+  u'black': u'#000000',
+  u'blanchedalmond': u'#ffebcd',
+  u'blue': u'#0000ff',
+  u'blueviolet': u'#8a2be2',
+  u'brown': u'#a52a2a',
+  u'burlywood': u'#deb887',
+  u'cadetblue': u'#5f9ea0',
+  u'chartreuse': u'#7fff00',
+  u'chocolate': u'#d2691e',
+  u'coral': u'#ff7f50',
+  u'cornflowerblue': u'#6495ed',
+  u'cornsilk': u'#fff8dc',
+  u'crimson': u'#dc143c',
+  u'cyan': u'#00ffff',
+  u'darkblue': u'#00008b',
+  u'darkcyan': u'#008b8b',
+  u'darkgoldenrod': u'#b8860b',
+  u'darkgray': u'#a9a9a9',
+  u'darkgrey': u'#a9a9a9',
+  u'darkgreen': u'#006400',
+  u'darkkhaki': u'#bdb76b',
+  u'darkmagenta': u'#8b008b',
+  u'darkolivegreen': u'#556b2f',
+  u'darkorange': u'#ff8c00',
+  u'darkorchid': u'#9932cc',
+  u'darkred': u'#8b0000',
+  u'darksalmon': u'#e9967a',
+  u'darkseagreen': u'#8fbc8f',
+  u'darkslateblue': u'#483d8b',
+  u'darkslategray': u'#2f4f4f',
+  u'darkslategrey': u'#2f4f4f',
+  u'darkturquoise': u'#00ced1',
+  u'darkviolet': u'#9400d3',
+  u'deeppink': u'#ff1493',
+  u'deepskyblue': u'#00bfff',
+  u'dimgray': u'#696969',
+  u'dimgrey': u'#696969',
+  u'dodgerblue': u'#1e90ff',
+  u'firebrick': u'#b22222',
+  u'floralwhite': u'#fffaf0',
+  u'forestgreen': u'#228b22',
+  u'fuchsia': u'#ff00ff',
+  u'gainsboro': u'#dcdcdc',
+  u'ghostwhite': u'#f8f8ff',
+  u'gold': u'#ffd700',
+  u'goldenrod': u'#daa520',
+  u'gray': u'#808080',
+  u'grey': u'#808080',
+  u'green': u'#008000',
+  u'greenyellow': u'#adff2f',
+  u'honeydew': u'#f0fff0',
+  u'hotpink': u'#ff69b4',
+  u'indianred': u'#cd5c5c',
+  u'indigo': u'#4b0082',
+  u'ivory': u'#fffff0',
+  u'khaki': u'#f0e68c',
+  u'lavender': u'#e6e6fa',
+  u'lavenderblush': u'#fff0f5',
+  u'lawngreen': u'#7cfc00',
+  u'lemonchiffon': u'#fffacd',
+  u'lightblue': u'#add8e6',
+  u'lightcoral': u'#f08080',
+  u'lightcyan': u'#e0ffff',
+  u'lightgoldenrodyellow': u'#fafad2',
+  u'lightgray': u'#d3d3d3',
+  u'lightgrey': u'#d3d3d3',
+  u'lightgreen': u'#90ee90',
+  u'lightpink': u'#ffb6c1',
+  u'lightsalmon': u'#ffa07a',
+  u'lightseagreen': u'#20b2aa',
+  u'lightskyblue': u'#87cefa',
+  u'lightslategray': u'#778899',
+  u'lightslategrey': u'#778899',
+  u'lightsteelblue': u'#b0c4de',
+  u'lightyellow': u'#ffffe0',
+  u'lime': u'#00ff00',
+  u'limegreen': u'#32cd32',
+  u'linen': u'#faf0e6',
+  u'magenta': u'#ff00ff',
+  u'maroon': u'#800000',
+  u'mediumaquamarine': u'#66cdaa',
+  u'mediumblue': u'#0000cd',
+  u'mediumorchid': u'#ba55d3',
+  u'mediumpurple': u'#9370db',
+  u'mediumseagreen': u'#3cb371',
+  u'mediumslateblue': u'#7b68ee',
+  u'mediumspringgreen': u'#00fa9a',
+  u'mediumturquoise': u'#48d1cc',
+  u'mediumvioletred': u'#c71585',
+  u'midnightblue': u'#191970',
+  u'mintcream': u'#f5fffa',
+  u'mistyrose': u'#ffe4e1',
+  u'moccasin': u'#ffe4b5',
+  u'navajowhite': u'#ffdead',
+  u'navy': u'#000080',
+  u'oldlace': u'#fdf5e6',
+  u'olive': u'#808000',
+  u'olivedrab': u'#6b8e23',
+  u'orange': u'#ffa500',
+  u'orangered': u'#ff4500',
+  u'orchid': u'#da70d6',
+  u'palegoldenrod': u'#eee8aa',
+  u'palegreen': u'#98fb98',
+  u'paleturquoise': u'#afeeee',
+  u'palevioletred': u'#db7093',
+  u'papayawhip': u'#ffefd5',
+  u'peachpuff': u'#ffdab9',
+  u'peru': u'#cd853f',
+  u'pink': u'#ffc0cb',
+  u'plum': u'#dda0dd',
+  u'powderblue': u'#b0e0e6',
+  u'purple': u'#800080',
+  u'red': u'#ff0000',
+  u'rosybrown': u'#bc8f8f',
+  u'royalblue': u'#4169e1',
+  u'saddlebrown': u'#8b4513',
+  u'salmon': u'#fa8072',
+  u'sandybrown': u'#f4a460',
+  u'seagreen': u'#2e8b57',
+  u'seashell': u'#fff5ee',
+  u'sienna': u'#a0522d',
+  u'silver': u'#c0c0c0',
+  u'skyblue': u'#87ceeb',
+  u'slateblue': u'#6a5acd',
+  u'slategray': u'#708090',
+  u'slategrey': u'#708090',
+  u'snow': u'#fffafa',
+  u'springgreen': u'#00ff7f',
+  u'steelblue': u'#4682b4',
+  u'tan': u'#d2b48c',
+  u'teal': u'#008080',
+  u'thistle': u'#d8bfd8',
+  u'tomato': u'#ff6347',
+  u'turquoise': u'#40e0d0',
+  u'violet': u'#ee82ee',
+  u'wheat': u'#f5deb3',
+  u'white': u'#ffffff',
+  u'whitesmoke': u'#f5f5f5',
+  u'yellow': u'#ffff00',
+  u'yellowgreen': u'#9acd32',
+  }
+
 COLORHEX_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
 COLORHEX_FORMAT_REQUIRED = u'#ffffff'
 
 def getColorHexAttribute():
   if Cmd.ArgumentsRemaining():
+    color = getChoice(WEBCOLOR_MAP, defaultChoice=None, mapChoice=True)
+    if color:
+      Cmd.Advance()
+      return color
     tg = COLORHEX_PATTERN.match(Cmd.Current().strip())
     if tg:
       Cmd.Advance()
@@ -17130,7 +17284,7 @@ def doPrintUsers(entityList=None):
     if orderBy in titles[u'set']:
       csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
   if getGroupFeed:
-    addTitleToCSVfile(u'Groups', titles)
+    addTitlesToCSVfile([u'GroupsCount', u'Groups'], titles)
     i = 0
     count = len(csvRows)
     for user in csvRows:
@@ -17139,14 +17293,16 @@ def doPrintUsers(entityList=None):
       printGettingAllEntityItemsForWhom(Ent.GROUP_MEMBERSHIP, userEmail, i, count)
       groups = callGAPIpages(cd.groups(), u'list', u'groups',
                              userKey=userEmail, fields=u'nextPageToken,groups(email)')
+      user[u'GroupsCount'] = len(groups)
       user[u'Groups'] = delimiter.join([groupname[u'email'] for groupname in groups])
   if getLicenseFeed:
-    addTitlesToCSVfile([u'Licenses', u'LicensesDisplay'], titles)
+    addTitlesToCSVfile([u'LicensesCount', u'Licenses', u'LicensesDisplay'], titles)
     licenses = doPrintLicenses(returnFields=u'userId,skuId')
     if licenses:
       for user in csvRows:
         u_licenses = licenses.get(user[u'primaryEmail'].lower())
         if u_licenses:
+          user[u'LicensesCount'] = len(u_licenses)
           user[u'Licenses'] = delimiter.join(u_licenses)
           user[u'LicensesDisplay'] = delimiter.join([SKU.skuIdToDisplayName(skuId) for skuId in u_licenses])
   writeCSVfile(csvRows, titles, u'Users', todrive, quotechar)
@@ -20233,6 +20389,8 @@ MIMETYPE_CHOICE_MAP = {
   u'gspreadsheet': MIMETYPE_GA_SPREADSHEET,
   }
 
+MIMETYPE_TYPES = [u'application', u'audio', u'font', u'image', u'message', u'model', u'multipart', u'text', u'video',]
+
 def initMimeTypeCheck():
   return {u'mimeTypes': set(), u'reverse': False}
 
@@ -20243,8 +20401,14 @@ def getMimeTypeCheck(mimeTypeCheck):
       mimeTypeCheck[u'mimeTypes'].add(MIMETYPE_CHOICE_MAP[mimeType])
     elif mimeType.startswith(APPLICATION_VND_GOOGLE_APPS):
       mimeTypeCheck[u'mimeTypes'].add(mimeType)
+    elif mimeType.find(u'/') > 0:
+      mediaType, subType = mimeType.split(u'/', 1)
+      if mediaType in MIMETYPE_TYPES and subType:
+        mimeTypeCheck[u'mimeTypes'].add(mimeType)
+      else:
+        invalidChoiceExit(list(MIMETYPE_CHOICE_MAP)+[u'({0})/mediatype'.format(formatChoiceList(MIMETYPE_TYPES))], True)
     else:
-      invalidChoiceExit(list(MIMETYPE_CHOICE_MAP), True)
+      invalidChoiceExit(list(MIMETYPE_CHOICE_MAP)+[u'({0})/mediatype'.format(formatChoiceList(MIMETYPE_TYPES))], True)
 
 def checkMimeType(mimeTypeCheck, fileEntry):
   if not mimeTypeCheck[u'mimeTypes']:
@@ -21351,7 +21515,7 @@ def _stripNotMeInOwners(query):
 
 OWNED_BY_ME_FIELDS_TITLES = [u'ownedByMe',]
 
-def buildFileTree(feed, drive):
+def initFileTree(drive):
   fileTree = {u'orphans': {u'info': {u'id': u'orphans', VX_FILENAME: u'orphans', u'mimeType': MIMETYPE_GA_FOLDER, u'ownedByMe': True}, u'children': []}}
   try:
     f_file = callGAPI(drive.files(), u'get',
@@ -21360,6 +21524,9 @@ def buildFileTree(feed, drive):
     fileTree[f_file[u'id']] = {u'info': f_file, u'children': []}
   except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy):
     pass
+  return fileTree
+
+def extendFileTree(fileTree, feed):
   for f_file in feed:
     fileId = f_file[u'id']
     if fileId not in fileTree:
@@ -21374,6 +21541,10 @@ def buildFileTree(feed, drive):
       if parentId not in fileTree:
         fileTree[parentId] = {u'info': {u'id': parentId, VX_FILENAME: parentId, u'mimeType': MIMETYPE_GA_FOLDER}, u'children': []}
       fileTree[parentId][u'children'].append(fileId)
+
+def buildFileTree(feed, drive):
+  fileTree = initFileTree(drive)
+  extendFileTree(fileTree, feed)
   return fileTree
 
 def addFilePathsToRow(drive, fileTree, fileEntryInfo, filePathInfo, row, titles):
@@ -21381,7 +21552,7 @@ def addFilePathsToRow(drive, fileTree, fileEntryInfo, filePathInfo, row, titles)
   kcount = len(paths)
   row[u'paths'] = kcount
   k = 0
-  for path in paths:
+  for path in sorted(paths):
     key = u'path.{0}'.format(k)
     if key not in titles[u'set']:
       addTitleToCSVfile(key, titles)
@@ -21461,32 +21632,36 @@ def printFileList(users):
             addTitleToCSVfile(x_attrib, titles)
     csvRows.append(row)
 
-  def _printDriveFolderContents(drive, fileEntry, depth):
-    for childFileId in fileEntry[u'children']:
-      childEntry = fileTree.get(childFileId)
-      if childEntry:
-        if childFileId not in filesPrinted:
-          filesPrinted.add(childFileId)
-          _printFileInfo(drive, childEntry[u'info'].copy())
-        if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
-          _printDriveFolderContents(drive, childEntry, depth+1)
-
   def _printChildDriveFolderContents(drive, fileEntry, user, i, count, depth):
+    parentFileEntry = fileTree.get(fileEntry[u'id'])
+    if parentFileEntry and u'children' in parentFileEntry:
+      for childFileId in parentFileEntry[u'children']:
+        childEntry = fileTree.get(childFileId)
+        if childEntry:
+          if childFileId not in filesPrinted:
+            filesPrinted.add(childFileId)
+            _printFileInfo(drive, childEntry[u'info'].copy())
+          if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
+            _printChildDriveFolderContents(drive, childEntry[u'info'], user, i, count, depth+1)
+      return
     q = VX_WITH_PARENTS.format(fileEntry[u'id'])
     if selectSubQuery:
       q += ' and '+selectSubQuery
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
                                q=q, orderBy=orderBy, fields=pagesfields,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    except (GAPI.invalidQuery, GAPI.invalid):
+      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(selectSubQuery), i, count)
+      return
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       return
     for childEntryInfo in children:
       childFileId = childEntryInfo[u'id']
       if filepath:
-        fileTree[childFileId] = {u'info': childEntryInfo}
+        fileTree.setdefault(childFileId, {u'info': childEntryInfo})
       if childFileId not in filesPrinted:
         filesPrinted.add(childFileId)
         _printFileInfo(drive, childEntryInfo.copy())
@@ -21502,7 +21677,7 @@ def printFileList(users):
   skipObjects = []
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = ME_IN_OWNERS
-  selectSubQuery = None
+  selectSubQuery = u''
   fileIdEntity = {}
   showOwnedBy = fileTree = None
   mimeTypeCheck = initMimeTypeCheck()
@@ -21540,8 +21715,6 @@ def printFileList(users):
       query = None
     elif myarg == u'selectsubquery':
       selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
-      if not selectSubQuery:
-        selectSubQuery = None
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'allfields':
@@ -21623,6 +21796,7 @@ def printFileList(users):
   titles[u'set'] = set(titles[u'list'])
   removeTitlesFromCSVfile([u'capabilities',], titles)
   fileNameTitle = VX_FILENAME
+  incrementalPrint = buildTree and (not fileIdEntity) and (not filepath)
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -21633,6 +21807,45 @@ def printFileList(users):
     if filepath:
       filePathInfo = initFilePathInfo()
     filesPrinted = set()
+    if incrementalPrint:
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
+      page_message = getPageMessageForWhom()
+      pageToken = None
+      totalItems = 0
+      queryError = False
+      while True:
+        try:
+          feed = callGAPI(drive.files(), u'list',
+                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
+                          pageToken=pageToken,
+                          q=query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+          if feed:
+            pageToken = feed.get(u'nextPageToken')
+            if VX_PAGES_FILES in feed:
+              totalItems += len(feed[VX_PAGES_FILES])
+              show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(totalItems))
+              writeStderr(show_message.format(Ent.Choose(Ent.DRIVE_FILE_OR_FOLDER, totalItems)))
+              for f_file in feed[VX_PAGES_FILES]:
+                _printFileInfo(drive, f_file)
+            del feed
+          else:
+            pageToken = None
+          if not pageToken:
+            break
+        except (GAPI.invalidQuery, GAPI.invalid):
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
+          queryError = True
+          break
+        except GAPI.fileNotFound:
+          printGettingEntityItemsForWhomDoneInfo(0)
+          break
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          break
+      if queryError:
+        break
+      continue
+    fileTree = {}
     if buildTree:
       try:
         printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
@@ -21652,8 +21865,6 @@ def printFileList(users):
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
         continue
-    else:
-      fileTree = {}
     if not fileIdEntity:
       if filepath:
         for f_file in feed:
@@ -21669,11 +21880,15 @@ def printFileList(users):
       for fileId in fileIdEntity[u'list']:
         j += 1
         try:
-          fileEntryInfo = callGAPI(drive.files(), u'get',
-                                   throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                                   fileId=fileId, fields=fields)
-          if filepath:
-            fileTree[fileId] = {u'info': fileEntryInfo}
+          fileEntry = fileTree.get(fileId)
+          if fileEntry:
+            fileEntryInfo = fileEntry[u'info']
+          else:
+            fileEntryInfo = callGAPI(drive.files(), u'get',
+                                     throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
+                                     fileId=fileId, fields=fields)
+            if filepath:
+              fileTree[fileId] = {u'info': fileEntryInfo}
           if showParent or fileEntryInfo[u'mimeType'] != MIMETYPE_GA_FOLDER:
             if fileId not in filesPrinted:
               filesPrinted.add(fileId)
@@ -21795,9 +22010,12 @@ def showFileTree(users):
       q += ' and '+selectSubQuery
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                               throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
                                q=q, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+    except (GAPI.invalidQuery, GAPI.invalid):
+      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(selectSubQuery), i, count)
+      return
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       return
@@ -21812,21 +22030,17 @@ def showFileTree(users):
   maxdepth = -1
   query = ME_IN_OWNERS
   fileIdEntity = initDriveFileEntity()
-  cleanFileIDsList(fileIdEntity, [u'root',])
-  selectSubQuery = None
+  selectSubQuery = u''
   showOwnedBy = fileTree = None
-  buildTree = True
+  buildTree = False
   mimeTypeCheck = initMimeTypeCheck()
   orderByList = []
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'select':
       fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
-      buildTree = False
     elif myarg == u'selectsubquery':
       selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
-      if not selectSubQuery:
-        selectSubQuery = None
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'depth':
@@ -21845,6 +22059,11 @@ def showFileTree(users):
       getMimeTypeCheck(mimeTypeCheck)
     else:
       unknownArgumentExit()
+  buildTree = (not fileIdEntity[u'dict']
+               and not fileIdEntity[u'query']
+               and not fileIdEntity[u'list'])
+  if buildTree:
+    cleanFileIDsList(fileIdEntity, [u'root',])
   orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -21854,17 +22073,37 @@ def showFileTree(users):
     if not drive:
       continue
     if buildTree:
-      try:
-        printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
-        page_message = getPageMessageForWhom()
-        feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                             page_message=page_message,
-                             throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
-                             maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-        fileTree = buildFileTree(feed, drive)
-      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, qualifier=queryQualifier(query))
+      page_message = getPageMessageForWhom()
+      pageToken = None
+      totalItems = 0
+      fileTree = initFileTree(drive)
+      userError = False
+      while True:
+        try:
+          feed = callGAPI(drive.files(), u'list',
+                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                          pageToken=pageToken,
+                          q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
+                          maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+          if feed:
+            pageToken = feed.get(u'nextPageToken')
+            if VX_PAGES_FILES in feed:
+              totalItems += len(feed[VX_PAGES_FILES])
+              show_message = page_message.replace(TOTAL_ITEMS_MARKER, str(totalItems))
+              writeStderr(show_message.format(Ent.Choose(Ent.DRIVE_FILE_OR_FOLDER, totalItems)))
+              extendFileTree(fileTree, feed[VX_PAGES_FILES])
+            del feed
+          else:
+            pageToken = None
+          if not pageToken:
+            break
+        except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+          userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+          userError = True
+          break
+      if userError:
+        continue
     else:
       fileTree = {}
     user, drive, jcount = _validateUserGetFileIDs(origUser, i, count, fileIdEntity, drive=drive, entityType=Ent.DRIVE_FOLDER)
@@ -22201,36 +22440,59 @@ def trashDriveFile(users):
 # gam <UserTypeEntity> untrash drivefile <DriveFileEntity>
 def untrashDriveFile(users):
   deleteDriveFile(users, u'untrash')
+
 #
+MICROSOFT_FORMATS_LIST = [{u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'},
+                          {u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.template', u'ext': u'.dotx'},
+                          {u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'},
+                          {u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.template', u'ext': u'.potx'},
+                          {u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'},
+                          {u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.template', u'ext': u'.xltx'},
+                          {u'mime': u'application/msword', u'ext': u'.doc'},
+                          {u'mime': u'application/msword', u'ext': u'.dot'},
+                          {u'mime': u'application/vnd.ms-powerpoint', u'ext': u'.ppt'},
+                          {u'mime': u'application/vnd.ms-powerpoint', u'ext': u'.pot'},
+                          {u'mime': u'application/vnd.ms-excel', u'ext': u'.xls'},
+                          {u'mime': u'application/vnd.ms-excel', u'ext': u'.xlt'}]
+
 DOCUMENT_FORMATS_MAP = {
   u'csv': [{u'mime': u'text/csv', u'ext': u'.csv'}],
+  u'doc': [{u'mime': u'application/msword', u'ext': u'.doc'}],
+  u'dot': [{u'mime': u'application/msword', u'ext': u'.dot'}],
+  u'docx': [{u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'}],
+  u'dotx': [{u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.template', u'ext': u'.dotx'}],
+  u'epub': [{u'mime': u'application/epub+zip', u'ext': u'.epub'}],
   u'html': [{u'mime': u'text/html', u'ext': u'.html'}],
-  u'txt': [{u'mime': u'text/plain', u'ext': u'.txt'}],
-  u'tsv': [{u'mime': u'text/tsv', u'ext': u'.tsv'}],
   u'jpeg': [{u'mime': u'image/jpeg', u'ext': u'.jpeg'}],
   u'jpg': [{u'mime': u'image/jpeg', u'ext': u'.jpg'}],
-  u'png': [{u'mime': u'image/png', u'ext': u'.png'}],
-  u'svg': [{u'mime': u'image/svg+xml', u'ext': u'.svg'}],
-  u'pdf': [{u'mime': u'application/pdf', u'ext': u'.pdf'}],
-  u'rtf': [{u'mime': u'application/rtf', u'ext': u'.rtf'}],
-  u'zip': [{u'mime': u'application/zip', u'ext': u'.zip'}],
-  u'pptx': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'}],
-  u'xlsx': [{u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'}],
-  u'docx': [{u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'}],
-  u'ms': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'},
-          {u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'},
-          {u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'}],
-  u'microsoft': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'},
-                 {u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'},
-                 {u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'}],
-  u'micro$oft': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'},
-                 {u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'},
-                 {u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'}],
-  u'odt': [{u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'}],
-  u'ods': [{u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'}],
-  u'openoffice': [{u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'},
-                  {u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'}],
   u'mht': [{u'mime': u'message/rfc822', u'ext': u'mht'}],
+  u'odp': [{u'mime': u'application/vnd.oasis.opendocument.presentation', u'ext': u'.odp'}],
+  u'ods': [{u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'},
+           {u'mime': u'application/vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'}],
+  u'odt': [{u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'}],
+  u'pdf': [{u'mime': u'application/pdf', u'ext': u'.pdf'}],
+  u'png': [{u'mime': u'image/png', u'ext': u'.png'}],
+  u'ppt': [{u'mime': u'application/vnd.ms-powerpoint', u'ext': u'.ppt'}],
+  u'pot': [{u'mime': u'application/vnd.ms-powerpoint', u'ext': u'.pot'}],
+  u'potx': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.template', u'ext': u'.potx'}],
+  u'pptx': [{u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'}],
+  u'rtf': [{u'mime': u'application/rtf', u'ext': u'.rtf'}],
+  u'svg': [{u'mime': u'image/svg+xml', u'ext': u'.svg'}],
+  u'tsv': [{u'mime': u'text/tab-separated-values', u'ext': u'.tsv'},
+           {u'mime': u'text/tsv', u'ext': u'.tsv'}],
+  u'txt': [{u'mime': u'text/plain', u'ext': u'.txt'}],
+  u'xls': [{u'mime': u'application/vnd.ms-excel', u'ext': u'.xls'}],
+  u'xlt': [{u'mime': u'application/vnd.ms-excel', u'ext': u'.xlt'}],
+  u'xlsx': [{u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', u'ext': u'.xlsx'}],
+  u'xltx': [{u'mime': u'application/vnd.openxmlformats-officedocument.spreadsheetml.template', u'ext': u'.xltx'}],
+  u'zip': [{u'mime': u'application/zip', u'ext': u'.zip'}],
+  u'ms': MICROSOFT_FORMATS_LIST,
+  u'microsoft': MICROSOFT_FORMATS_LIST,
+  u'micro$oft': MICROSOFT_FORMATS_LIST,
+  u'openoffice': [{u'mime': u'application/vnd.oasis.opendocument.presentation', u'ext': u'.odp'},
+                  {u'mime': u'application/x-vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'},
+                  {u'mime': u'application/vnd.oasis.opendocument.spreadsheet', u'ext': u'.ods'},
+                  {u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'}],
   }
 
 # gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [revision <Number>] [nocache]
@@ -22276,7 +22538,8 @@ def getDriveFile(users):
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                          fileId=fileId, fields=u'title,mimeType,fileSize,downloadUrl,exportLinks')
+                          fileId=fileId, fields=u'title,fileExtension,mimeType,fileSize,downloadUrl,exportLinks')
+        extension = result.get(u'fileExtension')
         if result[u'mimeType'] == MIMETYPE_GA_FOLDER:
           entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, result[VX_FILENAME]], Msg.CAN_NOT_BE_DOWNLOADED, j, jcount)
           continue
@@ -22290,7 +22553,7 @@ def getDriveFile(users):
           for exportFormat in exportFormats:
             if exportFormat[u'mime'] in result[u'exportLinks']:
               download_url = result[u'exportLinks'][exportFormat[u'mime']]
-              extension = exportFormat[u'ext']
+              extension = extension or exportFormat[u'ext']
               break
           else:
             entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]],
@@ -23582,8 +23845,13 @@ def addDriveFilePermissions(users):
 def deleteDriveFileACLs(users):
   fileIdEntity = getDriveFileEntity()
   isEmail, permissionId = getPermissionId()
-  showTitles = True if checkArgumentPresent(Cmd.SHOWTITLES_ARGUMENT) else False
-  checkForExtraneousArguments()
+  showTitles = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'showtitles':
+      showTitles = getBoolean()
+    else:
+      unknownArgumentExit()
   if isEmail:
     permissionId = validateUserGetPermissionId(permissionId)
     if not permissionId:

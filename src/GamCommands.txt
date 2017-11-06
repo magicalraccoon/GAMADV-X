@@ -15,6 +15,7 @@ If an item contains spaces, it should be surrounded by ".
 <Character> ::= a single character
 <Digit> ::= 0|1|2|3|4|5|6|7|8|9
 <Number> ::= <Digit>+
+<Float> ::= <Digit>*.<Digit>+
 <Hex> ::= <Digit>|a|b|c|d|e|f|A|B|C|D|E|F
 <Space> ::= an actual space character
 <String> ::= a string of characters, surrounded by " if it contains spaces
@@ -22,7 +23,25 @@ If an item contains spaces, it should be surrounded by ".
 <TrueValues> ::= true|on|yes|enabled|1
 
 <Charset> ::= ascii|latin1|mbcs|utf-8|utf-8-sig|utf-16|<String>
-<FileFormat> ::= csv|html|txt|tsv|jpeg|jpg|png|svg|pdf|rtf|pptx|xlsx|docx|odt|ods|openoffice|ms|microsoft|micro$oft
+<ColorName> ::=
+	aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|
+	cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|
+	darkblue|darkcyan|darkgoldenrod|darkgray|darkgrey|darkgreen|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|
+	darksalmon|darkseagreen|darkslateblue|darkslategray|darkslategrey|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dimgrey|dodgerblue|
+	firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|grey|green|greenyellow|
+	honeydew|hotpink|indianred|indigo|ivory|khaki|
+	lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgray|lightgrey|lightgreen|lightpink|
+	lightsalmon|lightseagreen|lightskyblue|lightslategray|lightslategrey|lightsteelblue|lightyellow|lime|limegreen|linen|
+	magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|
+	mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|
+	oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|
+	papayawhip|peachpuff|peru|pink|plum|powderblue|purple|red|rosybrown|royalblue|
+	saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|slategrey|snow|springgreen|steelblue|
+	tan|teal|thistle|tomato|turquoise|violet|wheat|white|whitesmoke|yellow|yellowgreen
+<FileFormat> ::=
+	csv|doc|dot|docx|dotx|epub|html|jpeg|jpg|mht|odp|ods|odt|
+	pdf|png|ppt|pot|potx|pptx|rtf|svg|tsv|txt|xls|xlt|xlsx|xltx|zip|
+	ms|microsoft|openoffice|
 <Language> ::=
 	ach|af|ag|ak|am|ar|az|be|bem|bg|bn|br|bs|ca|chr|ckb|co|crs|cs|cy|da|de|ee|el|en|en-gb|en-us|eo|es|es-419|et|eu|
 	fa|fi|fo|fr|fr-ca|fy|ga|gaa|gd|gl|gn|gu|ha|haw|he|hi|hr|ht|hu|hy|ia|id|ig|in|is|it|iw|ja|jw|
@@ -30,7 +49,7 @@ If an item contains spaces, it should be surrounded by ".
 	ne|nl|nn|no|nso|ny|nyn|oc|om|or|pa|pcm|pl|ps|pt-br|pt-pt|qu|rm|rn|ro|ru|rw|
 	sd|sh|si|sk|sl|sn|so|sq|sr|sr-me|st|su|sv|sw|ta|te|tg|th|ti|tk|tl|tn|to|tr|tt|tum|tw|
 	ug|uk|ur|uz|vi|wo|xh|yi|yo|zh-cn|zh-hk|zh-tw|zu
-<MimeType> ::=
+<MimeTypeShortcut> ::=
 	gdoc|gdocument|
 	gdrawing|
 	gfolder|gdirectory|
@@ -40,8 +59,9 @@ If an item contains spaces, it should be surrounded by ".
 	gpresentation|
 	gscript|
 	gsite|
-	gsheet|gspreadsheet|
-	<String>
+	gsheet|gspreadsheet
+<MimeTypeName> ::= application|audio|font|image|message|model|multipart|text|video
+<MimeType> ::= <MimeTypeShortcut>|(<MimeTypeName>/<String>)
 <MimeTypeList> ::= "<MimeType>(,<MimeType>)*"
 <ProductID> ::=
 	Google-Apps|
@@ -197,6 +217,7 @@ If an item contains spaces, it should be surrounded by ".
 <CalendarColorIndex> ::== <Number in range 1-24>
 <CalendarItem> ::= <EmailAddress>|<String>
 <ClientID> ::= <String>
+<ColorValue> ::= <ColorName>|<ColorHex>
 <ContactID> ::= <String>
 <ContactGroupID> ::= id:<String>
 <ContactGroupName> ::= <String>
@@ -1645,9 +1666,9 @@ gam <UserTypeEntity> show backupcodes|verificationcodes
 	<CalendarSelectProperties>+
 
 <CalendarAttributes> ::=
-	(backgroundcolor <ColorHex>)|
+	(backgroundcolor <ColorValue>)|
 	(colorindex|colorid <CalendarColorIndex>)|
-	(foregroundcolor <ColorHex>)|
+	(foregroundcolor <ColorValue>)|
 	(hidden <Boolean>)|
 	(notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))|
 	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
@@ -1791,7 +1812,7 @@ gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventS
 
 <DriveFileAttributes> ::=
 	(description <String>)|
-	(folderColorRgb <ColorHex>)|
+	(folderColorRgb <ColorValue>)|
 	(indexabletext <String>)|
 	(keeprevisionforever|pinned)|
 	(lastviewedbyme <Time>)|
