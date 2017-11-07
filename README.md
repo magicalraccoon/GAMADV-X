@@ -1,6 +1,9 @@
 GAMADV-X
 ========
 GAMADV-X is a free, open source command line tool for Google G Suite Administrators to manage domain and user settings quickly and easily.
+This page provides simple instructions for downloading, installing and starting to use GAM.
+
+GAMADV-X requires G Suite for Business, Education, Partner or Government Edition. Google Apps Free Edition has limited API support and not all GAM commands work.
 
 GAMADV-X is a rewrite/extension of Jay Lee's [GAM](https://github.com/jay0lee/GAM), without his efforts, this version wouldn't exist.
 
@@ -8,9 +11,16 @@ Documentation
 -------------
 General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is hosted in the [GitHub GAMADV-X Wiki] and in Gam*.txt files.
 
+Requirements
+------------
+To run all commands properly, GAMADV-X requires three things:
+* An API project which identifies your install of GAMADV-X to Google and keeps track of API quotas.
+* Authorization to act as your G Suite Administrator in order to perform management functions like add users, modify group settings and membership and pull domain reports.
+* A special service account that is authorized to act on behalf of your users in order to modify user-specific settings and data such as Drive files, Calendars and Gmail messages and settings like signatures.
+
 Downloads
 ---------
-You can download the current GAMADV-X release from the [GitHub Releases] page. Choose one of the following:
+You can download the current GAMADV-X release from the [GitHub Releases](https://github.com/taers232c/GAMADV-X/releases) page. Choose one of the following:
 
 * Single Executable, Linux/Mac OS - `gamadv-x-4.wx.yz-linux-x86_64.xz, gamadv-x-4.wx.yz-macos.tar.xz`
   - Download the archive, extract the contents into some directory.
@@ -33,10 +43,10 @@ Installation - New Users
 Read GamConfig.txt.
 
 Enter the following gam commands and follow instructions to create the necessary authorizations.
-- Build gam.cfg: ```gam config verify```
-- Build GAM Project for authorization: ```gam create project```
-- Authorize Gam Client: ```gam oauth create```
-- Authorize Service Account: ```gam user <email address> check serviceaccount```
+- Build gam.cfg: `gam config verify`
+- Build GAM Project for authorization: `gam create project`
+- Authorize Gam Client: `gam oauth create`
+- Authorize Service Account: `gam user <EmailAddress> check serviceaccount`
 
 Installation - Upgrading from a GAM version other than a prior version of GAMADV-X
 ----------------------------------------------------------------------------------
