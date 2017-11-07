@@ -97,6 +97,7 @@ Section: DEFAULT
   domain = ''
   drive_dir = /Users/admin/Downloads
   drive_max_results = 1000
+  drive_v3_native_names = false
   email_batch_size = 100
   extra_args = ''
   member_max_results = 200
@@ -367,6 +368,7 @@ Section: DEFAULT
   domain = domain.com
   drive_dir = /Users/admin/Downloads
   drive_max_results = 1000
+  drive_v3_native_names = false
   email_batch_size = 100
   extra_args = ''
   member_max_results = 200
@@ -449,6 +451,7 @@ Section: DEFAULT
   domain = ''
   drive_dir = C:\Users\Administrator.DOMAIN\Downloads
   drive_max_results = 1000
+  drive_v3_native_names = false
   email_batch_size = 100
   extra_args = ''
   member_max_results = 200
@@ -745,6 +748,7 @@ Section: DEFAULT
   domain = domain.com
   drive_dir = C:\Users\Administrator.DOMAIN\Downloads
   drive_max_results = 1000
+  drive_v3_native_names = false
   email_batch_size = 100
   extra_args = ''
   member_max_results = 200
