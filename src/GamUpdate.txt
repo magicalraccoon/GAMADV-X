@@ -1,3 +1,17 @@
+4.48.49
+
+Updated gam add filter to send actions to the API in a particular order so that Google will correctly identify duplicate filters.
+
+Fixed bug in gam info user where primary field was not printed for addresses.
+
+4.48.48
+
+Skipped.
+
+4.48.47
+
+Skipped.
+
 4.48.46
 
 Improved memory usage of print filelist/show filetree.
