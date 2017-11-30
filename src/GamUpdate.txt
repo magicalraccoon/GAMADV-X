@@ -1,3 +1,7 @@
+4.48.53
+
+Code cleanup for "Getting ..." messages.
+
 4.48.52
 
 * Added noretentionmessages option to the following commands.
