@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.54'
+__version__ = u'4.48.56'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2560,6 +2560,8 @@ def getClientCredentials(cred_family):
   credentials = getCredentialsForScope(cred_family)
   if not credentials or credentials.invalid:
     invalidOauth2TxtExit()
+  if credentials.access_token_expired:
+    credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL]))
   credentials.user_agent = GAM_INFO
   return credentials
 
@@ -3404,9 +3406,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       printGotAccountEntities(len(entityList))
     except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
       accessErrorExit(cd)
-  elif entityType in [Cmd.ENTITY_GROUP, Cmd.ENTITY_GROUPS]:
+  elif entityType in [Cmd.ENTITY_GROUP, Cmd.ENTITY_GROUPS, Cmd.ENTITY_GROUP_NS, Cmd.ENTITY_GROUPS_NS]:
+    if entityType in [Cmd.ENTITY_GROUP_NS, Cmd.ENTITY_GROUPS_NS]:
+      checkNotSuspended = True
     cd = buildGAPIObject(API.DIRECTORY)
-    groups = convertEntityToList(entity, nonListEntityType=entityType == Cmd.ENTITY_GROUP)
+    groups = convertEntityToList(entity, nonListEntityType=entityType in [Cmd.ENTITY_GROUP, Cmd.ENTITY_GROUP_NS])
     for group in groups:
       if validateEmailAddressOrUID(group):
         try:
@@ -3429,7 +3433,9 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
       else:
         _showInvalidEntity(Ent.GROUP, group)
         invalid += 1
-  elif entityType == Cmd.ENTITY_GROUP_USERS:
+  elif entityType in [Cmd.ENTITY_GROUP_USERS, Cmd.ENTITY_GROUP_USERS_NS]:
+    if entityType == Cmd.ENTITY_GROUP_USERS_NS:
+      checkNotSuspended = True
     cd = buildGAPIObject(API.DIRECTORY)
     groups = convertEntityToList(entity)
     recursive = False
@@ -3943,7 +3949,7 @@ def getEntityToModify(defaultEntityType=None, returnOnError=False, crosAllowed=F
       GM.Globals[GM.ENTITY_CL_DELAY_START] = Cmd.Location()
       buildGAPIObject(API.DIRECTORY)
       if entityClass == Cmd.ENTITY_USERS:
-        if entityType == Cmd.ENTITY_GROUP_USERS:
+        if entityType in [Cmd.ENTITY_GROUP_USERS, Cmd.ENTITY_GROUP_USERS_NS]:
           # Skip over sub-arguments
           while Cmd.ArgumentsRemaining():
             myarg = getArgument()
@@ -5053,16 +5059,6 @@ def doListCrOS(entityList):
 def doListUser(entityList):
   _doList(entityList, Cmd.ENTITY_USERS)
 
-class cmd_flags(object):
-  def __init__(self, noLocalWebserver):
-    self.short_url = True
-    self.noauth_local_webserver = noLocalWebserver
-    self.logging_level = u'ERROR'
-    self.auth_host_name = u'localhost'
-    self.auth_host_port = [8080, 9090]
-
-OAUTH2_CMDS = [u's', u'u', u'e', u'c']
-
 def revokeCredentials(credFamilyList):
   httpObj = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
   for cred_family in credFamilyList:
@@ -5088,21 +5084,20 @@ def getValidateLoginHint(login_hint):
       return login_hint
     sys.stdout.write(u'Error: that is not a valid email address\n')
 
-# gam oauth|oauth2 create|request [<EmailAddress>]
-def doOAuthRequest():
+def getOAuthClientIDAndSecret():
   cs_data = readFile(GC.Values[GC.CLIENT_SECRETS_JSON], continueOnError=True, displayError=True)
   if not cs_data:
     invalidClientSecretsJsonExit()
   try:
     cs_json = json.loads(cs_data)
-    client_id = cs_json[u'installed'][u'client_id']
-    client_secret = cs_json[u'installed'][u'client_secret']
+    # chop off .apps.googleusercontent.com suffix as it's not needed and we need to keep things short for the Auth URL.
+    return (re.sub(r'\.apps\.googleusercontent\.com$', u'', cs_json[u'installed'][u'client_id']),
+            cs_json[u'installed'][u'client_secret'])
   except (ValueError, IndexError, KeyError):
     invalidClientSecretsJsonExit()
 
-  login_hint = getEmailAddress(noUid=True, optional=True)
-  checkForExtraneousArguments()
-  login_hint = getValidateLoginHint(login_hint)
+def getScopesFromUser():
+  OAUTH2_CMDS = [u's', u'u', u'e', u'c']
   oauth2_menu = u'''
 Select the authorized scopes by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
@@ -5196,6 +5191,23 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
         sys.stdout.write(u'{0}Invalid input "{1}"\n'.format(ERROR_PREFIX, choice))
     if selection == u'c':
       break
+  return selected_scopes
+
+class cmd_flags(object):
+  def __init__(self, noLocalWebserver):
+    self.short_url = True
+    self.noauth_local_webserver = noLocalWebserver
+    self.logging_level = u'ERROR'
+    self.auth_host_name = u'localhost'
+    self.auth_host_port = [8080, 9090]
+
+# gam oauth|oauth2 create|request [<EmailAddress>]
+def doOAuthRequest():
+  client_id, client_secret = getOAuthClientIDAndSecret()
+  login_hint = getEmailAddress(noUid=True, optional=True)
+  checkForExtraneousArguments()
+  selected_scopes = getScopesFromUser()
+  login_hint = getValidateLoginHint(login_hint)
   revokeCredentials(API.FAM_LIST)
   flags = cmd_flags(noLocalWebserver=GC.Values[GC.NO_BROWSER])
   httpObj = httplib2.Http(disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
@@ -5998,8 +6010,7 @@ def doReport():
                              maxResults=maxResults)
         while feed:
           activity = feed.popleft()
-          events = activity[u'events']
-          del activity[u'events']
+          events = activity.pop(u'events')
           if not countsOnly:
             activity_row = flattenJSON(activity, timeObjects=REPORT_ACTIVITIES_TIME_OBJECTS)
             for event in events:
@@ -6572,8 +6583,7 @@ def doPrintDomains():
       csvRows.append(row)
       if u'domainAliases' in domain:
         for aliasdomain in domain[u'domainAliases']:
-          aliasdomain[u'domainName'] = aliasdomain[u'domainAliasName']
-          del aliasdomain[u'domainAliasName']
+          aliasdomain[u'domainName'] = aliasdomain.pop(u'domainAliasName')
           aliasdomain[u'type'] = u'alias'
           row = {}
           for attr in aliasdomain:
@@ -12294,7 +12304,7 @@ def doPrintGroups():
     sortCSVTitles([fieldsTitles[u'email']], titles)
   writeCSVfile(csvRows, titles, u'Groups', todrive, quotechar)
 
-def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, noduplicates, recursive, level):
+def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, checkNotSuspended, noduplicates, recursive, level):
   try:
     printGettingAllEntityItemsForWhom(Ent.MEMBER, groupEmail, i, count)
     groupMembers = callGAPIpages(cd.members(), u'list', u'members',
@@ -12304,37 +12314,37 @@ def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, no
     if not recursive:
       if noduplicates:
         for member in groupMembers:
-          if member[u'id'] in membersSet:
-            continue
-          membersSet.add(member[u'id'])
-          membersList.append(member)
+          if not (checkNotSuspended and (member[u'status'] == u'SUSPENDED')) and  member[u'id'] not in membersSet:
+            membersSet.add(member[u'id'])
+            membersList.append(member)
       else:
-        membersList.extend(groupMembers)
+        for member in groupMembers:
+          if not (checkNotSuspended and (member[u'status'] == u'SUSPENDED')):
+            membersList.append(member)
     elif noduplicates:
       groupMemberList = []
       for member in groupMembers:
         if member[u'type'] == u'USER':
-          if member[u'id'] in membersSet:
-            continue
-          membersSet.add(member[u'id'])
-          member[u'level'] = level
-          member[u'subgroup'] = groupEmail
-          membersList.append(member)
+          if not (checkNotSuspended and (member[u'status'] == u'SUSPENDED')) and member[u'id'] not in membersSet:
+            membersSet.add(member[u'id'])
+            member[u'level'] = level
+            member[u'subgroup'] = groupEmail
+            membersList.append(member)
         elif member[u'type'] == u'GROUP':
-          if member[u'id'] in membersSet:
-            continue
-          membersSet.add(member[u'id'])
-          groupMemberList.append(member[u'email'])
+          if member[u'id'] not in membersSet:
+            membersSet.add(member[u'id'])
+            groupMemberList.append(member[u'email'])
       for member in groupMemberList:
-        getGroupMembers(cd, member, roles, membersList, membersSet, i, count, noduplicates, recursive, level+1)
+        getGroupMembers(cd, member, roles, membersList, membersSet, i, count, checkNotSuspended, noduplicates, recursive, level+1)
     else:
       for member in groupMembers:
         if member[u'type'] == u'USER':
-          member[u'level'] = level
-          member[u'subgroup'] = groupEmail
-          membersList.append(member)
+          if not (checkNotSuspended and (member[u'status'] == u'SUSPENDED')):
+            member[u'level'] = level
+            member[u'subgroup'] = groupEmail
+            membersList.append(member)
         elif member[u'type'] == u'GROUP':
-          getGroupMembers(cd, member[u'email'], roles, membersList, membersSet, i, count, noduplicates, recursive, level+1)
+          getGroupMembers(cd, member[u'email'], roles, membersList, membersSet, i, count, checkNotSuspended, noduplicates, recursive, level+1)
   except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
     entityUnknownWarning(Ent.GROUP, groupEmail, i, count)
 
@@ -12352,7 +12362,7 @@ GROUPMEMBERS_FIELD_NAMES_MAP = {
 GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'status']
 
 # gam print group-members|groups-members [todrive [<ToDriveAttributes>]]
-#	([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+#	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
 #	[members] [managers] [owners] [membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
 def doPrintGroupMembers():
   cd = buildGAPIObject(API.DIRECTORY)
@@ -12365,6 +12375,7 @@ def doPrintGroupMembers():
   entityList = None
   userFieldsList = []
   rolesSet = set()
+  checkNotSuspended = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -12379,9 +12390,13 @@ def doPrintGroupMembers():
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.MEMBER), kwargs[u'userKey'])
     elif myarg in GROUP_ROLES_MAP:
       rolesSet.add(GROUP_ROLES_MAP[myarg])
-    elif myarg == u'group':
+    elif myarg in [u'group', u'groupns']:
       entityList = [getEmailAddress()]
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.GROUP), entityList[0])
+      if myarg == u'groupns':
+        checkNotSuspended = True
+    elif myarg == u'notsuspended':
+      checkNotSuspended = True
     elif myarg == u'select':
       entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
       subTitle = u'{0} {1}'.format(Msg.SELECTED, Ent.Plural(Ent.GROUP))
@@ -12460,7 +12475,7 @@ def doPrintGroupMembers():
     else:
       groupEmail = convertUIDtoEmailAddress(group, cd, u'group')
     membersList = []
-    getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, noduplicates, recursive, level)
+    getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, checkNotSuspended, noduplicates, recursive, level)
     for member in membersList:
       memberId = member[u'id']
       row = {}
@@ -12483,8 +12498,7 @@ def doPrintGroupMembers():
                               throw_reasons=GAPI.USER_GET_THROW_REASONS,
                               userKey=memberId, fields=userFields)
             if membernames:
-              row[u'name'] = mbinfo[u'name'][u'fullName']
-              del mbinfo[u'name'][u'fullName']
+              row[u'name'] = mbinfo[u'name'].pop(u'fullName')
             addRowTitlesToCSVfile(flattenJSON(mbinfo, flattened=row), csvRows, titles)
             continue
           except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
@@ -12513,7 +12527,7 @@ def doPrintGroupMembers():
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
 # gam show group-members
-#	([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]|[select <GroupEntity>]
+#	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
 #	[members] [managers] [owners] [depth <Number>]
 def doShowGroupMembers():
   def _roleOrder(key):
@@ -12539,10 +12553,11 @@ def doShowGroupMembers():
       return
     Ind.Increment()
     for member in sorted(membersList, key=lambda k: (_roleOrder(k.get(u'role', Ent.ROLE_MEMBER)), _typeOrder(k[u'type']), _statusOrder(k['status']))):
-      if (member[u'role'] in rolesSet) or (member[u'type'] == u'GROUP'):
-        printKeyValueList([u'{0}, {1}, {2}, {3}'.format(member.get(u'role', Ent.ROLE_MEMBER), member[u'type'], member.get(u'email', member[u'id']), member[u'status'])])
-      if (member[u'type'] == u'GROUP') and (maxdepth == -1 or depth < maxdepth):
-        _showGroup(member[u'email'], depth+1)
+      if not (checkNotSuspended and (member[u'status'] == u'SUSPENDED')):
+        if (member[u'role'] in rolesSet) or (member[u'type'] == u'GROUP'):
+          printKeyValueList([u'{0}, {1}, {2}, {3}'.format(member.get(u'role', Ent.ROLE_MEMBER), member[u'type'], member.get(u'email', member[u'id']), member[u'status'])])
+        if (member[u'type'] == u'GROUP') and (maxdepth == -1 or depth < maxdepth):
+          _showGroup(member[u'email'], depth+1)
     Ind.Decrement()
 
   cd = buildGAPIObject(API.DIRECTORY)
@@ -12550,6 +12565,7 @@ def doShowGroupMembers():
   kwargs = {u'customer': customerKey}
   entityList = None
   rolesSet = set()
+  checkNotSuspended = False
   maxdepth = -1
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -12561,8 +12577,12 @@ def doShowGroupMembers():
       kwargs.pop(u'customer', None)
     elif myarg in GROUP_ROLES_MAP:
       rolesSet.add(GROUP_ROLES_MAP[myarg])
-    elif myarg == u'group':
+    elif myarg in [u'group', u'groupns']:
       entityList = [getEmailAddress()]
+      if myarg == u'groupns':
+        checkNotSuspended = True
+    elif myarg == u'notsuspended':
+      checkNotSuspended = True
     elif myarg == u'select':
       entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
     elif myarg == u'depth':
@@ -16698,6 +16718,8 @@ USER_ARGUMENT_TO_PROPERTY_MAP = {
   u'ipwhitelisted': [u'ipWhitelisted',],
   u'isadmin': [u'isAdmin', u'isDelegatedAdmin',],
   u'isdelegatedadmin': [u'isAdmin', u'isDelegatedAdmin',],
+  u'isenforcedin2sv': [u'isEnforcedIn2Sv',],
+  u'isenrolledin2sv': [u'isEnrolledIn2Sv',],
   u'is2svenforced': [u'isEnforcedIn2Sv',],
   u'is2svenrolled': [u'isEnrolledIn2Sv',],
   u'ismailboxsetup': [u'isMailboxSetup',],
@@ -17452,13 +17474,16 @@ def doInviteGuardian():
   checkForExtraneousArguments()
   try:
     result = callGAPI(croom.userProfiles().guardianInvitations(), u'create',
-                      throw_reasons=[GAPI.NOT_FOUND, GAPI.INVALID_ARGUMENT, GAPI.BAD_REQUEST, GAPI.FORBIDDEN, GAPI.PERMISSION_DENIED, GAPI.ALREADY_EXISTS],
+                      throw_reasons=[GAPI.NOT_FOUND, GAPI.ALREADY_EXISTS,
+                                     GAPI.INVALID_ARGUMENT, GAPI.BAD_REQUEST, GAPI.FORBIDDEN, GAPI.PERMISSION_DENIED, GAPI.RESOURCE_EXHAUSTED],
                       studentId=studentId, body=body, fields=u'invitationId')
     entityActionPerformed([Ent.STUDENT, studentId, Ent.GUARDIAN, body[u'invitedEmailAddress'], Ent.GUARDIAN_INVITATION, result[u'invitationId']])
-  except (GAPI.notFound, GAPI.invalidArgument, GAPI.badRequest, GAPI.forbidden):
+  except GAPI.notFound:
     entityUnknownWarning(Ent.STUDENT, studentId)
   except GAPI.alreadyExists:
     entityActionFailedWarning([Ent.STUDENT, studentId, Ent.GUARDIAN, body[u'invitedEmailAddress']], Msg.DUPLICATE)
+  except (GAPI.invalidArgument, GAPI.badRequest, GAPI.forbidden, GAPI.permissionDenied, GAPI.resourceExhausted) as e:
+    entityActionFailedWarning([Ent.STUDENT, studentId, Ent.GUARDIAN, body[u'invitedEmailAddress']], str(e))
 
 def _cancelGuardianInvitation(croom, studentId, invitationId):
   try:
@@ -25696,8 +25721,7 @@ def printShowLabels(users, csvFormat):
         if parent in labelTree:
           if label in labelTree:
             labelTree[label][u'info'][u'base'] = base
-            labelTree[parent][u'children'].append(labelTree[label])
-            del labelTree[label]
+            labelTree[parent][u'children'].append(labelTree.pop(label))
           _checkChildLabel(parent)
 
     labelTree = {}

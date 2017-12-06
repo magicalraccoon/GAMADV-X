@@ -33,6 +33,7 @@ CANNOT_COPY_FILE = u'cannotCopyFile'
 CANNOT_DELETE_ONLY_REVISION = u'cannotDeleteOnlyRevision'
 CANNOT_DELETE_PRIMARY_CALENDAR = u'cannotDeletePrimaryCalendar'
 CANNOT_DELETE_PRIMARY_SENDAS = u'cannotDeletePrimarySendAs'
+CANNOT_DELETE_RESOURCE_WITH_CHILDREN = u'cannotDeleteResourceWithChildren'
 CANNOT_SHARE_GROUPS_WITHLINK = u'cannotShareGroupsWithLink'
 CANNOT_SHARE_USERS_WITHLINK = u'cannotShareUsersWithLink'
 CONDITION_NOT_MET = u'conditionNotMet'
@@ -215,6 +216,8 @@ class cannotDeletePrimaryCalendar(Exception):
   pass
 class cannotDeletePrimarySendAs(Exception):
   pass
+class cannotDeleteResourceWithChildren(Exception):
+  pass
 class cannotShareGroupsWithLink(Exception):
   pass
 class cannotShareUsersWithLink(Exception):
@@ -373,6 +376,7 @@ REASON_EXCEPTION_MAP = {
   CANNOT_DELETE_ONLY_REVISION: cannotDeleteOnlyRevision,
   CANNOT_DELETE_PRIMARY_CALENDAR: cannotDeletePrimaryCalendar,
   CANNOT_DELETE_PRIMARY_SENDAS: cannotDeletePrimarySendAs,
+  CANNOT_DELETE_RESOURCE_WITH_CHILDREN: cannotDeleteResourceWithChildren,
   CANNOT_SHARE_GROUPS_WITHLINK: cannotShareGroupsWithLink,
   CANNOT_SHARE_USERS_WITHLINK: cannotShareUsersWithLink,
   CONDITION_NOT_MET: conditionNotMet,

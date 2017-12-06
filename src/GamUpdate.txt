@@ -1,6 +1,43 @@
+4.48.56
+
+Added options to allow getting only non-suspended users from groups and OUs. Using a type with a trailing _ns causes Gam to get only
+the non-suspended users.
+<UserTypeEntity> ::=
+	(group|group_ns <GroupItem>)|
+	(groups|groups_ns <GroupList>)|
+	(group_users|group_users_ns <GroupList> [members] [managers] [owners] [primarydomain] [domains <DomainNameList>] [recursive] end)|
+	(ou|ou_ns <OrgUnitItem>)|
+	(ou_and_children|ou_and_children_ns <OrgUnitItem>)|
+	(ous|ous_ns <OrgUnitList>)|
+	(ous_and_children|ous_and_children_ns <OrgUnitList>)|
+
+gam print group-members [todrive [<ToDriveAttributes>]]
+	[domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+	[members] [managers] [owners] [membernames] <MembersFieldName>*
+	[fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
+gam show group-members
+	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+	[members] [managers] [owners] [depth <Number>]
+
+To maintain compatabiity with Jay Lee's Gam, gam oauth create has been changed to prompt for the G Suite admin email address
+after the scopes have been selected.
+
+4.48.55
+
+Skipped.
+
 4.48.54
 
 Fixed bug in gam info group.
+
+Made gam info group and gam info user consistent when printing aliases.
+Previously:
+* gam info user showed the Aliases: and Non-Editable Aliases: lines even if there were no aliases of the type; counts for each alias type were not shown.
+* gam info group showed the Aliases: and Non-Editable Aliases: lines only if there were aliases of the type; counts for each alias type were shown.
+
+Currently:
+* gam info user shows the Aliases: and Non-Editable Aliases: lines only if there are aliases of the type; counts for each alias type are shown.
+* gam info group shows the Aliases: and Non-Editable Aliases: lines only if there are aliases of the type; counts for each alias type are shown.
 
 4.48.53
 
