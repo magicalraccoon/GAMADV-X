@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.48.58'
+__version__ = u'4.48.59'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -23605,10 +23605,9 @@ def transferDrive(users):
   try:
     result = callGAPI(targetDrive.about(), u'get',
                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                      fields=u'quotaBytesTotal,quotaBytesUsed,user(permissionId)')
-    targetDriveFree = int(result[u'quotaBytesTotal'])
-    if targetDriveFree != 0:
-      targetDriveFree -= int(result[u'quotaBytesUsed'])
+                      fields=u'quotaType,quotaBytesTotal,quotaBytesUsed,user(permissionId)')
+    if result[u'quotaType'] != u'UNLIMITED':
+      targetDriveFree = int(result[u'quotaBytesTotal'])-int(result[u'quotaBytesUsed'])
     else:
       targetDriveFree = None
     targetPermissionId = result[u'user'][u'permissionId']
@@ -23694,7 +23693,7 @@ def transferDrive(users):
                                                                  u'')))
         continue
       printKeyValueList([u'Source drive size', formatFileSize(sourceDriveSize),
-                         u'Target drive free', formatFileSize(targetDriveFree)])
+                         u'Target drive free', formatFileSize(targetDriveFree) if targetDriveFree is not None else u'UNLIMITED'])
       if targetDriveFree is not None:
         targetDriveFree = targetDriveFree - sourceDriveSize # prep targetDriveFree for next user
       if not csvFormat:
