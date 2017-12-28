@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.04'
+__version__ = u'4.55.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11706,7 +11706,7 @@ def doCreateGroup():
     entityActionPerformedMessage([Ent.GROUP, body[u'email']], errMsg)
   except GAPI.duplicate:
     entityDuplicateWarning([Ent.GROUP, body[u'email']])
-  except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.invalid, GAPI.invalidInput,
+  except (GAPI.notFound, GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.invalid, GAPI.invalidInput,
           GAPI.badRequest, GAPI.permissionDenied, GAPI.backendError, GAPI.systemError) as e:
     entityActionFailedWarning([Ent.GROUP, body[u'email']], str(e))
 
@@ -11964,7 +11964,7 @@ def doUpdateGroups():
           else:
             entityActionFailedWarning([Ent.GROUP, group], Msg.API_ERROR_SETTINGS, i, count)
             continue
-        except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError, GAPI.badRequest):
+        except (GAPI.notFound, GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError, GAPI.badRequest):
           entityUnknownWarning(Ent.GROUP, group, i, count)
           continue
       if body:
@@ -11986,7 +11986,7 @@ def doUpdateGroups():
         except (GAPI.permissionDenied, GAPI.invalid, GAPI.invalidInput) as e:
           entityActionFailedWarning([Ent.GROUP, group], str(e), i, count)
           continue
-        except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
+        except (GAPI.notFound, GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError):
           entityUnknownWarning(Ent.GROUP, group, i, count)
           continue
       entityActionPerformedMessage([Ent.GROUP, group], errMsg, i, count)
@@ -12301,7 +12301,7 @@ def infoGroups(entityList):
         Ind.Decrement()
         printKeyValueList([u'Total users in group', len(members)])
       Ind.Decrement()
-    except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.invalid, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
+    except (GAPI.notFound, GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.invalid, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
       entityUnknownWarning(Ent.GROUP, group, i, count)
 
 # gam info groups <GroupEntity> [members] [managers] [owners] [nousers] [quick] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>] [formatjson]
@@ -12494,7 +12494,7 @@ def doPrintGroups():
         if response is None:
           entityActionFailedWarning([Ent.GROUP, ri[RI_ENTITY], Ent.GROUP_SETTINGS, None], Msg.UNRECOVERABLE_ERROR, i, int(ri[RI_COUNT]))
           response = {}
-      except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError) as e:
+      except (GAPI.notFound, GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.backendError, GAPI.systemError) as e:
         entityActionFailedWarning([Ent.GROUP, ri[RI_ENTITY], Ent.GROUP_SETTINGS, None], str(e), i, int(ri[RI_COUNT]))
         response = {}
     groupData[i][u'settings'] = response
