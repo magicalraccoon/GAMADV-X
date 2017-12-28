@@ -1,3 +1,7 @@
+4.55.04
+
+Fixed bug related to using fields argument with gam info/print/show commands.
+
 4.55.03
 
 Fixed a bug in gam delete contacts where using just the emailmatchpattern option threw an exception.
@@ -1620,8 +1624,8 @@ range <DateTime> <DateTime> - leave the earliest revision
 	modifieddate|
 	originalfilename|
 	pinned|
+	publishauto|
 	published|
-	publishedauto|
 	publishedoutsidedomain
 
     gam <UserTypeEntity> show filerevisions <DriveFileEntity> [select <DriveFileRevisionIDEntity>] [previewdelete]

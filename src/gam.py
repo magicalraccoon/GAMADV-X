@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.03'
+__version__ = u'4.55.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4231,11 +4231,11 @@ def _getFieldsList():
 def getFieldsList(fieldName, fieldsChoiceMap, fieldsList, initialField=None):
   if fieldName in fieldsChoiceMap:
     if not fieldsList and initialField is not None:
-      fieldsList = [initialField]
+      fieldsList.append(initialField)
     fieldsList.append(fieldsChoiceMap[fieldName])
   elif fieldName == u'fields':
     if not fieldsList and initialField is not None:
-      fieldsList = [initialField]
+      fieldsList.append(initialField)
     for field in _getFieldsList():
       if field in fieldsChoiceMap:
         fieldsList.append(fieldsChoiceMap[field])
@@ -4248,11 +4248,11 @@ def getFieldsList(fieldName, fieldsChoiceMap, fieldsList, initialField=None):
 def getFieldsListTitles(fieldName, fieldsChoiceMap, fieldsList, titles, initialField=None):
   if fieldName in fieldsChoiceMap:
     if not fieldsList and initialField is not None:
-      fieldsList = [initialField]
+      fieldsList.append(initialField)
     addFieldToCSVfile(fieldName, fieldsChoiceMap, fieldsList, titles)
   elif fieldName == u'fields':
     if not fieldsList and initialField is not None:
-      fieldsList = [initialField]
+      fieldsList.append(initialField)
     for field in  _getFieldsList():
       if field in fieldsChoiceMap:
         addFieldToCSVfile(field, fieldsChoiceMap, fieldsList, titles)
@@ -13542,7 +13542,7 @@ def _doPrintShowFeatures(csvFormat):
       todrive = getTodriveParameters()
     elif myarg == u'allfields':
       fieldsList = []
-    elif getFieldsList(myarg, FEATURE_FIELDS_CHOICE_MAP, fieldsList, u'buildingId'):
+    elif getFieldsList(myarg, FEATURE_FIELDS_CHOICE_MAP, fieldsList):
       pass
     else:
       unknownArgumentExit()
@@ -13754,7 +13754,7 @@ RESOURCE_FIELDS_CHOICE_MAP = {
   u'building': u'buildingId',
   u'buildingid': u'buildingId',
   u'capacity': u'capacity',
-  u'catagory': u'resourceCatagory',
+  u'category': u'resourceCategory',
   u'email': u'resourceEmail',
   u'feature': u'featureInstances',
   u'features': u'featureInstances',
@@ -18929,7 +18929,6 @@ COURSE_ANNOUNCEMENTS_FIELDS_CHOICE_MAP = {
   u'creator': u'creatorUserId',
   u'creatoruserid': u'creatorUserId',
   u'id': u'id',
-  u'individualstudentsoptions': u'individualStudentsOptions',
   u'materials': u'materials',
   u'scheduledtime': u'scheduledTime',
   u'state': u'state',
@@ -19055,17 +19054,15 @@ def doPrintCourseAnnouncements():
 COURSE_WORK_FIELDS_CHOICE_MAP = {
   u'alternatelink': u'alternateLink',
   u'assigneemode': u'assigneeMode',
-  u'associatedwithdeveloper': u'associatedWithDeveloper',
   u'courseid': u'courseId',
   u'courseworkid': u'id',
-  u'courseworktype': u'courseWorkType',
+  u'courseworktype': u'workType',
   u'creationtime': u'creationTime',
   u'creator': u'creatorUserId',
   u'creatoruserid': u'creatorUserId',
   u'description': u'description',
   u'duedate': u'dueDate',
   u'id': u'id',
-  u'individualstudentsoptions': u'individualStudentsOptions',
   u'materials': u'materials',
   u'maxpoints': u'maxPoints',
   u'scheduledtime': u'scheduledTime',
@@ -19206,7 +19203,6 @@ def doPrintCourseWork():
 COURSE_SUBMISSION_FIELDS_CHOICE_MAP = {
   u'alternatelink': u'alternateLink',
   u'assignedgrade': u'assignedGrade',
-  u'associatedwithdeveloper': u'associatedWithDeveloper',
   u'courseid': u'courseId',
   u'coursesubmissionid': u'id',
   u'courseworkid': u'courseWorkId',
@@ -22685,7 +22681,7 @@ FILEREVISIONS_FIELDS_CHOICE_MAP = {
   u'originalfilename': u'originalFilename',
   u'pinned': u'pinned',
   u'published': u'published',
-  u'publishedauto': u'publishedAuto',
+  u'publishauto': u'publishAuto',
   u'publishedoutsidedomain': u'publishedOutsideDomain',
   u'size': VX_SIZE,
   }
