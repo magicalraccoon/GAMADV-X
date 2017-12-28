@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.01'
+__version__ = u'4.55.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -657,7 +657,7 @@ def missingChoiceExit(choices):
 def checkArgumentPresent(choices, required=False):
   choiceList = choices if isinstance(choices, list) else [choices]
   if Cmd.ArgumentsRemaining():
-    choice = Cmd.Current().strip().lower()
+    choice = Cmd.Current().strip().lower().replace(u'_', u'')
     if choice:
       if choice in choiceList:
         Cmd.Advance()
@@ -672,8 +672,9 @@ def checkArgumentPresent(choices, required=False):
 # Peek to see if argument present, do not advance
 def peekArgumentPresent(choices):
   if Cmd.ArgumentsRemaining():
-    choice = Cmd.Current().strip().lower()
-    if choice and choice in choices:
+    choiceList = choices if isinstance(choices, list) else [choices]
+    choice = Cmd.Current().strip().lower().replace(u'_', u'')
+    if choice and choice in choiceList:
       return True
   return False
 
@@ -1073,18 +1074,17 @@ def getGoogleSKUList():
 
 def floatLimits(minVal, maxVal, item=u'float'):
   if (minVal is not None) and (maxVal is not None):
-    return u'{0} {1:f}<=x<={2:f}'.format(item, minVal, maxVal)
+    return u'{0} {1:5.3f}<=x<={2:5.3f}'.format(item, minVal, maxVal)
   if minVal is not None:
-    return u'{0} x>={1:f}'.format(item, minVal)
+    return u'{0} x>={1:5.3f}'.format(item, minVal)
   if maxVal is not None:
-    return u'{0} x<={1:f}'.format(item, maxVal)
+    return u'{0} x<={1:5.3f}'.format(item, maxVal)
   return u'{0} x'.format(item)
 
 def getFloat(minVal=None, maxVal=None):
   if Cmd.ArgumentsRemaining():
     try:
-      argstr = Cmd.Current().strip()
-      number = float(argstr)
+      number = float(Cmd.Current().strip())
       if ((minVal is None) or (number >= minVal)) and ((maxVal is None) or (number <= maxVal)):
         Cmd.Advance()
         return number
@@ -4211,15 +4211,69 @@ def send_email(msg_subj, msg_txt, msg_rcpt, i=0, count=0):
     entityActionFailedWarning([Ent.RECIPIENT, msg_rcpt, Ent.MESSAGE, msg_subj], str(e), i, count)
   Act.Set(action)
 
+def addFieldToFieldsList(fieldName, fieldsChoiceMap, fieldsList):
+  fields = fieldsChoiceMap[fieldName.lower()]
+  if isinstance(fields, list):
+    fieldsList.extend(fields)
+  else:
+    fieldsList.append(fields)
+
+def _getFieldsList():
+  return getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split()
+
+# fieldName is command line argument
+# fieldNameMap maps fieldName to API field names
+#FIELD_CHOICES_MAP = {
+#  u'foo': u'foo',
+#  u'foobar': u'fooBar',
+#  }
+# fieldsList is the list of API fields
+def getFieldsList(fieldName, fieldsChoiceMap, fieldsList, initialField=None):
+  if fieldName in fieldsChoiceMap:
+    if not fieldsList and initialField is not None:
+      fieldsList = [initialField]
+    fieldsList.append(fieldsChoiceMap[fieldName])
+  elif fieldName == u'fields':
+    if not fieldsList and initialField is not None:
+      fieldsList = [initialField]
+    for field in _getFieldsList():
+      if field in fieldsChoiceMap:
+        fieldsList.append(fieldsChoiceMap[field])
+      else:
+        invalidChoiceExit(fieldsChoiceMap, True)
+  else:
+    return False
+  return True
+
+def getFieldsListTitles(fieldName, fieldsChoiceMap, fieldsList, titles, initialField=None):
+  if fieldName in fieldsChoiceMap:
+    if not fieldsList and initialField is not None:
+      fieldsList = [initialField]
+    addFieldToCSVfile(fieldName, fieldsChoiceMap, fieldsList, titles)
+  elif fieldName == u'fields':
+    if not fieldsList and initialField is not None:
+      fieldsList = [initialField]
+    for field in  _getFieldsList():
+      if field in fieldsChoiceMap:
+        addFieldToCSVfile(field, fieldsChoiceMap, fieldsList, titles)
+      else:
+        invalidChoiceExit(fieldsChoiceMap, True)
+  else:
+    return False
+  return True
+
 # Write a CSV file
 def addTitleToCSVfile(title, titles):
   titles[u'set'].add(title)
   titles[u'list'].append(title)
 
 def addTitlesToCSVfile(addTitles, titles):
-  for title in addTitles:
-    if title not in titles[u'set']:
-      addTitleToCSVfile(title, titles)
+  if isinstance(addTitles, list):
+    for title in addTitles:
+      if title not in titles[u'set']:
+        addTitleToCSVfile(title, titles)
+  elif addTitles not in titles[u'set']:
+    addTitleToCSVfile(addTitles, titles)
 
 def removeTitlesFromCSVfile(removeTitles, titles):
   for title in removeTitles:
@@ -4236,15 +4290,20 @@ def addRowTitlesToCSVfile(row, csvRows, titles):
 # fieldName is command line argument
 # fieldNameMap maps fieldName to API field names; CSV file header will be API field name
 #ARGUMENT_TO_PROPERTY_MAP = {
-#  u'admincreated': [u'adminCreated'],
+#  u'admincreated': u'adminCreated',
 #  u'aliases': [u'aliases', u'nonEditableAliases'],
 #  }
 # fieldsList is the list of API fields
 def addFieldToCSVfile(fieldName, fieldNameMap, fieldsList, titles):
-  for field in fieldNameMap[fieldName.lower()]:
-    if field not in fieldsList:
-      fieldsList.append(field)
-      addTitlesToCSVfile([field], titles)
+  fields = fieldNameMap[fieldName.lower()]
+  if isinstance(fields, list):
+    for field in fields:
+      if field not in fieldsList:
+        fieldsList.append(field)
+        addTitlesToCSVfile(field, titles)
+  elif fields not in fieldsList:
+    fieldsList.append(fields)
+    addTitlesToCSVfile(fields, titles)
 
 # fieldName is command line argument
 # fieldNameTitleMap maps fieldName to API field name and CSV file header
@@ -4261,11 +4320,11 @@ def addFieldTitleToCSVfile(fieldName, fieldNameTitleMap, fieldsList, fieldsTitle
     if ftList[i] not in fieldsTitles:
       fieldsList.append(ftList[i])
       fieldsTitles[ftList[i]] = ftList[i+1]
-      addTitlesToCSVfile([ftList[i+1]], titles)
+      addTitlesToCSVfile(ftList[i+1], titles)
     if ftList[i] not in nativeTitles:
       nativeTitles.append(ftList[i])
 
-def convertTiNativeTitles(fieldsTitles, titles, nativeTitles):
+def convertToNativeTitles(fieldsTitles, titles, nativeTitles):
   for field in fieldsTitles:
     fieldsTitles[field] = field
   titles[u'set'] = set(nativeTitles)
@@ -6090,7 +6149,7 @@ def doReport():
     if not countsOnly:
       sortCSVTitles([u'name',], titles)
     elif not summary:
-      addTitlesToCSVfile([u'emailAddress',], titles)
+      addTitlesToCSVfile(u'emailAddress', titles)
       for actor, events in iteritems(eventCounts):
         row = {u'emailAddress': actor}
         for event, count in iteritems(events):
@@ -6772,7 +6831,7 @@ def _doPrintShowAdminRoles(csvFormat):
       todrive = getTodriveParameters()
     elif myarg == u'privileges':
       if csvFormat:
-        addFieldToCSVfile(myarg, {myarg: [u'rolePrivileges',]}, fieldsList, titles)
+        addFieldToCSVfile(myarg, {myarg: u'rolePrivileges'}, fieldsList, titles)
       else:
         fieldsList.append(u'rolePrivileges')
     else:
@@ -7941,7 +8000,7 @@ def doPrintOrgs():
     elif myarg == u'fields':
       if not fieldsList:
         addFieldTitleToCSVfile(u'orgUnitPath', ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles, nativeTitles)
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
+      for field in _getFieldsList():
         if field in ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP:
           addFieldTitleToCSVfile(field, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles, nativeTitles)
         else:
@@ -7954,7 +8013,7 @@ def doPrintOrgs():
     for field in PRINT_ORGS_DEFAULT_FIELDS:
       addFieldTitleToCSVfile(field, ORG_ARGUMENT_TO_PROPERTY_TITLE_MAP, fieldsList, fieldsTitles, titles, nativeTitles)
   if GC.Values[GC.PRINT_NATIVE_NAMES]:
-    convertTiNativeTitles(fieldsTitles, titles, nativeTitles)
+    convertToNativeTitles(fieldsTitles, titles, nativeTitles)
   orgUnits = _getOrgUnits(cd, orgUnitPath, fieldsList, listType, showParent, batchSubOrgs)
   if orgUnits is None:
     return
@@ -9745,13 +9804,15 @@ def doUpdateDomainContacts():
 def _deleteContacts(users, entityType):
   contactsManager = ContactsManager()
   contactQuery = _initContactQueryAttributes()
-  if peekArgumentPresent([u'query', u'contactgroup', u'emailmatchpattern', u'updated_min']):
+  if peekArgumentPresent([u'query', u'contactgroup', u'emailmatchpattern', u'updatedmin']):
     entityList = None
+    queriedContacts = True
     while Cmd.ArgumentsRemaining():
       myarg = getArgument()
       _getContactQueryAttributes(contactQuery, myarg, entityType, False)
   else:
     entityList = getEntityList(Cmd.OB_CONTACT_ENTITY)
+    queriedContacts = False
   contactIdLists = entityList if isinstance(entityList, dict) else None
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -9768,10 +9829,8 @@ def _deleteContacts(users, entityType):
           entityActionFailedWarning([entityType, user, Ent.CONTACT_GROUP, contactQuery[u'contactGroup']], Msg.DOES_NOT_EXIST, i, count)
         continue
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
-    if contactQuery[u'query'] or contactQuery[u'group']:
+    if queriedContacts:
       entityList = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
-      if entityList is None:
-        continue
     j = 0
     jcount = len(entityList)
     entityPerformActionModifierNumItems([entityType, user], Msg.MAXIMUM_OF, jcount, Ent.CONTACT, i, count)
@@ -9782,7 +9841,7 @@ def _deleteContacts(users, entityType):
     for contact in entityList:
       j += 1
       try:
-        if not contactQuery[u'query'] and not contactQuery[u'group']:
+        if not queriedContacts:
           contactId = normalizeContactId(contact)
           contact = callGData(contactsObject, u'GetContact',
                               throw_errors=[GDATA.NOT_FOUND, GDATA.BAD_REQUEST, GDATA.SERVICE_NOT_APPLICABLE, GDATA.FORBIDDEN, GDATA.NOT_IMPLEMENTED],
@@ -9888,8 +9947,7 @@ def _showContact(contactsManager, fields, displayFieldsList, contactGroupIDs, j,
   Ind.Decrement()
 
 def _getContactFieldsList(contactsManager, displayFieldsList):
-  fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-  for field in fieldNameList.lower().replace(u',', u' ').split():
+  for field in _getFieldsList():
     if field in contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP:
       displayFieldsList.append(contactsManager.CONTACT_ARGUMENT_TO_PROPERTY_MAP[field])
     else:
@@ -10543,42 +10601,42 @@ def _getFilterDateTime():
   filterDate = getYYYYMMDD(returnDateTime=True)
   return (filterDate, filterDate.replace(tzinfo=iso8601.UTC))
 
-CROS_ARGUMENT_TO_PROPERTY_MAP = {
+CROS_FIELDS_CHOICE_MAP = {
   u'activetimeranges': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
-  u'annotatedassetid': [u'annotatedAssetId',],
-  u'annotatedlocation': [u'annotatedLocation',],
-  u'annotateduser': [u'annotatedUser',],
-  u'asset': [u'annotatedAssetId',],
-  u'assetid': [u'annotatedAssetId',],
-  u'bootmode': [u'bootMode',],
+  u'annotatedassetid': u'annotatedAssetId',
+  u'annotatedlocation': u'annotatedLocation',
+  u'annotateduser': u'annotatedUser',
+  u'asset': u'annotatedAssetId',
+  u'assetid': u'annotatedAssetId',
+  u'bootmode': u'bootMode',
   u'devicefiles': [u'deviceFiles.type', u'deviceFiles.createTime'],
-  u'deviceid': [u'deviceId',],
-  u'ethernetmacaddress': [u'ethernetMacAddress',],
-  u'firmwareversion': [u'firmwareVersion',],
-  u'lastenrollmenttime': [u'lastEnrollmentTime',],
-  u'lastsync': [u'lastSync',],
-  u'location': [u'annotatedLocation',],
-  u'macaddress': [u'macAddress',],
-  u'meid': [u'meid',],
-  u'model': [u'model',],
-  u'notes': [u'notes',],
-  u'ordernumber': [u'orderNumber',],
-  u'org': [u'orgUnitPath',],
-  u'orgunitpath': [u'orgUnitPath',],
-  u'osversion': [u'osVersion',],
-  u'ou': [u'orgUnitPath',],
-  u'platformversion': [u'platformVersion',],
+  u'deviceid': u'deviceId',
+  u'ethernetmacaddress': u'ethernetMacAddress',
+  u'firmwareversion': u'firmwareVersion',
+  u'lastenrollmenttime': u'lastEnrollmentTime',
+  u'lastsync': u'lastSync',
+  u'location': u'annotatedLocation',
+  u'macaddress': u'macAddress',
+  u'meid': u'meid',
+  u'model': u'model',
+  u'notes': u'notes',
+  u'ordernumber': u'orderNumber',
+  u'org': u'orgUnitPath',
+  u'orgunitpath': u'orgUnitPath',
+  u'osversion': u'osVersion',
+  u'ou': u'orgUnitPath',
+  u'platformversion': u'platformVersion',
   u'recentusers': [u'recentUsers.email', u'recentUsers.type'],
-  u'serialnumber': [u'serialNumber',],
-  u'status': [u'status',],
-  u'supportenddate': [u'supportEndDate',],
-  u'tag': [u'annotatedAssetId',],
+  u'serialnumber': u'serialNumber',
+  u'status': u'status',
+  u'supportenddate': u'supportEndDate',
+  u'tag': u'annotatedAssetId',
   u'timeranges': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
   u'times': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
-  u'tpmversioninfo': [u'tpmVersionInfo',],
-  u'user': [u'annotatedUser',],
+  u'tpmversioninfo': u'tpmVersionInfo',
+  u'user': u'annotatedUser',
   u'users': [u'recentUsers.email', u'recentUsers.type'],
-  u'willautorenew': [u'willAutoRenew',],
+  u'willautorenew': u'willAutoRenew',
   }
 
 CROS_BASIC_FIELDS_LIST = [u'deviceId', u'annotatedAssetId', u'annotatedLocation', u'annotatedUser', u'lastSync', u'notes', u'serialNumber', u'status']
@@ -10643,22 +10701,21 @@ def infoCrOSDevices(entityList):
         fieldsList = []
       else:
         fieldsList = CROS_BASIC_FIELDS_LIST[:]
-    elif myarg in CROS_ARGUMENT_TO_PROPERTY_MAP:
+    elif myarg in CROS_FIELDS_CHOICE_MAP:
       if not fieldsList:
         fieldsList = [u'deviceId',]
-      fieldsList.extend(CROS_ARGUMENT_TO_PROPERTY_MAP[myarg])
+      addFieldToFieldsList(myarg, CROS_FIELDS_CHOICE_MAP, fieldsList)
     elif myarg == u'fields':
       if not fieldsList:
         fieldsList = [u'deviceId',]
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in CROS_ARGUMENT_TO_PROPERTY_MAP:
-          fieldsList.extend(CROS_ARGUMENT_TO_PROPERTY_MAP[field])
+      for field in _getFieldsList():
+        if field in CROS_FIELDS_CHOICE_MAP:
+          addFieldToFieldsList(field, CROS_FIELDS_CHOICE_MAP, fieldsList)
           if field in CROS_ACTIVE_TIME_RANGES_ARGUMENTS+CROS_DEVICE_FILES_ARGUMENTS+CROS_RECENT_USERS_ARGUMENTS:
             projection = u'FULL'
             noLists = False
         else:
-          invalidChoiceExit(CROS_ARGUMENT_TO_PROPERTY_MAP, True)
+          invalidChoiceExit(CROS_FIELDS_CHOICE_MAP, True)
     elif myarg == u'downloadfile':
       downloadfile = getString(Cmd.OB_STRING).lower()
       if downloadfile != u'latest':
@@ -10964,7 +11021,7 @@ def doPrintCrOSDevices(entityList=None):
   todrive = {}
   fieldsList = []
   titles, csvRows = initializeTitlesCSVfile(None)
-  addFieldToCSVfile(u'deviceId', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+  addFieldToCSVfile(u'deviceId', CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
   sortHeaders = False
   orgUnitPath = query = projection = orderBy = sortOrder = None
   noLists = False
@@ -11014,17 +11071,16 @@ def doPrintCrOSDevices(entityList=None):
         fieldsList = []
       else:
         fieldsList = CROS_BASIC_FIELDS_LIST[:]
-    elif myarg in CROS_ARGUMENT_TO_PROPERTY_MAP:
+    elif myarg in CROS_FIELDS_CHOICE_MAP:
       if not fieldsList:
         fieldsList = [u'deviceId',]
-      addFieldToCSVfile(myarg, CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+      addFieldToCSVfile(myarg, CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
     elif myarg == u'fields':
       if not fieldsList:
         fieldsList = [u'deviceId',]
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in CROS_ARGUMENT_TO_PROPERTY_MAP:
-          addFieldToCSVfile(field, CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+      for field in _getFieldsList():
+        if field in CROS_FIELDS_CHOICE_MAP:
+          addFieldToCSVfile(field, CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
           if field in CROS_ACTIVE_TIME_RANGES_ARGUMENTS:
             selectActiveTimeRanges = True
             noLists = False
@@ -11035,34 +11091,34 @@ def doPrintCrOSDevices(entityList=None):
             selectRecentUsers = True
             noLists = False
         else:
-          invalidChoiceExit(CROS_ARGUMENT_TO_PROPERTY_MAP, True)
+          invalidChoiceExit(CROS_FIELDS_CHOICE_MAP, True)
     else:
       unknownArgumentExit()
   if projection == u'FULL':
     if selectRecentUsers:
-      addTitlesToCSVfile(CROS_ARGUMENT_TO_PROPERTY_MAP[u'recentusers'], titles)
+      addTitlesToCSVfile(CROS_FIELDS_CHOICE_MAP[u'recentusers'], titles)
     if selectActiveTimeRanges:
-      addTitlesToCSVfile(CROS_ARGUMENT_TO_PROPERTY_MAP[u'activetimeranges'], titles)
+      addTitlesToCSVfile(CROS_FIELDS_CHOICE_MAP[u'activetimeranges'], titles)
       addTitlesToCSVfile([u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
     if selectDeviceFiles:
-      addTitlesToCSVfile(CROS_ARGUMENT_TO_PROPERTY_MAP[u'devicefiles'], titles)
+      addTitlesToCSVfile(CROS_FIELDS_CHOICE_MAP[u'devicefiles'], titles)
   else:
     if selectRecentUsers:
       if not fieldsList:
         fieldsList = [u'deviceId',]
       projection = u'FULL'
-      addFieldToCSVfile(u'recentUsers', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+      addFieldToCSVfile(u'recentUsers', CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
     if selectActiveTimeRanges:
       if not fieldsList:
         fieldsList = [u'deviceId',]
       projection = u'FULL'
-      addFieldToCSVfile(u'activeTimeRanges', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+      addFieldToCSVfile(u'activeTimeRanges', CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
       addTitlesToCSVfile([u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
     if selectDeviceFiles:
       if not fieldsList:
         fieldsList = [u'deviceId',]
       projection = u'FULL'
-      addFieldToCSVfile(u'deviceFiles', CROS_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+      addFieldToCSVfile(u'deviceFiles', CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
   _, _, entityList = getEntityArgument(entityList)
   if entityList is None:
     sortRows = False
@@ -11207,7 +11263,7 @@ def doPrintCrOSActivity(entityList=None):
     selectActiveTimeRanges = selectRecentUsers = True
   if selectRecentUsers:
     fieldsList.append(u'recentUsers')
-    addTitlesToCSVfile([u'recentUsers.email',], titles)
+    addTitlesToCSVfile(u'recentUsers.email', titles)
   if selectActiveTimeRanges:
     fieldsList.append(u'activeTimeRanges')
     addTitlesToCSVfile([u'activeTimeRanges.date', u'activeTimeRanges.duration', u'activeTimeRanges.minutes'], titles)
@@ -11353,7 +11409,7 @@ def doDeleteMobileDevices():
     except (GAPI.resourceIdNotFound, GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden) as e:
       entityActionFailedWarning([Ent.MOBILE_DEVICE, resourceId], str(e), i, count)
 
-MOBILE_ARGUMENT_TO_PROPERTY_MAP = {
+MOBILE_FIELDS_CHOICE_MAP = {
   u'adbstatus': u'adbStatus',
   u'applications': u'applications',
   u'basebandversion': u'basebandVersion',
@@ -11406,19 +11462,8 @@ def _getMobileFieldsArguments(myarg, parameters):
   elif myarg in PROJECTION_CHOICE_MAP:
     parameters[u'projection'] = PROJECTION_CHOICE_MAP[myarg]
     parameters[u'fieldsList'] = []
-  elif myarg in MOBILE_ARGUMENT_TO_PROPERTY_MAP:
-    if not parameters[u'fieldsList']:
-      parameters[u'fieldsList'] = [u'resourceId',]
-    parameters[u'fieldsList'].append(MOBILE_ARGUMENT_TO_PROPERTY_MAP[myarg])
-  elif myarg == u'fields':
-    if not parameters[u'fieldsList']:
-      parameters[u'fieldsList'] = [u'resourceId',]
-    fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-    for field in fieldNameList.lower().replace(u',', u' ').split():
-      if field in MOBILE_ARGUMENT_TO_PROPERTY_MAP:
-        parameters[u'fieldsList'].append(MOBILE_ARGUMENT_TO_PROPERTY_MAP[field])
-      else:
-        invalidChoiceExit(MOBILE_ARGUMENT_TO_PROPERTY_MAP, True)
+  elif getFieldsList(myarg, MOBILE_FIELDS_CHOICE_MAP, parameters[u'fieldsList'], u'resourceId'):
+    pass
   else:
     unknownArgumentExit()
 
@@ -12071,7 +12116,17 @@ def doDeleteGroups():
       entityActionPerformed([Ent.GROUP, group], i, count)
     except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.invalid):
       entityUnknownWarning(Ent.GROUP, group, i, count)
-#
+
+GROUP_FIELDS_CHOICE_MAP = {
+  u'admincreated': u'adminCreated',
+  u'aliases': [u'aliases', u'nonEditableAliases'],
+  u'description': u'description',
+  u'directmemberscount': u'directMembersCount',
+  u'email': u'email',
+  u'id': u'id',
+  u'name': u'name',
+  }
+
 # CL argument: [API field name, CSV field title]
 GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP = {
   u'admincreated': [u'adminCreated', u'Admin_Created'],
@@ -12109,10 +12164,10 @@ def infoGroups(entityList):
       getUsers = True
     elif myarg == u'groups':
       getGroups = True
-    elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
+    elif myarg in GROUP_FIELDS_CHOICE_MAP:
       if not cdfieldsList:
         cdfieldsList = [u'email',]
-      cdfieldsList.extend([GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP[myarg][0]])
+      addFieldToFieldsList(myarg, GROUP_FIELDS_CHOICE_MAP, cdfieldsList)
       if myarg in [u'name', u'description']:
         if not gsfieldsList:
           gsfieldsList = []
@@ -12126,16 +12181,15 @@ def infoGroups(entityList):
         cdfieldsList = [u'email',]
       if not gsfieldsList:
         gsfieldsList = []
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
-          cdfieldsList.extend([GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP[field][0]])
+      for field in _getFieldsList():
+        if field in GROUP_FIELDS_CHOICE_MAP:
+          addFieldToFieldsList(field, GROUP_FIELDS_CHOICE_MAP, cdfieldsList)
           if field in [u'name', u'description']:
             gsfieldsList.append(field)
         elif field in GROUP_ATTRIBUTES:
           gsfieldsList.extend([GROUP_ATTRIBUTES[field][0]])
         else:
-          invalidChoiceExit(list(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP)+list(GROUP_ATTRIBUTES), True)
+          invalidChoiceExit(list(GROUP_FIELDS_CHOICE_MAP)+list(GROUP_ATTRIBUTES), True)
 # Ignore info user arguments that may have come from whatis
     elif myarg in INFO_USER_OPTIONS:
       if myarg == u'schemas':
@@ -12497,8 +12551,7 @@ def doPrintGroups():
     elif myarg in GROUP_ATTRIBUTES:
       addFieldTitleToCSVfile(myarg, {myarg: [GROUP_ATTRIBUTES[myarg][0], GROUP_ATTRIBUTES[myarg][0]]}, gsfieldsList, fieldsTitles, titles, nativeTitles)
     elif myarg == u'fields':
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
+      for field in _getFieldsList():
         if field in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
           addFieldTitleToCSVfile(field, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
         elif field in GROUP_ATTRIBUTES:
@@ -12539,24 +12592,24 @@ def doPrintGroups():
   else:
     gsfields = None
   if GC.Values[GC.PRINT_NATIVE_NAMES]:
-    convertTiNativeTitles(fieldsTitles, titles, nativeTitles)
+    convertToNativeTitles(fieldsTitles, titles, nativeTitles)
   if getSettings:
     gs = buildGAPIObject(API.GROUPSSETTINGS)
   roles = u','.join(sorted(rolesSet)) if rolesSet else None
   rolesOrSettings = roles or getSettings
   if roles:
     if members:
-      addTitlesToCSVfile([u'MembersCount',], titles)
+      addTitlesToCSVfile(u'MembersCount', titles)
       if not membersCountOnly:
-        addTitlesToCSVfile([u'Members',], titles)
+        addTitlesToCSVfile(u'Members', titles)
     if managers:
-      addTitlesToCSVfile([u'ManagersCount',], titles)
+      addTitlesToCSVfile(u'ManagersCount', titles)
       if not managersCountOnly:
-        addTitlesToCSVfile([u'Managers',], titles)
+        addTitlesToCSVfile(u'Managers', titles)
     if owners:
-      addTitlesToCSVfile([u'OwnersCount',], titles)
+      addTitlesToCSVfile(u'OwnersCount', titles)
       if not ownersCountOnly:
-        addTitlesToCSVfile([u'Owners',], titles)
+        addTitlesToCSVfile(u'Owners', titles)
   if formatJSON:
     sortHeaders = False
     titles, csvRows = initializeTitlesCSVfile(PRINT_GROUPS_JSON_TITLES)
@@ -12687,7 +12740,7 @@ def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, ch
   except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
     entityUnknownWarning(Ent.GROUP, groupEmail, i, count)
 
-GROUPMEMBERS_FIELDs_CHOICE_MAP = {
+GROUPMEMBERS_FIELDS_CHOICE_MAP = {
   u'email': u'email',
   u'groupemail': u'group',
   u'id': u'id',
@@ -12739,26 +12792,16 @@ def doPrintGroupMembers():
     elif myarg == u'select':
       entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
       subTitle = u'{0} {1}'.format(Msg.SELECTED, Ent.Plural(Ent.GROUP))
-    elif myarg in GROUPMEMBERS_FIELDs_CHOICE_MAP:
-      myarg = GROUPMEMBERS_FIELDs_CHOICE_MAP[myarg]
-      addFieldToCSVfile(myarg, {myarg: [myarg]}, fieldsList, titles)
-    elif myarg == u'fields':
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in GROUPMEMBERS_FIELDs_CHOICE_MAP:
-          field = GROUPMEMBERS_FIELDs_CHOICE_MAP[field]
-          addFieldToCSVfile(field, {field: [field]}, fieldsList, titles)
-        else:
-          invalidChoiceExit(GROUPMEMBERS_FIELDs_CHOICE_MAP, True)
+    elif getFieldsListTitles(myarg, GROUPMEMBERS_FIELDS_CHOICE_MAP, fieldsList, titles):
+      pass
     elif myarg == u'membernames':
       membernames = True
     elif myarg == u'userfields':
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in USER_ARGUMENT_TO_PROPERTY_MAP:
-          addFieldToCSVfile(field, USER_ARGUMENT_TO_PROPERTY_MAP, userFieldsList, titles)
+      for field in _getFieldsList():
+        if field in USER_FIELDS_CHOICE_MAP:
+          addFieldToCSVfile(field, USER_FIELDS_CHOICE_MAP, userFieldsList, titles)
         else:
-          invalidChoiceExit(USER_ARGUMENT_TO_PROPERTY_MAP, True)
+          invalidChoiceExit(USER_FIELDS_CHOICE_MAP, True)
     elif myarg == u'noduplicates':
       noduplicates = True
     elif myarg == u'recursive':
@@ -12783,7 +12826,7 @@ def doPrintGroupMembers():
         accessErrorExit(cd)
   if not fieldsList:
     for field in GROUPMEMBERS_DEFAULT_FIELDS:
-      addFieldToCSVfile(field, {field: [field]}, fieldsList, titles)
+      addFieldToCSVfile(field, {field: field}, fieldsList, titles)
   else:
     if u'name'in fieldsList:
       membernames = True
@@ -12797,7 +12840,7 @@ def doPrintGroupMembers():
   if membernames:
     if u'name.fullName' not in userFieldsList:
       userFieldsList.append(u'name.fullName')
-    addTitlesToCSVfile([u'name'], titles)
+    addTitlesToCSVfile(u'name', titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
   userFields = u','.join(set(userFieldsList)).replace(u'.', u'/') if userFieldsList else None
   roles = u','.join(sorted(rolesSet)) if rolesSet else None
@@ -13381,19 +13424,8 @@ def _doPrintShowBuildings(csvFormat):
       delimiter = getCharacter()
     elif myarg == u'allfields':
       fieldsList = []
-    elif myarg in BUILDINGS_FIELDS_CHOICE_MAP:
-      if not fieldsList:
-        fieldsList = [u'buildingId',]
-      fieldsList.append(BUILDINGS_FIELDS_CHOICE_MAP[myarg])
-    elif myarg == u'fields':
-      if not fieldsList:
-        fieldsList = [u'buildingId',]
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in BUILDINGS_FIELDS_CHOICE_MAP:
-          fieldsList.append(BUILDINGS_FIELDS_CHOICE_MAP[field])
-        else:
-          invalidChoiceExit(BUILDINGS_FIELDS_CHOICE_MAP, True)
+    elif getFieldsList(myarg, BUILDINGS_FIELDS_CHOICE_MAP, fieldsList, u'buildingId'):
+      pass
     else:
       unknownArgumentExit()
   fields = u'nextPageToken,buildings({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
@@ -13510,19 +13542,8 @@ def _doPrintShowFeatures(csvFormat):
       todrive = getTodriveParameters()
     elif myarg == u'allfields':
       fieldsList = []
-    elif myarg in FEATURE_FIELDS_CHOICE_MAP:
-      if not fieldsList:
-        fieldsList = [u'buildingId',]
-      fieldsList.append(FEATURE_FIELDS_CHOICE_MAP[myarg])
-    elif myarg == u'fields':
-      if not fieldsList:
-        fieldsList = [u'buildingId',]
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in FEATURE_FIELDS_CHOICE_MAP:
-          fieldsList.append(FEATURE_FIELDS_CHOICE_MAP[field])
-        else:
-          invalidChoiceExit(FEATURE_FIELDS_CHOICE_MAP, True)
+    elif getFieldsList(myarg, FEATURE_FIELDS_CHOICE_MAP, fieldsList, u'buildingId'):
+      pass
     else:
       unknownArgumentExit()
   fields = u'nextPageToken,features({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
@@ -13728,7 +13749,7 @@ def doInfoResourceCalendars():
 def doInfoResourceCalendar():
   _doInfoResourceCalendars(getStringReturnInList(Cmd.OB_RESOURCE_ID))
 
-RESOURCE_ARGUMENT_TO_PROPERTY_MAP = {
+RESOURCE_FIELDS_CHOICE_MAP = {
   u'description': u'resourceDescription',
   u'building': u'buildingId',
   u'buildingid': u'buildingId',
@@ -13765,16 +13786,16 @@ def _doPrintShowResourceCalendars(csvFormat):
       fieldsList = RESOURCE_ALL_FIELDS[:]
     elif myarg in [Cmd.ARG_ACLS, Cmd.ARG_CALENDARACLS, Cmd.ARG_PERMISSIONS]:
       showPermissions = True
-    elif myarg in RESOURCE_ARGUMENT_TO_PROPERTY_MAP:
-      fieldsList.append(RESOURCE_ARGUMENT_TO_PROPERTY_MAP[myarg])
+    elif myarg in RESOURCE_FIELDS_CHOICE_MAP:
+      fieldsList.append(RESOURCE_FIELDS_CHOICE_MAP[myarg])
     elif myarg == u'fields':
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
-        if field == u'acls':
+      for field in _getFieldsList():
+        if field in [Cmd.ARG_ACLS, Cmd.ARG_CALENDARACLS, Cmd.ARG_PERMISSIONS]:
           showPermissions = True
-        elif field in RESOURCE_ARGUMENT_TO_PROPERTY_MAP:
-          fieldsList.append(RESOURCE_ARGUMENT_TO_PROPERTY_MAP[field])
+        elif field in RESOURCE_FIELDS_CHOICE_MAP:
+          fieldsList.append(RESOURCE_FIELDS_CHOICE_MAP[field])
         else:
-          invalidChoiceExit(RESOURCE_ARGUMENT_TO_PROPERTY_MAP, True)
+          invalidChoiceExit(RESOURCE_FIELDS_CHOICE_MAP, True)
     elif myarg in [u'convertcrnl', u'converttextnl']:
       convertCRNL = True
     else:
@@ -17448,76 +17469,76 @@ USER_SSH_PROPERTY_PRINT_ORDER = [
   u'fingerprint',
   ]
 
-USER_ARGUMENT_TO_PROPERTY_MAP = {
-  u'address': [u'addresses',],
-  u'addresses': [u'addresses',],
-  u'admin': [u'isAdmin', u'isDelegatedAdmin',],
-  u'agreed2terms': [u'agreedToTerms',],
-  u'agreedtoterms': [u'agreedToTerms',],
-  u'aliases': [u'aliases', u'nonEditableAliases',],
-  u'changepassword': [u'changePasswordAtNextLogin',],
-  u'changepasswordatnextlogin': [u'changePasswordAtNextLogin',],
-  u'creationtime': [u'creationTime',],
-  u'deletiontime': [u'deletionTime',],
-  u'email': [u'emails',],
-  u'emails': [u'emails',],
-  u'externalid': [u'externalIds',],
-  u'externalids': [u'externalIds',],
-  u'familyname': [u'name.familyName',],
-  u'firstname': [u'name.givenName',],
-  u'fullname': [u'name.fullName',],
-  u'gal': [u'includeInGlobalAddressList',],
-  u'givenname': [u'name.givenName',],
-  u'gender': [u'gender.type', u'gender.customGender', u'gender.addressMeAs',],
-  u'id': [u'id',],
-  u'im': [u'ims',],
-  u'ims': [u'ims',],
-  u'includeinglobaladdresslist': [u'includeInGlobalAddressList',],
-  u'ipwhitelisted': [u'ipWhitelisted',],
-  u'isadmin': [u'isAdmin', u'isDelegatedAdmin',],
-  u'isdelegatedadmin': [u'isAdmin', u'isDelegatedAdmin',],
-  u'isenforcedin2sv': [u'isEnforcedIn2Sv',],
-  u'isenrolledin2sv': [u'isEnrolledIn2Sv',],
-  u'is2svenforced': [u'isEnforcedIn2Sv',],
-  u'is2svenrolled': [u'isEnrolledIn2Sv',],
-  u'ismailboxsetup': [u'isMailboxSetup',],
-  u'keyword': [u'keywords',],
-  u'keywords': [u'keywords',],
-  u'language': [u'languages',],
-  u'languages': [u'languages',],
-  u'lastlogintime': [u'lastLoginTime',],
-  u'lastname': [u'name.familyName',],
-  u'location': [u'locations',],
-  u'locations': [u'locations',],
-  u'name': [u'name.givenName', u'name.familyName', u'name.fullName',],
-  u'nicknames': [u'aliases', u'nonEditableAliases',],
-  u'noneditablealiases': [u'aliases', u'nonEditableAliases',],
-  u'note': [u'notes',],
-  u'notes': [u'notes',],
-  u'org': [u'orgUnitPath',],
-  u'organization': [u'organizations',],
-  u'organizations': [u'organizations',],
-  u'orgunitpath': [u'orgUnitPath',],
-  u'otheremail': [u'emails',],
-  u'otheremails': [u'emails',],
-  u'ou': [u'orgUnitPath',],
-  u'phone': [u'phones',],
-  u'phones': [u'phones',],
-  u'photo': [u'thumbnailPhotoUrl',],
-  u'photourl': [u'thumbnailPhotoUrl',],
-  u'posix': [u'posixAccounts',],
-  u'posixaccounts': [u'posixAccounts',],
-  u'primaryemail': [u'primaryEmail',],
-  u'relation': [u'relations',],
-  u'relations': [u'relations',],
-  u'ssh': [u'sshPublicKeys',],
-  u'sshkeys': [u'sshPublicKeys',],
-  u'sshpublickeys': [u'sshPublicKeys',],
-  u'suspended': [u'suspended', u'suspensionReason',],
-  u'thumbnailphotourl': [u'thumbnailPhotoUrl',],
-  u'username': [u'primaryEmail',],
-  u'website': [u'websites',],
-  u'websites': [u'websites',],
+USER_FIELDS_CHOICE_MAP = {
+  u'address': u'addresses',
+  u'addresses': u'addresses',
+  u'admin': [u'isAdmin', u'isDelegatedAdmin'],
+  u'agreed2terms': u'agreedToTerms',
+  u'agreedtoterms': u'agreedToTerms',
+  u'aliases': [u'aliases', u'nonEditableAliases'],
+  u'changepassword': u'changePasswordAtNextLogin',
+  u'changepasswordatnextlogin': u'changePasswordAtNextLogin',
+  u'creationtime': u'creationTime',
+  u'deletiontime': u'deletionTime',
+  u'email': u'emails',
+  u'emails': u'emails',
+  u'externalid': u'externalIds',
+  u'externalids': u'externalIds',
+  u'familyname': u'name.familyName',
+  u'firstname': u'name.givenName',
+  u'fullname': u'name.fullName',
+  u'gal': u'includeInGlobalAddressList',
+  u'givenname': u'name.givenName',
+  u'gender': [u'gender.type', u'gender.customGender', u'gender.addressMeAs'],
+  u'id': u'id',
+  u'im': u'ims',
+  u'ims': u'ims',
+  u'includeinglobaladdresslist': u'includeInGlobalAddressList',
+  u'ipwhitelisted': u'ipWhitelisted',
+  u'isadmin': [u'isAdmin', u'isDelegatedAdmin'],
+  u'isdelegatedadmin': [u'isAdmin', u'isDelegatedAdmin'],
+  u'isenforcedin2sv': u'isEnforcedIn2Sv',
+  u'isenrolledin2sv': u'isEnrolledIn2Sv',
+  u'is2svenforced': u'isEnforcedIn2Sv',
+  u'is2svenrolled': u'isEnrolledIn2Sv',
+  u'ismailboxsetup': u'isMailboxSetup',
+  u'keyword': u'keywords',
+  u'keywords': u'keywords',
+  u'language': u'languages',
+  u'languages': u'languages',
+  u'lastlogintime': u'lastLoginTime',
+  u'lastname': u'name.familyName',
+  u'location': u'locations',
+  u'locations': u'locations',
+  u'name': [u'name.givenName', u'name.familyName', u'name.fullName'],
+  u'nicknames': [u'aliases', u'nonEditableAliases'],
+  u'noneditablealiases': [u'aliases', u'nonEditableAliases'],
+  u'note': u'notes',
+  u'notes': u'notes',
+  u'org': u'orgUnitPath',
+  u'organization': u'organizations',
+  u'organizations': u'organizations',
+  u'orgunitpath': u'orgUnitPath',
+  u'otheremail': u'emails',
+  u'otheremails': u'emails',
+  u'ou': u'orgUnitPath',
+  u'phone': u'phones',
+  u'phones': u'phones',
+  u'photo': u'thumbnailPhotoUrl',
+  u'photourl': u'thumbnailPhotoUrl',
+  u'posix': u'posixAccounts',
+  u'posixaccounts': u'posixAccounts',
+  u'primaryemail': u'primaryEmail',
+  u'relation': u'relations',
+  u'relations': u'relations',
+  u'ssh': u'sshPublicKeys',
+  u'sshkeys': u'sshPublicKeys',
+  u'sshpublickeys': u'sshPublicKeys',
+  u'suspended': [u'suspended', u'suspensionReason'],
+  u'thumbnailphotourl': u'thumbnailPhotoUrl',
+  u'username': u'primaryEmail',
+  u'website': u'websites',
+  u'websites': u'websites',
   }
 
 INFO_USER_OPTIONS = [u'noaliases', u'nogroups', u'nolicenses', u'nolicences', u'noschemas', u'schemas', u'userview',]
@@ -17579,19 +17600,18 @@ def infoUsers(entityList):
     elif myarg == u'userview':
       viewType = u'domain_public'
       getGroups = getLicenses = False
-    elif myarg in USER_ARGUMENT_TO_PROPERTY_MAP:
+    elif myarg in USER_FIELDS_CHOICE_MAP:
       if not fieldsList:
         fieldsList = [u'primaryEmail',]
-      fieldsList.extend(USER_ARGUMENT_TO_PROPERTY_MAP[myarg])
+      addFieldToFieldsList(myarg, USER_FIELDS_CHOICE_MAP, fieldsList)
     elif myarg == u'fields':
       if not fieldsList:
         fieldsList.append(u'primaryEmail')
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in USER_ARGUMENT_TO_PROPERTY_MAP:
-          fieldsList.extend(USER_ARGUMENT_TO_PROPERTY_MAP[field])
+      for field in _getFieldsList():
+        if field in USER_FIELDS_CHOICE_MAP:
+          addFieldToFieldsList(field, USER_FIELDS_CHOICE_MAP, fieldsList)
         else:
-          invalidChoiceExit(USER_ARGUMENT_TO_PROPERTY_MAP, True)
+          invalidChoiceExit(USER_FIELDS_CHOICE_MAP, True)
 # Ignore info group arguments that may have come from whatis
     elif myarg in INFO_GROUP_OPTIONS:
       pass
@@ -17919,7 +17939,7 @@ def doPrintUsers(entityList=None):
   todrive = {}
   fieldsList = []
   titles, csvRows = initializeTitlesCSVfile(None)
-  addFieldToCSVfile(u'primaryEmail', USER_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
+  addFieldToCSVfile(u'primaryEmail', USER_FIELDS_CHOICE_MAP, fieldsList, titles)
   sortHeaders = getGroupFeed = getLicenseFeed = email_parts = False
   customer = GC.Values[GC.CUSTOMER_ID]
   domain = None
@@ -17970,19 +17990,8 @@ def doPrintUsers(entityList=None):
       fieldsList = []
     elif myarg == u'sortheaders':
       sortHeaders = getBoolean()
-    elif myarg in USER_ARGUMENT_TO_PROPERTY_MAP:
-      if not fieldsList:
-        fieldsList = [u'primaryEmail',]
-      addFieldToCSVfile(myarg, USER_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-    elif myarg == u'fields':
-      if not fieldsList:
-        fieldsList = [u'primaryEmail',]
-      fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-      for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in USER_ARGUMENT_TO_PROPERTY_MAP:
-          addFieldToCSVfile(field, USER_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-        else:
-          invalidChoiceExit(USER_ARGUMENT_TO_PROPERTY_MAP, True)
+    elif getFieldsListTitles(myarg, USER_FIELDS_CHOICE_MAP, fieldsList, titles, u'primaryEmail'):
+      pass
     elif myarg == u'groups':
       getGroupFeed = True
     elif myarg in [u'license', u'licenses', u'licence', u'licences']:
@@ -18516,7 +18525,7 @@ def doDeleteCourses():
 def doDeleteCourse():
   _doDeleteCourses(getStringReturnInList(Cmd.OB_COURSE_ID))
 
-COURSE_ARGUMENT_TO_PROPERTY_MAP = {
+COURSE_FIELDS_CHOICE_MAP = {
   u'alternatelink': u'alternateLink',
   u'coursegroupemail': u'courseGroupEmail',
   u'coursematerialsets': u'courseMaterialSets',
@@ -18562,8 +18571,8 @@ COURSE_PROPERTY_PRINT_ORDER = [
   u'teacherFolder.alternateLink',
   ]
 
-def _initCourseShowProperties():
-  return {u'aliases': False, u'ownerEmail': False, u'members': u'none', u'countsOnly': False, u'fields': [], u'skips': []}
+def _initCourseShowProperties(fields=None):
+  return {u'aliases': False, u'ownerEmail': False, u'members': u'none', u'countsOnly': False, u'fields': fields if fields is not None else [], u'skips': []}
 
 def _getCourseShowProperties(myarg, courseShowProperties):
   if myarg in [u'alias', u'aliases']:
@@ -18575,13 +18584,12 @@ def _getCourseShowProperties(myarg, courseShowProperties):
   elif myarg == u'countsonly':
     courseShowProperties[u'countsOnly'] = True
   elif myarg == u'fields':
-    fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-    for field in fieldNameList.lower().replace(u',', u' ').split():
+    for field in _getFieldsList():
       if field in [u'alias', u'aliases']:
         courseShowProperties[u'aliases'] = True
       elif field == u'owneremail':
         courseShowProperties[u'ownerEmail'] = True
-        courseShowProperties[u'fields'].append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
+        courseShowProperties[u'fields'].append(COURSE_FIELDS_CHOICE_MAP[field])
       elif field == u'teachers':
         if courseShowProperties[u'members'] == u'none':
           courseShowProperties[u'members'] = field
@@ -18592,13 +18600,12 @@ def _getCourseShowProperties(myarg, courseShowProperties):
           courseShowProperties[u'members'] = field
         elif courseShowProperties[u'members'] == u'teachers':
           courseShowProperties[u'members'] = u'all'
-      elif field in COURSE_ARGUMENT_TO_PROPERTY_MAP:
-        courseShowProperties[u'fields'].append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
+      elif field in COURSE_FIELDS_CHOICE_MAP:
+        courseShowProperties[u'fields'].append(COURSE_FIELDS_CHOICE_MAP[field])
       else:
-        invalidChoiceExit(COURSE_ARGUMENT_TO_PROPERTY_MAP, True)
+        invalidChoiceExit(COURSE_FIELDS_CHOICE_MAP, True)
   elif myarg == u'skipfields':
-    fieldNameList = getString(Cmd.OB_FIELD_NAME_LIST)
-    for field in fieldNameList.lower().replace(u',', u' ').split():
+    for field in _getFieldsList():
       if field in [u'alias', u'aliases']:
         courseShowProperties[u'aliases'] = False
       elif field == u'teachers':
@@ -18611,11 +18618,11 @@ def _getCourseShowProperties(myarg, courseShowProperties):
           courseShowProperties[u'members'] = u'teachers'
         elif courseShowProperties[u'members'] == field:
           courseShowProperties[u'members'] = u'none'
-      elif field in COURSE_ARGUMENT_TO_PROPERTY_MAP:
+      elif field in COURSE_FIELDS_CHOICE_MAP:
         if field != u'id':
-          courseShowProperties[u'skips'].append(COURSE_ARGUMENT_TO_PROPERTY_MAP[field])
+          courseShowProperties[u'skips'].append(COURSE_FIELDS_CHOICE_MAP[field])
       else:
-        invalidChoiceExit(COURSE_ARGUMENT_TO_PROPERTY_MAP, True)
+        invalidChoiceExit(COURSE_FIELDS_CHOICE_MAP, True)
   else:
     unknownArgumentExit()
 
@@ -18629,30 +18636,38 @@ def _setCourseFields(courseShowProperties, pagesMode):
     return u','.join(set(courseShowProperties[u'fields']))
   return u'nextPageToken,courses({0})'.format(u','.join(set(courseShowProperties[u'fields'])))
 
+def _convertCourseUserIdToEmail(croom, userId, emails):
+  if userId not in emails:
+    try:
+      emails[userId] = callGAPI(croom.userProfiles(), u'get',
+                                throw_reasons=[GAPI.NOT_FOUND, GAPI.PERMISSION_DENIED],
+                                userId=userId, fields=u'emailAddress')[u'emailAddress']
+    except (GAPI.notFound, GAPI.permissionDenied):
+      emails[userId] = userId
+  return emails[userId]
+
 def _doInfoCourses(entityList):
   croom = buildGAPIObject(API.CLASSROOM)
-  cd = None
   courseShowProperties = _initCourseShowProperties()
+  ownerEmails = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     _getCourseShowProperties(myarg, courseShowProperties)
   fields = _setCourseFields(courseShowProperties, False)
-  if courseShowProperties[u'ownerEmail']:
-    cd = buildGAPIObject(API.DIRECTORY)
   i = 0
   count = len(entityList)
   for course in entityList:
     i += 1
     courseId = addCourseIdScope(course)
     try:
-      result = callGAPI(croom.courses(), u'get',
+      course = callGAPI(croom.courses(), u'get',
                         throw_reasons=[GAPI.NOT_FOUND],
                         id=courseId, fields=fields)
-      printEntity([Ent.COURSE, result[u'id']], i, count)
+      printEntity([Ent.COURSE, course[u'id']], i, count)
       Ind.Increment()
       if courseShowProperties[u'ownerEmail']:
-        result['ownerEmail'] = convertUIDtoEmailAddress(u'uid:{0}'.format(result['ownerId']), cd=cd)
-      showJSON(None, result, courseShowProperties[u'skips'], COURSE_TIME_OBJECTS)
+        course['ownerEmail'] = _convertCourseUserIdToEmail(croom, course['ownerId'], ownerEmails)
+      showJSON(None, course, courseShowProperties[u'skips'], COURSE_TIME_OBJECTS)
       if courseShowProperties[u'aliases']:
         try:
           aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
@@ -18717,17 +18732,73 @@ def doInfoCourses():
 def doInfoCourse():
   _doInfoCourses(getStringReturnInList(Cmd.OB_COURSE_ID))
 
-def _gettingCoursesQuery(teacherId, studentId, courseStates):
+def _initCourseSelectionParameters():
+  return {u'courseIds': [], u'teacherId': None, u'studentId': None, u'courseStates': []}
+
+def _getCourseSelectionParameters(myarg, courseSelectionParameters):
+  if myarg in [u'course', u'courses', u'class', u'classes']:
+    courseSelectionParameters[u'courseIds'].extend(getEntityList(Cmd.OB_COURSE_ENTITY))
+  elif myarg == u'teacher':
+    courseSelectionParameters[u'teacherId'] = getEmailAddress()
+  elif myarg == u'student':
+    courseSelectionParameters[u'studentId'] = getEmailAddress()
+  elif myarg in [u'state', u'states', u'status']:
+    _getCourseStates(courseSelectionParameters[u'courseStates'])
+  else:
+    return False
+  return True
+
+def _gettingCoursesQuery(courseSelectionParameters):
   query = u''
-  if teacherId:
-    query += u'{0}: {1}, '.format(Ent.Singular(Ent.TEACHER), teacherId)
-  if studentId:
-    query += u'{0}: {1}, '.format(Ent.Singular(Ent.STUDENT), studentId)
-  if courseStates:
-    query += u'{0}: {1}, '.format(Ent.Choose(Ent.COURSE_STATE, len(courseStates)), u','.join(courseStates))
+  if courseSelectionParameters[u'teacherId']:
+    query += u'{0}: {1}, '.format(Ent.Singular(Ent.TEACHER), courseSelectionParameters[u'teacherId'])
+  if courseSelectionParameters[u'studentId']:
+    query += u'{0}: {1}, '.format(Ent.Singular(Ent.STUDENT), courseSelectionParameters[u'studentId'])
+  if courseSelectionParameters[u'courseStates']:
+    query += u'{0}: {1}, '.format(Ent.Choose(Ent.COURSE_STATE, len(courseSelectionParameters[u'courseStates'])), u','.join(courseSelectionParameters[u'courseStates']))
   if query:
     query = query[:-2]
   return query
+
+def _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties):
+  if not courseSelectionParameters[u'courseIds']:
+    fields = _setCourseFields(courseShowProperties, True)
+    printGettingAllAccountEntities(Ent.COURSE, _gettingCoursesQuery(courseSelectionParameters))
+    try:
+      return callGAPIpages(croom.courses(), u'list', u'courses',
+                           page_message=getPageMessage(),
+                           throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
+                           teacherId=courseSelectionParameters[u'teacherId'],
+                           studentId=courseSelectionParameters[u'studentId'],
+                           courseStates=courseSelectionParameters[u'courseStates'],
+                           fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+    except GAPI.notFound:
+      if (not courseSelectionParameters[u'studentId']) and courseSelectionParameters[u'teacherId']:
+        entityUnknownWarning(Ent.TEACHER, courseSelectionParameters[u'teacherId'])
+      elif (not courseSelectionParameters[u'teacherId']) and courseSelectionParameters[u'studentId']:
+        entityUnknownWarning(Ent.STUDENT, courseSelectionParameters[u'studentId'])
+      elif courseSelectionParameters[u'studentId'] and courseSelectionParameters[u'teacherId']:
+        entityOrEntityUnknownWarning(Ent.TEACHER, courseSelectionParameters[u'teacherId'], Ent.STUDENT, courseSelectionParameters[u'studentId'])
+    except GAPI.badRequest as e:
+      entityActionFailedWarning([Ent.COURSE, None], str(e))
+    except GAPI.forbidden:
+      APIAccessDeniedExit()
+    return None
+  else:
+    fields = _setCourseFields(courseShowProperties, False)
+    coursesInfo = collections.deque()
+    for courseId in courseSelectionParameters[u'courseIds']:
+      courseId = addCourseIdScope(courseId)
+      try:
+        info = callGAPI(croom.courses(), u'get',
+                        throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                        id=courseId, fields=fields)
+        coursesInfo.append(info)
+      except GAPI.notFound:
+        entityDoesNotExistWarning(Ent.COURSE, courseId)
+      except GAPI.forbidden:
+        APIAccessDeniedExit()
+  return coursesInfo
 
 # gam print courses [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>])
 #	[owneremail] [alias|aliases] [delimiter <Character>] [show none|all|students|teachers] [countsonly] [fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>]
@@ -18762,69 +18833,30 @@ def doPrintCourses():
       j += 1
 
   croom = buildGAPIObject(API.CLASSROOM)
-  cd = None
-  courseShowProperties = _initCourseShowProperties()
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'id',])
-  courseIds = []
-  teacherId = studentId = None
-  courseStates = []
+  courseSelectionParameters = _initCourseSelectionParameters()
+  courseShowProperties = _initCourseShowProperties()
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
+  ownerEmails = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg in [u'course', u'courses', u'class', u'classes']:
-      courseIds.extend(getEntityList(Cmd.OB_COURSE_ENTITY))
-    elif myarg == u'teacher':
-      teacherId = getEmailAddress()
-    elif myarg == u'student':
-      studentId = getEmailAddress()
-    elif myarg in [u'state', u'states', u'status']:
-      _getCourseStates(courseStates)
+    elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     else:
       _getCourseShowProperties(myarg, courseShowProperties)
-  if not courseIds:
-    fields = _setCourseFields(courseShowProperties, True)
-    printGettingAllAccountEntities(Ent.COURSE, _gettingCoursesQuery(teacherId, studentId, courseStates))
-    try:
-      coursesInfo = callGAPIpages(croom.courses(), u'list', u'courses',
-                                  page_message=getPageMessage(),
-                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
-                                  fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-    except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
-      if (not studentId) and teacherId:
-        entityUnknownWarning(Ent.TEACHER, teacherId)
-        return
-      if (not teacherId) and studentId:
-        entityUnknownWarning(Ent.STUDENT, studentId)
-        return
-      if studentId and teacherId:
-        entityOrEntityUnknownWarning(Ent.TEACHER, teacherId, Ent.STUDENT, studentId)
-        return
-      coursesInfo = collections.deque()
-  else:
-    fields = _setCourseFields(courseShowProperties, False)
-    coursesInfo = collections.deque()
-    for courseId in courseIds:
-      courseId = addCourseIdScope(courseId)
-      try:
-        info = callGAPI(croom.courses(), u'get',
-                        throw_reasons=[GAPI.NOT_FOUND],
-                        id=courseId, fields=fields)
-        coursesInfo.append(info)
-      except GAPI.notFound:
-        entityDoesNotExistWarning(Ent.COURSE, courseId)
-  if courseShowProperties[u'ownerEmail']:
-    cd = buildGAPIObject(API.DIRECTORY)
+  coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
+  if coursesInfo is None:
+    return
   for course in coursesInfo:
     for field in courseShowProperties[u'skips']:
       course.pop(field, None)
     if courseShowProperties[u'ownerEmail']:
-      course['ownerEmail'] = convertUIDtoEmailAddress(u'uid:{0}'.format(course['ownerId']), cd=cd)
+      course['ownerEmail'] = _convertCourseUserIdToEmail(croom, course['ownerId'], ownerEmails)
     addRowTitlesToCSVfile(flattenJSON(course, timeObjects=COURSE_TIME_OBJECTS, noLenObjects=COURSE_NOLEN_OBJECTS), csvRows, titles)
   if courseShowProperties[u'aliases']:
     addTitleToCSVfile(u'Aliases', titles)
@@ -18834,9 +18866,9 @@ def doPrintCourses():
       ttitles = {u'set': set(), u'list': []}
       stitles = {u'set': set(), u'list': []}
       if courseShowProperties[u'members'] != u'students':
-        addTitlesToCSVfile([u'teachers',], ttitles)
+        addTitlesToCSVfile(u'teachers', ttitles)
       if courseShowProperties[u'members'] != u'teachers':
-        addTitlesToCSVfile([u'students',], stitles)
+        addTitlesToCSVfile(u'students', stitles)
       if courseShowProperties[u'countsOnly']:
         teachersFields = u'nextPageToken,teachers(profile(id))'
         studentsFields = u'nextPageToken,students(profile(id))'
@@ -18887,26 +18919,162 @@ def doPrintCourses():
         titles[u'list'].extend(stitles[u'list'])
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
-COURSE_WORK_ARGUMENT_TO_PROPERTY_MAP = {
-  u'alternatelink': [u'alternateLink',],
-  u'assigneemode': [u'assigneeMode',],
-  u'associatedwithdeveloper': [u'associatedWithDeveloper',],
-  u'courseid': [u'courseId',],
-  u'courseworkid': [u'id',],
-  u'courseworktype': [u'courseWorkType',],
-  u'creationtime': [u'creationTime',],
-  u'description': [u'description',],
-  u'duedate': [u'dueDate',],
-  u'id': [u'id',],
-  u'individualstudentsoptions': [u'individualStudentsOptions',],
-  u'materials': [u'materials',],
-  u'maxpoints': [u'maxPoints',],
-  u'scheduledtime': [u'scheduledTome',],
-  u'state': [u'state',],
-  u'submissionmodificationmode': [u'submissionModificationMode',],
-  u'title': [u'title',],
-  u'updatetime': [u'updateTime',],
-  u'worktype': [u'workType',],
+COURSE_ANNOUNCEMENTS_FIELDS_CHOICE_MAP = {
+  u'alternatelink': u'alternateLink',
+  u'announcementid': u'id',
+  u'assigneemode': u'assigneeMode',
+  u'courseid': u'courseId',
+  u'courseannouncementid': u'id',
+  u'creationtime': u'creationTime',
+  u'creator': u'creatorUserId',
+  u'creatoruserid': u'creatorUserId',
+  u'id': u'id',
+  u'individualstudentsoptions': u'individualStudentsOptions',
+  u'materials': u'materials',
+  u'scheduledtime': u'scheduledTime',
+  u'state': u'state',
+  u'text': u'text',
+  u'updatetime': u'updateTime',
+  }
+
+COURSE_ANNOUNCEMENTS_ORDERBY_CHOICE_MAP = {
+  u'updatetime': u'updateTime',
+  u'updatedate': u'updateTime',
+  }
+
+COURSE_ANNOUNCEMENTS_STATE_ARGUMENT_MAP = {
+  u'draft': u'DRAFT',
+  u'published': u'PUBLISHED',
+  u'deleted': u'DELETED',
+  }
+
+COURSE_ANNOUNCEMENTS_TIME_OBJECTS = [u'creationTime', u'scheduledTime', u'updateTime']
+
+def _getCourseAnnouncementStates(courseAnnouncementStates):
+  for state in getString(Cmd.OB_COURSE_ANNOUNCEMENT_STATE_LIST).lower().replace(u',', u' ').split():
+    if state in COURSE_ANNOUNCEMENTS_STATE_ARGUMENT_MAP:
+      courseAnnouncementStates.append(COURSE_ANNOUNCEMENTS_STATE_ARGUMENT_MAP[state])
+    else:
+      invalidChoiceExit(COURSE_ANNOUNCEMENTS_STATE_ARGUMENT_MAP, True)
+
+def _gettingCourseAnnouncementQuery(courseAnnouncementStates):
+  query = u''
+  if courseAnnouncementStates:
+    query += u'{0}: {1}, '.format(Ent.Choose(Ent.COURSE_ANNOUNCEMENT_STATE, len(courseAnnouncementStates)), u','.join(courseAnnouncementStates))
+  if query:
+    query = query[:-2]
+  return query
+
+# gam print course-announcements [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
+#	(announcementids <CourseAnnouncementIDEntity>)|((announcementstates <CourseAnnouncementStateList>)* (orderby <CourseAnnouncementOrderByFieldName> [ascending|descending])*)
+#	[creatoremail] [fields <CourseAnnouncementFieldNameList>]
+def doPrintCourseAnnouncements():
+  croom = buildGAPIObject(API.CLASSROOM)
+  todrive = {}
+  titles, csvRows = initializeTitlesCSVfile([u'courseId',])
+  fieldsList = []
+  courseSelectionParameters = _initCourseSelectionParameters()
+  courseShowProperties = _initCourseShowProperties([u'name',])
+  courseAnnouncementIds = []
+  courseAnnouncementStates = []
+  orderByList = []
+  creatorEmails = {}
+  showCreatorEmail = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
+    elif myarg in [u'announcementid', u'announcementids']:
+      courseAnnouncementIds = getEntityList(Cmd.OB_COURSE_ANNOUNCEMENT_ID_ENTITY)
+    elif myarg in [u'announcementstate', u'announcementstates']:
+      _getCourseAnnouncementStates(courseAnnouncementStates)
+    elif myarg == u'orderby':
+      fieldName = getChoice(COURSE_ANNOUNCEMENTS_ORDERBY_CHOICE_MAP, mapChoice=True)
+      if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
+        orderByList.append(fieldName)
+      else:
+        orderByList.append(u'{0} desc'.format(fieldName))
+    elif myarg == u'creatoremail':
+      showCreatorEmail = True
+    elif getFieldsList(myarg, COURSE_ANNOUNCEMENTS_FIELDS_CHOICE_MAP, fieldsList, u'id'):
+      pass
+    else:
+      unknownArgumentExit()
+  orderBy = u','.join(orderByList) if orderByList else None
+  coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
+  if coursesInfo is None:
+    return
+  if showCreatorEmail and fieldsList:
+    fieldsList.append(u'creatorUserId')
+  courseAnnouncementIdsLists = courseAnnouncementIds if isinstance(courseAnnouncementIds, dict) else None
+  i = 0
+  count = len(coursesInfo)
+  for course in coursesInfo:
+    i += 1
+    courseId = course[u'id']
+    if courseAnnouncementIdsLists:
+      courseAnnouncementIds = courseAnnouncementIdsLists[courseId]
+    if not courseAnnouncementIds:
+      fields = u'nextPageToken,announcements({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
+      printGettingAllEntityItemsForWhom(Ent.COURSE_ANNOUNCEMENT_ID, Ent.TypeName(Ent.COURSE, courseId), i, count, _gettingCourseAnnouncementQuery(courseAnnouncementStates))
+      try:
+        results = callGAPIpages(croom.courses().announcements(), u'list', u'announcements',
+                                page_message=getPageMessage(),
+                                throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                                courseId=courseId, announcementStates=courseAnnouncementStates, orderBy=orderBy,
+                                fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+        for courseAnnouncement in results:
+          if showCreatorEmail:
+            courseAnnouncement[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseAnnouncement[u'creatorUserId'], creatorEmails)
+          addRowTitlesToCSVfile(flattenJSON(courseAnnouncement, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_ANNOUNCEMENTS_TIME_OBJECTS), csvRows, titles)
+      except GAPI.forbidden:
+        APIAccessDeniedExit()
+    else:
+      jcount = len(courseAnnouncementIds)
+      if jcount == 0:
+        continue
+      fields = u'{0}'.format(u','.join(set(fieldsList))) if fieldsList else None
+      j = 0
+      for courseAnnouncementId in courseAnnouncementIds:
+        j += 1
+        try:
+          courseAnnouncement = callGAPI(croom.courses().announcements(), u'get',
+                                        throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                                        courseId=courseId, id=courseAnnouncementId, fields=fields)
+          if showCreatorEmail:
+            courseAnnouncement[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseAnnouncement[u'creatorUserId'], creatorEmails)
+          addRowTitlesToCSVfile(flattenJSON(courseAnnouncement, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_ANNOUNCEMENTS_TIME_OBJECTS), csvRows, titles)
+        except GAPI.notFound:
+          entityDoesNotHaveItemWarning([Ent.COURSE, course[u'name'], Ent.COURSE_ANNOUNCEMENT_ID, courseAnnouncementId], j, jcount)
+        except GAPI.forbidden:
+          APIAccessDeniedExit()
+  writeCSVfile(csvRows, titles, u'Course Announcements', todrive, [u'courseId', u'courseName', u'id', u'text', u'state'])
+
+COURSE_WORK_FIELDS_CHOICE_MAP = {
+  u'alternatelink': u'alternateLink',
+  u'assigneemode': u'assigneeMode',
+  u'associatedwithdeveloper': u'associatedWithDeveloper',
+  u'courseid': u'courseId',
+  u'courseworkid': u'id',
+  u'courseworktype': u'courseWorkType',
+  u'creationtime': u'creationTime',
+  u'creator': u'creatorUserId',
+  u'creatoruserid': u'creatorUserId',
+  u'description': u'description',
+  u'duedate': u'dueDate',
+  u'id': u'id',
+  u'individualstudentsoptions': u'individualStudentsOptions',
+  u'materials': u'materials',
+  u'maxpoints': u'maxPoints',
+  u'scheduledtime': u'scheduledTime',
+  u'state': u'state',
+  u'submissionmodificationmode': u'submissionModificationMode',
+  u'title': u'title',
+  u'updatetime': u'updateTime',
+  u'workid': u'id',
+  u'worktype': u'workType',
   }
 
 COURSE_WORK_ORDERBY_CHOICE_MAP = {
@@ -18921,12 +19089,26 @@ COURSE_WORK_STATE_ARGUMENT_MAP = {
   u'deleted': u'DELETED',
   }
 
+COURSE_WORK_TIME_OBJECTS = [u'creationTime', u'scheduledTime', u'updateTime']
+
 def _getCourseWorkStates(courseWorkStates):
   for state in getString(Cmd.OB_COURSE_WORK_STATE_LIST).lower().replace(u',', u' ').split():
     if state in COURSE_WORK_STATE_ARGUMENT_MAP:
       courseWorkStates.append(COURSE_WORK_STATE_ARGUMENT_MAP[state])
     else:
       invalidChoiceExit(COURSE_WORK_STATE_ARGUMENT_MAP, True)
+
+def _initCourseWorkSelectionParameters():
+  return {u'courseWorkIds': [], u'courseWorkStates': []}
+
+def _getCourseWorkSelectionParameters(myarg, courseWorkSelectionParameters):
+  if myarg in [u'workid', u'workids', u'courseworkid', u'courseworkids']:
+    courseWorkSelectionParameters[u'courseWorkIds'] = getEntityList(Cmd.OB_COURSE_WORK_ID_ENTITY)
+  elif myarg in [u'workstate', u'workstates', u'courseworkstate', u'courseworkstates']:
+    _getCourseWorkStates(courseWorkSelectionParameters[u'courseWorkStates'])
+  else:
+    return False
+  return True
 
 def _gettingCourseWorkQuery(courseWorkStates):
   query = u''
@@ -18937,79 +19119,46 @@ def _gettingCourseWorkQuery(courseWorkStates):
   return query
 
 # gam print course-work [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
-#	(courseworkids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
-#	[fields <CourseWorkFieldNameList>]
+#	(workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
+#	[creatoremail] [fields <CourseWorkFieldNameList>]
 def doPrintCourseWork():
   croom = buildGAPIObject(API.CLASSROOM)
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'courseId',])
   fieldsList = []
-  courseIds = []
-  teacherId = studentId = None
-  courseStates = []
-  courseWorkIds = []
-  courseWorkStates = []
+  courseSelectionParameters = _initCourseSelectionParameters()
+  courseWorkSelectionParameters = _initCourseWorkSelectionParameters()
+  courseShowProperties = _initCourseShowProperties([u'name',])
   orderByList = []
+  creatorEmails = {}
+  showCreatorEmail = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg in [u'course', u'courses', u'class', u'classes']:
-      courseIds.extend(getEntityList(Cmd.OB_COURSE_ENTITY))
-    elif myarg == u'teacher':
-      teacherId = getEmailAddress()
-    elif myarg == u'student':
-      studentId = getEmailAddress()
-    elif myarg in [u'state', u'states', u'status']:
-      _getCourseStates(courseStates)
-    elif myarg in [u'courseworkd', u'courseworkds']:
-      courseWorkIds = getEntityList(Cmd.OB_COURSE_WORK_ID_ENTITY)
-    elif myarg in [u'workstate', u'workstates']:
-      _getCourseWorkStates(courseWorkStates)
+    elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
+    elif _getCourseWorkSelectionParameters(myarg, courseWorkSelectionParameters):
+      pass
     elif myarg == u'orderby':
       fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
         orderByList.append(fieldName)
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
-    elif myarg == u'fields':
-      if not fieldsList:
-        addFieldToCSVfile(u'id', COURSE_WORK_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
-        if field in COURSE_WORK_ARGUMENT_TO_PROPERTY_MAP:
-          addFieldToCSVfile(field, COURSE_WORK_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-        else:
-          invalidChoiceExit(list(COURSE_WORK_ARGUMENT_TO_PROPERTY_MAP), True)
+    elif myarg == u'creatoremail':
+      showCreatorEmail = True
+    elif getFieldsList(myarg, COURSE_WORK_FIELDS_CHOICE_MAP, fieldsList, u'id'):
+      pass
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
-  if not courseIds:
-    printGettingAllAccountEntities(Ent.COURSE, _gettingCoursesQuery(teacherId, studentId, courseStates))
-    try:
-      coursesInfo = callGAPIpages(croom.courses(), u'list', u'courses',
-                                  page_message=getPageMessage(),
-                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
-                                  fields=u'nextPageToken,courses(id,name)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-    except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
-      if not studentId:
-        entityUnknownWarning(Ent.TEACHER, teacherId)
-      elif not teacherId:
-        entityUnknownWarning(Ent.STUDENT, studentId)
-      else:
-        entityOrEntityUnknownWarning(Ent.TEACHER, teacherId, Ent.STUDENT, studentId)
-      return
-  else:
-    coursesInfo = collections.deque()
-    for courseId in courseIds:
-      courseId = addCourseIdScope(courseId)
-      try:
-        info = callGAPI(croom.courses(), u'get',
-                        throw_reasons=[GAPI.NOT_FOUND],
-                        id=courseId, fields=u'id,name')
-        coursesInfo.append(info)
-      except GAPI.notFound:
-        entityDoesNotExistWarning(Ent.COURSE, courseId)
+  if showCreatorEmail and fieldsList:
+    fieldsList.append(u'creatorUserId')
+  coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
+  if coursesInfo is None:
+    return
+  courseWorkIds = courseWorkSelectionParameters[u'courseWorkIds']
   courseWorkIdsLists = courseWorkIds if isinstance(courseWorkIds, dict) else None
   i = 0
   count = len(coursesInfo)
@@ -19020,15 +19169,17 @@ def doPrintCourseWork():
       courseWorkIds = courseWorkIdsLists[courseId]
     if not courseWorkIds:
       fields = u'nextPageToken,courseWork({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
-      printGettingAllEntityItemsForWhom(Ent.COURSE_WORK_ID, Ent.TypeName(Ent.COURSE, courseId), i, count, _gettingCourseWorkQuery(courseWorkStates))
+      printGettingAllEntityItemsForWhom(Ent.COURSE_WORK_ID, Ent.TypeName(Ent.COURSE, courseId), i, count, _gettingCourseWorkQuery(courseWorkSelectionParameters[u'courseWorkStates']))
       try:
         results = callGAPIpages(croom.courses().courseWork(), u'list', u'courseWork',
                                 page_message=getPageMessage(),
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, courseWorkStates=courseWorkStates, orderBy=orderBy,
+                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy,
                                 fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
         for courseWork in results:
-          addRowTitlesToCSVfile(flattenJSON(courseWork, flattened={u'courseId': courseId, u'courseName': course[u'name']}), csvRows, titles)
+          if showCreatorEmail:
+            courseWork[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseWork[u'creatorUserId'], creatorEmails)
+          addRowTitlesToCSVfile(flattenJSON(courseWork, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_WORK_TIME_OBJECTS), csvRows, titles)
       except GAPI.forbidden:
         APIAccessDeniedExit()
     else:
@@ -19043,29 +19194,34 @@ def doPrintCourseWork():
           courseWork = callGAPI(croom.courses().courseWork(), u'get',
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
                                 courseId=courseId, id=courseWorkId, fields=fields)
-          addRowTitlesToCSVfile(flattenJSON(courseWork, flattened={u'courseId': courseId, u'courseName': course[u'name']}), csvRows, titles)
+          if showCreatorEmail:
+            courseWork[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseWork[u'creatorUserId'], creatorEmails)
+          addRowTitlesToCSVfile(flattenJSON(courseWork, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_WORK_TIME_OBJECTS), csvRows, titles)
         except GAPI.notFound:
           entityDoesNotHaveItemWarning([Ent.COURSE, course[u'name'], Ent.COURSE_WORK_ID, courseWorkId], j, jcount)
         except GAPI.forbidden:
           APIAccessDeniedExit()
   writeCSVfile(csvRows, titles, u'Course Work', todrive, [u'courseId', u'courseName', u'id', u'title', u'description', u'state'])
 
-COURSE_SUBMISSION_ARGUMENT_TO_PROPERTY_MAP = {
-  u'alternatelink': [u'alternateLink',],
-  u'assignedgrade': [u'assignedGrade',],
-  u'associatedwithdeveloper': [u'associatedWithDeveloper',],
-  u'courseid': [u'courseId',],
-  u'courseworkid': [u'courseWorkId',],
-  u'courseworktype': [u'courseWorkType',],
-  u'creationtime': [u'creationTime',],
-  u'draftgrade': [u'draftGrade',],
-  u'id': [u'id',],
-  u'late': [u'late',],
-  u'state': [u'state',],
-  u'submissionhistory': [u'submissionHistory',],
-  u'updatetime': [u'updateTime',],
-  u'userid': [u'userId',],
-  u'worktype': [u'courseWorkType',],
+COURSE_SUBMISSION_FIELDS_CHOICE_MAP = {
+  u'alternatelink': u'alternateLink',
+  u'assignedgrade': u'assignedGrade',
+  u'associatedwithdeveloper': u'associatedWithDeveloper',
+  u'courseid': u'courseId',
+  u'coursesubmissionid': u'id',
+  u'courseworkid': u'courseWorkId',
+  u'courseworktype': u'courseWorkType',
+  u'creationtime': u'creationTime',
+  u'draftgrade': u'draftGrade',
+  u'id': u'id',
+  u'late': u'late',
+  u'state': u'state',
+  u'submissionhistory': u'submissionHistory',
+  u'submissionid': u'id',
+  u'updatetime': u'updateTime',
+  u'userid': u'userId',
+  u'workid': u'courseWorkId',
+  u'worktype': u'courseWorkType',
   }
 
 COURSE_SUBMISSION_STATE_ARGUMENT_MAP = {
@@ -19075,6 +19231,8 @@ COURSE_SUBMISSION_STATE_ARGUMENT_MAP = {
   u'returned': u'RETURNED',
   u'reclaimedbystudent': u'RECLAIMED_BY_STUDENT',
   }
+
+COURSE_SUBMISSION_TIME_OBJECTS = [u'creationTime', u'updateTime', u'gradeTimestamp', u'stateTimestamp']
 
 def _getCourseSubmissionStates(courseSubmissionStates):
   for state in getString(Cmd.OB_COURSE_SUBMISSION_STATE_LIST).lower().replace(u',', u' ').split():
@@ -19096,19 +19254,17 @@ def _gettingCourseSubmissionQuery(courseSubmissionStates, late, userId):
   return query
 
 # gam print course-submissions [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
-#	(courseworkids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
-#	(coursesubmissionids <CourseSubmissionIDEntity>)|((submissionstates <CourseSubmissionStateList>)*) [late|notlate]
+#	(workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
+#	(submissionids <CourseSubmissionIDEntity>)|((submissionstates <CourseSubmissionStateList>)*) [late|notlate]
 #	[fields <CourseSubmissionFieldNameList>]
 def doPrintCourseSubmissions():
   croom = buildGAPIObject(API.CLASSROOM)
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'courseId',])
   fieldsList = []
-  courseIds = []
-  teacherId = studentId = None
-  courseStates = []
-  courseWorkStates = []
-  courseWorkIds = []
+  courseSelectionParameters = _initCourseSelectionParameters()
+  courseWorkSelectionParameters = _initCourseWorkSelectionParameters()
+  courseShowProperties = _initCourseShowProperties([u'name',])
   courseSubmissionStates = []
   courseSubmissionIds = []
   orderByList = []
@@ -19117,71 +19273,33 @@ def doPrintCourseSubmissions():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg in [u'course', u'courses', u'class', u'classes']:
-      courseIds.extend(getEntityList(Cmd.OB_COURSE_ENTITY))
-    elif myarg == u'teacher':
-      teacherId = getEmailAddress()
-    elif myarg == u'student':
-      studentId = getEmailAddress()
-    elif myarg in [u'state', u'states', u'status']:
-      _getCourseStates(courseStates)
-    elif myarg in [u'courseworkd', u'courseworkds']:
-      courseWorkIds = getEntityList(Cmd.OB_COURSE_WORK_ID_ENTITY)
-    elif myarg in [u'workstate', u'workstates']:
-      _getCourseWorkStates(courseWorkStates)
+    elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
+    elif _getCourseWorkSelectionParameters(myarg, courseWorkSelectionParameters):
+      pass
     elif myarg == u'orderby':
       fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
         orderByList.append(fieldName)
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
-    elif myarg == u'coursesubmissionids':
+    elif myarg in [u'submissionid', u'submissionids', u'coursesubmissionid', u'coursesubmissionids']:
       courseSubmissionIds = getEntityList(Cmd.OB_COURSE_SUBMISSION_ID_ENTITY)
-    elif myarg in [u'submissionstate', u'submissionstates']:
+    elif myarg in [u'submissionstate', u'submissionstates', u'coursesubmissionstate', u'coursesubmissionstates']:
       _getCourseSubmissionStates(courseSubmissionStates)
     elif myarg == u'late':
       late = u'LATE_ONLY'
     elif myarg == u'notlate':
       late = u'NOT_LATE_ONLY'
-    elif myarg == u'fields':
-      if not fieldsList:
-        for field in [u'courseWorkId', u'id', u'userId']:
-          addFieldToCSVfile(field, COURSE_SUBMISSION_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
-        if field in COURSE_SUBMISSION_ARGUMENT_TO_PROPERTY_MAP:
-          addFieldToCSVfile(field, COURSE_SUBMISSION_ARGUMENT_TO_PROPERTY_MAP, fieldsList, titles)
-        else:
-          invalidChoiceExit(list(COURSE_SUBMISSION_ARGUMENT_TO_PROPERTY_MAP), True)
+    elif getFieldsList(myarg, COURSE_SUBMISSION_FIELDS_CHOICE_MAP, fieldsList, u'id'):
+      pass
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
-  if not courseIds:
-    printGettingAllAccountEntities(Ent.COURSE, _gettingCoursesQuery(teacherId, studentId, courseStates))
-    try:
-      coursesInfo = callGAPIpages(croom.courses(), u'list', u'courses',
-                                  page_message=getPageMessage(),
-                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
-                                  fields=u'nextPageToken,courses(id,name)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-    except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
-      if not studentId:
-        entityUnknownWarning(Ent.TEACHER, teacherId)
-      elif not teacherId:
-        entityUnknownWarning(Ent.STUDENT, studentId)
-      else:
-        entityOrEntityUnknownWarning(Ent.TEACHER, teacherId, Ent.STUDENT, studentId)
-      return
-  else:
-    coursesInfo = collections.deque()
-    for courseId in courseIds:
-      courseId = addCourseIdScope(courseId)
-      try:
-        info = callGAPI(croom.courses(), u'get',
-                        throw_reasons=[GAPI.NOT_FOUND],
-                        id=courseId, fields=u'id,name')
-        coursesInfo.append(info)
-      except GAPI.notFound:
-        entityDoesNotExistWarning(Ent.COURSE, courseId)
+  coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
+  if coursesInfo is None:
+    return
+  courseWorkIds = courseWorkSelectionParameters[u'courseWorkIds']
   courseWorkIdsLists = courseWorkIds if isinstance(courseWorkIds, dict) else None
   courseSubmissionIdsLists = courseSubmissionIds if isinstance(courseSubmissionIds, dict) else None
   i = 0
@@ -19192,12 +19310,12 @@ def doPrintCourseSubmissions():
     if courseWorkIdsLists:
       courseWorkIds = courseWorkIdsLists[courseId]
     if not courseWorkIds:
-      printGettingAllEntityItemsForWhom(Ent.COURSE_WORK_ID, Ent.TypeName(Ent.COURSE, courseId), i, count, _gettingCourseWorkQuery(courseWorkStates))
+      printGettingAllEntityItemsForWhom(Ent.COURSE_WORK_ID, Ent.TypeName(Ent.COURSE, courseId), i, count, _gettingCourseWorkQuery(courseWorkSelectionParameters[u'courseWorkStates']))
       try:
         results = callGAPIpages(croom.courses().courseWork(), u'list', u'courseWork',
                                 page_message=getPageMessage(),
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, courseWorkStates=courseWorkStates, orderBy=orderBy,
+                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy,
                                 fields=u'nextPageToken,courseWork(id)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
         courseWorkIdsForCourse = [courseWork[u'id'] for courseWork in results]
       except GAPI.notFound:
@@ -19215,15 +19333,15 @@ def doPrintCourseSubmissions():
       if not courseSubmissionIds:
         fields = u'nextPageToken,studentSubmissions({0})'.format(u','.join(set(fieldsList))) if fieldsList else None
         printGettingAllEntityItemsForWhom(Ent.COURSE_SUBMISSION_ID, Ent.TypeName(Ent.COURSE_WORK_ID, courseWorkId), j, jcount,
-                                          _gettingCourseSubmissionQuery(courseSubmissionStates, late, studentId))
+                                          _gettingCourseSubmissionQuery(courseSubmissionStates, late, courseSelectionParameters[u'studentId']))
         try:
           results = callGAPIpages(croom.courses().courseWork().studentSubmissions(), u'list', u'studentSubmissions',
                                   page_message=getPageMessage(),
                                   throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                  courseId=courseId, courseWorkId=courseWorkId, states=courseSubmissionStates, late=late, userId=studentId,
+                                  courseId=courseId, courseWorkId=courseWorkId, states=courseSubmissionStates, late=late, userId=courseSelectionParameters[u'studentId'],
                                   fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
           for submission in results:
-            addRowTitlesToCSVfile(flattenJSON(submission, flattened={u'courseId': courseId, u'courseName': course[u'name']}), csvRows, titles)
+            addRowTitlesToCSVfile(flattenJSON(submission, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_SUBMISSION_TIME_OBJECTS), csvRows, titles)
         except GAPI.notFound:
           entityDoesNotHaveItemWarning([Ent.COURSE, course[u'name'], Ent.COURSE_WORK_ID, courseWorkId], j, jcount)
         except GAPI.forbidden:
@@ -19246,12 +19364,62 @@ def doPrintCourseSubmissions():
                                   throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
                                   courseId=courseId, courseWorkId=courseWorkId, id=courseSubmissionId,
                                   fields=fields)
-            addRowTitlesToCSVfile(flattenJSON(submission, flattened={u'courseId': courseId, u'courseName': course[u'name']}), csvRows, titles)
+            addRowTitlesToCSVfile(flattenJSON(submission, flattened={u'courseId': courseId, u'courseName': course[u'name']}, timeObjects=COURSE_SUBMISSION_TIME_OBJECTS), csvRows, titles)
           except GAPI.notFound:
             entityDoesNotHaveItemWarning([Ent.COURSE, course[u'name'], Ent.COURSE_WORK_ID, courseWorkId, Ent.COURSE_SUBMISSION_ID, courseSubmissionId], k, kcount)
           except GAPI.forbidden:
             APIAccessDeniedExit()
   writeCSVfile(csvRows, titles, u'Course Submissions', todrive, [u'courseId', u'courseName', u'courseWorkId', u'id', u'userId', u'state'])
+
+# gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>]) [show all|students|teachers]
+def doPrintCourseParticipants():
+  croom = buildGAPIObject(API.CLASSROOM)
+  todrive = {}
+  titles, csvRows = initializeTitlesCSVfile([u'courseId',])
+  courseSelectionParameters = _initCourseSelectionParameters()
+  courseShowProperties = _initCourseShowProperties([u'name',])
+  showMembers = u'all'
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'todrive':
+      todrive = getTodriveParameters()
+    elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
+    elif myarg == u'show':
+      showMembers = getChoice([u'all', u'students', u'teachers'])
+    else:
+      unknownArgumentExit()
+  coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
+  if coursesInfo is None:
+    return
+  i = 0
+  count = len(coursesInfo)
+  for course in coursesInfo:
+    i += 1
+    courseId = course[u'id']
+    page_message = getPageMessageForWhom(forWhom=formatKeyValueList(u'',
+                                                                    [Ent.Singular(Ent.COURSE), courseId],
+                                                                    currentCount(i, count)))
+    try:
+      if showMembers != u'students':
+        Ent.SetGetting(Ent.TEACHER)
+        results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                                page_message=page_message,
+                                throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                                courseId=courseId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+        for member in results:
+          addRowTitlesToCSVfile(flattenJSON(member, flattened={u'courseId': courseId, u'courseName': course[u'name'], u'userRole': u'TEACHER'}), csvRows, titles)
+      if showMembers != u'teachers':
+        Ent.SetGetting(Ent.STUDENT)
+        results = callGAPIpages(croom.courses().students(), u'list', u'students',
+                                page_message=page_message,
+                                throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                                courseId=courseId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
+        for member in results:
+          addRowTitlesToCSVfile(flattenJSON(member, flattened={u'courseId': courseId, u'courseName': course[u'name'], u'userRole': u'STUDENT'}), csvRows, titles)
+    except GAPI.forbidden:
+      APIAccessDeniedExit()
+  writeCSVfile(csvRows, titles, u'Course Participants', todrive, [u'courseId', u'courseName', u'userRole', u'userId'])
 
 def checkCourseExists(croom, courseId, i=0, count=0):
   courseId = addCourseIdScope(courseId)
@@ -19472,88 +19640,6 @@ def doCourseSyncParticipants(courseIdList, getEntityListArg):
         currentParticipantsSet.add(normalizeEmailAddressOrUID(user))
       _batchAddParticipantsToCourse(croom, courseId, i, count, list(syncParticipantsSet-currentParticipantsSet), role)
       _batchRemoveParticipantsFromCourse(croom, courseId, i, count, list(currentParticipantsSet-syncParticipantsSet), role)
-
-# gam print course-participants [todrive [<ToDriveAttributes>]] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>]) [show all|students|teachers]
-def doPrintCourseParticipants():
-  croom = buildGAPIObject(API.CLASSROOM)
-  todrive = {}
-  titles, csvRows = initializeTitlesCSVfile([u'courseId',])
-  courseIds = []
-  teacherId = None
-  studentId = None
-  courseStates = []
-  showMembers = u'all'
-  while Cmd.ArgumentsRemaining():
-    myarg = getArgument()
-    if myarg == u'todrive':
-      todrive = getTodriveParameters()
-    elif myarg in [u'course', u'courses', u'class', u'classes']:
-      courseIds.extend(getEntityList(Cmd.OB_COURSE_ENTITY))
-    elif myarg == u'teacher':
-      teacherId = getEmailAddress()
-    elif myarg == u'student':
-      studentId = getEmailAddress()
-    elif myarg in [u'state', u'states', u'status']:
-      _getCourseStates(courseStates)
-    elif myarg == u'show':
-      showMembers = getChoice([u'all', u'students', u'teachers'])
-    else:
-      unknownArgumentExit()
-  if not courseIds:
-    printGettingAllAccountEntities(Ent.COURSE, _gettingCoursesQuery(teacherId, studentId, courseStates))
-    try:
-      coursesInfo = callGAPIpages(croom.courses(), u'list', u'courses',
-                                  page_message=getPageMessage(),
-                                  throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                  teacherId=teacherId, studentId=studentId, courseStates=courseStates,
-                                  fields=u'nextPageToken,courses(id,name)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-    except (GAPI.notFound, GAPI.forbidden, GAPI.badRequest):
-      if not studentId:
-        entityUnknownWarning(Ent.TEACHER, teacherId)
-      elif not teacherId:
-        entityUnknownWarning(Ent.STUDENT, studentId)
-      else:
-        entityOrEntityUnknownWarning(Ent.TEACHER, teacherId, Ent.STUDENT, studentId)
-      return
-  else:
-    coursesInfo = collections.deque()
-    for courseId in courseIds:
-      courseId = addCourseIdScope(courseId)
-      try:
-        info = callGAPI(croom.courses(), u'get',
-                        throw_reasons=[GAPI.NOT_FOUND],
-                        id=courseId, fields=u'id,name')
-        coursesInfo.append(info)
-      except GAPI.notFound:
-        entityDoesNotExistWarning(Ent.COURSE, courseId)
-  i = 0
-  count = len(coursesInfo)
-  for course in coursesInfo:
-    i += 1
-    courseId = course[u'id']
-    page_message = getPageMessageForWhom(forWhom=formatKeyValueList(u'',
-                                                                    [Ent.Singular(Ent.COURSE), courseId],
-                                                                    currentCount(i, count)))
-    try:
-      if showMembers != u'students':
-        Ent.SetGetting(Ent.TEACHER)
-        results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
-                                page_message=page_message,
-                                throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-        for member in results:
-          addRowTitlesToCSVfile(flattenJSON(member, flattened={u'courseId': courseId, u'courseName': course[u'name'], u'userRole': u'TEACHER'}), csvRows, titles)
-      if showMembers != u'teachers':
-        Ent.SetGetting(Ent.STUDENT)
-        results = callGAPIpages(croom.courses().students(), u'list', u'students',
-                                page_message=page_message,
-                                throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
-        for member in results:
-          addRowTitlesToCSVfile(flattenJSON(member, flattened={u'courseId': courseId, u'courseName': course[u'name'], u'userRole': u'STUDENT'}), csvRows, titles)
-    except GAPI.forbidden:
-      APIAccessDeniedExit()
-  writeCSVfile(csvRows, titles, u'Course Participants', todrive, [u'courseId', u'courseName', u'userRole', u'userId'])
 
 def encode_multipart(fields, files, boundary=None):
   def escape_quote(s):
@@ -21838,14 +21924,8 @@ def _printShowDriveSettings(users, csvFormat):
     elif myarg == u'allfields':
       for field in DRIVESETTINGS_FIELDS_CHOICE_MAP:
         fieldsList.append(DRIVESETTINGS_FIELDS_CHOICE_MAP[field])
-    elif myarg in DRIVESETTINGS_FIELDS_CHOICE_MAP:
-      fieldsList.append(DRIVESETTINGS_FIELDS_CHOICE_MAP[myarg])
-    elif myarg == u'fields':
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
-        if field in DRIVESETTINGS_FIELDS_CHOICE_MAP:
-          fieldsList.append(DRIVESETTINGS_FIELDS_CHOICE_MAP[field])
-        else:
-          invalidChoiceExit(list(DRIVESETTINGS_FIELDS_CHOICE_MAP), True)
+    elif getFieldsList(myarg, DRIVESETTINGS_FIELDS_CHOICE_MAP, fieldsList):
+      pass
     else:
       unknownArgumentExit()
   if not fieldsList:
@@ -22195,7 +22275,7 @@ def _getFieldSubField(field, fieldsList, titles):
   field, subField = field.split(u'.', 1)
   if field in SUBFIELDS_CHOICE_MAP:
     if titles is not None:
-      addTitlesToCSVfile([DRIVEFILE_FIELDS_CHOICE_MAP[field]], titles)
+      addTitlesToCSVfile(DRIVEFILE_FIELDS_CHOICE_MAP[field], titles)
     if subField in SUBFIELDS_CHOICE_MAP[field]:
       fieldsList.append(u'{0}.{1}'.format(DRIVEFILE_FIELDS_CHOICE_MAP[field], SUBFIELDS_CHOICE_MAP[field][subField]))
     else:
@@ -22243,7 +22323,7 @@ def showFileInfo(users):
     elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
       labelsList.append(DRIVEFILE_LABEL_CHOICE_MAP[myarg])
     elif myarg == u'fields':
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
+      for field in _getFieldsList():
         if field in DRIVEFILE_LABEL_CHOICE_MAP:
           labelsList.append(DRIVEFILE_LABEL_CHOICE_MAP[field])
         elif field.find(u'.') == -1:
@@ -22642,19 +22722,9 @@ def _printShowFileRevisions(users, csvFormat):
     elif myarg == u'showtitles':
       showTitles = True
       if csvFormat:
-        addTitlesToCSVfile([fileNameTitle], titles)
-    elif myarg in FILEREVISIONS_FIELDS_CHOICE_MAP:
-      if not fieldsList:
-        fieldsList = [u'id',]
-      fieldsList.append(FILEREVISIONS_FIELDS_CHOICE_MAP[myarg])
-    elif myarg == u'fields':
-      if not fieldsList:
-        fieldsList = [u'id',]
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
-        if field in FILEREVISIONS_FIELDS_CHOICE_MAP:
-          fieldsList.append(FILEREVISIONS_FIELDS_CHOICE_MAP[field])
-        else:
-          invalidChoiceExit(list(FILEREVISIONS_FIELDS_CHOICE_MAP), True)
+        addTitlesToCSVfile(fileNameTitle, titles)
+    elif getFieldsList(myarg, FILEREVISIONS_FIELDS_CHOICE_MAP, fieldsList, u'id'):
+      pass
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -22957,16 +23027,16 @@ def printFileList(users):
       fieldsList = []
       allfields = True
     elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_FIELDS_CHOICE_MAP[myarg]]}, fieldsList, titles)
+      addFieldToCSVfile(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
     elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
-      addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_LABEL_CHOICE_MAP[myarg]]}, labelsList, titles)
+      addFieldToCSVfile(myarg, DRIVEFILE_LABEL_CHOICE_MAP, labelsList, titles)
     elif myarg == u'fields':
-      for field in getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split():
+      for field in _getFieldsList():
         if field in DRIVEFILE_LABEL_CHOICE_MAP:
-          addFieldToCSVfile(field, {field: [DRIVEFILE_LABEL_CHOICE_MAP[field]]}, labelsList, titles)
+          addFieldToCSVfile(field, DRIVEFILE_LABEL_CHOICE_MAP, labelsList, titles)
         elif field.find(u'.') == -1:
           if field in DRIVEFILE_FIELDS_CHOICE_MAP:
-            addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICE_MAP[field]]}, fieldsList, titles)
+            addFieldToCSVfile(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
           else:
             invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
         else:
@@ -23018,7 +23088,7 @@ def printFileList(users):
     pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
   elif not allfields:
     for field in [u'title', u'alternatelink']:
-      addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICE_MAP[field]]}, fieldsList, titles)
+      addFieldToCSVfile(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
     _setSelectionFields()
     fields = u','.join(set(fieldsList)).replace(u'.', u'/')
     pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
@@ -23027,7 +23097,7 @@ def printFileList(users):
     skipObjects.extend([u'kind', u'etag'])
   orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
-    addTitlesToCSVfile([u'paths',], titles)
+    addTitlesToCSVfile(u'paths', titles)
   _mapDrive3TitlesToDrive2(titles[u'list'], API.DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP)
   titles[u'set'] = set(titles[u'list'])
   removeTitlesFromCSVfile([u'capabilities',], titles)
@@ -23163,7 +23233,7 @@ def _printShowFilePaths(users, csvFormat):
       todrive = getTodriveParameters()
     elif csvFormat and myarg == u'oneitemperrow':
       oneItemPerRow = True
-      addTitlesToCSVfile([u'path',], titles)
+      addTitlesToCSVfile(u'path', titles)
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     else:
@@ -24041,11 +24111,11 @@ def transferDrive(users):
       else:
         childEntryInfo[u'targetPermission'] = {u'role': u'none'}
       childEntryInfo.pop(u'permissions', None)
-      ownerUser = childEntryInfo[u'owners'][0][u'emailAddress']
       if csvFormat:
         csvRows.append({u'OldOwner': sourceUser, u'NewOwner': targetUser, u'type': Ent.Singular(childFileType),
                         u'id': childFileId, VX_FILENAME: childFileName, u'role': _canonicalRole(childEntryInfo[u'sourcePermission'])})
         return
+      ownerUser = childEntryInfo[u'owners'][0][u'emailAddress']
       if ownerUser not in thirdPartyOwners:
         _, ownerDrive = buildGAPIServiceObject(API.DRIVE, ownerUser)
         if not ownerDrive:
@@ -24640,7 +24710,7 @@ def transferOwnership(users):
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'OldOwner', u'NewOwner', u'type', u'id', VX_FILENAME])
     if filepath:
-      addTitlesToCSVfile([u'paths',], titles)
+      addTitlesToCSVfile(u'paths', titles)
   else:
     filepath = False
   body = {u'role': u'owner'}
@@ -24878,7 +24948,7 @@ def claimOwnership(users):
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'NewOwner', u'OldOwner', u'type', u'id', VX_FILENAME])
     if filepath:
-      addTitlesToCSVfile([u'paths',], titles)
+      addTitlesToCSVfile(u'paths', titles)
   else:
     filepath = False
   body = {u'role': u'owner'}
@@ -25565,7 +25635,7 @@ def _printShowDriveFileACLs(users, csvFormat):
     elif myarg == u'showtitles':
       showTitles = True
       if csvFormat:
-        addTitlesToCSVfile([fileNameTitle], titles)
+        addTitlesToCSVfile(fileNameTitle, titles)
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -30146,6 +30216,7 @@ MAIN_COMMANDS_WITH_OBJECTS = {
       Cmd.ARG_CONTACT:		doPrintDomainContacts,
       Cmd.ARG_COURSE:		doPrintCourses,
       Cmd.ARG_COURSES:		doPrintCourses,
+      Cmd.ARG_COURSEANNOUNCEMENTS:	doPrintCourseAnnouncements,
       Cmd.ARG_COURSEPARTICIPANTS:	doPrintCourseParticipants,
       Cmd.ARG_COURSESUBMISSIONS:	doPrintCourseSubmissions,
       Cmd.ARG_COURSEWORK:	doPrintCourseWork,
