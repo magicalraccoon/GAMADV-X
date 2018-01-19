@@ -1,3 +1,11 @@
+4.55.12
+
+Fixed errors in gam transfer drive command.
+
+4.55.11
+
+Skipped.
+
 4.55.10
 
 Update 4.55.07 broke the error message handling for unknown/inapplicable users, it has been corrected.

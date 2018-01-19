@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.10'
+__version__ = u'4.55.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -24682,7 +24682,7 @@ def transferDrive(users):
                                  fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS)
             entityType = _getEntityMimeType(fileEntry)
             entityPerformActionItemValue([Ent.USER, sourceUser], entityType, u'{0} ({1})'.format(fileEntry[VX_FILENAME], fileId), j, jcount)
-            for parent in fileEntry[u'parents']:
+            for parent in fileEntry.get(u'parents', []):
               parentIdMap[parent[u'id']] = targetIds[TARGET_PARENT_ID]
             _identifyDriveFileAndChildren(fileEntry, i, count)
             filesTransferred = set()
