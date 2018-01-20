@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.14'
+__version__ = u'4.55.15'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2696,6 +2696,7 @@ def checkGDataError(e, service):
     1302: u'Entity Name Is Reserved',
     1303: u'Entity %s name not valid' % getattr(e, u'invalidInput', u'<unknown>'),
     1306: u'%s has members. Cannot delete.' % getattr(e, u'invalidInput', u'<unknown>'),
+    1317: u'Invalid input %s, reason %s' % (getattr(e, u'invalidInput', u'<unknown>'), getattr(e, u'reason', u'<unknown>')),
     1400: u'Invalid Given Name',
     1401: u'Invalid Family Name',
     1402: u'Invalid Password',
@@ -8587,7 +8588,7 @@ def doCreateMonitor():
       unknownArgumentExit()
   try:
     request = callGData(auditObject, u'createEmailMonitor',
-                        throw_errors=[GDATA.INVALID_VALUE, GDATA.INVALID_DOMAIN, GDATA.DOES_NOT_EXIST],
+                        throw_errors=[GDATA.INVALID_VALUE, GDATA.INVALID_INPUT, GDATA.DOES_NOT_EXIST, GDATA.INVALID_DOMAIN],
                         source_user=parameters[u'auditUserName'], destination_user=parameters[u'auditDestUserName'], end_date=end_date, begin_date=begin_date,
                         incoming_headers_only=incoming_headers_only, outgoing_headers_only=outgoing_headers_only,
                         drafts=drafts, drafts_headers_only=drafts_headers_only, chats=chats, chats_headers_only=chats_headers_only)
@@ -8595,10 +8596,13 @@ def doCreateMonitor():
     Ind.Increment()
     _showMailboxMonitorRequestStatus(request)
     Ind.Decrement()
-  except GDATA.invalidValue as e:
+  except (GDATA.invalidValue, GDATA.invalidInput) as e:
     entityActionFailedWarning([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_MONITOR_REQUEST, None], str(e))
-  except (GDATA.invalidDomain, GDATA.doesNotExist):
-    entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
+  except (GDATA.doesNotExist, GDATA.invalidDomain) as e:
+    if str(e).find(parameters[u'auditUser']) != -1:
+      entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
+    else:
+      entityActionFailedWarning([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_MONITOR_REQUEST, None], str(e))
 
 # gam audit monitor delete <EmailAddress> <DestEmailAddress>
 def doDeleteMonitor():
@@ -8606,11 +8610,16 @@ def doDeleteMonitor():
   checkForExtraneousArguments()
   try:
     callGData(auditObject, u'deleteEmailMonitor',
-              throw_errors=[GDATA.INVALID_DOMAIN, GDATA.DOES_NOT_EXIST],
+              throw_errors=[GDATA.INVALID_INPUT, GDATA.DOES_NOT_EXIST, GDATA.INVALID_DOMAIN],
               source_user=parameters[u'auditUserName'], destination_user=parameters[u'auditDestUserName'])
     entityActionPerformed([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_MONITOR_REQUEST, parameters[u'auditDestUser']])
-  except (GDATA.invalidDomain, GDATA.doesNotExist):
-    entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
+  except GDATA.invalidInput as e:
+    entityActionFailedWarning([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_MONITOR_REQUEST, None], str(e))
+  except (GDATA.doesNotExist, GDATA.invalidDomain) as e:
+    if str(e).find(parameters[u'auditUser']) != -1:
+      entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
+    else:
+      entityActionFailedWarning([Ent.USER, parameters[u'auditUser'], Ent.AUDIT_MONITOR_REQUEST, None], str(e))
 
 # gam audit monitor list <EmailAddress>
 def doShowMonitors():
@@ -8618,7 +8627,7 @@ def doShowMonitors():
   checkForExtraneousArguments()
   try:
     results = callGData(auditObject, u'getEmailMonitors',
-                        throw_errors=[GDATA.INVALID_DOMAIN, GDATA.DOES_NOT_EXIST],
+                        throw_errors=[GDATA.DOES_NOT_EXIST, GDATA.INVALID_DOMAIN],
                         user=parameters[u'auditUserName'])
     jcount = len(results) if (results) else 0
     entityPerformActionNumItems([Ent.USER, parameters[u'auditUser']], jcount, Ent.AUDIT_MONITOR_REQUEST)
@@ -8631,7 +8640,7 @@ def doShowMonitors():
       j += 1
       _showMailboxMonitorRequestStatus(request, j, jcount)
     Ind.Decrement()
-  except (GDATA.invalidDomain, GDATA.doesNotExist):
+  except (GDATA.doesNotExist, GDATA.invalidDomain):
     entityUnknownWarning(Ent.USER, parameters[u'auditUser'])
 
 # Contact commands utilities
@@ -21668,6 +21677,8 @@ def _getDriveFileParentInfo(user, i, count, body, parameters, drive):
     body.setdefault(u'parents', [])
     for parent in parents:
       body[u'parents'].append({u'id': parent})
+  if u'parents' not in body or not body[u'parents']:
+    body[u'parents'] = [{u'id': u'root'}]
   return True
 
 def _getDriveFileAddRemoveParentInfo(user, i, count, parameters, drive):
@@ -21759,7 +21770,10 @@ def getDriveFileProperty(visibility=None):
   key = getString(Cmd.OB_PROPERTY_KEY)
   value = getString(Cmd.OB_PROPERTY_VALUE, minLen=0) or None
   if visibility is None:
-    visibility = getChoice(DRIVEFILE_PROPERTY_VISIBILITY_CHOICE_MAP, defaultChoice=u'PUBLIC', mapChoice=True)
+    if peekArgumentPresent(DRIVEFILE_PROPERTY_VISIBILITY_CHOICE_MAP):
+      visibility = getChoice(DRIVEFILE_PROPERTY_VISIBILITY_CHOICE_MAP, mapChoice=True)
+    else:
+      visibility = u'PUBLIC'
   return {u'key': key, u'value': value, u'visibility': visibility}
 
 def getDriveFileParentAttribute(myarg, parameters):
@@ -23566,7 +23580,7 @@ def createDriveFile(users):
         systemErrorExit(FILE_ERROR_RC, e)
     try:
       result = callGAPI(drive.files(), u'insert',
-                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FORBIDDEN],
+                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FORBIDDEN, GAPI.INVALID],
                         convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
                         visibility=parameters[DFA_IGNORE_DEFAULT_VISIBILITY],
                         pinned=parameters[DFA_KEEP_REVISION_FOREVER],
@@ -23577,7 +23591,7 @@ def createDriveFile(users):
         entityModifierNewValueActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, titleInfo], Act.MODIFIER_WITH_CONTENT_FROM, parameters[DFA_LOCALFILENAME], i, count)
       else:
         entityActionPerformed([Ent.USER, user, _getEntityMimeType(result), titleInfo], i, count)
-    except GAPI.forbidden as e:
+    except (GAPI.forbidden, GAPI.invalid) as e:
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, body[VX_FILENAME]], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -23653,7 +23667,7 @@ def updateDriveFile(users):
                               addParents=addParents, removeParents=removeParents,
                               body=body, fields=VX_ID_FILENAME_MIMETYPE, **kwargs)
             entityActionPerformed([Ent.USER, user, _getEntityMimeType(result), result[VX_FILENAME]], j, jcount)
-        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
+        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.invalid) as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], str(e), j, jcount)
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
           userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -23673,54 +23687,61 @@ def updateDriveFile(users):
                             body=body, fields=VX_ID_FILENAME)
           entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, fileId],
                                                              Act.MODIFIER_TO, result[VX_FILENAME], [Ent.DRIVE_FILE_ID, result[u'id']], j, jcount)
-        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.cannotCopyFile) as e:
+        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.invalid, GAPI.cannotCopyFile) as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, fileId], str(e), j, jcount)
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
           userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
           break
       Ind.Decrement()
 
+def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, action):
+  body = {VX_FILENAME: newFolderTitle, u'mimeType': MIMETYPE_GA_FOLDER, u'parents': parents}
+  try:
+    result = callGAPI(drive.files(), u'insert',
+                      throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR],
+                      body=body, fields=u'id')
+    newFolderId = result[u'id']
+    Act.Set(Act.CREATE)
+    entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId], j, jcount)
+    Act.Set(action)
+    return newFolderId
+  except (GAPI.forbidden, GAPI.internalError) as e:
+    Act.Set(Act.CREATE)
+    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), j, jcount)
+    Act.Set(action)
+    return None
+
 # gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]]
 #	[parentid <DriveFolderID>] [parentname <DriveFolderName>]
 def copyDriveFile(users):
-  def _recursiveFolderCopy(drive, user, i, count, folderId, folderTitle, newFolderTitle, parents, depth):
-    body = {VX_FILENAME: newFolderTitle, u'mimeType': MIMETYPE_GA_FOLDER, u'parents': parents}
-    try:
-      result = callGAPI(drive.files(), u'insert',
-                        throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR],
-                        body=body, fields=u'id')
-      newFolderId = result[u'id']
-      Act.Set(Act.CREATE)
-      entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId], i, count)
-      Act.Set(Act.COPY)
-    except (GAPI.forbidden, GAPI.internalError) as e:
-      Act.Set(Act.CREATE)
-      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), i, count)
-      Act.Set(Act.COPY)
+  def _recursiveFolderCopy(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, depth):
+    newFolderId = _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, Act.COPY)
+    if newFolderId is None:
       return
     source_children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                     throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                                     q=WITH_PARENTS.format(folderId), fields=VX_NPT_FILES_ID_FILENAME_MIMETYPE_CANCOPY,
                                     maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-    jcount = len(source_children)
-    if jcount > 0:
+    kcount = len(source_children)
+    if kcount > 0:
       Ind.Increment()
-      j = 0
+      k = 0
       for child in source_children:
-        j += 1
+        k += 1
         childId = child[u'id']
         childTitle = child[VX_FILENAME]
         if childId == newFolderId:
-          entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], Msg.NOT_COPYABLE, j, jcount)
+          entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], Msg.NOT_COPYABLE, k, kcount)
           continue
+        newParents = [{u'id': newFolderId}]
         if child[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if maxdepth == -1 or depth < maxdepth:
-            _recursiveFolderCopy(drive, user, j, jcount, childId, childTitle, childTitle, [{u'id': newFolderId}], depth+1)
+            _recursiveFolderCopy(drive, user, i, count, k, kcount, childId, childTitle, childTitle, newParents, depth+1)
         else:
           if not child[u'capabilities'][u'canCopy']:
-            entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], Msg.NOT_COPYABLE, j, jcount)
+            entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], Msg.NOT_COPYABLE, k, kcount)
             continue
-          body = {VX_FILENAME: childTitle, u'parents': [{u'id': newFolderId}]}
+          body = {VX_FILENAME: childTitle, u'parents': newParents}
           try:
             result = callGAPI(drive.files(), u'copy',
                               throw_reasons=GAPI.DRIVE_COPY_THROW_REASONS,
@@ -23729,10 +23750,10 @@ def copyDriveFile(users):
                                                                Act.MODIFIER_TO, result[VX_FILENAME], [Ent.DRIVE_FILE_ID, result[u'id']], j, jcount)
           except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError,
                   GAPI.cannotCopyFile, GAPI.responsePreparationFailure, GAPI.rateLimitExceeded, GAPI.userRateLimitExceeded) as e:
-            entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], str(e), j, jcount)
+            entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], str(e), k, kcount)
       Ind.Decrement()
       entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folderTitle],
-                                                         Act.MODIFIER_TO, newFolderTitle, [Ent.DRIVE_FOLDER_ID, newFolderId], i, count)
+                                                         Act.MODIFIER_TO, newFolderTitle, [Ent.DRIVE_FOLDER_ID, newFolderId], j, jcount)
 
   fileIdEntity = getDriveFileEntity()
   body = {}
@@ -23770,12 +23791,11 @@ def copyDriveFile(users):
                             throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
                             fileId=fileId, fields=VX_ID_FILENAME_MIMETYPE)
         if metadata[u'mimeType'] == MIMETYPE_GA_FOLDER:
+          destFilename = newfilename or u'{0} of {1}'.format(Act.ToPerform(), metadata[VX_FILENAME])
           if recursive:
-            destFilename = newfilename or u'Copy of {0}'.format(metadata[VX_FILENAME])
-            _recursiveFolderCopy(drive, user, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body.get(u'parents', []), 0)
+            _recursiveFolderCopy(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], 0)
           else:
-            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, metadata[VX_FILENAME]],
-                                            Msg.USE_RECURSIVE_ARGUMENT_TO_COPY_FOLDERS, j, jcount)
+            _cloneFolder(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], Act.COPY)
         else:
           result = callGAPI(drive.files(), u'copy',
                             throw_reasons=GAPI.DRIVE_COPY_THROW_REASONS,
@@ -23791,7 +23811,7 @@ def copyDriveFile(users):
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
         break
     Ind.Decrement()
-#
+
 DELETE_DRIVEFILE_CHOICE_MAP = {u'purge': u'delete', u'trash': u'trash', u'untrash': u'untrash',}
 DELETE_DRIVEFILE_FUNCTION_TO_ACTION_MAP = {u'delete': Act.PURGE, u'trash': Act.TRASH, u'untrash': Act.UNTRASH,}
 
@@ -24103,7 +24123,7 @@ def transferDrive(users):
     try:
       result = callGAPIpages(targetDrive.files(), u'list', VX_PAGES_FILES,
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             q=VX_MY_NON_TRASHED_FOLDER_NAME_WITH_PARENTS.format(folderName, folderParentId),
+                             orderBy=orderBy, q=VX_MY_NON_TRASHED_FOLDER_NAME_WITH_PARENTS.format(folderName, folderParentId),
                              fields=VX_NPT_FILES_ID)
       if len(result) > 0:
         return result[0][u'id']
@@ -24115,8 +24135,17 @@ def transferDrive(users):
       userSvcNotApplicableOrDriveDisabled(targetUser, str(e))
     return None
 
-  def _buildTargetOrphanFolder():
-    targetIds[TARGET_ORPHANS_PARENT_ID] = _buildTargetFile(_substituteForUser(targetUserOrphansFolderPattern, sourceUser, sourceUserName), targetIds[TARGET_PARENT_ID])
+  def _buildTargetUserFolder():
+    folderName = _substituteForUser(targetUserFolderPattern, sourceUser, sourceUserName)
+    if not folderName:
+      return targetFolderId
+    return _buildTargetFile(folderName, targetFolderId)
+
+  def _buildTargetUserOrphansFolder():
+    folderName = _substituteForUser(targetUserOrphansFolderPattern, sourceUser, sourceUserName)
+    if not folderName:
+      return targetIds[TARGET_PARENT_ID]
+    targetIds[TARGET_ORPHANS_PARENT_ID] = _buildTargetFile(folderName, targetIds[TARGET_PARENT_ID])
     if targetIds[TARGET_ORPHANS_PARENT_ID] is None:
       targetIds[TARGET_ORPHANS_PARENT_ID] = targetIds[TARGET_PARENT_ID]
 
@@ -24171,7 +24200,7 @@ def transferDrive(users):
             parents.add(parentId)
       else:
         if targetIds[TARGET_ORPHANS_PARENT_ID] is None:
-          _buildTargetOrphanFolder()
+          _buildTargetUserOrphansFolder()
         parents.add(targetIds[TARGET_ORPHANS_PARENT_ID])
         updateParents = True
       try:
@@ -24221,7 +24250,7 @@ def transferDrive(users):
       targetPreviousRole = childEntryInfo[u'targetPermission']
       if (childFileType == Ent.DRIVE_FOLDER) and (targetPreviousRole[u'role'] == u'none') and (ownerRetainRoleBody[u'role'] == u'none'):
         if targetIds[TARGET_ORPHANS_PARENT_ID] is None:
-          _buildTargetOrphanFolder()
+          _buildTargetUserOrphansFolder()
         parentIdMap[childFileId] = _buildTargetFile(childFileName, targetIds[TARGET_ORPHANS_PARENT_ID])
         entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], j, jcount)
         return
@@ -24543,14 +24572,14 @@ def transferDrive(users):
       getDrivefileOrderBy(orderByList)
     elif myarg == u'targetfolderid':
       targetFolderIdLocation = Cmd.Location()
-      targetFolderId = getString(Cmd.OB_DRIVE_FILE_ID)
+      targetFolderId = getString(Cmd.OB_DRIVE_FILE_ID, minLen=0)
     elif myarg == u'targetfoldername':
       targetFolderNameLocation = Cmd.Location()
-      targetFolderName = getString(Cmd.OB_DRIVE_FILE_NAME)
+      targetFolderName = getString(Cmd.OB_DRIVE_FILE_NAME, minLen=0)
     elif myarg == u'targetuserfoldername':
-      targetUserFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME)
+      targetUserFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME, minLen=0)
     elif myarg == u'targetuserorphansfoldername':
-      targetUserOrphansFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME)
+      targetUserOrphansFolderPattern = getString(Cmd.OB_DRIVE_FILE_NAME, minLen=0)
     elif myarg == u'preview':
       csvFormat = True
     elif myarg == u'select':
@@ -24661,7 +24690,7 @@ def transferDrive(users):
       if targetDriveFree is not None:
         targetDriveFree = targetDriveFree - sourceDriveSize # prep targetDriveFree for next user
       if not csvFormat:
-        targetIds[TARGET_PARENT_ID] = _buildTargetFile(_substituteForUser(targetUserFolderPattern, sourceUser, sourceUserName), targetFolderId)
+        targetIds[TARGET_PARENT_ID] = _buildTargetUserFolder()
         if targetIds[TARGET_PARENT_ID] is None:
           return
       Ind.Increment()
@@ -24671,7 +24700,7 @@ def transferDrive(users):
         sourceDriveFiles = callGAPIpages(sourceDrive.files(), u'list', VX_PAGES_FILES,
                                          page_message=getPageMessageForWhom(),
                                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                         q=NON_TRASHED, orderBy=orderBy,
+                                         orderBy=orderBy, q=NON_TRASHED,
                                          fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_OWNERS_PERMISSIONS,
                                          maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         fileTree = buildFileTree(sourceDriveFiles, sourceDrive)
@@ -24682,7 +24711,7 @@ def transferDrive(users):
         _transferDriveFilesFromTree(fileTree[sourceRootId], i, count)
         if fileTree[u'Orphans'][u'children']:
           if not csvFormat:
-            _buildTargetOrphanFolder()
+            _buildTargetUserOrphansFolder()
           _transferDriveFilesFromTree(fileTree[u'Orphans'], i, count)
         if not csvFormat:
           Act.Set(Act.RETAIN)
@@ -26239,7 +26268,7 @@ def createSheet(users):
         continue
       if not _getDriveFileParentInfo(user, i, count, parentBody, parameters, drive):
         continue
-      addParents = u','.join([parent[u'id'] for parent in parentBody.get(u'parents', [])])
+      addParents = u','.join([parent[u'id'] for parent in parentBody[u'parents']])
     try:
       result = callGAPI(sheet.spreadsheets(), u'create',
                         throw_reasons=GAPI.SHEETS_ACCESS_THROW_REASONS,
@@ -26271,8 +26300,8 @@ def createSheet(users):
         if field in result:
           showJSON(field, result[field])
       Ind.Decrement()
-    except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
-      entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET], str(e), i, count)
+    except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest, GAPI.invalid) as e:
+      entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, u''], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
 
@@ -30430,6 +30459,7 @@ MAIN_COMMANDS_OBJ_ALIASES = {
   Cmd.ARG_CLASSES:	Cmd.ARG_COURSES,
   Cmd.ARG_CLASSPARTICIPANTS:	Cmd.ARG_COURSEPARTICIPANTS,
   Cmd.ARG_CONTACTS:	Cmd.ARG_CONTACT,
+  Cmd.ARG_DATATRANSFERS:	Cmd.ARG_DATATRANSFER,
   Cmd.ARG_DEVICEFILES:	Cmd.ARG_DEVICEFILE,
   Cmd.ARG_DOMAINS:	Cmd.ARG_DOMAIN,
   Cmd.ARG_DOMAINALIASES:	Cmd.ARG_DOMAINALIAS,
