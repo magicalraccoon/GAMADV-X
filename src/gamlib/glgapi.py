@@ -36,6 +36,7 @@ CANNOT_DELETE_PRIMARY_SENDAS = u'cannotDeletePrimarySendAs'
 CANNOT_DELETE_RESOURCE_WITH_CHILDREN = u'cannotDeleteResourceWithChildren'
 CANNOT_SHARE_GROUPS_WITHLINK = u'cannotShareGroupsWithLink'
 CANNOT_SHARE_USERS_WITHLINK = u'cannotShareUsersWithLink'
+CANNOT_SHARE_TEAMDRIVE_TOPFOLDER_WITH_ANYONEORDOMAINS = u'cannotShareTeamDriveTopFolderWithAnyoneOrDomains'
 CONDITION_NOT_MET = u'conditionNotMet'
 CUSTOMER_NOT_FOUND = u'customerNotFound'
 CYCLIC_MEMBERSHIPS_NOT_ALLOWED = u'cyclicMembershipsNotAllowed'
@@ -222,6 +223,8 @@ class cannotShareGroupsWithLink(Exception):
   pass
 class cannotShareUsersWithLink(Exception):
   pass
+class cannotShareTeamDriveTopFolderWithAnyoneOrDomains(Exception):
+  pass
 class conditionNotMet(Exception):
   pass
 class customerNotFound(Exception):
@@ -379,6 +382,7 @@ REASON_EXCEPTION_MAP = {
   CANNOT_DELETE_RESOURCE_WITH_CHILDREN: cannotDeleteResourceWithChildren,
   CANNOT_SHARE_GROUPS_WITHLINK: cannotShareGroupsWithLink,
   CANNOT_SHARE_USERS_WITHLINK: cannotShareUsersWithLink,
+  CANNOT_SHARE_TEAMDRIVE_TOPFOLDER_WITH_ANYONEORDOMAINS: cannotShareTeamDriveTopFolderWithAnyoneOrDomains,
   CONDITION_NOT_MET: conditionNotMet,
   CUSTOMER_NOT_FOUND: customerNotFound,
   CYCLIC_MEMBERSHIPS_NOT_ALLOWED: cyclicMembershipsNotAllowed,

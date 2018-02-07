@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.17'
+__version__ = u'4.55.18'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3112,6 +3112,7 @@ def buildGAPIObject(api):
   except KeyError:
     API_Scopes = set(API.VAULT_SCOPES) if api == API.VAULT else set()
   GM.Globals[GM.CURRENT_API_SCOPES] = list(API_Scopes.intersection(credentials.scopes))
+### print API_Scopes.difference(credentials.scopes).difference(API_Scopes.intersection(credentials.scopes))
   if not GM.Globals[GM.CURRENT_API_SCOPES]:
     systemErrorExit(NO_SCOPES_FOR_API_RC, Msg.NO_SCOPES_FOR_API.format(service._rootDesc[u'title']))
   try:
@@ -3128,7 +3129,7 @@ def buildGAPIObject(api):
   GM.Globals[GM.OAUTH2_CLIENT_ID] = credentials.client_id
   return service
 
-def buildGAPIServiceObject(api, user, i, count):
+def buildGAPIServiceObject(api, user, i, count, displayError=True):
   userEmail = convertUIDtoEmailAddress(user)
   _, httpObj, service, _ = getAPIversionHttpService(api)
   GM.Globals[GM.CURRENT_API_USER] = userEmail
@@ -3144,7 +3145,8 @@ def buildGAPIServiceObject(api, user, i, count):
     if isinstance(e.args, tuple):
       e = e.args[0]
     handleOAuthTokenError(str(e), True)
-    entityServiceNotApplicableWarning(Ent.USER, user, i, count)
+    if displayError:
+      entityServiceNotApplicableWarning(Ent.USER, user, i, count)
     return (userEmail, None)
   return (userEmail, service)
 
@@ -5989,6 +5991,7 @@ def doReport():
       i += 1
       if normalizeUsers:
         user = normalizeEmailAddressOrUID(user)
+      printGettingEntityItemForWhom(Ent.REPORT, user, i, count)
       while True:
         try:
           usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports',
@@ -6122,6 +6125,8 @@ def doReport():
       i += 1
       if normalizeUsers:
         user = normalizeEmailAddressOrUID(user)
+      if select or userKey != u'all':
+        printGettingEntityItemForWhom(Ent.ACTIVITY, user, i, count)
       try:
         feed = callGAPIpages(rep.activities(), u'list', u'items',
                              page_message=page_message, maxItems=maxActivities,
@@ -6548,7 +6553,7 @@ def getCustomerSubscription(res):
     entityActionFailedWarning([Ent.SUBSCRIPTION, None], str(e))
     sys.exit(GM.Globals[GM.SYSEXITRC])
 
-PLAN_NAME_CHOICES = {
+PLAN_NAME_MAP = {
   u'annualmonthlypay': u'ANNUAL_MONTHLY_PAY',
   u'annualyearlypay': u'ANNUAL_YEARLY_PAY',
   u'flexible': u'FLEXIBLE',
@@ -6567,7 +6572,7 @@ def _getResoldSubscriptionAttr(customerId):
     if myarg in [u'deal', u'dealcode']:
       body[u'dealCode'] = getString(u'dealCode')
     elif myarg in [u'plan', u'planname']:
-      body[u'plan'][u'planName'] = getChoice(PLAN_NAME_CHOICES, mapChoice=True)
+      body[u'plan'][u'planName'] = getChoice(PLAN_NAME_MAP, mapChoice=True)
     elif myarg in [u'purchaseorderid', u'po']:
       body[u'purchaseOrderId'] = getString(u'purchaseOrderId')
     elif myarg in [u'seats']:
@@ -6644,7 +6649,7 @@ def doUpdateResoldSubscription():
         kwargs[u'body'][u'maximumNumberOfSeats'] = getInteger()
     elif myarg in [u'plan']:
       function = u'changePlan'
-      kwargs[u'body'] = {u'planName': getChoice(PLAN_NAME_CHOICES, mapChoice=True)}
+      kwargs[u'body'] = {u'planName': getChoice(PLAN_NAME_MAP, mapChoice=True)}
       while Cmd.ArgumentsRemaining():
         planarg = getArgument()
         if planarg == u'seats':
@@ -10646,14 +10651,15 @@ def _printShowContactGroups(users, csvFormat):
           j += 1
           _showContactGroup(contactsManager, group, j, jcount)
         Ind.Decrement()
-      elif groups:
-        for group in groups:
-          fields = contactsManager.ContactGroupToFields(group)
-          groupRow = {Ent.Singular(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
-                      CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: formatLocalTime(fields[CONTACT_GROUP_UPDATED])}
-          addRowTitlesToCSVfile(groupRow, csvRows, titles)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and entityType == Ent.USER:
-        csvRows.append({Ent.Singular(entityType): user})
+      else:
+        if groups:
+          for group in groups:
+            fields = contactsManager.ContactGroupToFields(group)
+            groupRow = {Ent.Singular(entityType): user, CONTACT_GROUP_ID: u'id:{0}'.format(fields[CONTACT_GROUP_ID]),
+                        CONTACT_GROUP_NAME: fields[CONTACT_GROUP_NAME], CONTACT_GROUP_UPDATED: formatLocalTime(fields[CONTACT_GROUP_UPDATED])}
+            addRowTitlesToCSVfile(groupRow, csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and entityType == Ent.USER:
+          csvRows.append({Ent.Singular(entityType): user})
     except GDATA.forbidden:
       entityServiceNotApplicableWarning(entityType, user, i, count)
     except GDATA.serviceNotApplicable:
@@ -14327,14 +14333,16 @@ def _doPrintShowCalendarACLs(user, cal, calIds, count, csvFormat, csvRows, title
           j += 1
           printEntity([Ent.CALENDAR, calId, Ent.CALENDAR_ACL, formatACLRule(rule)], j, jcount)
         Ind.Decrement()
-      elif acls:
-        for rule in acls:
-          flattened = {u'calendarId': calId}
-          if user:
-            flattened[u'primaryEmail'] = user
-          addRowTitlesToCSVfile(flattenJSON(rule, flattened=flattened), csvRows, titles)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
-        csvRows.append({u'calendarId': calId, u'primaryEmail': user})
+      else:
+        printGettingEntityItemForWhom(Ent.CALENDAR_ACL, calId, i, count)
+        if acls:
+          for rule in acls:
+            flattened = {u'calendarId': calId}
+            if user:
+              flattened[u'primaryEmail'] = user
+            addRowTitlesToCSVfile(flattenJSON(rule, flattened=flattened), csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
+          csvRows.append({u'calendarId': calId, u'primaryEmail': user})
     except GAPI.forbidden as e:
       entityActionFailedWarning([Ent.CALENDAR, calId], str(e), i, count)
     except GAPI.notFound:
@@ -14967,14 +14975,16 @@ def _printShowCalendarEvents(user, cal, calIds, count, calendarEventEntity, csvF
         j += 1
         _showCalendarEvent(Ent.EVENT, event, j, jcount)
       Ind.Decrement()
-    elif events:
-      for event in events:
-        flattened = {u'calendarId': calId}
-        if user:
-          flattened[u'primaryEmail'] = user
-        addRowTitlesToCSVfile(flattenJSON(event, flattened=flattened), csvRows, titles)
-    elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
-      csvRows.append({u'calendarId': calId, u'primaryEmail': user})
+    else:
+      printGettingEntityItemForWhom(Ent.EVENT, calId, i, count)
+      if events:
+        for event in events:
+          flattened = {u'calendarId': calId}
+          if user:
+            flattened[u'primaryEmail'] = user
+          addRowTitlesToCSVfile(flattenJSON(event, flattened=flattened), csvRows, titles)
+      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT] and user:
+        csvRows.append({u'calendarId': calId, u'primaryEmail': user})
 
 def _doCalendarsCreateImportEvent(cal, calIds, function):
   body = {}
@@ -15187,6 +15197,8 @@ def _doResourcePrintShowCalendarACLs(entityList, csvFormat):
     if not calId:
       continue
     try:
+      if csvFormat:
+        printGettingEntityItemForWhom(Ent.CALENDAR_ACL, resourceId, i, count)
       acls = callGAPIpages(cal.acl(), u'list', u'items',
                            throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
                            calendarId=calId, fields=u'nextPageToken,items(id,role,scope)')
@@ -20290,15 +20302,7 @@ def doPrinterWipeACLs(printerIdList):
     if currentScopeList is not None:
       _batchDeletePrinterACLs(cp, printerId, i, count, currentScopeList, role)
 
-# gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
-def doPrinterPrintACLs(printerIdList):
-  doPrinterPrintShowACLs(printerIdList, True)
-
-# gam printer|printers <PrinterIDEntity> showacls
-def doPrinterShowACLs(printerIdList):
-  doPrinterPrintShowACLs(printerIdList, False)
-
-def doPrinterPrintShowACLs(printerIdList, csvFormat):
+def _doPrinterPrintShowACLs(printerIdList, csvFormat):
   cp = buildGAPIObject(API.CLOUDPRINT)
   if csvFormat:
     todrive = {}
@@ -20314,6 +20318,8 @@ def doPrinterPrintShowACLs(printerIdList, csvFormat):
   for printerId in printerIdList:
     i += 1
     try:
+      if csvFormat:
+        printGettingEntityItemForWhom(Ent.PRINTER_ACL, printerId, i, count)
       result = callGCP(cp.printers(), u'get',
                        throw_messages=[GCP.UNKNOWN_PRINTER],
                        printerid=printerId)
@@ -20343,6 +20349,14 @@ def doPrinterPrintShowACLs(printerIdList, csvFormat):
       entityActionFailedWarning([Ent.PRINTER, printerId], str(e), i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'PrinterACLs', todrive)
+
+# gam printer|printers <PrinterIDEntity> printacls [todrive [<ToDriveAttributes>]]
+def doPrinterPrintACLs(printerIdList):
+  _doPrinterPrintShowACLs(printerIdList, True)
+
+# gam printer|printers <PrinterIDEntity> showacls
+def doPrinterShowACLs(printerIdList):
+  _doPrinterPrintShowACLs(printerIdList, False)
 
 # gam printjob|printjobs <PrintJobEntity> cancel
 def doPrintJobCancel(jobIdList):
@@ -21226,15 +21240,17 @@ def _printShowCalendars(users, csvFormat):
             acls = _getPermissions(cal, calendar)
           _showCalendar(calendar, j, jcount, acls)
         Ind.Decrement()
-      elif calendars:
-        for calendar in calendars:
-          row = {u'primaryEmail': user, u'calendarId': calendar[u'id']}
-          if showPermissions:
-            flattenJSON(_getPermissions(cal, calendar), key=u'permissions', flattened=row)
-          calendar.pop(u'id', None)
-          addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row), csvRows, titles)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({u'primaryEmail': user})
+      else:
+        printGettingEntityItemForWhom(Ent.CALENDAR, user, i, count)
+        if calendars:
+          for calendar in calendars:
+            row = {u'primaryEmail': user, u'calendarId': calendar[u'id']}
+            if showPermissions:
+              flattenJSON(_getPermissions(cal, calendar), key=u'permissions', flattened=row)
+            calendar.pop(u'id', None)
+            addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row), csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'primaryEmail': user})
     except GAPI.notACalendarUser as e:
       entityActionFailedWarning([Ent.USER, user], str(e), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError):
@@ -21357,9 +21373,11 @@ def printShowCalendarACLs(users, csvFormat):
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Ent.CALENDAR_ACL, Act.MODIFIER_FROM, showAction=not csvFormat)
     if jcount == 0:
       continue
-    Ind.Increment()
+    if not csvFormat:
+      Ind.Increment()
     _doPrintShowCalendarACLs(user, cal, calIds, jcount, csvFormat, csvRows, titles)
-    Ind.Decrement()
+    if not csvFormat:
+      Ind.Decrement()
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Calendar ACLs', todrive, [u'primaryEmail', u'calendarId'])
 
@@ -21697,9 +21715,11 @@ def printShowCalendarEvents(users, csvFormat):
     user, cal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity, Ent.EVENT, Act.MODIFIER_FROM, showAction=not csvFormat)
     if jcount == 0:
       continue
-    Ind.Increment()
+    if not csvFormat:
+      Ind.Increment()
     _printShowCalendarEvents(user, cal, calIds, jcount, calendarEventEntity, csvFormat, csvRows, titles)
-    Ind.Decrement()
+    if not csvFormat:
+      Ind.Decrement()
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Calendar Events', todrive, [u'primaryEmail', u'calendarId']+EVENT_PRINT_ORDER)
 
@@ -22020,7 +22040,7 @@ def getDriveFileAddRemoveParentAttribute(myarg, parameters):
     return False
   return True
 
-def getDriveFileAttribute(myarg, body, parameters):
+def getDriveFileAttribute(myarg, body, parameters, assignLocalName):
   if myarg == u'localfile':
     parameters[DFA_LOCALFILEPATH] = getString(Cmd.OB_FILE_NAME)
     try:
@@ -22030,7 +22050,8 @@ def getDriveFileAttribute(myarg, body, parameters):
       Cmd.Backup()
       usageErrorExit(u'{0}: {1}'.format(parameters[DFA_LOCALFILEPATH], str(e)))
     parameters[DFA_LOCALFILENAME] = os.path.basename(parameters[DFA_LOCALFILEPATH])
-    body.setdefault(VX_FILENAME, parameters[DFA_LOCALFILENAME])
+    if assignLocalName:
+      body.setdefault(VX_FILENAME, parameters[DFA_LOCALFILENAME])
     body[u'mimeType'] = mimetypes.guess_type(parameters[DFA_LOCALFILEPATH])[0]
     if body[u'mimeType'] is None:
       body[u'mimeType'] = u'application/octet-stream'
@@ -23778,7 +23799,7 @@ def createDriveFile(users):
     if myarg == u'drivefilename':
       body[VX_FILENAME] = getString(Cmd.OB_DRIVE_FILE_NAME)
     else:
-      getDriveFileAttribute(myarg, body, parameters)
+      getDriveFileAttribute(myarg, body, parameters, True)
   body.setdefault(VX_FILENAME, u'Untitled')
   Act.Set(Act.CREATE)
   i, count, users = getEntityArgument(users)
@@ -23821,19 +23842,22 @@ MODIFIED_DATE_BEHAVIOR_CHOICE_MAP = {
   u'nowifneeded': u'nowIfNeeded',
   }
 
-# gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] [<DriveFileUpdateAttributes>]
+# gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [retainname | (newfilename <DriveFileName>)] [<DriveFileUpdateAttributes>]
 def updateDriveFile(users):
   fileIdEntity = getDriveFileEntity()
   body = {}
   parameters = initializeDriveFileAttributes()
   kwargs = {}
   media_body = None
+  assignLocalName = True
   operation = u'update'
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'copy':
       operation = u'copy'
       Act.Set(Act.COPY)
+    elif myarg == u'retainname':
+      assignLocalName = False
     elif myarg == u'newfilename':
       body[VX_FILENAME] = getString(Cmd.OB_DRIVE_FILE_NAME)
     elif myarg == u'modifieddatebehavior':
@@ -23844,7 +23868,7 @@ def updateDriveFile(users):
     elif getDriveFileAddRemoveParentAttribute(myarg, parameters):
       pass
     else:
-      getDriveFileAttribute(myarg, body, parameters)
+      getDriveFileAttribute(myarg, body, parameters, assignLocalName)
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -23941,12 +23965,10 @@ def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFol
       if permission[u'role'] != u'owner':
         try:
           callGAPI(drive.permissions(), u'insert',
-                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST,
-                                                                  GAPI.CANNOT_SHARE_GROUPS_WITHLINK, GAPI.CANNOT_SHARE_USERS_WITHLINK],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST],
                    fileId=newFolderId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage,
                    body=permission)
-        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError,
-                GAPI.cannotShareGroupsWithLink, GAPI.cannotShareUsersWithLink) as e:
+        except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), j, jcount)
         except GAPI.invalidSharingRequest as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], Ent.TypeNameMessage(Ent.PERMISSION_ID, permission[u'id'], str(e)), j, jcount)
@@ -26109,21 +26131,22 @@ def _printShowDriveFileACLs(users, csvFormat):
             k += 1
             _showDriveFilePermission(permission, printKeys, timeObjects, k, kcount)
           Ind.Decrement()
-        elif results:
-          if oneItemPerRow:
-            for permission in results:
-              row = {u'Owner': user, u'id': fileId}
-              if showTitles:
-                row[fileNameTitle] = fileName
-              _mapDrivePermissionNames(permission)
-              addRowTitlesToCSVfile(flattenJSON({u'permission': permission}, flattened=row, timeObjects=timeObjects), csvRows, titles)
-          else:
-            for permission in results:
-              _mapDrivePermissionNames(permission)
-            if showTitles:
-              addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId, fileNameTitle: fileName}, timeObjects=timeObjects), csvRows, titles)
+        else:
+          if results:
+            if oneItemPerRow:
+              for permission in results:
+                row = {u'Owner': user, u'id': fileId}
+                if showTitles:
+                  row[fileNameTitle] = fileName
+                _mapDrivePermissionNames(permission)
+                addRowTitlesToCSVfile(flattenJSON({u'permission': permission}, flattened=row, timeObjects=timeObjects), csvRows, titles)
             else:
-              addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId}, timeObjects=timeObjects), csvRows, titles)
+              for permission in results:
+                _mapDrivePermissionNames(permission)
+              if showTitles:
+                addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId, fileNameTitle: fileName}, timeObjects=timeObjects), csvRows, titles)
+              else:
+                addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId}, timeObjects=timeObjects), csvRows, titles)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
@@ -26989,13 +27012,14 @@ def _printShowSheetRanges(users, csvFormat):
             printKeyValueListWithCount([u'range', valueRange[u'range']], k, kcount)
             _showValueRange(valueRange)
           Ind.Decrement()
-        elif result:
-          if formatJSON:
-            csvRows.append({u'User': user, u'spreadsheetId': spreadsheetId, u'JSON': json.dumps(result, ensure_ascii=False, sort_keys=False)})
-          else:
-            addRowTitlesToCSVfile(flattenJSON(result, flattened={u'User': user, u'spreadsheetId': spreadsheetId}), csvRows, titles)
-        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-          csvRows.append({u'User': user})
+        else:
+          if result:
+            if formatJSON:
+              csvRows.append({u'User': user, u'spreadsheetId': spreadsheetId, u'JSON': json.dumps(result, ensure_ascii=False, sort_keys=False)})
+            else:
+              addRowTitlesToCSVfile(flattenJSON(result, flattened={u'User': user, u'spreadsheetId': spreadsheetId}), csvRows, titles)
+          elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+            csvRows.append({u'User': user})
       except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
         entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, spreadsheetId], str(e), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
@@ -27108,15 +27132,16 @@ def _printShowTokens(entityType, users, csvFormat):
           j += 1
           _showToken(token, j, jcount)
         Ind.Decrement()
-      elif results:
-        for token in results:
-          row = {u'user': user, u'scopes': delimiter.join(token.get(u'scopes', []))}
-          for item in token:
-            if item != u'scopes':
-              row[item] = token.get(item, u'')
-          csvRows.append(row)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({u'user': user})
+      else:
+        if results:
+          for token in results:
+            row = {u'user': user, u'scopes': delimiter.join(token.get(u'scopes', []))}
+            for item in token:
+              if item != u'scopes':
+                row[item] = token.get(item, u'')
+            csvRows.append(row)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'user': user})
     except (GAPI.notFound, GAPI.resourceNotFound) as e:
       entityActionFailedWarning([Ent.USER, user, Ent.ACCESS_TOKEN, clientId], str(e), i, count)
     except (GAPI.userNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden):
@@ -29116,13 +29141,14 @@ def _printShowDelegates(users, csvFormat):
           printKeyValueList([u'Status', delegationStatus])
           Ind.Decrement()
         Ind.Decrement()
-      elif delegates:
-        for delegate in delegates:
-          delegateName, delegateAddress, delegationStatus = getDelegateFields(delegate)
-          csvRows.append({fieldsTitles[u'user']: delegatorEmail, fieldsTitles[u'delegateName']: delegateName,
-                          fieldsTitles[u'delegateAddress']: delegateAddress, fieldsTitles[u'delegationStatus']: delegationStatus})
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({fieldsTitles[u'user']: delegatorEmail})
+      else:
+        if delegates:
+          for delegate in delegates:
+            delegateName, delegateAddress, delegationStatus = getDelegateFields(delegate)
+            csvRows.append({fieldsTitles[u'user']: delegatorEmail, fieldsTitles[u'delegateName']: delegateName,
+                            fieldsTitles[u'delegateAddress']: delegateAddress, fieldsTitles[u'delegationStatus']: delegationStatus})
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({fieldsTitles[u'user']: delegatorEmail})
     except (GAPI.notFound, GAPI.serviceNotAvailable, GAPI.domainNotFound):
       entityServiceNotApplicableWarning(Ent.DELEGATOR, delegatorEmail, i, count)
   if csvFormat:
@@ -29413,11 +29439,13 @@ def _printShowFilters(users, csvFormat):
           j += 1
           _showFilter(userFilter, j, jcount, labels)
         Ind.Decrement()
-      elif results:
-        for userFilter in results:
-          addRowTitlesToCSVfile(_printFilter(user, userFilter, labels), csvRows, titles)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({u'User': user})
+      else:
+        printGettingEntityItemForWhom(Ent.FILTER, user, i, count)
+        if results:
+          for userFilter in results:
+            addRowTitlesToCSVfile(_printFilter(user, userFilter, labels), csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -29503,15 +29531,21 @@ def setForward(users):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
 def _printShowForward(users, csvFormat):
-  def _printForward(user, result):
+  def _printForward(user, result, showDisabled):
     if u'enabled' in result:
-      row = {u'User': user, u'forwardEnabled': result[u'enabled']}
-      if result[u'enabled']:
+      enabled = result[u'enabled']
+      if not enabled and not showDisabled:
+        return
+      row = {u'User': user, u'forwardEnabled': enabled}
+      if enabled:
         row[u'forwardTo'] = result[u'emailAddress']
         row[u'disposition'] = result[u'disposition']
     else:
-      row = {u'User': user, u'forwardEnabled': result[u'enable']}
-      if result[u'enable'] == u'true':
+      enabled = result[u'enable'] == u'true'
+      if not enabled and not showDisabled:
+        return
+      row = {u'User': user, u'forwardEnabled': enabled}
+      if enabled:
         row[u'forwardTo'] = result[u'forwardTo']
         row[u'disposition'] = EMAILSETTINGS_OLD_NEW_OLD_FORWARD_ACTION_MAP[result[u'action']]
     csvRows.append(row)
@@ -29519,10 +29553,13 @@ def _printShowForward(users, csvFormat):
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile([u'User', u'forwardEnabled', u'forwardTo', u'disposition'])
+  showDisabled = True
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif csvFormat and myarg == u'enabledonly':
+      showDisabled = False
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -29538,13 +29575,14 @@ def _printShowForward(users, csvFormat):
       if not csvFormat:
         _showForward(user, i, count, result)
       else:
-        _printForward(user, result)
+        printGettingEntityItemForWhom(Ent.FORWARD_ENABLED, user, i, count)
+        _printForward(user, result, showDisabled)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Forward', todrive)
 
-# gam <UserTypeEntity> print forward [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> print forward [enabledonly] [todrive [<ToDriveAttributes>]]
 def printForward(users):
   _printShowForward(users, True)
 
@@ -29648,11 +29686,13 @@ def _printShowForwardingAddresses(users, csvFormat):
           j += 1
           _showForwardingAddress(j, jcount, forward)
         Ind.Decrement()
-      elif results:
-        for forward in results:
-          csvRows.append({u'User': user, u'forwardingEmail': forward[u'forwardingEmail'], u'verificationStatus': forward[u'verificationStatus']})
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({u'User': user})
+      else:
+        printGettingEntityItemForWhom(Ent.FORWARDING_ADDRESS, user, i, count)
+        if results:
+          for forward in results:
+            csvRows.append({u'User': user, u'forwardingEmail': forward[u'forwardingEmail'], u'verificationStatus': forward[u'verificationStatus']})
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -29971,14 +30011,16 @@ def _printShowSendAs(users, csvFormat):
           j += 1
           _showSendAs(sendas, j, jcount, formatSig)
         Ind.Decrement()
-      elif results:
-        for sendas in results:
-          row = {u'User': user, u'isPrimary': False}
-          for item in sendas:
-            row[item] = sendas[item]
-          addRowTitlesToCSVfile(row, csvRows, titles)
-      elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
-        csvRows.append({u'User': user})
+      else:
+        printGettingEntityItemForWhom(Ent.SENDAS_ADDRESS, user, i, count)
+        if results:
+          for sendas in results:
+            row = {u'User': user, u'isPrimary': False}
+            for item in sendas:
+              row[item] = sendas[item]
+            addRowTitlesToCSVfile(row, csvRows, titles)
+        elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
+          csvRows.append({u'User': user})
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
@@ -30168,6 +30210,8 @@ def _printShowSmimes(users, csvFormat):
       jcount = len(sendAsEmails)
       if not csvFormat:
         entityPerformActionSubItemModifierNumItems([Ent.USER, user], Ent.SMIME_ID, Act.MODIFIER_FROM, jcount, Ent.SENDAS_ADDRESS, i, count)
+      else:
+        printGettingEntityItemForWhom(Ent.SENDAS_ADDRESS, user, i, count)
       if sendAsEmails:
         j = 0
         for sendAsEmail in sendAsEmails:
@@ -30338,31 +30382,6 @@ def _showVacation(user, i, count, result, formatReply):
         printKeyValueList([u'Message', u'None'])
   Ind.Decrement()
 
-def _printVacation(user, result):
-  row = {u'User': user, u'enabled': result[u'enableAutoReply']}
-  if result[u'enableAutoReply']:
-    row[u'contactsonly'] = result[u'restrictToContacts']
-    row[u'domainonly'] = result[u'restrictToDomain']
-    if u'startTime' in result:
-      row[u'startdate'] = formatLocalDatestamp(result[u'startTime'])
-    else:
-      row[u'startdate'] = VACATION_START_STARTED
-    if u'endTime' in result:
-      row[u'enddate'] = formatLocalDatestamp(result[u'endTime'])
-    else:
-      row[u'enddate'] = VACATION_END_NOT_SPECIFIED
-    row[u'subject'] = result.get(u'responseSubject', u'None')
-    if result.get(u'responseBodyPlainText'):
-      row[u'html'] = False
-      row[u'message'] = convertCRsNLs(result[u'responseBodyPlainText'])
-    elif result.get(u'responseBodyHtml'):
-      row[u'html'] = True
-      row[u'message'] = result[u'responseBodyHtml']
-    else:
-      row[u'html'] = False
-      row[u'message'] = u'None'
-  return row
-
 # gam <UserTypeEntity> vacation <FalseValues>
 # gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <RegularExpression> <String>)*
 #	[html [<Boolean>]] [contactsonly [<Boolean>]] [domainonly [<Boolean>]] [startdate <Date>|Started] [enddate <Date>|NotSpecified]
@@ -30432,10 +30451,39 @@ def setVacation(users):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
 
 def _printShowVacation(users, csvFormat):
+  def _printVacation(user, result, showDisabled):
+    enabled = result[u'enableAutoReply']
+    if not enabled and not showDisabled:
+      return
+    row = {u'User': user, u'enabled': enabled}
+    if enabled:
+      row[u'contactsonly'] = result[u'restrictToContacts']
+      row[u'domainonly'] = result[u'restrictToDomain']
+      if u'startTime' in result:
+        row[u'startdate'] = formatLocalDatestamp(result[u'startTime'])
+      else:
+        row[u'startdate'] = VACATION_START_STARTED
+      if u'endTime' in result:
+        row[u'enddate'] = formatLocalDatestamp(result[u'endTime'])
+      else:
+        row[u'enddate'] = VACATION_END_NOT_SPECIFIED
+      row[u'subject'] = result.get(u'responseSubject', u'None')
+      if result.get(u'responseBodyPlainText'):
+        row[u'html'] = False
+        row[u'message'] = convertCRsNLs(result[u'responseBodyPlainText'])
+      elif result.get(u'responseBodyHtml'):
+        row[u'html'] = True
+        row[u'message'] = result[u'responseBodyHtml']
+      else:
+        row[u'html'] = False
+        row[u'message'] = u'None'
+    csvRows.append(row)
+
   if csvFormat:
     todrive = {}
     titles, csvRows = initializeTitlesCSVfile([u'User', u'enabled', u'contactsonly', u'domainonly',
                                                u'startdate', u'enddate', u'subject', u'html', u'message'])
+  showDisabled = True
   formatReply = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -30443,6 +30491,8 @@ def _printShowVacation(users, csvFormat):
       todrive = getTodriveParameters()
     elif not csvFormat and myarg == u'format':
       formatReply = True
+    elif csvFormat and myarg == u'enabledonly':
+      showDisabled = False
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -30458,13 +30508,14 @@ def _printShowVacation(users, csvFormat):
       if not csvFormat:
         _showVacation(user, i, count, result, formatReply)
       else:
-        csvRows.append(_printVacation(user, result))
+        printGettingEntityItemForWhom(Ent.VACATION, user, i, count)
+        _printVacation(user, result, showDisabled)
     except (GAPI.serviceNotAvailable, GAPI.badRequest):
       entityServiceNotApplicableWarning(Ent.USER, user, i, count)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Vacation', todrive)
 
-# gam <UserTypeEntity> print vacation [todrive [<ToDriveAttributes>]]
+# gam <UserTypeEntity> print vacation [enabledonly] [todrive [<ToDriveAttributes>]]
 def printVacation(users):
   _printShowVacation(users, True)
 
