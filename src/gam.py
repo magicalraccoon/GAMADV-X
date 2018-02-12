@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.22'
+__version__ = u'4.55.23'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12593,6 +12593,7 @@ def groupQuery(domain, userKey):
 PRINT_GROUPS_JSON_TITLES = [u'Email', u'JSON']
 
 # gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+#	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
 #	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
 #	[convertcrnl] [delimiter <Character>] [sortheaders] [formatjson] [guotechar <Character>]
@@ -12788,12 +12789,17 @@ def doPrintGroups():
   titles, csvRows = initializeTitlesCSVfile(None)
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
   rolesSet = set()
-  entitySelection = None
+  entitySelection = emailMatchPattern = nameMatchPattern = None
   groupData = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif myarg == u'emailmatchpattern':
+      emailMatchPattern = getREPattern()
+    elif myarg == u'namematchpattern':
+      nameMatchPattern = getREPattern()
+      addFieldTitleToCSVfile(u'name', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
     elif myarg == u'domain':
       kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
       kwargs.pop(u'customer', None)
@@ -12942,6 +12948,10 @@ def doPrintGroups():
   for groupEntity in entityList:
     i += 1
     groupEmail = groupEntity[u'email']
+    if emailMatchPattern is not None and not emailMatchPattern.match(groupEmail):
+      continue
+    if nameMatchPattern is not None and not nameMatchPattern.match(groupEntity[u'name']):
+      continue
     if not rolesOrSettings:
       _printGroupRow(groupEntity, None, None)
       continue
@@ -13028,6 +13038,7 @@ GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'st
 
 # gam print group-members|groups-members [todrive [<ToDriveAttributes>]]
 #	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+#	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[roles <GroupRoleList>] [members] [managers] [owners] [membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
 def doPrintGroupMembers():
   cd = buildGAPIObject(API.DIRECTORY)
@@ -13037,7 +13048,8 @@ def doPrintGroupMembers():
   subTitle = u'{0} {1}'.format(Msg.ALL, Ent.Plural(Ent.GROUP))
   fieldsList = []
   titles, csvRows = initializeTitlesCSVfile(None)
-  entityList = None
+  entityList = emailMatchPattern = nameMatchPattern = None
+  cdfieldsList = [u'email',]
   userFieldsList = []
   rolesSet = set()
   checkNotSuspended = False
@@ -13053,6 +13065,21 @@ def doPrintGroupMembers():
       kwargs[u'userKey'] = getEmailAddress()
       kwargs.pop(u'customer', None)
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.MEMBER), kwargs[u'userKey'])
+    elif myarg in [u'group', u'groupns']:
+      entityList = [getEmailAddress()]
+      subTitle = u'{0}={1}'.format(Ent.Singular(Ent.GROUP), entityList[0])
+      if myarg == u'groupns':
+        checkNotSuspended = True
+    elif myarg == u'select':
+      entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
+      subTitle = u'{0} {1}'.format(Msg.SELECTED, Ent.Plural(Ent.GROUP))
+    elif myarg == u'notsuspended':
+      checkNotSuspended = True
+    elif myarg == u'emailmatchpattern':
+      emailMatchPattern = getREPattern()
+    elif myarg == u'namematchpattern':
+      nameMatchPattern = getREPattern()
+      cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
         if role in GROUP_ROLES_MAP:
@@ -13061,16 +13088,6 @@ def doPrintGroupMembers():
           invalidChoiceExit(GROUP_ROLES_MAP, True)
     elif myarg in GROUP_ROLES_MAP:
       rolesSet.add(GROUP_ROLES_MAP[myarg])
-    elif myarg in [u'group', u'groupns']:
-      entityList = [getEmailAddress()]
-      subTitle = u'{0}={1}'.format(Ent.Singular(Ent.GROUP), entityList[0])
-      if myarg == u'groupns':
-        checkNotSuspended = True
-    elif myarg == u'notsuspended':
-      checkNotSuspended = True
-    elif myarg == u'select':
-      entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
-      subTitle = u'{0} {1}'.format(Msg.SELECTED, Ent.Plural(Ent.GROUP))
     elif getFieldsListTitles(myarg, GROUPMEMBERS_FIELDS_CHOICE_MAP, fieldsList, titles):
       pass
     elif myarg == u'membernames':
@@ -13093,7 +13110,7 @@ def doPrintGroupMembers():
       entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                                  page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'email',
                                  throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                 fields=u'nextPageToken,groups(email)', **kwargs)
+                                 fields=u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList))), **kwargs)
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
       entityList = collections.deque()
@@ -13103,6 +13120,8 @@ def doPrintGroupMembers():
         entityList = collections.deque()
       else:
         accessErrorExit(cd)
+  else:
+    nameMatchPattern = None
   if not fieldsList:
     for field in GROUPMEMBERS_DEFAULT_FIELDS:
       addFieldToCSVfile(field, {field: field}, fieldsList, titles)
@@ -13135,6 +13154,10 @@ def doPrintGroupMembers():
       groupEmail = group[u'email']
     else:
       groupEmail = convertUIDtoEmailAddress(group, cd, u'group')
+    if emailMatchPattern is not None and not emailMatchPattern.match(groupEmail):
+      continue
+    if nameMatchPattern is not None and not nameMatchPattern.match(group[u'name']):
+      continue
     membersList = []
     getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, checkNotSuspended, noduplicates, recursive, level)
     for member in membersList:
@@ -13189,6 +13212,7 @@ def doPrintGroupMembers():
 
 # gam show group-members
 #	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+#	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[roles <GroupRoleList>] [members] [managers] [owners] [depth <Number>]
 def doShowGroupMembers():
   def _roleOrder(key):
@@ -13224,7 +13248,8 @@ def doShowGroupMembers():
   cd = buildGAPIObject(API.DIRECTORY)
   customerKey = GC.Values[GC.CUSTOMER_ID]
   kwargs = {u'customer': customerKey}
-  entityList = None
+  entityList = emailMatchPattern = nameMatchPattern = None
+  cdfieldsList = [u'email',]
   rolesSet = set()
   checkNotSuspended = False
   maxdepth = -1
@@ -13236,6 +13261,19 @@ def doShowGroupMembers():
     elif myarg == u'member':
       kwargs[u'userKey'] = getEmailAddress()
       kwargs.pop(u'customer', None)
+    elif myarg in [u'group', u'groupns']:
+      entityList = [getEmailAddress()]
+      if myarg == u'groupns':
+        checkNotSuspended = True
+    elif myarg == u'select':
+      entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
+    elif myarg == u'notsuspended':
+      checkNotSuspended = True
+    elif myarg == u'emailmatchpattern':
+      emailMatchPattern = getREPattern()
+    elif myarg == u'namematchpattern':
+      nameMatchPattern = getREPattern()
+      cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
         if role in GROUP_ROLES_MAP:
@@ -13244,14 +13282,6 @@ def doShowGroupMembers():
           invalidChoiceExit(GROUP_ROLES_MAP, True)
     elif myarg in GROUP_ROLES_MAP:
       rolesSet.add(GROUP_ROLES_MAP[myarg])
-    elif myarg in [u'group', u'groupns']:
-      entityList = [getEmailAddress()]
-      if myarg == u'groupns':
-        checkNotSuspended = True
-    elif myarg == u'notsuspended':
-      checkNotSuspended = True
-    elif myarg == u'select':
-      entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     else:
@@ -13264,7 +13294,7 @@ def doShowGroupMembers():
       groupsList = callGAPIpages(cd.groups(), u'list', u'groups',
                                  page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'email',
                                  throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                 fields=u'nextPageToken,groups(email)', **kwargs)
+                                 fields=u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList))), **kwargs)
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
       return
@@ -13274,6 +13304,7 @@ def doShowGroupMembers():
         return
       accessErrorExit(cd)
   else:
+    nameMatchPattern = None
     groupsList = collections.deque()
     for group in entityList:
       if isinstance(group, dict):
@@ -13284,6 +13315,10 @@ def doShowGroupMembers():
   count = len(groupsList)
   for group in groupsList:
     i += 1
+    if emailMatchPattern is not None and not emailMatchPattern.match(group[u'email']):
+      continue
+    if nameMatchPattern is not None and not nameMatchPattern.match(group[u'name']):
+      continue
     _showGroup(group[u'email'], 0)
 
 # gam print licenses [todrive [<ToDriveAttributes>]] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
