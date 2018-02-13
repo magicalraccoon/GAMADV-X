@@ -1162,12 +1162,12 @@ def getOrgUnitItem(pathOnly=False, absolutePath=True):
       return makeOrgUnitPathRelative(path)
   missingArgumentExit([Cmd.OB_ORGUNIT_ITEM, Cmd.OB_ORGUNIT_PATH][pathOnly])
 
-def getREPattern():
+def getREPattern(flags=0):
   if Cmd.ArgumentsRemaining():
     patstr = Cmd.Current()
     if patstr:
       try:
-        pattern = re.compile(patstr)
+        pattern = re.compile(patstr, flags)
         Cmd.Advance()
         return pattern
       except re.error as e:
@@ -9854,7 +9854,7 @@ def _getContactQueryAttributes(contactQuery, myarg, entityType, allowOutputAttri
     else:
       unknownArgumentExit()
   elif myarg == u'emailmatchpattern':
-    contactQuery[u'emailMatchPattern'] = getREPattern()
+    contactQuery[u'emailMatchPattern'] = getREPattern(re.IGNORECASE)
   elif myarg == u'emailmatchtype':
     contactQuery[u'emailMatchType'] = getString(Cmd.OB_CONTACT_EMAIL_TYPE)
   elif myarg == u'updatedmin':
@@ -12796,9 +12796,9 @@ def doPrintGroups():
     if myarg == u'todrive':
       todrive = getTodriveParameters()
     elif myarg == u'emailmatchpattern':
-      emailMatchPattern = getREPattern()
+      emailMatchPattern = getREPattern(re.IGNORECASE)
     elif myarg == u'namematchpattern':
-      nameMatchPattern = getREPattern()
+      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
       addFieldTitleToCSVfile(u'name', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
     elif myarg == u'domain':
       kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
@@ -13076,9 +13076,9 @@ def doPrintGroupMembers():
     elif myarg == u'notsuspended':
       checkNotSuspended = True
     elif myarg == u'emailmatchpattern':
-      emailMatchPattern = getREPattern()
+      emailMatchPattern = getREPattern(re.IGNORECASE)
     elif myarg == u'namematchpattern':
-      nameMatchPattern = getREPattern()
+      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
       cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
@@ -13270,9 +13270,9 @@ def doShowGroupMembers():
     elif myarg == u'notsuspended':
       checkNotSuspended = True
     elif myarg == u'emailmatchpattern':
-      emailMatchPattern = getREPattern()
+      emailMatchPattern = getREPattern(re.IGNORECASE)
     elif myarg == u'namematchpattern':
-      nameMatchPattern = getREPattern()
+      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
       cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
@@ -14553,7 +14553,7 @@ def getCalendarEventEntity(noIds=False):
     elif myarg == u'matchfield':
       matchField = getChoice(LIST_EVENTS_MATCH_FIELDS, mapChoice=True)
       if matchField[0] != u'attendees':
-        matchPattern = getREPattern()
+        matchPattern = getREPattern(re.IGNORECASE)
       else:
         matchPattern = convertEntityToList(getString(Cmd.OB_EMAIL_ADDRESS, minLen=0))
       calendarEventEntity[u'matches'].append((matchField, matchPattern))
@@ -18897,7 +18897,7 @@ def _getCourseShowProperties(myarg, courseShowProperties):
     courseShowProperties[u'ownerEmail'] = True
   elif myarg == u'owneremailmatchpattern':
     courseShowProperties[u'ownerEmail'] = True
-    courseShowProperties[u'ownerEmailMatchPattern'] = getREPattern()
+    courseShowProperties[u'ownerEmailMatchPattern'] = getREPattern(re.IGNORECASE)
   elif myarg == u'show':
     courseShowProperties[u'members'] = getChoice(COURSE_MEMBER_ARGUMENTS)
   elif myarg == u'countsonly':
@@ -28881,7 +28881,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
     elif myarg == u'showattachments':
       show_attachments = True
     elif myarg == u'attachmentnamepattern':
-      attachmentNamePattern = getREPattern()
+      attachmentNamePattern = getREPattern(re.IGNORECASE)
     elif myarg == u'includespamtrash':
       includeSpamTrash = True
     elif myarg == u'delimiter':
