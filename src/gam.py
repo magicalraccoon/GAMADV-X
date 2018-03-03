@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.34'
+__version__ = u'4.55.35'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -25989,11 +25989,10 @@ def emptyDriveTrash(users):
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
 
-DRIVEFILE_ACL_TIME_OBJECTS = [VX_EXPIRATION_TIME]
-DRIVEFILE_ACL_KEY_PRINT_ORDER = [
-  u'id', u'type', u'emailAddress', u'domain', u'role', u'additionalRoles',
-  VX_EXPIRATION_TIME, u'photoLink', u'authKey', u'withLink',
-  ]
+def _getDriveFileACLPrintKeysTimeObjects():
+  printKeys = [u'id', u'type', u'emailAddress', u'domain', u'role', u'additionalRoles', VX_EXPIRATION_TIME, u'photoLink', u'authKey', u'withLink']
+  timeObjects = [VX_EXPIRATION_TIME]
+  return (printKeys, timeObjects)
 
 # DriveFileACL commands utilities
 def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
@@ -26084,8 +26083,7 @@ def createDriveFileACL(users):
   if u'withLink' in body and body[u'type'] in [u'user', u'group']:
     Cmd.SetLocation(withLinkLocation-1)
     usageErrorExit(Msg.WITHLINK_INCOMPATIBILITY.format(body[u'type']))
-  printKeys = DRIVEFILE_ACL_KEY_PRINT_ORDER
-  timeObjects = DRIVEFILE_ACL_TIME_OBJECTS[:]
+  printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -26153,8 +26151,7 @@ def updateDriveFileACLs(users):
     permissionId = getPermissionIdForEmail(permissionId)
     if not permissionId:
       return
-  printKeys = DRIVEFILE_ACL_KEY_PRINT_ORDER
-  timeObjects = DRIVEFILE_ACL_TIME_OBJECTS[:]
+  printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -26462,8 +26459,7 @@ def _printShowDriveFileACLs(users, csvFormat):
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
-  printKeys = DRIVEFILE_ACL_KEY_PRINT_ORDER[:]
-  timeObjects = DRIVEFILE_ACL_TIME_OBJECTS[:]
+  printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
