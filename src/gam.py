@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.35'
+__version__ = u'4.55.36'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -22912,7 +22912,7 @@ VX_FILEINFO_FIELDS_TITLES = [VX_FILENAME, u'mimeType']
 VX_FILEPATH_FIELDS_TITLES = [VX_FILENAME, u'id', u'mimeType', u'parents']
 VX_FILEPATH_FIELDS = [VX_FILENAME, u'id', u'mimeType', u'parents/id']
 
-def _getFieldSubField(field, fieldsList, titles):
+def _getDriveFieldSubField(field, fieldsList, titles):
   field, subField = field.split(u'.', 1)
   if field in SUBFIELDS_CHOICE_MAP:
     if titles is not None:
@@ -22959,10 +22959,10 @@ def showFileInfo(users):
       getDrivefileOrderBy(orderByList)
     elif myarg == u'allfields':
       fieldsList = []
-    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      fieldsList.append(DRIVEFILE_FIELDS_CHOICE_MAP[myarg])
     elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
       labelsList.append(DRIVEFILE_LABEL_CHOICE_MAP[myarg])
+    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
+      fieldsList.append(DRIVEFILE_FIELDS_CHOICE_MAP[myarg])
     elif myarg == u'fields':
       for field in _getFieldsList():
         if field in DRIVEFILE_LABEL_CHOICE_MAP:
@@ -22973,9 +22973,9 @@ def showFileInfo(users):
           else:
             invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
         else:
-          _getFieldSubField(field, fieldsList, None)
+          _getDriveFieldSubField(field, fieldsList, None)
     elif myarg.find(u'.') != -1:
-      _getFieldSubField(myarg, fieldsList, None)
+      _getDriveFieldSubField(myarg, fieldsList, None)
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -23667,10 +23667,10 @@ def printFileList(users):
     elif myarg == u'allfields':
       fieldsList = []
       allfields = True
-    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      addFieldToCSVfile(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
     elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
       addFieldToCSVfile(myarg, DRIVEFILE_LABEL_CHOICE_MAP, labelsList, titles)
+    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
+      addFieldToCSVfile(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
     elif myarg == u'fields':
       for field in _getFieldsList():
         if field in DRIVEFILE_LABEL_CHOICE_MAP:
@@ -23681,9 +23681,9 @@ def printFileList(users):
           else:
             invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
         else:
-          _getFieldSubField(field, fieldsList, titles)
+          _getDriveFieldSubField(field, fieldsList, titles)
     elif myarg.find(u'.') != -1:
-      _getFieldSubField(myarg, fieldsList, titles)
+      _getDriveFieldSubField(myarg, fieldsList, titles)
     elif myarg == u'anyowner':
       query = _stripMeInOwners(query)
       query = _stripNotMeInOwners(query)
