@@ -22,7 +22,11 @@ Downloads
 ---------
 You can download the current GAMADV-X release from the [GitHub Releases](https://github.com/taers232c/GAMADV-X/releases) page. Choose one of the following:
 
-* Single Executable, Linux/Mac OS - `gamadv-x-4.wx.yz-linux-x86_64.xz, gamadv-x-4.wx.yz-macos.tar.xz`
+* Single Executable, Linux - `gamadv-x-4.wx.yz-linux-x86_64.tar.xz, gamadv-x-4.wx.yz-debian.tar.xz`
+  - Download the archive, extract the contents into some directory.
+  - Start a terminal session and cd to the install directory.
+
+* Single Executable, Mac OS - `gamadv-x-4.wx.yz-macos-10.10-11-x86_64.tar, gamadv-x-4.wx.yz-macos-10.12-13.tar`
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
