@@ -24761,7 +24761,7 @@ def getDriveFile(users):
     j = 0
     for fileId in fileIdEntity[u'list']:
       j += 1
-      fileExtension = None
+      extension = fileExtension = None
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
