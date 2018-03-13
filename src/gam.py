@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.42'
+__version__ = u'4.55.43'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4518,6 +4518,8 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
     timeObjects = []
   if noLenObjects is None:
     noLenObjects = []
+  if simpleLists is None:
+    simpleLists = []
   if not isinstance(structure, (dict, list, collections.deque)):
     if key not in timeObjects:
       if isinstance(structure, string_types) and GC.Values[GC.CSV_OUTPUT_CONVERT_CR_NL]:
@@ -4532,7 +4534,7 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, ti
   elif isinstance(structure, (list, collections.deque)):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
-    if simpleLists is not None and key in simpleLists:
+    if key in simpleLists:
       flattened[((path+u'.') if path else u'')+key] = u','.join(structure[:listLen])
     else:
       if key not in noLenObjects:
