@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.45'
+__version__ = u'4.55.46'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2795,6 +2795,8 @@ def callGData(service, function,
       systemErrorExit(SOCKET_ERROR_RC, errMsg)
     except httplib2.ServerNotFoundError as e:
       systemErrorExit(NETWORK_ERROR_RC, str(e))
+    except IOError as e:
+      systemErrorExit(FILE_ERROR_RC, str(e))
 
 def callGDataPages(service, function,
                    page_message=None,
@@ -2969,6 +2971,8 @@ def callGAPI(service, function,
       systemErrorExit(GOOGLE_API_ERROR_RC, str(e))
     except httplib2.ServerNotFoundError as e:
       systemErrorExit(NETWORK_ERROR_RC, str(e))
+    except IOError as e:
+      systemErrorExit(FILE_ERROR_RC, str(e))
 
 def _processGAPIpagesResult(results, items, allResults, totalItems, page_message, message_attribute, entityType):
   if results:
@@ -3101,8 +3105,6 @@ def getAPIversionHttpService(api):
         if GM.Globals[GM.CACHE_DISCOVERY_ONLY]:
           httpObj.cache = None
         return (api_version, httpObj, service, cred_family)
-      except httplib2.ServerNotFoundError as e:
-        systemErrorExit(NETWORK_ERROR_RC, str(e))
       except googleapiclient.errors.UnknownApiNameOrVersion as e:
         systemErrorExit(GOOGLE_API_ERROR_RC, Msg.UNKNOWN_API_OR_VERSION.format(str(e), __author__))
       except (googleapiclient.errors.InvalidJsonError, KeyError, ValueError):
@@ -3117,6 +3119,10 @@ def getAPIversionHttpService(api):
           waitOnFailure(n, retries, SOCKET_ERROR_RC, errMsg)
           continue
         systemErrorExit(SOCKET_ERROR_RC, errMsg)
+      except httplib2.ServerNotFoundError as e:
+        systemErrorExit(NETWORK_ERROR_RC, str(e))
+      except IOError as e:
+        systemErrorExit(FILE_ERROR_RC, str(e))
   disc_file, discovery = readDiscoveryFile(api_version)
   try:
     service = googleapiclient.discovery.build_from_document(discovery, http=httpObj)
@@ -3125,6 +3131,8 @@ def getAPIversionHttpService(api):
     return (api_version, httpObj, service, cred_family)
   except (KeyError, ValueError):
     invalidDiscoveryJsonExit(disc_file)
+  except IOError as e:
+    systemErrorExit(FILE_ERROR_RC, str(e))
 
 def buildGAPIObject(api):
   _, httpObj, service, cred_family = getAPIversionHttpService(api)
