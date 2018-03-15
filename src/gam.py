@@ -25066,11 +25066,11 @@ def transferDrive(users):
       ownerUser = childEntryInfo[u'owners'][0][u'emailAddress']
       if ownerUser not in thirdPartyOwners:
         _, ownerDrive = buildGAPIServiceObject(API.DRIVE, ownerUser, 0, 0)
-        if not ownerDrive:
-          return
         thirdPartyOwners[ownerUser] = ownerDrive
       else:
         ownerDrive = thirdPartyOwners[ownerUser]
+      if not ownerDrive:
+        return
       targetPreviousRole = childEntryInfo[u'targetPermission']
       if (childFileType == Ent.DRIVE_FOLDER) and (targetPreviousRole[u'role'] == u'none') and (ownerRetainRoleBody[u'role'] == u'none'):
         if targetIds[TARGET_ORPHANS_PARENT_ID] is None:
@@ -25152,11 +25152,11 @@ def transferDrive(users):
       ownerUser = childEntryInfo[u'owners'][0][u'emailAddress']
       if ownerUser not in thirdPartyOwners:
         _, ownerDrive = buildGAPIServiceObject(API.DRIVE, ownerUser, 0, 0)
-        if not ownerDrive:
-          return
         thirdPartyOwners[ownerUser] = ownerDrive
       else:
         ownerDrive = thirdPartyOwners[ownerUser]
+      if not ownerDrive:
+        return
       if nonOwnerRetainRoleBody[u'role'] == u'current':
         sourceUpdateRole = childEntryInfo[u'sourcePermission']
       else:
@@ -25233,11 +25233,11 @@ def transferDrive(users):
         ownerUser = childEntry[u'info'][u'owners'][0][u'emailAddress']
         if ownerUser not in thirdPartyOwners:
           _, ownerDrive = buildGAPIServiceObject(API.DRIVE, ownerUser, 0, 0)
-          if not ownerDrive:
-            return
           thirdPartyOwners[ownerUser] = ownerDrive
         else:
           ownerDrive = thirdPartyOwners[ownerUser]
+        if not ownerDrive:
+          return
         try:
           result = callGAPI(ownerDrive.files(), u'get',
                             throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS,
@@ -25308,11 +25308,11 @@ def transferDrive(users):
           ownerUser = childEntry[u'owners'][0][u'emailAddress']
           if ownerUser not in thirdPartyOwners:
             _, ownerDrive = buildGAPIServiceObject(API.DRIVE, ownerUser, 0, 0)
-            if not ownerDrive:
-              continue
             thirdPartyOwners[ownerUser] = ownerDrive
           else:
             ownerDrive = thirdPartyOwners[ownerUser]
+          if not ownerDrive:
+            continue
           try:
             result = callGAPI(ownerDrive.files(), u'get',
                               throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS,
