@@ -24064,7 +24064,6 @@ def _printShowFileCounts(users, csvFormat):
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, None], invalidQuery(query), i, count)
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
-      break
     Ind.Decrement()
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Drive File Counts', todrive, [u'User', u'Total'])
