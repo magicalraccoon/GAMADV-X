@@ -1,3 +1,9 @@
+4.55.50
+
+Added category synonyms category_unknown and unknown to <ResourceAttributes>.
+<ResourceAttributes> ::=
+        (category other|room|conference_room|category_unknown|unknown)|
+
 4.55.49
 
 Added the ability to specify multiple queries in the following print commands.
@@ -32,7 +38,7 @@ Quoting a query list takes some thought, in particular if a query contains a spa
 In all cases, the list of queries is surrounded with double quotes.
 If a query doesn't contain spaces or single quotes, no special quoting is required.
 gam queries "orgTitle=Specialist,orgTitle=Technician" print users allfields
-gam cros_queries "id:HY3,id:5CD" print cros allfields nolists
+gam crosqueries "id:HY3,id:5CD" print cros allfields nolists
 If a query does contain a single quote, you surround it with escaped double quotes.
 gam queries "\"orgName='Sales Org' orgTitle=Manager\",\"orgName='Marketing Org'\"" print users allfields
 
