@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.48'
+__version__ = u'4.55.49'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3399,6 +3399,12 @@ def shlexSplitList(entity, dataDelimiter=u' ,'):
   lexer.whitespace_split = True
   return list(lexer)
 
+def getQueries(myarg):
+  if myarg == u'query':
+    return [getString(Cmd.OB_QUERY)]
+  else:
+    return shlexSplitList(getString(Cmd.OB_QUERY_LIST))
+
 def convertEntityToList(entity, shlexSplit=False, nonListEntityType=False):
   if not entity:
     return []
@@ -3589,9 +3595,9 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     cd = buildGAPIObject(API.DIRECTORY)
     queries = convertEntityToList(entity, shlexSplit=True, nonListEntityType=entityType == Cmd.ENTITY_QUERY)
     prevLen = 0
-    try:
-      for query in queries:
-        printGettingAllAccountEntities(Ent.USER, query)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.USER, query)
+      try:
         result = callGAPIpages(cd.users(), u'list', u'users',
                                page_message=getPageMessage(noNL=True),
                                throw_reasons=[GAPI.INVALID_ORGUNIT, GAPI.ORGUNIT_NOT_FOUND,
@@ -3608,11 +3614,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         totalLen = len(entityList)
         printGotAccountEntities(totalLen-prevLen)
         prevLen = totalLen
-    except (GAPI.invalidOrgunit, GAPI.orgunitNotFound, GAPI.invalidInput):
-      Cmd.Backup()
-      usageErrorExit(Msg.INVALID_QUERY)
-    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-      accessErrorExit(cd)
+      except (GAPI.invalidOrgunit, GAPI.orgunitNotFound, GAPI.invalidInput):
+        Cmd.Backup()
+        usageErrorExit(Msg.INVALID_QUERY)
+      except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+        accessErrorExit(cd)
   elif entityType == Cmd.ENTITY_LICENSES:
     entityList = doPrintLicenses(returnFields=u'userId', skus=entity.split(u','))
   elif entityType in [Cmd.ENTITY_COURSEPARTICIPANTS, Cmd.ENTITY_TEACHERS, Cmd.ENTITY_STUDENTS]:
@@ -3678,9 +3684,9 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
     cd = buildGAPIObject(API.DIRECTORY)
     queries = convertEntityToList(entity, shlexSplit=True, nonListEntityType=entityType == Cmd.ENTITY_CROS_QUERY)
     prevLen = 0
-    try:
-      for query in queries:
-        printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
+      try:
         result = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
                                page_message=getPageMessage(noNL=True),
                                throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
@@ -3696,11 +3702,11 @@ def getUsersToModify(entityType, entity, memberRole=None, checkNotSuspended=Fals
         totalLen = len(entityList)
         printGotAccountEntities(totalLen-prevLen)
         prevLen = totalLen
-    except GAPI.invalidInput:
-      Cmd.Backup()
-      usageErrorExit(Msg.INVALID_QUERY)
-    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-      accessErrorExit(cd)
+      except GAPI.invalidInput:
+        Cmd.Backup()
+        usageErrorExit(Msg.INVALID_QUERY)
+      except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+        accessErrorExit(cd)
   elif entityType in [Cmd.ENTITY_CROS_OU, Cmd.ENTITY_CROS_OU_AND_CHILDREN, Cmd.ENTITY_CROS_OUS, Cmd.ENTITY_CROS_OUS_AND_CHILDREN]:
     cd = buildGAPIObject(API.DIRECTORY)
     ous = convertEntityToList(entity, shlexSplit=True, nonListEntityType=entityType in [Cmd.ENTITY_CROS_OU, Cmd.ENTITY_CROS_OU_AND_CHILDREN])
@@ -8608,7 +8614,7 @@ def infoAliases(entityList):
 def doInfoAliases():
   infoAliases(getEntityList(Cmd.OB_EMAIL_ADDRESS_ENTITY))
 
-# gam print aliases|nicknames [todrive [<ToDriveAttributes>]] [shownoneditable] [nogroups] [nousers] [query <QueryUsers>]
+# gam print aliases|nicknames [todrive [<ToDriveAttributes>]] [(query <QueryUser>)|(queries <QueryUserList>)] [shownoneditable] [nogroups] [nousers]
 def doPrintAliases():
   cd = buildGAPIObject(API.DIRECTORY)
   todrive = {}
@@ -8616,7 +8622,7 @@ def doPrintAliases():
   userFields = [u'primaryEmail', u'aliases']
   groupFields = [u'email', u'aliases']
   getGroups = getUsers = True
-  query = None
+  queries = [None]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
@@ -8629,32 +8635,33 @@ def doPrintAliases():
       getGroups = False
     elif myarg == u'nousers':
       getUsers = False
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
       getGroups = False
       getUsers = True
     else:
       unknownArgumentExit()
   titles, csvRows = initializeTitlesCSVfile(titlesList)
   if getUsers:
-    printGettingAllAccountEntities(Ent.USER, query)
-    try:
-      entityList = callGAPIpages(cd.users(), u'list', u'users',
-                                 page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'primaryEmail',
-                                 throw_reasons=[GAPI.INVALID_ORGUNIT, GAPI.INVALID_INPUT,
-                                                GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
-                                 customer=GC.Values[GC.CUSTOMER_ID], query=query, fields=u'nextPageToken,users({0})'.format(u','.join(userFields)),
-                                 maxResults=GC.Values[GC.USER_MAX_RESULTS])
-      for user in entityList:
-        for alias in user.get(u'aliases', []):
-          csvRows.append({u'Alias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
-        for alias in user.get(u'nonEditableAliases', []):
-          csvRows.append({u'NonEditableAlias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
-    except (GAPI.invalidOrgunit, GAPI.invalidInput):
-      entityActionFailedWarning([Ent.ALIAS, None], invalidQuery(query))
-      return
-    except (GAPI.resourceNotFound, GAPI.forbidden, GAPI.badRequest):
-      accessErrorExit(cd)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.USER, query)
+      try:
+        entityList = callGAPIpages(cd.users(), u'list', u'users',
+                                   page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'primaryEmail',
+                                   throw_reasons=[GAPI.INVALID_ORGUNIT, GAPI.INVALID_INPUT,
+                                                  GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
+                                   customer=GC.Values[GC.CUSTOMER_ID], query=query, fields=u'nextPageToken,users({0})'.format(u','.join(userFields)),
+                                   maxResults=GC.Values[GC.USER_MAX_RESULTS])
+        for user in entityList:
+          for alias in user.get(u'aliases', []):
+            csvRows.append({u'Alias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
+          for alias in user.get(u'nonEditableAliases', []):
+            csvRows.append({u'NonEditableAlias': alias, u'Target': user[u'primaryEmail'], u'TargetType': u'User'})
+      except (GAPI.invalidOrgunit, GAPI.invalidInput):
+        entityActionFailedWarning([Ent.ALIAS, None], invalidQuery(query))
+        return
+      except (GAPI.resourceNotFound, GAPI.forbidden, GAPI.badRequest):
+        accessErrorExit(cd)
   if getGroups:
     printGettingAllAccountEntities(Ent.GROUP)
     try:
@@ -11520,7 +11527,7 @@ CROS_ORDERBY_CHOICE_MAP = {
   u'user': u'annotatedUser',
   }
 
-# gam [<CrOSTypeEntity>] print cros [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>] [limittoou <OrgUnitItem>]
+# gam [<CrOSTypeEntity>] print cros [todrive [<ToDriveAttributes>]] [(query <QueryCrOS>)|(queries <QueryCrOSList>)|(select <CrOSTypeEntity>)] [limittoou <OrgUnitItem>]
 #	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|recentusers|timeranges|devicefiles] [listlimit <Number>] [start <Date>] [end <Date>]
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>] [sortheaders] [formatjson] [quotechar <Character>]
 def doPrintCrOSDevices(entityList=None):
@@ -11593,7 +11600,8 @@ def doPrintCrOSDevices(entityList=None):
   titles, csvRows = initializeTitlesCSVfile(None)
   addFieldToCSVfile(u'deviceId', CROS_FIELDS_CHOICE_MAP, fieldsList, titles)
   sortHeaders = False
-  orgUnitPath = query = projection = orderBy = sortOrder = None
+  orgUnitPath = projection = orderBy = sortOrder = None
+  queries = [None]
   formatJSON = noLists = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   listLimit = 0
@@ -11606,8 +11614,8 @@ def doPrintCrOSDevices(entityList=None):
       todrive = getTodriveParameters()
     elif myarg == u'limittoou':
       orgUnitPath = getOrgUnitItem()
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
     elif myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_CROS, crosAllowed=True, userAllowed=False)
     elif myarg in CROS_ACTIVE_TIME_RANGES_ARGUMENTS:
@@ -11703,21 +11711,22 @@ def doPrintCrOSDevices(entityList=None):
   if entityList is None:
     sortRows = False
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList)).replace(u'.', u'/') if fieldsList else None
-    printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
-    try:
-      feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                           page_message=getPageMessage(),
-                           throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                           customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
-                           orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
-      printGotAccountEntities(len(feed))
-      while feed:
-        _printCrOS(feed.popleft())
-    except GAPI.invalidInput:
-      entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
-      return
-    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-      accessErrorExit(cd)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
+      try:
+        feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                             page_message=getPageMessage(),
+                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                             customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
+                             orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
+        printGotAccountEntities(len(feed))
+        while feed:
+          _printCrOS(feed.popleft())
+      except GAPI.invalidInput:
+        entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
+        return
+      except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+        accessErrorExit(cd)
   else:
     sortRows = True
     if fieldsList:
@@ -11752,7 +11761,7 @@ def doPrintCrOSDevices(entityList=None):
     csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
   writeCSVfile(csvRows, titles, u'CrOS', todrive, [u'deviceId',] if sortHeaders else None, quotechar)
 
-# gam [<CrOSTypeEntity>] print crosactivity [todrive [<ToDriveAttributes>]] [query <QueryCrOS>]|[select <CrOSTypeEntity>] [limittoou <OrgUnitItem>]
+# gam [<CrOSTypeEntity>] print crosactivity [todrive [<ToDriveAttributes>]] [(query <QueryCrOS>)|(queries <QueryCrOSList>)|(select <CrOSTypeEntity>)] [limittoou <OrgUnitItem>]
 #	[orderby <CrOSOrderByFieldName> [ascending|descending]] [recentusers] [timeranges] [devicefiles] [both|all] [listlimit <Number>] [start <Date>] [end <Date>]
 #	[delimiter <Character>] [formatjson] [quotechar <Character>]
 def doPrintCrOSActivity(entityList=None):
@@ -11805,7 +11814,8 @@ def doPrintCrOSActivity(entityList=None):
   fieldsList = [u'deviceId', u'annotatedAssetId', u'annotatedLocation', u'serialNumber', u'orgUnitPath']
   titles, csvRows = initializeTitlesCSVfile(fieldsList)
   projection = u'FULL'
-  orgUnitPath = query = orderBy = sortOrder = None
+  orgUnitPath = orderBy = sortOrder = None
+  queries = [None]
   formatJSON = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   listLimit = 0
@@ -11817,8 +11827,8 @@ def doPrintCrOSActivity(entityList=None):
       todrive = getTodriveParameters()
     elif myarg == u'limittoou':
       orgUnitPath = getOrgUnitItem()
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
     elif myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_CROS, crosAllowed=True, userAllowed=False)
     elif myarg == u'listlimit':
@@ -11865,21 +11875,22 @@ def doPrintCrOSActivity(entityList=None):
   if entityList is None:
     sortRows = False
     fields = u'nextPageToken,chromeosdevices({0})'.format(u','.join(fieldsList))
-    printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
-    try:
-      feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
-                           page_message=getPageMessage(),
-                           throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                           customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
-                           orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
-      printGotAccountEntities(len(feed))
-      while feed:
-        _printCrOS(feed.popleft())
-    except GAPI.invalidInput:
-      entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
-      return
-    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-      accessErrorExit(cd)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.CROS_DEVICE, query)
+      try:
+        feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
+                             page_message=getPageMessage(),
+                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                             customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
+                             orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
+        printGotAccountEntities(len(feed))
+        while feed:
+          _printCrOS(feed.popleft())
+      except GAPI.invalidInput:
+        entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
+        return
+      except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+        accessErrorExit(cd)
   else:
     sortRows = True
     fields = u','.join(set(fieldsList))
@@ -12095,7 +12106,7 @@ MOBILE_ORDERBY_CHOICE_MAP = {
   u'type': u'type',
   }
 
-# gam print mobile [todrive [<ToDriveAttributes>]] [query <QueryMobile>]
+# gam print mobile [todrive [<ToDriveAttributes>]] [(query <QueryMobile>)|(queries <QueryMobileList>)]
 #	[orderby <MobileOrderByFieldName> [ascending|descending]] [noapps]
 #	[basic|full|allfields] <MobileFieldName>* [fields <MobileFieldNameList>]
 #	[delimiter <Character>] [appslimit <Number>] [listlimit <Number>]
@@ -12104,7 +12115,8 @@ def doPrintMobileDevices():
   todrive = {}
   parameters = _initMobileFieldsParameters()
   titles, csvRows = initializeTitlesCSVfile([u'resourceId',])
-  query = orderBy = sortOrder = None
+  orderBy = sortOrder = None
+  queries = [None]
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   listLimit = 1
   appsLimit = -1
@@ -12112,8 +12124,8 @@ def doPrintMobileDevices():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
     elif myarg == u'orderby':
       orderBy = getChoice(MOBILE_ORDERBY_CHOICE_MAP, mapChoice=True)
       sortOrder = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
@@ -12128,54 +12140,55 @@ def doPrintMobileDevices():
   if appsLimit >= 0:
     parameters[u'projection'] = u'FULL'
   fields = u'nextPageToken,mobiledevices({0})'.format(u','.join(parameters[u'fieldsList'])) if parameters[u'fieldsList'] else None
-  try:
+  for query in queries:
     printGettingAllAccountEntities(Ent.MOBILE_DEVICE, query)
-    feed = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices',
-                         page_message=getPageMessage(),
-                         throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                         customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=parameters[u'projection'],
-                         orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
-    printGotAccountEntities(len(feed))
-    while feed:
-      mobile = feed.popleft()
-      row = {}
-      for attrib in mobile:
-        if attrib in [u'kind', u'etag']:
-          continue
-        if attrib in [u'name', u'email', u'otherAccountsInfo']:
-          if listLimit > 0:
-            row[attrib] = delimiter.join(mobile[attrib][0:listLimit])
-          elif listLimit == 0:
-            row[attrib] = delimiter.join(mobile[attrib])
-        elif attrib == u'applications':
-          if appsLimit >= 0:
-            applications = []
-            j = 0
-            for app in mobile[attrib]:
-              j += 1
-              if appsLimit and (j > appsLimit):
-                break
-              appDetails = []
-              for field in [u'displayName', u'packageName', u'versionName']:
-                appDetails.append(app.get(field, u'<None>'))
-              appDetails.append(text_type(app.get(u'versionCode', u'<None>')))
-              permissions = app.get(u'permission', [])
-              if permissions:
-                appDetails.append(u'/'.join(permissions))
-              else:
-                appDetails.append(u'<None>')
-              applications.append(u'-'.join(appDetails))
-            row[attrib] = delimiter.join(applications)
-        elif attrib not in MOBILE_TIME_OBJECTS:
-          row[attrib] = mobile[attrib]
-        else:
-          row[attrib] = formatLocalTime(mobile[attrib])
-      addRowTitlesToCSVfile(row, csvRows, titles)
-  except GAPI.invalidInput:
-    entityActionFailedWarning([Ent.MOBILE_DEVICE, None], invalidQuery(query))
-    return
-  except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-    accessErrorExit(cd)
+    try:
+      feed = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices',
+                           page_message=getPageMessage(),
+                           throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                           customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=parameters[u'projection'],
+                           orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
+      printGotAccountEntities(len(feed))
+      while feed:
+        mobile = feed.popleft()
+        row = {}
+        for attrib in mobile:
+          if attrib in [u'kind', u'etag']:
+            continue
+          if attrib in [u'name', u'email', u'otherAccountsInfo']:
+            if listLimit > 0:
+              row[attrib] = delimiter.join(mobile[attrib][0:listLimit])
+            elif listLimit == 0:
+              row[attrib] = delimiter.join(mobile[attrib])
+          elif attrib == u'applications':
+            if appsLimit >= 0:
+              applications = []
+              j = 0
+              for app in mobile[attrib]:
+                j += 1
+                if appsLimit and (j > appsLimit):
+                  break
+                appDetails = []
+                for field in [u'displayName', u'packageName', u'versionName']:
+                  appDetails.append(app.get(field, u'<None>'))
+                appDetails.append(text_type(app.get(u'versionCode', u'<None>')))
+                permissions = app.get(u'permission', [])
+                if permissions:
+                  appDetails.append(u'/'.join(permissions))
+                else:
+                  appDetails.append(u'<None>')
+                applications.append(u'-'.join(appDetails))
+              row[attrib] = delimiter.join(applications)
+          elif attrib not in MOBILE_TIME_OBJECTS:
+            row[attrib] = mobile[attrib]
+          else:
+            row[attrib] = formatLocalTime(mobile[attrib])
+        addRowTitlesToCSVfile(row, csvRows, titles)
+    except GAPI.invalidInput:
+      entityActionFailedWarning([Ent.MOBILE_DEVICE, None], invalidQuery(query))
+      return
+    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+      accessErrorExit(cd)
   writeCSVfile(csvRows, titles, u'Mobile', todrive, [u'resourceId', u'deviceId', u'serialNumber', u'name', u'email', u'status'])
 
 GROUP_ATTRIBUTES = {
@@ -18567,7 +18580,8 @@ USERS_ORDERBY_CHOICE_MAP = {
   u'email': u'email',
   }
 
-# gam [<UserTypeEntity>] print users [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [query <QueryUsers>] [deleted_only|only_deleted])|[select <UserTypeEntity>]
+# gam [<UserTypeEntity>] print users [todrive [<ToDriveAttributes>]]
+#	([domain <DomainName>] [(query <QueryUser>)|(queries <QueryUserList>)] [deleted_only|only_deleted])|[select <UserTypeEntity>]
 #	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 #	[orderby <UserOrderByFieldName> [ascending|descending]]
 #	[userview] [basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
@@ -18608,7 +18622,7 @@ def doPrintUsers(entityList=None):
   sortHeaders = getGroupFeed = getLicenseFeed = email_parts = False
   customer = GC.Values[GC.CUSTOMER_ID]
   domain = None
-  query = None
+  queries = [None]
   projection = u'basic'
   customFieldMask = None
   viewType = deleted_only = orderBy = sortOrder = None
@@ -18622,8 +18636,8 @@ def doPrintUsers(entityList=None):
     elif myarg == u'domain':
       domain = getString(Cmd.OB_DOMAIN_NAME).lower()
       customer = None
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
     elif myarg in [u'deletedonly', u'onlydeleted']:
       deleted_only = True
     elif myarg == u'select':
@@ -18676,32 +18690,33 @@ def doPrintUsers(entityList=None):
   if entityList is None:
     sortRows = False
     fields = u'nextPageToken,users({0})'.format(u','.join(set(fieldsList))).replace(u'.', u'/') if fieldsList else None
-    printGettingAllAccountEntities(Ent.USER, query)
-    try:
-      feed = callGAPIpages(cd.users(), u'list', u'users',
-                           page_message=getPageMessage(showFirstLastItems=True), message_attribute=u'primaryEmail',
-                           throw_reasons=[GAPI.DOMAIN_NOT_FOUND, GAPI.INVALID_ORGUNIT, GAPI.INVALID_INPUT,
-                                          GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
-                           customer=customer, domain=domain, fields=fields, query=query,
-                           showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
-                           projection=projection, customFieldMask=customFieldMask, maxResults=GC.Values[GC.USER_MAX_RESULTS])
-      while feed:
-        _printUser(feed.popleft())
-    except GAPI.domainNotFound:
-      entityActionFailedWarning([Ent.USER, None, Ent.DOMAIN, domain], Msg.NOT_FOUND)
-      return
-    except (GAPI.invalidOrgunit, GAPI.invalidInput) as e:
-      if query and not customFieldMask:
-        entityActionFailedWarning([Ent.USER, None], invalidQuery(query))
-      elif customFieldMask and not query:
-        entityActionFailedWarning([Ent.USER, None], invalidUserSchema(customFieldMask))
-      elif query and customFieldMask:
-        entityActionFailedWarning([Ent.USER, None], u'{0} or {1}'.format(invalidQuery(query), invalidUserSchema(customFieldMask)))
-      else:
-        entityActionFailedWarning([Ent.USER, None], str(e))
-      return
-    except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
-      accessErrorExit(cd)
+    for query in queries:
+      printGettingAllAccountEntities(Ent.USER, query)
+      try:
+        feed = callGAPIpages(cd.users(), u'list', u'users',
+                             page_message=getPageMessage(showFirstLastItems=True), message_attribute=u'primaryEmail',
+                             throw_reasons=[GAPI.DOMAIN_NOT_FOUND, GAPI.INVALID_ORGUNIT, GAPI.INVALID_INPUT,
+                                            GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                             customer=customer, domain=domain, fields=fields, query=query,
+                             showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
+                             projection=projection, customFieldMask=customFieldMask, maxResults=GC.Values[GC.USER_MAX_RESULTS])
+        while feed:
+          _printUser(feed.popleft())
+      except GAPI.domainNotFound:
+        entityActionFailedWarning([Ent.USER, None, Ent.DOMAIN, domain], Msg.NOT_FOUND)
+        return
+      except (GAPI.invalidOrgunit, GAPI.invalidInput) as e:
+        if query and not customFieldMask:
+          entityActionFailedWarning([Ent.USER, None], invalidQuery(query))
+        elif customFieldMask and not query:
+          entityActionFailedWarning([Ent.USER, None], invalidUserSchema(customFieldMask))
+        elif query and customFieldMask:
+          entityActionFailedWarning([Ent.USER, None], u'{0} or {1}'.format(invalidQuery(query), invalidUserSchema(customFieldMask)))
+        else:
+          entityActionFailedWarning([Ent.USER, None], str(e))
+        return
+      except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
+        accessErrorExit(cd)
   else:
     sortRows = True
     if fieldsList:
@@ -20548,12 +20563,12 @@ def doInfoPrinters():
     except GCP.unknownPrinter as e:
       entityActionFailedWarning([Ent.PRINTER, printerId], str(e), i, count)
 
-# gam print printers [todrive [<ToDriveAttributes>]] [query <QueryPrintJob>] [type <String>] [status <String>] [extrafields <String>] [delimiter <Character>]
+# gam print printers [todrive [<ToDriveAttributes>]] [(query <QueryPrinter>)|(queries <QueryPrinterList>)] [type <String>] [status <String>] [extrafields <String>] [delimiter <Character>]
 def doPrintPrinters():
   cp = buildGAPIObject(API.CLOUDPRINT)
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'id',])
-  query = None
+  queries = [None]
   printer_type = None
   connection_status = None
   extra_fields = None
@@ -20562,8 +20577,8 @@ def doPrintPrinters():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'query':
-      query = getString(Cmd.OB_QUERY)
+    elif myarg in [u'query', u'queries']:
+      queries = getQueries(myarg)
     elif myarg == u'type':
       printer_type = getString(Cmd.OB_STRING)
     elif myarg == u'status':
@@ -20574,14 +20589,15 @@ def doPrintPrinters():
       delimiter = getCharacter()
     else:
       unknownArgumentExit()
-  printers = callGCP(cp.printers(), u'list',
-                     q=query, type=printer_type, connection_status=connection_status, extra_fields=extra_fields)
-  for printer in printers[u'printers']:
-    printer[u'createTime'] = formatLocalTimestamp(printer[u'createTime'])
-    printer[u'accessTime'] = formatLocalTimestamp(printer[u'accessTime'])
-    printer[u'updateTime'] = formatLocalTimestamp(printer[u'updateTime'])
-    printer[u'tags'] = delimiter.join(printer[u'tags'])
-    addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
+  for query in queries:
+    printers = callGCP(cp.printers(), u'list',
+                       q=query, type=printer_type, connection_status=connection_status, extra_fields=extra_fields)
+    for printer in printers[u'printers']:
+      printer[u'createTime'] = formatLocalTimestamp(printer[u'createTime'])
+      printer[u'accessTime'] = formatLocalTimestamp(printer[u'accessTime'])
+      printer[u'updateTime'] = formatLocalTimestamp(printer[u'updateTime'])
+      printer[u'tags'] = delimiter.join(printer[u'tags'])
+      addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Printers', todrive, [u'id', u'name', u'displayName', u'description', u'createTime', u'updateTime', u'accessTime'])
 
 def normalizePrinterScopeList(rawScopeList):
@@ -20896,7 +20912,7 @@ def initPrintjobListParameters():
           u'age': None,
           u'sortorder': None,
           u'owner': None,
-          u'query': None,
+          u'queries': [None],
           u'status': None,
           u'jobLimit': PRINTJOBS_DEFAULT_JOB_LIMIT,
          }
@@ -20908,8 +20924,8 @@ def getPrintjobListParameters(myarg, parameters):
   elif myarg == u'newerthan':
     parameters[u'older_or_newer'] = -1
     parameters[u'age'] = getAgeTime()
-  elif myarg == u'query':
-    parameters[u'query'] = getString(Cmd.OB_QUERY)
+  elif myarg in [u'query', u'queries']:
+    parameters[u'queries'] = getQueries(myarg)
   elif myarg == u'status':
     parameters[u'status'] = getChoice(PRINTJOB_STATUS_MAP, mapChoice=True)
   elif myarg == u'orderby':
@@ -20924,7 +20940,7 @@ def getPrintjobListParameters(myarg, parameters):
     unknownArgumentExit()
 
 # gam printjob <PrinterID>|any fetch
-#	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
+#	[olderthan|newerthan <PrintJobAge>] [(query <QueryPrintJob>)|(queries <QueryPrintJobList>)]
 #	[status done|error|held|in_progress|queued|submitted]
 #	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 #	[owner|user <EmailAddress>]
@@ -20961,54 +20977,55 @@ def doPrintJobFetch(printerIdList):
     timeExit = True
   else:
     timeExit = False
-  jobCount = offset = 0
-  while True:
-    if parameters[u'jobLimit'] == 0:
-      limit = PRINTJOBS_DEFAULT_MAX_RESULTS
-    else:
-      limit = min(PRINTJOBS_DEFAULT_MAX_RESULTS, parameters[u'jobLimit']-jobCount)
-      if limit == 0:
+  for query in parameters[u'queries']:
+    jobCount = offset = 0
+    while True:
+      if parameters[u'jobLimit'] == 0:
+        limit = PRINTJOBS_DEFAULT_MAX_RESULTS
+      else:
+        limit = min(PRINTJOBS_DEFAULT_MAX_RESULTS, parameters[u'jobLimit']-jobCount)
+        if limit == 0:
+          break
+      result = callGCP(cp.jobs(), u'list',
+                       throw_messages=[GCP.UNKNOWN_PRINTER, GCP.NO_PRINT_JOBS],
+                       printerid=printerId, q=query, status=parameters[u'status'], sortorder=parameters[u'sortorder'],
+                       owner=parameters[u'owner'], offset=offset, limit=limit)
+      newJobs = result[u'range'][u'jobsCount']
+      totalJobs = int(result[u'range'][u'jobsTotal'])
+      if newJobs == 0:
         break
-    result = callGCP(cp.jobs(), u'list',
-                     throw_messages=[GCP.UNKNOWN_PRINTER, GCP.NO_PRINT_JOBS],
-                     printerid=printerId, q=parameters[u'query'], status=parameters[u'status'], sortorder=parameters[u'sortorder'],
-                     owner=parameters[u'owner'], offset=offset, limit=limit)
-    newJobs = result[u'range'][u'jobsCount']
-    totalJobs = int(result[u'range'][u'jobsTotal'])
-    if newJobs == 0:
-      break
-    jobCount += newJobs
-    offset += newJobs
-    for job in result[u'jobs']:
-      createTime = int(job[u'createTime'])
-      if parameters[u'older_or_newer'] > 0:
-        if createTime > parameters[u'age']:
-          if timeExit:
-            jobCount = totalJobs
-            break
-          continue
-      elif parameters[u'older_or_newer'] < 0:
-        if createTime < parameters[u'age']:
-          if timeExit:
-            jobCount = totalJobs
-            break
-          continue
-      jobId = job[u'id']
-      fileName = os.path.join(targetFolder, u'{0}-{1}'.format(cleanFilename(job[u'title']), jobId))
-      _, content = cp._http.request(job[u'fileUrl'], method='GET')
-      if writeFile(fileName, content, mode=u'wb', continueOnError=True):
-#        ticket = callGCP(cp.jobs(), u'getticket',
-#                         jobid=jobId, use_cjt=True)
-        result = callGCP(cp.jobs(), u'update',
-                         jobid=jobId, semantic_state_diff=ssd)
-        entityModifierNewValueActionPerformed([Ent.PRINTER, printerId, Ent.PRINTJOB, jobId], Act.MODIFIER_TO, fileName)
-    if jobCount >= totalJobs:
-      break
-  if jobCount == 0:
-    entityActionFailedWarning([Ent.PRINTER, printerId, Ent.PRINTJOB, u''], Msg.NO_PRINT_JOBS)
+      jobCount += newJobs
+      offset += newJobs
+      for job in result[u'jobs']:
+        createTime = int(job[u'createTime'])
+        if parameters[u'older_or_newer'] > 0:
+          if createTime > parameters[u'age']:
+            if timeExit:
+              jobCount = totalJobs
+              break
+            continue
+        elif parameters[u'older_or_newer'] < 0:
+          if createTime < parameters[u'age']:
+            if timeExit:
+              jobCount = totalJobs
+              break
+            continue
+        jobId = job[u'id']
+        fileName = os.path.join(targetFolder, u'{0}-{1}'.format(cleanFilename(job[u'title']), jobId))
+        _, content = cp._http.request(job[u'fileUrl'], method='GET')
+        if writeFile(fileName, content, mode=u'wb', continueOnError=True):
+#          ticket = callGCP(cp.jobs(), u'getticket',
+#                           jobid=jobId, use_cjt=True)
+          result = callGCP(cp.jobs(), u'update',
+                           jobid=jobId, semantic_state_diff=ssd)
+          entityModifierNewValueActionPerformed([Ent.PRINTER, printerId, Ent.PRINTJOB, jobId], Act.MODIFIER_TO, fileName)
+      if jobCount >= totalJobs:
+        break
+    if jobCount == 0:
+      entityActionFailedWarning([Ent.PRINTER, printerId, Ent.PRINTJOB, u''], Msg.NO_PRINT_JOBS)
 
 # gam print printjobs [todrive [<ToDriveAttributes>]] [printer|printerid <PrinterID>]
-#	[olderthan|newerthan <PrintJobAge>] [query <QueryPrintJob>]
+#	[olderthan|newerthan <PrintJobAge>] [(query <QueryPrintJob>)|(queries <QueryPrintJobList>)]
 #	[status <PrintJobStatus>]
 #	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 #	[owner|user <EmailAddress>]
@@ -21044,45 +21061,46 @@ def doPrintPrintJobs():
     timeExit = True
   else:
     timeExit = False
-  jobCount = offset = 0
-  while True:
-    if parameters[u'jobLimit'] == 0:
-      limit = PRINTJOBS_DEFAULT_MAX_RESULTS
-    else:
-      limit = min(PRINTJOBS_DEFAULT_MAX_RESULTS, parameters[u'jobLimit']-jobCount)
-      if limit == 0:
+  for query in parameters[u'queries']:
+    jobCount = offset = 0
+    while True:
+      if parameters[u'jobLimit'] == 0:
+        limit = PRINTJOBS_DEFAULT_MAX_RESULTS
+      else:
+        limit = min(PRINTJOBS_DEFAULT_MAX_RESULTS, parameters[u'jobLimit']-jobCount)
+        if limit == 0:
+          break
+      result = callGCP(cp.jobs(), u'list',
+                       printerid=printerId, q=query, status=parameters[u'status'], sortorder=parameters[u'sortorder'],
+                       owner=parameters[u'owner'], offset=offset, limit=limit)
+      newJobs = result[u'range'][u'jobsCount']
+      totalJobs = int(result[u'range'][u'jobsTotal'])
+      if GC.Values[GC.DEBUG_LEVEL] > 0:
+        sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, parameters[u'jobLimit'], newJobs, totalJobs))
+      if newJobs == 0:
         break
-    result = callGCP(cp.jobs(), u'list',
-                     printerid=printerId, q=parameters[u'query'], status=parameters[u'status'], sortorder=parameters[u'sortorder'],
-                     owner=parameters[u'owner'], offset=offset, limit=limit)
-    newJobs = result[u'range'][u'jobsCount']
-    totalJobs = int(result[u'range'][u'jobsTotal'])
-    if GC.Values[GC.DEBUG_LEVEL] > 0:
-      sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, parameters[u'jobLimit'], newJobs, totalJobs))
-    if newJobs == 0:
-      break
-    jobCount += newJobs
-    offset += newJobs
-    for job in result[u'jobs']:
-      createTime = int(job[u'createTime'])
-      if parameters[u'older_or_newer'] > 0:
-        if createTime > parameters[u'age']:
-          if timeExit:
-            jobCount = totalJobs
-            break
-          continue
-      elif parameters[u'older_or_newer'] < 0:
-        if createTime < parameters[u'age']:
-          if timeExit:
-            jobCount = totalJobs
-            break
-          continue
-      job[u'createTime'] = formatLocalTimestamp(job[u'createTime'])
-      job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
-      job[u'tags'] = delimiter.join(job[u'tags'])
-      addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
-    if jobCount >= totalJobs:
-      break
+      jobCount += newJobs
+      offset += newJobs
+      for job in result[u'jobs']:
+        createTime = int(job[u'createTime'])
+        if parameters[u'older_or_newer'] > 0:
+          if createTime > parameters[u'age']:
+            if timeExit:
+              jobCount = totalJobs
+              break
+            continue
+        elif parameters[u'older_or_newer'] < 0:
+          if createTime < parameters[u'age']:
+            if timeExit:
+              jobCount = totalJobs
+              break
+            continue
+        job[u'createTime'] = formatLocalTimestamp(job[u'createTime'])
+        job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
+        job[u'tags'] = delimiter.join(job[u'tags'])
+        addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
+      if jobCount >= totalJobs:
+        break
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive, [u'printerid', u'id', u'printerName', u'title', u'ownerId', u'createTime', u'updateTime'])
 
 # gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
