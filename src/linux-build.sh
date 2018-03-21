@@ -9,5 +9,6 @@ cp LICENSE gam
 cp license.rtf gam
 cp whatsnew.txt gam
 cp Gam*.txt gam
+cp cacerts.pem gam
 
 tar cfJ gamadv-x-$1-linux-$(arch).tar.xz gam/ 

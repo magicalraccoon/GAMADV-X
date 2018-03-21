@@ -14,6 +14,7 @@ xcopy license.rtf gam\
 xcopy whatsnew.txt gam\
 xcopy gam-setup.bat gam\
 xcopy Gam*.txt gam\
+xcopy cacerts.pem gam\
 del gam\w9xpopen.exe
 "%ProgramFiles%\7-Zip\7z.exe" a -tzip gamadv-x-%1-windows.zip gam\ -xr!.svn
 
@@ -23,6 +24,7 @@ xcopy license.rtf gam-64\
 xcopy whatsnew.txt gam-64\
 xcopy gam-setup.bat gam-64\
 xcopy Gam*.txt gam-64\
+xcopy cacerts.pem gam-64\
 "%ProgramFiles%\7-Zip\7z.exe" a -tzip gamadv-x-%1-windows-x64.zip gam-64\ -xr!.svn
 
 set GAMVERSION=%1
