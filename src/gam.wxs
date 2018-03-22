@@ -73,6 +73,9 @@
       <Component Id="GamUpdate_txt" Guid="574c6cd1-d79d-4c2c-bfc1-f104f902d3f9">
         <File Name="GamUpdate.txt" KeyPath="yes" />
       </Component>
+      <Component Id="cacerts_pem" Guid="5c1532dd-e618-41ac-ae93-80016701c927">
+        <File Name="cacerts.pem" KeyPath="yes" />
+      </Component>
     </ComponentGroup>
   </Fragment>
 
