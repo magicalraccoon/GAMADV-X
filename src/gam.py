@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.53'
+__version__ = u'4.55.54'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4608,7 +4608,7 @@ def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, dict
   if object_name is not None:
     printJSONKey(object_name)
     subObjectKey = dictObjectsKey.get(object_name)
-  if isinstance(object_value, list):
+  if isinstance(object_value, (list, collections.deque)):
     if len(object_value) == 1 and isinstance(object_value[0], non_compound_types):
       if object_name is not None:
         printJSONValue(object_value[0])
@@ -22994,6 +22994,7 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'owners': u'owners',
   u'parents': u'parents',
   u'permissions': u'permissions',
+  u'permissionids': u'permissionIds',
   u'properties': u'properties',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
@@ -23122,16 +23123,16 @@ def showFileInfo(users):
     elif myarg == u'allfields':
       fieldsList = []
     elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
-      labelsList.append(DRIVEFILE_LABEL_CHOICE_MAP[myarg])
+      addFieldToFieldsList(myarg, DRIVEFILE_LABEL_CHOICE_MAP, labelsList)
     elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      fieldsList.append(DRIVEFILE_FIELDS_CHOICE_MAP[myarg])
+      addFieldToFieldsList(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList)
     elif myarg == u'fields':
       for field in _getFieldsList():
         if field in DRIVEFILE_LABEL_CHOICE_MAP:
-          labelsList.append(DRIVEFILE_LABEL_CHOICE_MAP[field])
+          addFieldToFieldsList(field, DRIVEFILE_LABEL_CHOICE_MAP, labelsList)
         elif field.find(u'.') == -1:
           if field in DRIVEFILE_FIELDS_CHOICE_MAP:
-            fieldsList.append(DRIVEFILE_FIELDS_CHOICE_MAP[field])
+            addFieldToFieldsList(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList)
           else:
             invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
         else:
@@ -23801,14 +23802,14 @@ def printFileList(users):
       if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
         _printChildDriveFolderContents(drive, childEntryInfo, user, i, count, depth+1)
 
-  allfields = buildTree = filepath = showParent = False
   todrive = {}
+  titles, csvRows = initializeTitlesCSVfile([u'Owner',])
+  allfields = buildTree = filepath = showParent = False
   maxdepth = -1
   fieldsList = []
   labelsList = []
   orderByList = []
   skipObjects = []
-  titles, csvRows = initializeTitlesCSVfile([u'Owner',])
   query = ME_IN_OWNERS
   selectSubQuery = u''
   fileIdEntity = {}

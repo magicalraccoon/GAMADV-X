@@ -2257,6 +2257,7 @@ gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascen
         parents|
         <DriveParentsSubfieldName>|
         permissions|
+        permissionids|
         <DrivePermissionsSubfieldName>|
         properties|
         quotabytesused|quotaused|
