@@ -80,6 +80,7 @@ NO_LIST_TEAMDRIVES_ADMINISTRATOR_PRIVILEGE = u'noListTeamDrivesAdministratorPriv
 NOT_A_CALENDAR_USER = u'notACalendarUser'
 NOT_FOUND = u'notFound'
 NOT_IMPLEMENTED = u'notImplemented'
+OPERATION_NOT_SUPPORTED = u'operationNotSupported'
 ORGANIZER_ON_NON_TEAMDRIVE_ITEM_NOT_SUPPORTED = u'organizerOnNonTeamDriveItemNotSupported'
 ORGUNIT_NOT_FOUND = u'orgunitNotFound'
 OWNER_ON_TEAMDRIVE_ITEM_NOT_SUPPORTED = u'ownerOnTeamDriveItemNotSupported'
@@ -313,6 +314,8 @@ class notFound(Exception):
   pass
 class notImplemented(Exception):
   pass
+class operationNotSupported(Exception):
+  pass
 class organizerOnNonTeamDriveItemNotSupported(Exception):
   pass
 class orgunitNotFound(Exception):
@@ -430,6 +433,7 @@ REASON_EXCEPTION_MAP = {
   NOT_A_CALENDAR_USER: notACalendarUser,
   NOT_FOUND: notFound,
   NOT_IMPLEMENTED: notImplemented,
+  OPERATION_NOT_SUPPORTED: operationNotSupported,
   ORGANIZER_ON_NON_TEAMDRIVE_ITEM_NOT_SUPPORTED: organizerOnNonTeamDriveItemNotSupported,
   ORGUNIT_NOT_FOUND: orgunitNotFound,
   OWNER_ON_TEAMDRIVE_ITEM_NOT_SUPPORTED: ownerOnTeamDriveItemNotSupported,
