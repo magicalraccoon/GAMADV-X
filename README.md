@@ -1,7 +1,8 @@
 GAMADV-X
 ========
 GAMADV-X is a free, open source command line tool for Google G Suite Administrators to manage domain and user settings quickly and easily.
-This page provides simple instructions for downloading, installing and starting to use GAM.
+
+This page provides simple instructions for downloading, installing and starting to use GAMADV-X.
 
 GAMADV-X requires G Suite for Business, Education, Partner or Government Edition. Google Apps Free Edition has limited API support and not all GAM commands work.
 
@@ -22,19 +23,28 @@ Downloads
 ---------
 You can download the current GAMADV-X release from the [GitHub Releases](https://github.com/taers232c/GAMADV-X/releases) page. Choose one of the following:
 
-* Single Executable Archive, Linux - `gamadv-x-4.wx.yz-linux-x86_64.tar.xz, gamadv-x-4.wx.yz-debian.tar.xz`
+* Single Executable Archive, Automatic, Linux/Mac OS/Google Cloud Shell
+  - bash <(curl -s -S -L https://git.io/vMHsV) [-l] [-d <Path>]
+  - `-l` - Update to latest version, do not create project or authorizations
+  - `-d <Path>` - Installation Path, defaults to $HOME/bin
+
+* Single Executable Archive, Manual, Google Cloud Shell - `gamadv-x-4.wx.yz-debian-x86_64.tar.xz`
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
-* Single Executable Archive, Mac OS - `gamadv-x-4.wx.yz-macos-10.10-11-x86_64.tar, gamadv-x-4.wx.yz-macos-10.12-13.tar`
+* Single Executable Archive, Manual, Linux - `gamadv-x-4.wx.yz-linux-x86_64.tar.xz, gamadv-x-4.wx.yz-debian-x86_64.tar.xz`
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
-* Single Executable Archive, Windows - `gamadv-x-4.wx.yz-windows-x64.zip, gamadv-x-4.wx.yz-windows.zip`
+* Single Executable Archive, Manual, Mac OS - `gamadv-x-4.wx.yz-macos-10.10-11-x86_64.tar, gamadv-x-4.wx.yz-macos-10.12-13.tar`
   - Download the archive, extract the contents into some directory.
   - Start a terminal session and cd to the install directory.
 
-* Single Executable Installer, Windows - `gamadv-x-4.wx.yz-windows-x64.msi`
+* Single Executable Archive, Manual, Windows - `gamadv-x-4.wx.yz-windows-x64.zip, gamadv-x-4.wx.yz-windows.zip`
+  - Download the archive, extract the contents into some directory.
+  - Start a terminal session and cd to the install directory.
+
+* Single Executable Installer, Manual, Windows - `gamadv-x-4.wx.yz-windows-x64.msi`
   - Download the installer and run it.
   - Start a Command Prompt/PowerShell session and cd to the install directory.
 
@@ -785,6 +795,8 @@ C:\GAMADV-X>
 Installation - Upgrading from a prior version of GAMADV-X
 ---------------------------------------------------------
 Read GamUpdate.txt
+
+Download latest version, install over existing installation or in a parallel directory.
 
 Mailing List / Discussion group
 -------------------------------
