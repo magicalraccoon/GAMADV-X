@@ -24,6 +24,7 @@ Downloads
 You can download the current GAMADV-X release from the [GitHub Releases](https://github.com/taers232c/GAMADV-X/releases) page. Choose one of the following:
 
 * Single Executable Archive, Automatic, Linux/Mac OS/Google Cloud Shell
+  - Start a terminal session.
   - `bash <(curl -s -S -L https://git.io/vMHsV) [-l] [-d <Path>]`
   - `-l` - Update to latest version, do not create project or authorizations
   - `-d <Path>` - Installation Path, defaults to $HOME/bin
