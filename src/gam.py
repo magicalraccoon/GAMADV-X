@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.55.57'
+__version__ = u'4.55.58'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -226,7 +226,7 @@ VX_FILENAME_PARENTS_MIMETYPE = u'{0},{1},mimeType'.format(VX_FILENAME, VX_PARENT
 VX_FILES_ID_FILENAME = u'{0}(id,{1})'.format(VX_PAGES_FILES, VX_FILENAME)
 VX_ID_FILENAME = u'id,{0}'.format(VX_FILENAME)
 VX_ID_FILENAME_MIMETYPE = u'id,{0},mimeType'.format(VX_FILENAME)
-VX_ID_FILENAME_MIMETYPE_CAPABILITIES = u'id,{0},mimeType,capabilities'.format(VX_FILENAME)
+VX_ID_FILENAME_MIMETYPE_CAPABILITIES_DESCRIPTION = u'id,{0},mimeType,capabilities,description'.format(VX_FILENAME)
 VX_ID_FILENAME_MIMETYPE_OWNEDBYME = u'id,{0},mimeType,ownedByMe'.format(VX_FILENAME)
 VX_ID_FILENAME_PARENTS_MIMETYPE = u'id,{0},{1},mimeType'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME = u'id,{0},{1},mimeType,ownedByMe'.format(VX_FILENAME, VX_PARENTS_ID)
@@ -234,6 +234,7 @@ VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED = u'id,{0},{1},mimeType,ownedB
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS = u'id,{0},{1},mimeType,ownedByMe,{2},owners(emailAddress,permissionId)'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS = u'id,{0},{1},mimeType,ownedByMe,{2},owners(emailAddress,permissionId),permissions(id,role,additionalRoles)'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNERS = u'id,{0},{1},mimeType,owners(emailAddress)'.format(VX_FILENAME, VX_PARENTS_ID)
+VX_ID_FILENAME_PARENTS_MIMETYPE_CAPABILITIES_DESCRIPTION = u'id,{0},{1},mimeType,capabilities,description'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_ID_MIMETYPE_CANEDIT = u'id,mimeType,capabilities(canEdit)'
 VX_NPT_FILES_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_FILES)
 VX_NPT_FILES_ID = u'nextPageToken,{0}(id)'.format(VX_PAGES_FILES)
@@ -2871,7 +2872,7 @@ def callGDataPages(service, function,
       return allResults
     uri = nextLink.href
 
-def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=False, service=None):
+def checkGAPIError(e, soft_errors=False, retryOnHttpError=False, service=None):
   try:
     error = json.loads(e.content)
   except ValueError:
@@ -2899,8 +2900,7 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
       service._http.request.credentials.refresh(getHttpObj())
       return (-1, None, None)
     elif soft_errors:
-      if not silent_errors:
-        stderrErrorMsg(e.content)
+      stderrErrorMsg(e.content)
       return (0, None, None)
     else:
       systemErrorExit(HTTP_ERROR_RC, e.content)
@@ -2947,7 +2947,7 @@ def checkGAPIError(e, soft_errors=False, silent_errors=False, retryOnHttpError=F
   return (http_status, reason, message)
 
 def callGAPI(service, function,
-             silent_errors=False, soft_errors=False, throw_reasons=None, retry_reasons=None,
+             bailOnInternalError=False, soft_errors=False, throw_reasons=None, retry_reasons=None,
              **kwargs):
   if throw_reasons is None:
     throw_reasons = []
@@ -2961,12 +2961,14 @@ def callGAPI(service, function,
     try:
       return method(**svcparms).execute()
     except googleapiclient.errors.HttpError as e:
-      http_status, reason, message = checkGAPIError(e, soft_errors=soft_errors, silent_errors=silent_errors, retryOnHttpError=n < 3, service=service)
+      http_status, reason, message = checkGAPIError(e, soft_errors=soft_errors, retryOnHttpError=n < 3, service=service)
       if http_status == -1:
         continue
       if http_status == 0:
         return None
       if (n != retries) and (reason in all_retry_reasons):
+        if reason == GAPI.INTERNAL_ERROR and bailOnInternalError and n == 2:
+          raise GAPI.REASON_EXCEPTION_MAP[reason](message)
         waitOnFailure(n, retries, reason, message)
         continue
       if reason in throw_reasons:
@@ -3123,11 +3125,18 @@ def getAPIversionHttpService(api):
   hasLocalJSON = API.hasLocalJSON(api)
   api, version, api_version, cred_family = API.getVersion(api)
   httpObj = getHttpObj(cache=GM.Globals[GM.CACHE_DIR])
+  if api in GM.Globals[GM.CURRENT_API_SERVICES] and version in GM.Globals[GM.CURRENT_API_SERVICES][api]:
+    service = googleapiclient.discovery.build_from_document(GM.Globals[GM.CURRENT_API_SERVICES][api][version], http=httpObj)
+    if GM.Globals[GM.CACHE_DISCOVERY_ONLY]:
+      httpObj.cache = None
+    return (api_version, httpObj, service, cred_family)
   if not hasLocalJSON:
     retries = 3
     for n in range(1, retries+1):
       try:
         service = googleapiclient.discovery.build(api, version, http=httpObj, cache_discovery=False)
+        GM.Globals[GM.CURRENT_API_SERVICES].setdefault(api, {})
+        GM.Globals[GM.CURRENT_API_SERVICES][api][version] = service._rootDesc.copy()
         if GM.Globals[GM.CACHE_DISCOVERY_ONLY]:
           httpObj.cache = None
         return (api_version, httpObj, service, cred_family)
@@ -3152,6 +3161,8 @@ def getAPIversionHttpService(api):
   disc_file, discovery = readDiscoveryFile(api_version)
   try:
     service = googleapiclient.discovery.build_from_document(discovery, http=httpObj)
+    GM.Globals[GM.CURRENT_API_SERVICES].setdefault(api, {})
+    GM.Globals[GM.CURRENT_API_SERVICES][api][version] = service._rootDesc.copy()
     if GM.Globals[GM.CACHE_DISCOVERY_ONLY]:
       httpObj.cache = None
     return (api_version, httpObj, service, cred_family)
@@ -12072,7 +12083,7 @@ def doUpdateMobileDevices():
     try:
       if body:
         callGAPI(cd.mobiledevices(), u'action',
-                 throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                 bailOnInternalError=True, throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
                  customerId=GC.Values[GC.CUSTOMER_ID], resourceId=resourceId, body=body)
         printEntityKVList([Ent.MOBILE_DEVICE, resourceId],
                           [Msg.ACTION_APPLIED, body[u'action']],
@@ -12092,7 +12103,7 @@ def doDeleteMobileDevices():
     i += 1
     try:
       callGAPI(cd.mobiledevices(), u'delete',
-               throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+               bailOnInternalError=True, throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
                customerId=GC.Values[GC.CUSTOMER_ID], resourceId=resourceId)
       entityActionPerformed([Ent.MOBILE_DEVICE, resourceId], i, count)
     except GAPI.internalError:
@@ -12173,7 +12184,7 @@ def doInfoMobileDevices():
     i += 1
     try:
       info = callGAPI(cd.mobiledevices(), u'get',
-                      throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                      bailOnInternalError=True, throw_reasons=[GAPI.INTERNAL_ERROR, GAPI.RESOURCE_ID_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
                       customerId=GC.Values[GC.CUSTOMER_ID], resourceId=resourceId, projection=parameters[u'projection'], fields=fields)
       printEntity([Ent.MOBILE_DEVICE, resourceId], i, count)
       Ind.Increment()
@@ -12268,6 +12279,8 @@ def doPrintMobileDevices():
                   appDetails.append(u'<None>')
                 applications.append(u'-'.join(appDetails))
               row[attrib] = delimiter.join(applications)
+          elif attrib == u'deviceId' and GC.Values[GC.CSV_OUTPUT_CONVERT_CR_NL]:
+            row[attrib] = convertCRsNLs(mobile[attrib])
           elif attrib not in MOBILE_TIME_OBJECTS:
             row[attrib] = mobile[attrib]
           else:
@@ -21105,7 +21118,8 @@ def doPrintJobFetch(printerIdList):
     timeExit = False
   for query in parameters[u'queries']:
     jobCount = offset = 0
-    while True:
+    exitLoop = False
+    while not exitLoop:
       if parameters[u'jobLimit'] == 0:
         limit = PRINTJOBS_DEFAULT_MAX_RESULTS
       else:
@@ -21117,7 +21131,6 @@ def doPrintJobFetch(printerIdList):
                        printerid=printerId, q=query, status=parameters[u'status'], sortorder=parameters[u'sortorder'],
                        owner=parameters[u'owner'], offset=offset, limit=limit)
       newJobs = result[u'range'][u'jobsCount']
-      totalJobs = int(result[u'range'][u'jobsTotal'])
       if newJobs == 0:
         break
       jobCount += newJobs
@@ -21127,13 +21140,13 @@ def doPrintJobFetch(printerIdList):
         if parameters[u'older_or_newer'] > 0:
           if createTime > parameters[u'age']:
             if timeExit:
-              jobCount = totalJobs
+              exitLoop = True
               break
             continue
         elif parameters[u'older_or_newer'] < 0:
           if createTime < parameters[u'age']:
             if timeExit:
-              jobCount = totalJobs
+              exitLoop = True
               break
             continue
         jobId = job[u'id']
@@ -21145,8 +21158,6 @@ def doPrintJobFetch(printerIdList):
           result = callGCP(cp.jobs(), u'update',
                            jobid=jobId, semantic_state_diff=ssd)
           entityModifierNewValueActionPerformed([Ent.PRINTER, printerId, Ent.PRINTJOB, jobId], Act.MODIFIER_TO, fileName)
-      if jobCount >= totalJobs:
-        break
     if jobCount == 0:
       entityActionFailedWarning([Ent.PRINTER, printerId, Ent.PRINTJOB, u''], Msg.NO_PRINT_JOBS)
 
@@ -21189,7 +21200,8 @@ def doPrintPrintJobs():
     timeExit = False
   for query in parameters[u'queries']:
     jobCount = offset = 0
-    while True:
+    exitLoop = False
+    while not exitLoop:
       if parameters[u'jobLimit'] == 0:
         limit = PRINTJOBS_DEFAULT_MAX_RESULTS
       else:
@@ -21200,9 +21212,8 @@ def doPrintPrintJobs():
                        printerid=printerId, q=query, status=parameters[u'status'], sortorder=parameters[u'sortorder'],
                        owner=parameters[u'owner'], offset=offset, limit=limit)
       newJobs = result[u'range'][u'jobsCount']
-      totalJobs = int(result[u'range'][u'jobsTotal'])
       if GC.Values[GC.DEBUG_LEVEL] > 0:
-        sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, parameters[u'jobLimit'], newJobs, totalJobs))
+        sys.stderr.write(u'Debug: jobCount: {0}, jobLimit: {1}, jobsCount: {2}, jobsTotal: {3}\n'.format(jobCount, parameters[u'jobLimit'], newJobs, int(result[u'range'][u'jobsTotal'])))
       if newJobs == 0:
         break
       jobCount += newJobs
@@ -21212,21 +21223,19 @@ def doPrintPrintJobs():
         if parameters[u'older_or_newer'] > 0:
           if createTime > parameters[u'age']:
             if timeExit:
-              jobCount = totalJobs
+              exitLoop = True
               break
             continue
         elif parameters[u'older_or_newer'] < 0:
           if createTime < parameters[u'age']:
             if timeExit:
-              jobCount = totalJobs
+              exitLoop = True
               break
             continue
         job[u'createTime'] = formatLocalTimestamp(job[u'createTime'])
         job[u'updateTime'] = formatLocalTimestamp(job[u'updateTime'])
         job[u'tags'] = delimiter.join(job[u'tags'])
         addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
-      if jobCount >= totalJobs:
-        break
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive, [u'printerid', u'id', u'printerName', u'title', u'ownerId', u'createTime', u'updateTime'])
 
 # gam printjob <PrinterID> submit <FileName>|<URL> [name|title <String>] (tag <String>)*
@@ -24731,10 +24740,8 @@ def _checkForDuplicateFile(drive, user, k, kcount, child, newFolderId):
                               q=VX_ANY_NON_TRASHED_MIMETYPE_NAME_WITH_PARENTS.format(child[u'mimeType'], child[VX_FILENAME], newFolderId),
                               fields=VX_NPT_FILES_ID_DESCRIPTION)
   for targetFile in targetFiles:
-    if child[u'description'] == targetFile[u'description']:
-      Act.Set(Act.FIND)
-      entityActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, child[VX_FILENAME], Ent.DRIVE_FILE_ID, targetFile[u'id']], k, kcount)
-      Act.Set(Act.COPY)
+    if child.get(u'description') == targetFile.get(u'description'):
+      entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, child[VX_FILENAME], Ent.DRIVE_FILE_ID, targetFile[u'id']], Msg.DUPLICATE, k, kcount)
       return True
   return False
 
@@ -24823,7 +24830,7 @@ def copyDriveFile(users):
       try:
         metadata = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                            fileId=fileId, fields=VX_ID_FILENAME_MIMETYPE_CAPABILITIES)
+                            fileId=fileId, fields=VX_ID_FILENAME_MIMETYPE_CAPABILITIES_DESCRIPTION)
         if metadata[u'mimeType'] == MIMETYPE_GA_FOLDER:
           destFilename = newfilename or u'{0} of {1}'.format(Act.ToPerform(), metadata[VX_FILENAME])
           if recursive:
@@ -24831,7 +24838,12 @@ def copyDriveFile(users):
           else:
             _cloneFolder(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], Act.COPY, noDuplicates)
         else:
-### No duplicates
+          if noDuplicates:
+            child = metadata.copy()
+            if newfilename:
+              child[VX_FILENAME] = newfilename
+            if _checkForDuplicateFile(drive, user, j, jcount, child, body[u'parents'][0][u'id']):
+              continue
           if not metadata[u'capabilities'][u'canCopy']:
             entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, metadata[VX_FILENAME]], Msg.NOT_COPYABLE, j, jcount)
             continue
@@ -24886,7 +24898,12 @@ def moveDriveFile(users):
       try:
         metadata = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                            fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE)
+                            fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_CAPABILITIES_DESCRIPTION)
+        child = metadata.copy()
+        if newfilename:
+          child[VX_FILENAME] = newfilename
+        if noDuplicates and _checkForDuplicateFile(drive, user, j, jcount, child, parentBody[u'parents'][0][u'id']):
+          continue
         nameBody = body.copy()
         nameBody.setdefault(VX_FILENAME, metadata[VX_FILENAME])
         removeParents = u','.join([parent[u'id'] for parent in metadata.get(u'parents', [])])

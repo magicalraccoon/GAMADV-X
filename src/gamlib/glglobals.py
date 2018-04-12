@@ -38,6 +38,8 @@ SYS_ENCODING = u'syen'
 EXTRA_ARGS_LIST = u'exad'
 # GAM admin user
 ADMIN = u'admin'
+# Current API services
+CURRENT_API_SERVICES = u'caps'
 # Current Client API
 CURRENT_CLIENT_API = u'ccap'
 # Current Client API scopes
@@ -128,6 +130,7 @@ Globals = {
   SYS_ENCODING: [u'mbcs', u'utf-8'][os.name != u'nt'],
   EXTRA_ARGS_LIST: [],
   ADMIN: None,
+  CURRENT_API_SERVICES: {},
   CURRENT_CLIENT_API: None,
   CURRENT_CLIENT_API_SCOPES: set(),
   CURRENT_SVCACCT_API: None,
