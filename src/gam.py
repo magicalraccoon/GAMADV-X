@@ -24716,7 +24716,7 @@ def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFol
           callGAPI(drive.permissions(), u'insert',
                    throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST],
                    fileId=newFolderId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage,
-                   body=permission)
+                   body=permission, fields=u'')
         except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), j, jcount)
         except GAPI.invalidSharingRequest as e:
