@@ -1234,7 +1234,7 @@ gam update domain <DomainName> primary
 gam delete domain <DomainName>
 
 gam info domain [<DomainName>] [formatjson]
-gam print domains [todrive [<ToDriveAttributes>]]
+gam print domains [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 gam create|add domainalias|aliasdomain <DomainAlias> <DomainName>
 gam delete domainalias|aliasdomain <DomainAlias>
