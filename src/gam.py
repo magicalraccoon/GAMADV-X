@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.02'
+__version__ = u'4.56.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -4357,6 +4357,12 @@ def addFieldToFieldsList(fieldName, fieldsChoiceMap, fieldsList):
 def _getFieldsList():
   return getString(Cmd.OB_FIELD_NAME_LIST).lower().replace(u',', u' ').split()
 
+def _addInitialField(fieldsList, initialField):
+  if isinstance(initialField, list):
+    fieldsList.extend(initialField)
+  else:
+    fieldsList.append(initialField)
+
 # fieldName is command line argument
 # fieldNameMap maps fieldName to API field names
 #FIELD_CHOICES_MAP = {
@@ -4367,11 +4373,11 @@ def _getFieldsList():
 def getFieldsList(fieldName, fieldsChoiceMap, fieldsList, initialField=None):
   if fieldName in fieldsChoiceMap:
     if not fieldsList and initialField is not None:
-      fieldsList.append(initialField)
+      _addInitialField(fieldsList, initialField)
     fieldsList.append(fieldsChoiceMap[fieldName])
   elif fieldName == u'fields':
     if not fieldsList and initialField is not None:
-      fieldsList.append(initialField)
+      _addInitialField(fieldsList, initialField)
     for field in _getFieldsList():
       if field in fieldsChoiceMap:
         fieldsList.append(fieldsChoiceMap[field])
@@ -4384,11 +4390,11 @@ def getFieldsList(fieldName, fieldsChoiceMap, fieldsList, initialField=None):
 def getFieldsListTitles(fieldName, fieldsChoiceMap, fieldsList, titles, initialField=None):
   if fieldName in fieldsChoiceMap:
     if not fieldsList and initialField is not None:
-      fieldsList.append(initialField)
+      _addInitialField(fieldsList, initialField)
     addFieldToCSVfile(fieldName, fieldsChoiceMap, fieldsList, titles)
   elif fieldName == u'fields':
     if not fieldsList and initialField is not None:
-      fieldsList.append(initialField)
+      _addInitialField(fieldsList, initialField)
     for field in  _getFieldsList():
       if field in fieldsChoiceMap:
         addFieldToCSVfile(field, fieldsChoiceMap, fieldsList, titles)
@@ -24946,7 +24952,7 @@ def updateDriveFile(users):
           break
       Ind.Decrement()
 
-def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, action, noDuplicates):
+def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, noDuplicates):
   if noDuplicates:
     for parent in parents:
       parentId = parent[u'id']
@@ -24957,9 +24963,7 @@ def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFol
       if len(targetFolders) > 0:
         for targetFolder in targetFolders:
           if targetFolder[u'capabilities'][u'canAddChildren']:
-            Act.Set(Act.FIND)
             entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, targetFolder[u'id']], j, jcount)
-            Act.Set(action)
             return targetFolder[u'id']
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], Msg.NOT_WRITABLE, j, jcount)
         return None
@@ -24984,9 +24988,7 @@ def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFol
                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.FORBIDDEN, GAPI.INTERNAL_ERROR],
                       body=body, fields=u'id')
     newFolderId = result[u'id']
-    Act.Set(Act.CREATE)
     entityActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle, Ent.DRIVE_FOLDER_ID, newFolderId], j, jcount)
-    Act.Set(action)
     sendNotificationEmails = False
     emailMessage = None
     for permission in permissions:
@@ -25005,9 +25007,7 @@ def _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFol
           break
     return newFolderId
   except (GAPI.forbidden, GAPI.internalError) as e:
-    Act.Set(Act.CREATE)
     entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), j, jcount)
-    Act.Set(action)
     return None
   except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
     userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -25028,7 +25028,7 @@ def _checkForDuplicateFile(drive, user, k, kcount, child, newFolderId):
 #	[parentid <DriveFolderID>] [parentname <DriveFolderName>]
 def copyDriveFile(users):
   def _recursiveFolderCopy(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, depth):
-    newFolderId = _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, Act.COPY, noDuplicates)
+    newFolderId = _cloneFolder(drive, user, i, count, j, jcount, folderId, folderTitle, newFolderTitle, parents, noDuplicates)
     if newFolderId is None:
       return
     source_children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
@@ -25070,8 +25070,6 @@ def copyDriveFile(users):
                   GAPI.cannotCopyFile, GAPI.responsePreparationFailure, GAPI.rateLimitExceeded, GAPI.userRateLimitExceeded) as e:
             entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], str(e), k, kcount)
       Ind.Decrement()
-      entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folderTitle],
-                                                         Act.MODIFIER_TO, newFolderTitle, [Ent.DRIVE_FOLDER_ID, newFolderId], j, jcount)
 
   fileIdEntity = getDriveFileEntity()
   body = {}
@@ -25115,7 +25113,7 @@ def copyDriveFile(users):
           if recursive:
             _recursiveFolderCopy(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], 0)
           else:
-            _cloneFolder(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], Act.COPY, noDuplicates)
+            _cloneFolder(drive, user, i, count, j, jcount, fileId, metadata[VX_FILENAME], destFilename, body[u'parents'], noDuplicates)
         else:
           if noDuplicates:
             child = metadata.copy()
