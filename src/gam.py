@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.03'
+__version__ = u'4.56.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -29763,7 +29763,7 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
       row[u'SizeEstimate'] = result[u'sizeEstimate']
     if show_labels:
       messageLabels = []
-      for labelId in result[u'labelIds']:
+      for labelId in result.get(u'labelIds', []):
         for label in labels[u'labels']:
           if label[u'id'] == labelId:
             messageLabels.append(label[u'name'])
