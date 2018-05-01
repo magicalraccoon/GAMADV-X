@@ -211,7 +211,7 @@ If an item contains spaces, it should be surrounded by ".
 
 <AccessToken> ::= <String>
 <ASPID> ::= <String>
-<CalendarACLScope> ::= [user:]<EmailAddress>|group:<EmailAddress>|domain[:<DomainName>]|default
+<CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
 <BuildingID> ::= <String>|id:<String>
 <CalendarColorIndex> ::= <Number in range 1-24>
 <CalendarItem> ::= <EmailAddress>|<String>
@@ -669,22 +669,22 @@ gam audit monitor list <EmailAddress>
 <CalendarEntity> ::= <CalendarList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 <CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer|none
-<ACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
-<ACLScopeList> ::= "<ACLScope>(,<ACLScope>)*"
-<ACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+<CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
+<CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam calendar|calendars <CalendarEntity> create|add acls|calendaracls <CalendarACLRole> <ACLScopeEntity>
-gam calendar|calendars <CalendarEntity> update acls|calendaracls <CalendarACLRole> <ACLScopeEntity>
-gam calendar|calendars <CalendarEntity> delete acls|calendaracls [<CalendarACLRole>] <ACLScopeEntity>
-gam calendar|calendars <CalendarEntity> info acls|calendaracls <ACLScopeEntity>
+gam calendar|calendars <CalendarEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam calendar|calendars <CalendarEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam calendar|calendars <CalendarEntity> delete acls|calendaracls [<CalendarACLRole>] <CalendarACLScopeEntity>
+gam calendar|calendars <CalendarEntity> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
-gam calendar|calendars <CalendarEntity> show acls|calendaracls
-gam calendar|calendars <CalendarEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]]
+gam calendar|calendars <CalendarEntity> show acls|calendaracls [formatjson]
+gam calendar|calendars <CalendarEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 gam calendar|calendars <CalendarEntity> create|add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar|calendars <CalendarEntity> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar|calendars <CalendarEntity> delete [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar|calendars <CalendarEntity> showacl
+gam calendar|calendars <CalendarEntity> showacl [formatjson]
 
 <EventSelectProperties:> ::=
         (endtime|timemax <Time>)|
@@ -767,7 +767,7 @@ gam calendar|calendars <CalendarEntity> update events <EventEntity> <EventUpdate
 gam calendar|calendars <CalendarEntity> delete events <EventEntity> [doit] [notifyattendees]
 gam calendar|calendars <CalendarEntity> wipe events
 gam calendar|calendars <CalendarEntity> move events <EventEntity> to <CalendarItem> [notifyattendees]
-gam calendar|calendars <CalendarEntity> info events <EventEntity> [maxinstances <Number>]
+gam calendar|calendars <CalendarEntity> info events <EventEntity> [maxinstances <Number>] [formatjson]
 
 <EventDisplayProperties> ::=
         (alwaysincludeemail)|
@@ -776,8 +776,9 @@ gam calendar|calendars <CalendarEntity> info events <EventEntity> [maxinstances 
         (orderby starttime|updated)|
         (timezone <TimeZone>)
 
-gam calendar|calendars <CalendarEntity> show events ([allevents] <EventSelectProperties>*) <EventDisplayProperties>*
+gam calendar|calendars <CalendarEntity> show events ([allevents] <EventSelectProperties>*) <EventDisplayProperties>* [formatjson]
 gam calendar|calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
+         [formatjson] [quotechar <Character>]
 
 gam calendar|calendars <CalendarEntity> addevent <EventAddAttributes>+
 gam calendar|calendars <CalendarEntity> deleteevent <EventEntity> [doit] [notifyattendees]
@@ -1035,7 +1036,7 @@ gam <UserTypeEntity> show contactgroups [updated_min <Date>]
         [basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
 gam <UserTypeEntity> print contactgroups [todrive [<ToDriveAttributes>]] [updated_min <Date>]
         [basic|full] [showdeleted] [orderby <ContactOrderByFieldName> [ascending|descending]]
-	[formatjson] [quotechar <Character>]
+        [formatjson] [quotechar <Character>]
 
 gam info gal <ContactEntity> [basic|full]
         [fields <ContactFieldNameList>] [formatjson]
@@ -1220,7 +1221,7 @@ gam print|show transferapps
 <DataTransferService> ::=
         calendar|
         googledrive|gdrive|drive|"drive and docs"|
-	gplus|googleplus|google+
+        gplus|googleplus|google+
 <DataTransferServiceList> ::= "<DataTransferService>(,<DataTransferService>)*"
 
 <OldOwnerID> ::= <UserItem>
@@ -1661,24 +1662,30 @@ gam update resources <ResourceEntity> <ResourceAttributes>*
 gam delete resources <ResourceEntity>
 gam info resources <ResourceEntity>
 
-gam show resources [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
+gam show resources [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl] [formatjson]
 gam print resources [todrive [<ToDriveAttributes>]] [allfields|<ResourceFieldName>*|(fields <ResourceFieldNameList>)] [convertcrnl]
+        [formatjson] [quotechar <Character>]
+
+<CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer|none
+<CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
+<CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
+<CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 gam resource <ResourceID> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resource <ResourceID> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resource <ResourceID> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
-gam resource <ResourceID> info acls|calendaracls <CalendarACLScopeEntity>
+gam resource <ResourceID> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
-gam resource <ResourceID> show acls|calendaracls
-gam resource <ResourceID> print acls|calendaracls [todrive [<ToDriveAttributes>]]
+gam resource <ResourceID> show acls|calendaracls [formatjson]
+gam resource <ResourceID> print acls|calendaracls [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 gam resources <ResourceEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resources <ResourceEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
 gam resources <ResourceEntity> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
-gam resources <ResourceEntity> info acls|calendaracls <CalendarACLScopeEntity>
+gam resources <ResourceEntity> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
-gam resources <ResourceEntity> show acls|calendaracls
-gam resources <ResourceEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]]
+gam resources <ResourceEntity> show acls|calendaracls [formatjson]
+gam resources <ResourceEntity> print acls|calendaracls [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 # Schemas
 
@@ -1704,15 +1711,19 @@ gam sendemail <RecipientEntity> [from <UserItem>] [replyto <EmailAddress>] subje
 
 # Sites
 
+<SiteACLRole> ::= editor|invite|owner|reader|writer
+<SiteACLRoleList> ::= "<SiteACLRole>(,<SiteACLRole>)*"
+
+<SiteACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain|default
+<SiteACLScopeList> ::= "<SiteACLScope>(,<SiteACLScope>)*"
+<SiteACLScopeEntity>::= <SiteACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+
 <SiteAttributes> ::=
         (categories <String>)|
         (name <String>)|
         (sourcelink <URI>])|
         (summary <String>)|
         (theme <String>)
-
-<SiteACLRole> ::= editor|invite|owner|reader|writer
-<SiteACLRoleList> ::= "<SiteACLRole>(,<SiteACLRole>)*"
 
 gam [<UserTypeEntity>] create|add site <SiteItem> <SiteAttributes>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttributes>+
@@ -1762,6 +1773,7 @@ gam print vaultmatters|matters [todrive [<ToDriveAttributes>]] [basic|full]
 <UserFieldName> ::=
         addresses|address|
         agreedtoterms|agreed2terms|
+        aliases|
         changepasswordatnextlogin|changepassword|
         creationtime|
         deletiontime|
@@ -1916,12 +1928,10 @@ gam <UserTypeEntity> show backupcodes|verificationcodes
         primary|
         <CalendarSelectProperties>+
 
-<CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>|domain|default
+<CalendarACLRole> ::= editor|freebusy|freebusyreader|owner|reader|writer
+<CalendarACLScope> ::= <EmailAddress>|user:<EmailAdress>|group:<EmailAddress>|domain:<DomainName>)|domain|default
 <CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
-<CalendarACLScopeEntity>::= <ACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
-
-<CalendarACLRole> ::=
-        editor|freebusy|freebusyreader|owner|reader|writer
+<CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
 <CalendarAttributes> ::=
         (backgroundcolor <ColorValue>)|
@@ -1945,11 +1955,13 @@ gam <UserTypeEntity> add calendars <CalendarAddEntity> <CalendarAttributes>*
 gam <UserTypeEntity> update calendars <CalendarManageEntity> <CalendarAttributes>+
 gam <UserTypeEntity> delete calendars <CalendarManageEntity>
 
-gam <UserTypeEntity> info calendars <CalendarManageEntity>
-gam <UserTypeEntity> show calendars <CalendarPrintShowEntity> [permissions]
+gam <UserTypeEntity> info calendars <CalendarManageEntity> [formatjson]
+gam <UserTypeEntity> show calendars <CalendarPrintShowEntity> [permissions] [formatjson]
 gam <UserTypeEntity> print calendars <CalendarPrintShowEntity> [todrive [<ToDriveAttributes>]] [permissions]
+         [formatjson] [quotechar <Character>]
 
-gam <UserTypeEntity> show calsettings
+gam <UserTypeEntity> show calsettings [formatjson]
+gam <UserTypeEntity> print calsettings [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 Create, modify and remove calendars for a user
 
@@ -1963,9 +1975,9 @@ gam <UserTypeEntity> create|add calendaracls <CalendarManageEntity> <CalendarACL
 gam <UserTypeEntity> update calendaracls <CalendarManageEntity> <CalendarACLRole> <CalendarACLScopeEntity>
 gam <UserTypeEntity> delete calendaracls <CalendarManageEntity> <CalendarACLRole>] <CalendarACLScopeEntity>
 
-gam <UserTypeEntity> info calendaracls <CalendarManageEntity> <CalendarACLScopeEntity>
-gam <UserTypeEntity> show calendaracls <CalendarManageEntity>
-gam <UserTypeEntity> print calendaracls <CalendarManageEntity> [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> info calendaracls <CalendarManageEntity> <CalendarACLScopeEntity> [formatjson]
+gam <UserTypeEntity> show calendaracls <CalendarManageEntity> [formatjson]
+gam <UserTypeEntity> print calendaracls <CalendarManageEntity> [todrive [<ToDriveAttributes>]] [formatjson] [quotechar <Character>]
 
 Transfer ownership of a selection of users calendars to another user
 
@@ -2061,9 +2073,10 @@ gam <UserTypeEntity> update calattendees <CalendarManageEntity> <EventEntity> [a
         (orderby starttime|updated)|
         (timezone <TimeZone>)
 
-gam <UserTypeEntity> info events <CalendarManageEntity> <EventEntity> [maxinstances <Number>]
-gam <UserTypeEntity> show events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) <EventDisplayProperties>*
+gam <UserTypeEntity> info events <CalendarManageEntity> <EventEntity> [maxinstances <Number>] [formatjson]
+gam <UserTypeEntity> show events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) <EventDisplayProperties>* [formatjson]
 gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
+         [formatjson] [quotechar <Character>]
 
 # Users - Drive
 
@@ -2262,11 +2275,11 @@ gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascen
         foldercolorrgb|
         fullfileextension|
         hasaugmentedpermissions|
-	hasthumbnail|
+        hasthumbnail|
         headrevisionid|
         iconlink|
         id|
-	imagemediametadata|
+        imagemediametadata|
         isappauthorized|
         lastmodifyinguser|
         lastmodifyingusername|
@@ -2303,7 +2316,7 @@ gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascen
         trashed|
         userpermission|
         version|
-	videomediametadata|
+        videomediametadata|
         viewed|
         viedbymedate|viewedbymetime|
         viewerscancopycontent|
@@ -2444,9 +2457,9 @@ gam <UserTypeEntity> trash messages|threads (((query <QueryGmail>) (matchlabel <
 gam <UserTypeEntity> untrash messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])+ [quick|notquick] [doit] [max_to_untrash|max_to_process <Number>])|(ids <MessageIDEntity>)
 
 gam <UserTypeEntity> show messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_show|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-        [headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
+        [countsonly] [headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [showattachments [attachmentnamepattern <RegularExpression>]]
 gam <UserTypeEntity> print messages|threads (((query <QueryGmail>) (matchlabel <LabelName>) [or|and])* [quick|notquick] [max_to_print|max_to_process <Number>] [includespamtrash])|(ids <MessageIDEntity>)
-        [headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <Character>] [todrive [<ToDriveAttributes>]]
+        [countsonly] [headers <SMTPHeaderList>] [showlabels] [showbody] [showsize] [showsnippet] [convertcrnl] [delimiter <Character>] [todrive [<ToDriveAttributes>]]
 
 # Users - Gmail - Profile
 
@@ -2543,7 +2556,7 @@ See: https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/cre
 See: https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/batchUpdate
 
 gam <UserTypeEntity> create|add sheet json <SpreadsheetJSONCreateRequest> [formatjson]
-        [(parentid <DriveFolderID>)|(parentname <DriveFolderName>|(anyownerparentname <DriveFolderName>)]
+        [(parentid <DriveFolderID>)|(parentname <DriveFolderName>)|(anyownerparentname <DriveFolderName>)]
 gam <UserTypeEntity> update sheet <DriveFileEntity> json <SpreadsheetJSONUpdateRequest> [formatjson]
 gam <UserTypeEntity> info sheet <DriveFileEntity> (range <SpreadsheetRange>)* [includegriddata [<Boolean>]] [formatjson]
 
