@@ -35,6 +35,7 @@ CANNOT_DELETE_ONLY_REVISION = u'cannotDeleteOnlyRevision'
 CANNOT_DELETE_PRIMARY_CALENDAR = u'cannotDeletePrimaryCalendar'
 CANNOT_DELETE_PRIMARY_SENDAS = u'cannotDeletePrimarySendAs'
 CANNOT_DELETE_RESOURCE_WITH_CHILDREN = u'cannotDeleteResourceWithChildren'
+CANNOT_MODIFY_INHERITED_TEAMDRIVE_PERMISSION = u'cannotModifyInheritedTeamDrivePermission'
 CANNOT_SHARE_GROUPS_WITHLINK = u'cannotShareGroupsWithLink'
 CANNOT_SHARE_USERS_WITHLINK = u'cannotShareUsersWithLink'
 CANNOT_SHARE_TEAMDRIVE_TOPFOLDER_WITH_ANYONEORDOMAINS = u'cannotShareTeamDriveTopFolderWithAnyoneOrDomains'
@@ -105,7 +106,9 @@ SYSTEM_ERROR = u'systemError'
 TEAMDRIVE_MEMBERSHIP_REQUIRED = u'teamDriveMembershipRequired'
 TEAMDRIVE_NOT_FOUND = u'teamDriveNotFound'
 TEAMDRIVES_FOLDER_MOVE_IN_NOT_SUPPORTED = u'teamDrivesFolderMoveInNotSupported'
+TEAMDRIVES_FOLDER_SHARING_NOT_SUPPORTED = u'teamDrivesFolderSharingNotSupported'
 TEAMDRIVES_PARENT_LIMIT = u'teamDrivesParentLimit'
+TEAMDRIVES_SHARING_RESTRICTION_NOT_ALLOWED = u'teamDrivesSharingRestrictionNotAllowed'
 TIME_RANGE_EMPTY = u'timeRangeEmpty'
 UNKNOWN_ERROR = u'unknownError'
 USER_ACCESS = u'userAccess'
@@ -224,6 +227,8 @@ class cannotDeletePrimaryCalendar(Exception):
 class cannotDeletePrimarySendAs(Exception):
   pass
 class cannotDeleteResourceWithChildren(Exception):
+  pass
+class cannotModifyInheritedTeamDrivePermission(Exception):
   pass
 class cannotShareGroupsWithLink(Exception):
   pass
@@ -363,7 +368,11 @@ class teamDriveNotFound(Exception):
   pass
 class teamDrivesFolderMoveInNotSupported(Exception):
   pass
+class teamDrivesFolderSharingNotSupported(Exception):
+  pass
 class teamDrivesParentLimit(Exception):
+  pass
+class teamDrivesSharingRestrictionNotAllowed(Exception):
   pass
 class timeRangeEmpty(Exception):
   pass
@@ -391,6 +400,7 @@ REASON_EXCEPTION_MAP = {
   CANNOT_DELETE_PRIMARY_CALENDAR: cannotDeletePrimaryCalendar,
   CANNOT_DELETE_PRIMARY_SENDAS: cannotDeletePrimarySendAs,
   CANNOT_DELETE_RESOURCE_WITH_CHILDREN: cannotDeleteResourceWithChildren,
+  CANNOT_MODIFY_INHERITED_TEAMDRIVE_PERMISSION: cannotModifyInheritedTeamDrivePermission,
   CANNOT_SHARE_GROUPS_WITHLINK: cannotShareGroupsWithLink,
   CANNOT_SHARE_USERS_WITHLINK: cannotShareUsersWithLink,
   CANNOT_SHARE_TEAMDRIVE_TOPFOLDER_WITH_ANYONEORDOMAINS: cannotShareTeamDriveTopFolderWithAnyoneOrDomains,
@@ -460,7 +470,9 @@ REASON_EXCEPTION_MAP = {
   TEAMDRIVE_MEMBERSHIP_REQUIRED: teamDriveMembershipRequired,
   TEAMDRIVE_NOT_FOUND: teamDriveNotFound,
   TEAMDRIVES_FOLDER_MOVE_IN_NOT_SUPPORTED: teamDrivesFolderMoveInNotSupported,
+  TEAMDRIVES_FOLDER_SHARING_NOT_SUPPORTED: teamDrivesFolderSharingNotSupported,
   TEAMDRIVES_PARENT_LIMIT: teamDrivesParentLimit,
+  TEAMDRIVES_SHARING_RESTRICTION_NOT_ALLOWED: teamDrivesSharingRestrictionNotAllowed,
   TIME_RANGE_EMPTY: timeRangeEmpty,
   UNKNOWN_ERROR: unknownError,
   USER_ACCESS: userAccess,
