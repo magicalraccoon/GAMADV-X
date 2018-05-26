@@ -1,26 +1,38 @@
-GAMADV-X
-========
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Downloads](#downloads)
+- [Installation - New Users](#installation---new-users)
+- [Installation - Upgrading from a GAM version other than a prior version of GAMADV-X](#installation---upgrading-from-a-gam-version-other-than-a-prior-version-of-gamadv-x)
+- [Installation - Upgrading from a prior version of GAMADV-X](#installation---upgrading-from-a-prior-version-of-gamadv-x)
+
+# Introduction
 GAMADV-X is a free, open source command line tool for Google G Suite Administrators to manage domain and user settings quickly and easily.
 
 This page provides simple instructions for downloading, installing and starting to use GAMADV-X.
 
-GAMADV-X requires G Suite for Business, Education, Partner or Government Edition. Google Apps Free Edition has limited API support and not all GAM commands work.
+GAMADV-X requires G Suite for Business, Education, Non Profit, Partner or Government Edition. Google Apps Free Edition has limited API support and not all GAM commands work.
 
 GAMADV-X is a rewrite/extension of Jay Lee's [GAM](https://github.com/jay0lee/GAM), without his efforts, this version wouldn't exist.
 
-Documentation
--------------
+# Documentation
 General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAMADV-X is hosted in the [GitHub GAMADV-X Wiki] and in Gam*.txt files.
 
-Requirements
-------------
+# Mailing List / Discussion group
+The GAM mailing list / discussion group is hosted on [Google Groups].  You can join the list and interact via email, or just post from the web itself.
+
+# Source Repository
+The official GAMADV-X source repository is on [GitHub] in the master branch.
+
+# Author
+GAMADV-X is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</a>.
+
+# Requirements
 To run all commands properly, GAMADV-X requires three things:
 * An API project which identifies your install of GAMADV-X to Google and keeps track of API quotas.
 * Authorization to act as your G Suite Administrator in order to perform management functions like add users, modify group settings and membership and pull domain reports.
 * A special service account that is authorized to act on behalf of your users in order to modify user-specific settings and data such as Drive files, Calendars and Gmail messages and settings like signatures.
 
-Downloads
----------
+# Downloads
 You can download the current GAMADV-X release from the [GitHub Releases](https://github.com/taers232c/GAMADV-X/releases) page. Choose one of the following:
 
 * Single Executable Archive, Automatic, Linux/Mac OS/Google Cloud Shell
@@ -53,8 +65,7 @@ You can download the current GAMADV-X release from the [GitHub Releases](https:/
   - Download the archive, extract the contents into some directory.
   - Start a terminal/Command Prompt/PowerShell session and cd to the install directory.
 
-Installation - New Users
-------------------------
+# Installation - New Users
 Read GamConfig.txt.
 
 Enter the following gam commands and follow instructions to create the necessary authorizations.
@@ -63,8 +74,7 @@ Enter the following gam commands and follow instructions to create the necessary
 - Authorize Gam Client: `gam oauth create`
 - Authorize Service Account: `gam user <EmailAddress> check serviceaccount`
 
-Installation - Upgrading from a GAM version other than a prior version of GAMADV-X
-----------------------------------------------------------------------------------
+# Installation - Upgrading from a GAM version other than a prior version of GAMADV-X
 Read GamConfig.txt.
 
 ## Linux/Mac OS
@@ -792,24 +802,10 @@ Section: DEFAULT
 
 C:\GAMADV-X>
 ```
-
-Installation - Upgrading from a prior version of GAMADV-X
----------------------------------------------------------
+# Installation - Upgrading from a prior version of GAMADV-X
 Read GamUpdate.txt
 
 Download latest version, install over existing installation or in a parallel directory.
-
-Mailing List / Discussion group
--------------------------------
-The GAM mailing list / discussion group is hosted on [Google Groups].  You can join the list and interact via email, or just post from the web itself.
-
-Source Repository
------------------
-The official GAMADV-X source repository is on [GitHub] in the master branch.
-
-Author
-------
-GAMADV-X is maintained by <a href="mailto:ross.scroggs@gmail.com">Ross Scroggs</a>.
 
 [GitHub Releases]: https://github.com/taers232c/GAMADV-X/releases
 [GitHub]: https://github.com/taers232c/GAMADV-X/tree/master
