@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.11'
+__version__ = u'4.56.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11998,7 +11998,7 @@ def doPrintCrOSDevices(entityList=None):
       try:
         feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
                              page_message=getPageMessage(),
-                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.INVALID_ORGUNIT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
                              customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
                              orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
         printGotAccountEntities(len(feed))
@@ -12006,6 +12006,9 @@ def doPrintCrOSDevices(entityList=None):
           _printCrOS(feed.popleft())
       except GAPI.invalidInput:
         entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
+        return
+      except GAPI.invalidOrgunit as e:
+        entityActionFailedWarning([Ent.CROS_DEVICE, None], str(e))
         return
       except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
         accessErrorExit(cd)
@@ -12165,7 +12168,7 @@ def doPrintCrOSActivity(entityList=None):
       try:
         feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
                              page_message=getPageMessage(),
-                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
+                             throw_reasons=[GAPI.INVALID_INPUT, GAPI.INVALID_ORGUNIT, GAPI.BAD_REQUEST, GAPI.RESOURCE_NOT_FOUND, GAPI.FORBIDDEN],
                              customerId=GC.Values[GC.CUSTOMER_ID], query=query, projection=projection, orgUnitPath=orgUnitPath,
                              orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC.Values[GC.DEVICE_MAX_RESULTS])
         printGotAccountEntities(len(feed))
@@ -12173,6 +12176,9 @@ def doPrintCrOSActivity(entityList=None):
           _printCrOS(feed.popleft())
       except GAPI.invalidInput:
         entityActionFailedWarning([Ent.CROS_DEVICE, None], invalidQuery(query))
+        return
+      except GAPI.invalidOrgunit as e:
+        entityActionFailedWarning([Ent.CROS_DEVICE, None], str(e))
         return
       except (GAPI.badRequest, GAPI.resourceNotFound, GAPI.forbidden):
         accessErrorExit(cd)
@@ -13201,18 +13207,36 @@ def infoGroups(entityList):
 def doInfoGroups():
   infoGroups(getEntityList(Cmd.OB_GROUP_ENTITY))
 
-def groupQuery(domain, userKey):
-  if domain:
-    if userKey:
-      return'{0}={1}, {2}={3}'.format(Ent.Singular(Ent.DOMAIN), domain, Ent.Singular(Ent.MEMBER), userKey)
-    return u'{0}={1}'.format(Ent.Singular(Ent.DOMAIN), domain)
-  if userKey:
-    return u'{0}={1}'.format(Ent.Singular(Ent.MEMBER), userKey)
-  return u''
+def groupFilters(kwargs):
+  queryTitle = ''
+  if kwargs.get(u'domain'):
+    queryTitle += u'{0}={1}, '.format(Ent.Singular(Ent.DOMAIN), kwargs[u'domain'])
+  if kwargs.get(u'userKey'):
+    queryTitle += u'{0}={1}, '.format(Ent.Singular(Ent.MEMBER), kwargs[u'userKey'])
+  if kwargs.get(u'query'):
+    queryTitle += u'query="{0}", '.format(kwargs[u'query'])
+  if queryTitle:
+    return queryTitle[:-2]
+  return queryTitle
+
+def getGroupFilters(myarg, kwargs):
+  if myarg == u'domain':
+    kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
+    kwargs.pop(u'customer', None)
+  elif myarg == u'member':
+    kwargs[u'userKey'] = getEmailAddress()
+    kwargs.pop(u'customer', None)
+  elif myarg == u'query':
+    kwargs[u'query'] = getString(Cmd.OB_QUERY)
+  else:
+    return False
+  if kwargs.get(u'userKey') and kwargs.get(u'query'):
+    usageErrorExit(Msg.ARE_MUTUALLY_EXCLUSIVE.format(u'member', u'query'))
+  return True
 
 PRINT_GROUPS_JSON_TITLES = [u'Email', u'JSON']
 
-# gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] [member <UserItem>])|[select <GroupEntity>]
+# gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] ([member <UserItem>]|[query <QueryGroup>]))|[select <GroupEntity>]
 #	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
 #	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
@@ -13410,17 +13434,13 @@ def doPrintGroups():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
+    elif getGroupFilters(myarg, kwargs):
+      pass
     elif myarg == u'emailmatchpattern':
       emailMatchPattern = getREPattern(re.IGNORECASE)
     elif myarg == u'namematchpattern':
       nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
       addFieldTitleToCSVfile(u'name', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles, nativeTitles)
-    elif myarg == u'domain':
-      kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
-      kwargs.pop(u'customer', None)
-    elif myarg == u'member':
-      kwargs[u'userKey'] = getEmailAddress()
-      kwargs.pop(u'customer', None)
     elif myarg == u'select':
       entitySelection = getEntityList(Cmd.OB_GROUP_ENTITY)
     elif myarg == u'maxresults':
@@ -13512,11 +13532,11 @@ def doPrintGroups():
     if getSettings:
       addTitleToCSVfile(u'JSON-settings', titles)
   if entitySelection is None:
-    printGettingAllAccountEntities(Ent.GROUP, groupQuery(kwargs.get(u'domain'), kwargs.get(u'userKey')))
+    printGettingAllAccountEntities(Ent.GROUP, groupFilters(kwargs))
     try:
       entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                                  page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'email',
-                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
+                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST, GAPI.INVALID_INPUT],
                                  fields=cdfieldsnp, maxResults=maxResults, **kwargs)
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
@@ -13527,6 +13547,9 @@ def doPrintGroups():
         entityList = collections.deque()
       else:
         accessErrorExit(cd)
+    except GAPI.invalidInput:
+      badRequestWarning(Ent.GROUP, Ent.QUERY, invalidQuery(kwargs[u'query']))
+      entityList = collections.deque()
   else:
     svcargs = dict([(u'groupKey', None), (u'fields', cdfields)]+GM.Globals[GM.EXTRA_ARGS_LIST])
     cdmethod = getattr(cd.groups(), u'get')
@@ -13668,7 +13691,7 @@ GROUPMEMBERS_FIELDS_CHOICE_MAP = {
 GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'status']
 
 # gam print group-members|groups-members [todrive [<ToDriveAttributes>]]
-#	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+#	([domain <DomainName>] ([member <UserItem>]|[query <QueryGroup>]))|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
 #	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[roles <GroupRoleList>] [members] [managers] [owners] [membernames] <MembersFieldName>* [fields <MembersFieldNameList>]
 #	[userfields <UserFieldNameList>] [recursive [noduplicates]] [nogroupemail]
@@ -13690,14 +13713,13 @@ def doPrintGroupMembers():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'domain':
-      kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
-      kwargs.pop(u'customer', None)
-      subTitle = u'{0}={1}'.format(Ent.Singular(Ent.DOMAIN), kwargs[u'domain'])
-    elif myarg == u'member':
-      kwargs[u'userKey'] = getEmailAddress()
-      kwargs.pop(u'customer', None)
-      subTitle = u'{0}={1}'.format(Ent.Singular(Ent.MEMBER), kwargs[u'userKey'])
+    elif getGroupFilters(myarg, kwargs):
+      pass
+    elif myarg == u'emailmatchpattern':
+      emailMatchPattern = getREPattern(re.IGNORECASE)
+    elif myarg == u'namematchpattern':
+      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
+      cdfieldsList.append(u'name')
     elif myarg in [u'group', u'groupns']:
       entityList = [getEmailAddress()]
       subTitle = u'{0}={1}'.format(Ent.Singular(Ent.GROUP), entityList[0])
@@ -13708,11 +13730,6 @@ def doPrintGroupMembers():
       subTitle = u'{0} {1}'.format(Msg.SELECTED, Ent.Plural(Ent.GROUP))
     elif myarg == u'notsuspended':
       checkNotSuspended = True
-    elif myarg == u'emailmatchpattern':
-      emailMatchPattern = getREPattern(re.IGNORECASE)
-    elif myarg == u'namematchpattern':
-      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
-      cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
         if role in GROUP_ROLES_MAP:
@@ -13740,11 +13757,12 @@ def doPrintGroupMembers():
     else:
       unknownArgumentExit()
   if entityList is None:
-    printGettingAllAccountEntities(Ent.GROUP, groupQuery(kwargs.get(u'domain'), kwargs.get(u'userKey')))
+    subTitle = groupFilters(kwargs)
+    printGettingAllAccountEntities(Ent.GROUP, subTitle)
     try:
       entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                                  page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'email',
-                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
+                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST, GAPI.INVALID_INPUT],
                                  fields=u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList))), **kwargs)
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
@@ -13755,6 +13773,9 @@ def doPrintGroupMembers():
         entityList = collections.deque()
       else:
         accessErrorExit(cd)
+    except GAPI.invalidInput:
+      badRequestWarning(Ent.GROUP, Ent.QUERY, invalidQuery(kwargs[u'query']))
+      entityList = collections.deque()
   else:
     nameMatchPattern = None
   if not fieldsList:
@@ -13847,7 +13868,7 @@ def doPrintGroupMembers():
   writeCSVfile(csvRows, titles, u'Group Members ({0})'.format(subTitle), todrive)
 
 # gam show group-members
-#	([domain <DomainName>] [member <UserItem>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
+#	([domain <DomainName>] ([member <UserItem>])|[query <QueryGroup>])|[group|group_ns <GroupItem>]|[select <GroupEntity>] [notsuspended]
 #	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>]
 #	[roles <GroupRoleList>] [members] [managers] [owners] [depth <Number>]
 def doShowGroupMembers():
@@ -13891,12 +13912,13 @@ def doShowGroupMembers():
   maxdepth = -1
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'domain':
-      kwargs[u'domain'] = getString(Cmd.OB_DOMAIN_NAME).lower()
-      kwargs.pop(u'customer', None)
-    elif myarg == u'member':
-      kwargs[u'userKey'] = getEmailAddress()
-      kwargs.pop(u'customer', None)
+    if getGroupFilters(myarg, kwargs):
+      pass
+    elif myarg == u'emailmatchpattern':
+      emailMatchPattern = getREPattern(re.IGNORECASE)
+    elif myarg == u'namematchpattern':
+      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
+      cdfieldsList.append(u'name')
     elif myarg in [u'group', u'groupns']:
       entityList = [getEmailAddress()]
       if myarg == u'groupns':
@@ -13905,11 +13927,6 @@ def doShowGroupMembers():
       entityList = getEntityList(Cmd.OB_GROUP_ENTITY)
     elif myarg == u'notsuspended':
       checkNotSuspended = True
-    elif myarg == u'emailmatchpattern':
-      emailMatchPattern = getREPattern(re.IGNORECASE)
-    elif myarg == u'namematchpattern':
-      nameMatchPattern = getREPattern(re.IGNORECASE|re.UNICODE)
-      cdfieldsList.append(u'name')
     elif myarg in [u'role', u'roles']:
       for role in getString(Cmd.OB_GROUP_ROLE_LIST).lower().replace(u',', u' ').split():
         if role in GROUP_ROLES_MAP:
@@ -13925,11 +13942,11 @@ def doShowGroupMembers():
   if not rolesSet:
     rolesSet = set([Ent.ROLE_OWNER, Ent.ROLE_MANAGER, Ent.ROLE_MEMBER])
   if entityList is None:
-    printGettingAllAccountEntities(Ent.GROUP, groupQuery(kwargs.get(u'domain'), kwargs.get(u'userKey')))
+    printGettingAllAccountEntities(Ent.GROUP, groupFilters(kwargs))
     try:
       groupsList = callGAPIpages(cd.groups(), u'list', u'groups',
                                  page_message=getPageMessage(showTotal=False, showFirstLastItems=True), message_attribute=u'email',
-                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST],
+                                 throw_reasons=[GAPI.INVALID_MEMBER, GAPI.RESOURCE_NOT_FOUND, GAPI.DOMAIN_NOT_FOUND, GAPI.FORBIDDEN, GAPI.BAD_REQUEST, GAPI.INVALID_INPUT],
                                  fields=u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList))), **kwargs)
     except GAPI.invalidMember:
       badRequestWarning(Ent.GROUP, Ent.MEMBER, kwargs[u'userKey'])
@@ -13939,6 +13956,9 @@ def doShowGroupMembers():
         badRequestWarning(Ent.GROUP, Ent.DOMAIN, kwargs[u'domain'])
         return
       accessErrorExit(cd)
+    except GAPI.invalidInput:
+      badRequestWarning(Ent.GROUP, Ent.QUERY, invalidQuery(kwargs[u'query']))
+      return
   else:
     nameMatchPattern = None
     groupsList = collections.deque()
