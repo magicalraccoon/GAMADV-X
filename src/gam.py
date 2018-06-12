@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.13'
+__version__ = u'4.56.14'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -27433,6 +27433,53 @@ def deletePermissions(users):
       executeBatch(dbatch)
     Ind.Decrement()
 
+# gam <UserTypeEntity> info drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
+def infoDriveFileACLs(users):
+  fileIdEntity = getDriveFileEntity()
+  isEmail, permissionId = getPermissionId()
+  showTitles = False
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'showtitles':
+      showTitles = getBoolean()
+    else:
+      unknownArgumentExit()
+  if isEmail:
+    permissionId = getPermissionIdForEmail(permissionId)
+    if not permissionId:
+      return
+  printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
+  i, count, users = getEntityArgument(users)
+  for user in users:
+    i += 1
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER_ACL)
+    if jcount == 0:
+      continue
+    Ind.Increment()
+    j = 0
+    for fileId in fileIdEntity[u'list']:
+      j += 1
+      try:
+        fileName = fileId
+        entityType = Ent.DRIVE_FILE_OR_FOLDER_ID
+        if showTitles:
+          fileName, entityType = _getDriveFileNameFromId(drive, fileId)
+        permission = callGAPI(drive.permissions(), u'get',
+                              throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST, GAPI.PERMISSION_NOT_FOUND],
+                              fileId=fileId, permissionId=permissionId, fields=u'*')
+        entityPerformActionNumItems([entityType, fileName], jcount, Ent.PERMITTEE)
+        Ind.Increment()
+        _showDriveFilePermission(permission, printKeys, timeObjects, j, jcount)
+        Ind.Decrement()
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
+        entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
+      except GAPI.permissionNotFound:
+        entityDoesNotHaveItemWarning([Ent.USER, user, entityType, fileName, Ent.PERMISSION_ID, permissionId], j, jcount)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+        break
+    Ind.Decrement()
+
 def _printShowDriveFileACLs(users, csvFormat):
   if csvFormat:
     todrive = {}
@@ -32572,6 +32619,7 @@ USER_COMMANDS_WITH_OBJECTS = {
       Cmd.ARG_CALENDARACL:	infoCalendarACLs,
       Cmd.ARG_CONTACT:		infoUserContacts,
       Cmd.ARG_CONTACTGROUP:	infoUserContactGroups,
+      Cmd.ARG_DRIVEFILEACL:	infoDriveFileACLs,
       Cmd.ARG_EVENT:		infoCalendarEvents,
       Cmd.ARG_FILTER:		infoFilters,
       Cmd.ARG_FORWARDINGADDRESS:	infoForwardingAddresses,
