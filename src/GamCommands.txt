@@ -2182,7 +2182,8 @@ gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <DriveFilePermissionI
         (role <DriveFileACLRole>) [expires|expiration <Time>] [removeexpiration [<Boolean>]] [showtitles] [nodetails]
 gam <UserTypeEntity> delete drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
 gam <UserTypeEntity> info drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles] [formatjson]
-gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles] [formatjson] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [oneitemperrow] [showtitles] [formatjson]
+        (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 gam <UserTypeEntity> print drivefileacls <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [showtitles] [formatjson] [quotechar <Character>]
         (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 gam <UserTypeEntity> create|add permissions <DriveFileEntity> <DriveFilePermissionEntity> [expires|expiration <Time>] [sendemail] [emailmessage <String>]

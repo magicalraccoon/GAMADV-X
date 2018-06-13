@@ -27472,7 +27472,7 @@ def infoDriveFileACLs(users):
         fileName = fileId
         entityType = Ent.DRIVE_FILE_OR_FOLDER_ID
         if showTitles:
-          fileName, entityType = _getDriveFileNameFromId(drive, fileId)
+          fileName, entityType = _getDriveFileNameFromId(drive, fileId, not formatJSON)
         permission = callGAPI(drive.permissions(), u'get',
                               throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST, GAPI.PERMISSION_NOT_FOUND],
                               fileId=fileId, permissionId=permissionId, fields=u'*')
@@ -27506,7 +27506,7 @@ def _printShowDriveFileACLs(users, csvFormat):
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif csvFormat and myarg == u'oneitemperrow':
+    elif myarg == u'oneitemperrow':
       oneItemPerRow = True
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
@@ -27539,7 +27539,7 @@ def _printShowDriveFileACLs(users, csvFormat):
         fileName = fileId
         entityType = Ent.DRIVE_FILE_OR_FOLDER_ID
         if showTitles:
-          fileName, entityType = _getDriveFileNameFromId(drive, fileId, not csvFormat)
+          fileName, entityType = _getDriveFileNameFromId(drive, fileId, not (csvFormat or formatJSON))
         results = callGAPIpages(drive.permissions(), u'list', VX_PAGES_PERMISSIONS,
                                 throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS,
                                 fileId=fileId, fields=VX_NPT_PERMISSIONS)
@@ -27554,8 +27554,17 @@ def _printShowDriveFileACLs(users, csvFormat):
               _showDriveFilePermission(permission, printKeys, timeObjects, k, kcount)
             Ind.Decrement()
           else:
-            for permission in results:
-              _showDriveFilePermissionJSON(user, fileId, fileName, permission, printKeys, timeObjects)
+            if oneItemPerRow:
+              for permission in results:
+                _showDriveFilePermissionJSON(user, fileId, fileName, permission, printKeys, timeObjects)
+            else:
+              flattened = {u'Owner': user, u'id': fileId}
+              if showTitles:
+                flattened[fileNameTitle] = fileName
+              for permission in results:
+                _mapDrivePermissionNames(permission)
+              flattened[u'permissions'] = results
+              printLine(json.dumps(cleanJSON(flattened, u'', timeObjects=timeObjects), ensure_ascii=False, sort_keys=True))
         elif results:
           if oneItemPerRow:
             for permission in results:
@@ -27593,7 +27602,8 @@ def _printShowDriveFileACLs(users, csvFormat):
 def printDriveFileACLs(users):
   _printShowDriveFileACLs(users, True)
 
-# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [adminaccess|asadmin] [showtitles] [formatjson] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [oneitemperrow] [showtitles] [formatjson]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def showDriveFileACLs(users):
   _printShowDriveFileACLs(users, False)
 
