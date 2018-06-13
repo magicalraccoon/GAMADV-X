@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.14'
+__version__ = u'4.56.15'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -26996,8 +26996,14 @@ def _getDriveFileACLPrintKeysTimeObjects():
   return (printKeys, set(timeObjects))
 
 # DriveFileACL commands utilities
-def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
+def _showDriveFilePermissionJSON(user, fileId, fileName, permission, printKeys, timeObjects):
   _mapDrivePermissionNames(permission)
+  flattened = {u'Owner': user, u'id': fileId, u'permission': permission}
+  if fileId != fileName:
+    flattened[VX_FILENAME] = fileName
+  printLine(json.dumps(cleanJSON(flattened, u'', timeObjects=timeObjects), ensure_ascii=False, sort_keys=True))
+
+def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
   if u'name' in permission:
     name = permission[u'name']
   elif u'id' in permission:
@@ -27007,6 +27013,7 @@ def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
       name = u'Anyone with Link'
     else:
       name = permission[u'id']
+  _mapDrivePermissionNames(permission)
   printKeyValueListWithCount([name], i, count)
   Ind.Increment()
   for key in printKeys:
@@ -27433,15 +27440,17 @@ def deletePermissions(users):
       executeBatch(dbatch)
     Ind.Decrement()
 
-# gam <UserTypeEntity> info drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles]
+# gam <UserTypeEntity> info drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles] [formatjson]
 def infoDriveFileACLs(users):
   fileIdEntity = getDriveFileEntity()
   isEmail, permissionId = getPermissionId()
-  showTitles = False
+  formatJSON = showTitles = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'showtitles':
       showTitles = getBoolean()
+    elif myarg == u'formatjson':
+      formatJSON = True
     else:
       unknownArgumentExit()
   if isEmail:
@@ -27452,7 +27461,7 @@ def infoDriveFileACLs(users):
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER_ACL)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER_ACL, None][formatJSON])
     if jcount == 0:
       continue
     Ind.Increment()
@@ -27467,10 +27476,13 @@ def infoDriveFileACLs(users):
         permission = callGAPI(drive.permissions(), u'get',
                               throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST, GAPI.PERMISSION_NOT_FOUND],
                               fileId=fileId, permissionId=permissionId, fields=u'*')
-        entityPerformActionNumItems([entityType, fileName], jcount, Ent.PERMITTEE)
-        Ind.Increment()
-        _showDriveFilePermission(permission, printKeys, timeObjects, j, jcount)
-        Ind.Decrement()
+        if not formatJSON:
+          entityPerformActionNumItems([entityType, fileName], jcount, Ent.PERMITTEE)
+          Ind.Increment()
+          _showDriveFilePermission(permission, printKeys, timeObjects, j, jcount)
+          Ind.Decrement()
+        else:
+          _showDriveFilePermissionJSON(user, fileId, fileName, permission, printKeys, timeObjects)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except GAPI.permissionNotFound:
@@ -27483,9 +27495,11 @@ def infoDriveFileACLs(users):
 def _printShowDriveFileACLs(users, csvFormat):
   if csvFormat:
     todrive = {}
-    titles, csvRows = initializeTitlesCSVfile([u'Owner', u'id'])
+    sortTitles = [u'Owner', u'id']
+    titles, csvRows = initializeTitlesCSVfile(sortTitles)
   fileIdEntity = getDriveFileEntity()
-  oneItemPerRow = showTitles = False
+  formatJSON = oneItemPerRow = showTitles = False
+  quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   orderByList = []
   fileNameTitle = VX_FILENAME
   while Cmd.ArgumentsRemaining():
@@ -27500,6 +27514,13 @@ def _printShowDriveFileACLs(users, csvFormat):
       showTitles = True
       if csvFormat:
         addTitlesToCSVfile(fileNameTitle, titles)
+        sortTitles.append(fileNameTitle)
+    elif myarg == u'formatjson':
+      formatJSON = True
+      if csvFormat:
+        addTitlesToCSVfile(u'JSON', titles)
+    elif myarg == u'quotechar':
+      quotechar = getCharacter()
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -27507,7 +27528,7 @@ def _printShowDriveFileACLs(users, csvFormat):
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat or formatJSON], orderBy=orderBy)
     if jcount == 0:
       continue
     Ind.Increment()
@@ -27523,30 +27544,41 @@ def _printShowDriveFileACLs(users, csvFormat):
                                 throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS,
                                 fileId=fileId, fields=VX_NPT_PERMISSIONS)
         if not csvFormat:
-          kcount = len(results)
-          entityPerformActionNumItems([entityType, fileName], kcount, Ent.PERMITTEE, j, jcount)
-          Ind.Increment()
-          k = 0
-          for permission in results:
-            k += 1
-            _showDriveFilePermission(permission, printKeys, timeObjects, k, kcount)
-          Ind.Decrement()
-        else:
-          if results:
-            if oneItemPerRow:
-              for permission in results:
-                row = {u'Owner': user, u'id': fileId}
-                if showTitles:
-                  row[fileNameTitle] = fileName
-                _mapDrivePermissionNames(permission)
-                addRowTitlesToCSVfile(flattenJSON({u'permission': permission}, flattened=row, timeObjects=timeObjects), csvRows, titles)
-            else:
-              for permission in results:
-                _mapDrivePermissionNames(permission)
+          if not formatJSON:
+            kcount = len(results)
+            entityPerformActionNumItems([entityType, fileName], kcount, Ent.PERMITTEE, j, jcount)
+            Ind.Increment()
+            k = 0
+            for permission in results:
+              k += 1
+              _showDriveFilePermission(permission, printKeys, timeObjects, k, kcount)
+            Ind.Decrement()
+          else:
+            for permission in results:
+              _showDriveFilePermissionJSON(user, fileId, fileName, permission, printKeys, timeObjects)
+        elif results:
+          if oneItemPerRow:
+            for permission in results:
+              flattened = {u'Owner': user, u'id': fileId}
               if showTitles:
-                addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId, fileNameTitle: fileName}, timeObjects=timeObjects), csvRows, titles)
+                flattened[fileNameTitle] = fileName
+              _mapDrivePermissionNames(permission)
+              if not formatJSON:
+                addRowTitlesToCSVfile(flattenJSON({u'permission': permission}, flattened=flattened, timeObjects=timeObjects), csvRows, titles)
               else:
-                addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened={u'Owner': user, u'id': fileId}, timeObjects=timeObjects), csvRows, titles)
+                flattened[u'JSON'] = json.dumps(cleanJSON({u'permission': permission}, u'', timeObjects=timeObjects), ensure_ascii=False, sort_keys=True)
+                csvRows.append(flattened)
+          else:
+            flattened = {u'Owner': user, u'id': fileId}
+            if showTitles:
+              flattened[fileNameTitle] = fileName
+            for permission in results:
+              _mapDrivePermissionNames(permission)
+            if not formatJSON:
+              addRowTitlesToCSVfile(flattenJSON({u'permissions': results}, flattened=flattened, timeObjects=timeObjects), csvRows, titles)
+            else:
+              flattened[u'JSON'] = json.dumps(cleanJSON({u'permissions': results}, u'', timeObjects=timeObjects), ensure_ascii=False, sort_keys=True)
+              csvRows.append(flattened)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
@@ -27554,13 +27586,14 @@ def _printShowDriveFileACLs(users, csvFormat):
         break
     Ind.Decrement()
   if csvFormat:
-    writeCSVfile(csvRows, titles, u'Drive File ACLs', todrive, [u'Owner', u'id', fileNameTitle])
+    writeCSVfile(csvRows, titles, u'Drive File ACLs', todrive, sortTitles, quotechar)
 
-# gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [showtitles] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> print drivefileacl <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [showtitles] [formatjson] [quotechar <Character>]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def printDriveFileACLs(users):
   _printShowDriveFileACLs(users, True)
 
-# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+# gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [adminaccess|asadmin] [showtitles] [formatjson] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 def showDriveFileACLs(users):
   _printShowDriveFileACLs(users, False)
 

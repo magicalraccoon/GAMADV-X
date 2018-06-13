@@ -1,3 +1,11 @@
+4.56.15
+
+Added formatjson option to gam info/show/print drivefileacls; added quotechar <Character> option to gam print drivefileacls.
+gam <UserTypeEntity> info drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail> [showtitles] [formatjson]
+gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles] [formatjson] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> print drivefileacls <DriveFileEntity> [todrive [<ToDriveAttributes>]] [oneitemperrow] [showtitles] [formatjson] [quotechar <Character>]
+        (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+
 4.56.14
 
 Added a command to display information aboout a specific drive file ACL.
