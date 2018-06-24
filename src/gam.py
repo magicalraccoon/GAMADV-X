@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.56.17'
+__version__ = u'4.56.18'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3500,28 +3500,35 @@ GROUP_ROLES_MAP = {
   u'members': Ent.ROLE_MEMBER,
   }
 
+def _getRoleVerification(memberRoles, fields):
+  if memberRoles and memberRoles.find(Ent.ROLE_MEMBER) != -1:
+    return (set(memberRoles.split(u',')), None, fields if fields.find(u'role') != -1 else fields[:-1]+u',role)')
+  else:
+    return (set(), memberRoles, fields)
+
 # Turn the entity into a list of Users/CrOS devices
-def getUsersToModify(entityType, entity, memberRole=None, checkSuspended=None, includeSuspendedInAll=False, groupMemberType=u'USER'):
+def getUsersToModify(entityType, entity, memberRoles=None, checkSuspended=None, includeSuspendedInAll=False, groupMemberType=u'USER'):
   def _addGroupMembersToUsers(group, domains, recursive):
     doNotExist = 0
     try:
-      printGettingAllEntityItemsForWhom(memberRole if memberRole else Ent.ROLE_MANAGER_MEMBER_OWNER, group, entityType=Ent.GROUP)
+      printGettingAllEntityItemsForWhom(memberRoles if memberRoles else Ent.ROLE_MANAGER_MEMBER_OWNER, group, entityType=Ent.GROUP)
+      validRoles, listRoles, listFields = _getRoleVerification(memberRoles, u'nextPageToken,members(email,type,status)')
       result = callGAPIpages(cd.members(), u'list', u'members',
                              page_message=getPageMessageForWhom(noNL=True),
                              throw_reasons=GAPI.MEMBERS_THROW_REASONS,
-                             groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,type,status)',
-                             maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                             groupKey=group, roles=listRoles, fields=listFields, maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
       while result:
         member = result.popleft()
         if member[u'type'] == u'USER':
-          email = member[u'email'].lower()
-          if domains:
-            _, domain = splitEmailAddress(email)
-            if domain not in domains:
-              continue
-          if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and email not in entitySet:
-            entitySet.add(email)
-            entityList.append(email)
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            email = member[u'email'].lower()
+            if domains:
+              _, domain = splitEmailAddress(email)
+              if domain not in domains:
+                continue
+            if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and email not in entitySet:
+              entitySet.add(email)
+              entityList.append(email)
         elif recursive and member[u'type'] == u'GROUP':
           doNotExist += _addGroupMembersToUsers(member[u'email'], domains, recursive)
     except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
@@ -3573,16 +3580,17 @@ def getUsersToModify(entityType, entity, memberRole=None, checkSuspended=None, i
       if validateEmailAddressOrUID(group):
         try:
           group = normalizeEmailAddressOrUID(group)
-          printGettingAllEntityItemsForWhom(memberRole if memberRole else Ent.ROLE_MANAGER_MEMBER_OWNER, group, entityType=Ent.GROUP)
+          printGettingAllEntityItemsForWhom(memberRoles if memberRoles else Ent.ROLE_MANAGER_MEMBER_OWNER, group, entityType=Ent.GROUP)
+          validRoles, listRoles, listFields = _getRoleVerification(memberRoles, u'nextPageToken,members(email,id,type,status)')
           result = callGAPIpages(cd.members(), u'list', u'members',
                                  page_message=getPageMessageForWhom(noNL=True),
                                  throw_reasons=GAPI.MEMBERS_THROW_REASONS,
-                                 groupKey=group, roles=memberRole, fields=u'nextPageToken,members(email,id,type,status)',
-                                 maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                 groupKey=group, roles=listRoles, fields=listFields, maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
           while result:
             member = result.popleft()
             email = member[u'email'].lower() if member[u'type'] != u'CUSTOMER' else member[u'id']
             if (((groupMemberType == u'ALL') or (groupMemberType == member[u'type'])) and
+                (not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles) and
                 (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and email not in entitySet):
               entitySet.add(email)
               entityList.append(email)
@@ -3618,7 +3626,7 @@ def getUsersToModify(entityType, entity, memberRole=None, checkSuspended=None, i
         Cmd.Backup()
         missingArgumentExit(u'end')
     if rolesSet:
-      memberRole = u','.join(sorted(rolesSet))
+      memberRoles = u','.join(sorted(rolesSet))
     for group in groups:
       if validateEmailAddressOrUID(group):
         doNotExist += _addGroupMembersToUsers(normalizeEmailAddressOrUID(group), domains, recursive)
@@ -12687,7 +12695,7 @@ def doUpdateGroups():
       result = callGAPI(cd.members(), u'get',
                         throw_reasons=[GAPI.MEMBER_NOT_FOUND, GAPI.RESOURCE_NOT_FOUND],
                         groupKey=group, memberKey=member, fields=u'role')
-      entityActionFailedWarning([Ent.GROUP, group, role, member], Msg.DUPLICATE_ALREADY_A_ROLE.format(result[u'role']), j, jcount)
+      entityActionFailedWarning([Ent.GROUP, group, role, member], Msg.DUPLICATE_ALREADY_A_ROLE.format(Ent.Singular(result[u'role'])), j, jcount)
       return
     except (GAPI.memberNotFound, GAPI.resourceNotFound):
       pass
@@ -12972,7 +12980,7 @@ def doUpdateGroups():
       if group:
         currentMembersSet = set()
         currentMembersMap = {}
-        for member in getUsersToModify(Cmd.ENTITY_GROUP, group, memberRole=role, groupMemberType=groupMemberType):
+        for member in getUsersToModify(Cmd.ENTITY_GROUP, group, memberRoles=role, groupMemberType=groupMemberType):
           currentMembersSet.add(_cleanConsumerAddress(member, currentMembersMap))
         if syncOperation != u'removeonly':
           _batchAddGroupMembers(group, i, count,
@@ -13012,26 +13020,26 @@ def doUpdateGroups():
       else:
         unknownArgumentExit()
     Act.Set(Act.REMOVE)
-    roles = u','.join(sorted(rolesSet)) if rolesSet else Ent.ROLE_MEMBER
+    memberRoles = u','.join(sorted(rolesSet)) if rolesSet else Ent.ROLE_MEMBER
     fields = u'nextPageToken,members({0})'.format(u','.join(set(fieldsList)))
     i = 0
     count = len(entityList)
     for group in entityList:
       i += 1
       group = normalizeEmailAddressOrUID(group)
-      printGettingAllEntityItemsForWhom(roles, group, qualifier=qualifier, entityType=Ent.GROUP)
+      printGettingAllEntityItemsForWhom(memberRoles, group, qualifier=qualifier, entityType=Ent.GROUP)
+      validRoles, listRoles, listFields = _getRoleVerification(memberRoles, fields)
       try:
         result = callGAPIpages(cd.members(), u'list', u'members',
                                page_message=getPageMessageForWhom(noNL=True),
                                throw_reasons=GAPI.MEMBERS_THROW_REASONS,
-                               groupKey=group, roles=roles, fields=fields,
-                               maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                               groupKey=group, roles=listRoles, fields=listFields, maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
         if checkSuspended is None:
-          removeMembers = [member.get(u'email', member[u'id']) for member in result]
+          removeMembers = [member.get(u'email', member[u'id']) for member in result if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles]
         elif checkSuspended:
-          removeMembers = [member.get(u'email', member[u'id']) for member in result if member[u'status'] == u'SUSPENDED']
+          removeMembers = [member.get(u'email', member[u'id']) for member in result if (not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles) and member[u'status'] == u'SUSPENDED']
         else: # elif not checkSuspended
-          removeMembers = [member.get(u'email', member[u'id']) for member in result if member[u'status'] != u'SUSPENDED']
+          removeMembers = [member.get(u'email', member[u'id']) for member in result if (not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles) and member[u'status'] != u'SUSPENDED']
         _batchRemoveGroupMembers(group, i, count, removeMembers, Ent.ROLE_MEMBER)
       except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
         entityUnknownWarning(Ent.GROUP, group, i, count)
@@ -13136,7 +13144,7 @@ def infoGroups(entityList):
     else:
       unknownArgumentExit()
   cdfields = u','.join(set(cdfieldsList)) if cdfieldsList else None
-  roles = u','.join(sorted(rolesSet)) if rolesSet else None
+  memberRoles = u','.join(sorted(rolesSet)) if rolesSet else None
   if gsfieldsList is None:
     getSettings = True
     gsfields = None
@@ -13174,10 +13182,10 @@ def infoGroups(entityList):
         groups = callGAPIpages(cd.groups(), u'list', u'groups',
                                userKey=group, fields=u'nextPageToken,groups(name,email)')
       if getUsers:
+        validRoles, listRoles, listFields = _getRoleVerification(memberRoles, u'nextPageToken,members(email,id,role,status,type)')
         members = callGAPIpages(cd.members(), u'list', u'members',
                                 throw_reasons=GAPI.MEMBERS_THROW_REASONS, retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
-                                groupKey=group, roles=roles, fields=u'nextPageToken,members(email,id,role,status,type)',
-                                maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                groupKey=group, roles=listRoles, fields=listFields, maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
       if formatJSON:
         basic_info.update(settings)
         if getGroups:
@@ -13233,7 +13241,8 @@ def infoGroups(entityList):
         printEntitiesCount(Ent.MEMBER, members)
         Ind.Increment()
         for member in members:
-          printKeyValueList([member.get(u'role', Ent.ROLE_MEMBER).lower(), u'{0} ({1})'.format(member.get(u'email', member[u'id']), member[u'type'].lower())])
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            printKeyValueList([member.get(u'role', Ent.ROLE_MEMBER).lower(), u'{0} ({1})'.format(member.get(u'email', member[u'id']), member[u'type'].lower())])
         Ind.Decrement()
         printKeyValueList([u'Total users in group', len(members)])
       Ind.Decrement()
@@ -13317,7 +13326,7 @@ def doPrintGroups():
     if formatJSON:
       row[u'Email'] = groupEntity[u'email']
       row[u'JSON'] = json.dumps(groupEntity, ensure_ascii=False, sort_keys=True)
-      if roles and groupMembers is not None:
+      if memberRoles and groupMembers is not None:
         row[u'JSON-members'] = json.dumps(groupMembers, ensure_ascii=False, sort_keys=True)
       if isinstance(groupSettings, dict):
         row[u'JSON-settings'] = json.dumps(groupSettings, ensure_ascii=False, sort_keys=True)
@@ -13579,9 +13588,9 @@ def doPrintGroups():
     convertToNativeTitles(fieldsTitles, titles, nativeTitles)
   if getSettings:
     gs = buildGAPIObject(API.GROUPSSETTINGS)
-  roles = u','.join(sorted(rolesSet)) if rolesSet else None
-  rolesOrSettings = roles or getSettings
-  if roles:
+  memberRoles = u','.join(sorted(rolesSet)) if rolesSet else None
+  rolesOrSettings = memberRoles or getSettings
+  if memberRoles:
     if members:
       addTitlesToCSVfile(u'MembersCount', titles)
       if not membersCountOnly:
@@ -13597,7 +13606,7 @@ def doPrintGroups():
   if formatJSON:
     sortHeaders = False
     titles, csvRows = initializeTitlesCSVfile(PRINT_GROUPS_JSON_TITLES)
-    if roles:
+    if memberRoles:
       addTitleToCSVfile(u'JSON-members', titles)
     if getSettings:
       addTitleToCSVfile(u'JSON-settings', titles)
@@ -13642,9 +13651,9 @@ def doPrintGroups():
     if cdbcount > 0:
       executeBatch(cdbatch)
   required = 0
-  if roles:
+  if memberRoles:
     required += 1
-    svcargs = dict([(u'groupKey', None), (u'roles', roles), (u'fields', u'nextPageToken,members(email,id,role)'), (u'maxResults', GC.Values[GC.MEMBER_MAX_RESULTS])]+GM.Globals[GM.EXTRA_ARGS_LIST])
+    svcargs = dict([(u'groupKey', None), (u'roles', memberRoles), (u'fields', u'nextPageToken,members(email,id,role)'), (u'maxResults', GC.Values[GC.MEMBER_MAX_RESULTS])]+GM.Globals[GM.EXTRA_ARGS_LIST])
   if getSettings:
     required += 1
     svcargsgs = dict([(u'groupUniqueId', None), (u'fields', gsfields)]+GM.Globals[GM.EXTRA_ARGS_LIST])
@@ -13667,11 +13676,11 @@ def doPrintGroups():
       _printGroupRow(groupEntity, None, None)
       continue
     groupData[i] = {u'entity': groupEntity, u'members': [], u'settings': getSettings, u'required': required}
-    if roles:
-      printGettingEntityItemForWhom(roles, groupEmail, i, count)
+    if memberRoles:
+      printGettingEntityItemForWhom(memberRoles, groupEmail, i, count)
       svcparms = svcargs.copy()
       svcparms[u'groupKey'] = groupEmail
-      cdbatch.add(cdmethod(**svcparms), request_id=batchRequestID(groupEmail, i, count, 0, 0, None, roles))
+      cdbatch.add(cdmethod(**svcparms), request_id=batchRequestID(groupEmail, i, count, 0, 0, None, memberRoles))
       cdbcount += 1
       if cdbcount >= GC.Values[GC.BATCH_SIZE]:
         executeBatch(cdbatch)
@@ -13700,47 +13709,51 @@ def doPrintGroups():
   _writeCompleteRows()
   writeCSVfile(csvRows, titles, u'Groups', todrive, [fieldsTitles[u'email']] if sortHeaders else None, quotechar)
 
-def getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level):
+def getGroupMembers(cd, groupEmail, memberRoles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level):
   try:
-    printGettingAllEntityItemsForWhom(Ent.MEMBER, groupEmail, i, count)
+    printGettingAllEntityItemsForWhom(memberRoles if memberRoles else Ent.ROLE_MANAGER_MEMBER_OWNER, groupEmail, i, count)
+    validRoles, listRoles, listFields = _getRoleVerification(memberRoles, u'nextPageToken,members(email,id,role,status,type)')
     groupMembers = callGAPIpages(cd.members(), u'list', u'members',
                                  throw_reasons=GAPI.MEMBERS_THROW_REASONS, retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
-                                 groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role,status,type)',
-                                 maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                 groupKey=groupEmail, roles=listRoles, fields=listFields, maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
     if not recursive:
       if noduplicates:
         for member in groupMembers:
-          if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and member[u'id'] not in membersSet:
-            membersSet.add(member[u'id'])
-            membersList.append(member)
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and member[u'id'] not in membersSet:
+              membersSet.add(member[u'id'])
+              membersList.append(member)
       else:
         for member in groupMembers:
-          if checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED'):
-            membersList.append(member)
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            if checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED'):
+              membersList.append(member)
     elif noduplicates:
       groupMemberList = []
       for member in groupMembers:
         if member[u'type'] == u'USER':
-          if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and member[u'id'] not in membersSet:
-            membersSet.add(member[u'id'])
-            member[u'level'] = level
-            member[u'subgroup'] = groupEmail
-            membersList.append(member)
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            if (checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED')) and member[u'id'] not in membersSet:
+              membersSet.add(member[u'id'])
+              member[u'level'] = level
+              member[u'subgroup'] = groupEmail
+              membersList.append(member)
         elif member[u'type'] == u'GROUP':
           if member[u'id'] not in membersSet:
             membersSet.add(member[u'id'])
             groupMemberList.append(member[u'email'])
       for member in groupMemberList:
-        getGroupMembers(cd, member, roles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level+1)
+        getGroupMembers(cd, member, memberRoles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level+1)
     else:
       for member in groupMembers:
         if member[u'type'] == u'USER':
-          if checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED'):
-            member[u'level'] = level
-            member[u'subgroup'] = groupEmail
-            membersList.append(member)
+          if not validRoles or member.get(u'role', Ent.ROLE_MEMBER) in validRoles:
+            if checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED'):
+              member[u'level'] = level
+              member[u'subgroup'] = groupEmail
+              membersList.append(member)
         elif member[u'type'] == u'GROUP':
-          getGroupMembers(cd, member[u'email'], roles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level+1)
+          getGroupMembers(cd, member[u'email'], memberRoles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level+1)
   except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
     entityUnknownWarning(Ent.GROUP, groupEmail, i, count)
 
@@ -13866,7 +13879,7 @@ def doPrintGroupMembers():
     addTitlesToCSVfile(u'name', titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
   userFields = u','.join(set(userFieldsList)).replace(u'.', u'/') if userFieldsList else None
-  roles = u','.join(sorted(rolesSet)) if rolesSet else None
+  memberRoles = u','.join(sorted(rolesSet)) if rolesSet else None
   membersSet = set()
   level = 0
   customerKey = GC.Values[GC.CUSTOMER_ID]
@@ -13882,7 +13895,7 @@ def doPrintGroupMembers():
     if not checkGroupMatchPatterns(groupEmail, group, matchPatterns):
       continue
     membersList = []
-    getGroupMembers(cd, groupEmail, roles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level)
+    getGroupMembers(cd, groupEmail, memberRoles, membersList, membersSet, i, count, checkSuspended, noduplicates, recursive, level)
     for member in membersList:
       memberId = member[u'id']
       row = {}
@@ -13951,8 +13964,7 @@ def doShowGroupMembers():
     try:
       membersList = callGAPIpages(cd.members(), u'list', u'members',
                                   throw_reasons=GAPI.MEMBERS_THROW_REASONS, retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
-                                  groupKey=groupEmail, fields=u'nextPageToken,members(email,id,role,status,type)',
-                                  maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
+                                  groupKey=groupEmail, fields=u'nextPageToken,members(email,id,role,status,type)', maxResults=GC.Values[GC.MEMBER_MAX_RESULTS])
       if depth == 0:
         printEntity([Ent.GROUP, groupEmail], i, count)
     except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.invalid, GAPI.forbidden):
@@ -13962,7 +13974,7 @@ def doShowGroupMembers():
     Ind.Increment()
     for member in sorted(membersList, key=lambda k: (_roleOrder(k.get(u'role', Ent.ROLE_MEMBER)), _typeOrder(k[u'type']), _statusOrder(k['status']))):
       if checkSuspended is None or (not checkSuspended and member[u'status'] != u'SUSPENDED') or (checkSuspended and member[u'status'] == u'SUSPENDED'):
-        if (member[u'role'] in rolesSet) or (member[u'type'] == u'GROUP'):
+        if (member.get(u'role', Ent.ROLE_MEMBER) in rolesSet) or (member[u'type'] == u'GROUP'):
           printKeyValueList([u'{0}, {1}, {2}, {3}'.format(member.get(u'role', Ent.ROLE_MEMBER), member[u'type'], member.get(u'email', member[u'id']), member[u'status'])])
         if (member[u'type'] == u'GROUP') and (maxdepth == -1 or depth < maxdepth):
           _showGroup(member[u'email'], depth+1)
@@ -14006,7 +14018,7 @@ def doShowGroupMembers():
     else:
       unknownArgumentExit()
   if not rolesSet:
-    rolesSet = set([Ent.ROLE_OWNER, Ent.ROLE_MANAGER, Ent.ROLE_MEMBER])
+    rolesSet = set([Ent.ROLE_MANAGER, Ent.ROLE_MEMBER, Ent.ROLE_OWNER])
   if entityList is None:
     updateFieldsTitlesForGroupMatchPatterns(matchPatterns, cdfieldsList)
     printGettingAllAccountEntities(Ent.GROUP, groupFilters(kwargs))
@@ -27709,7 +27721,7 @@ def addUserToGroups(users):
       result = callGAPI(cd.members(), u'get',
                         throw_reasons=[GAPI.MEMBER_NOT_FOUND, GAPI.RESOURCE_NOT_FOUND],
                         groupKey=group, memberKey=member, fields=u'role')
-      entityActionFailedWarning([Ent.GROUP, group, role, member], Msg.DUPLICATE_ALREADY_A_ROLE.format(result[u'role']), j, jcount)
+      entityActionFailedWarning([Ent.GROUP, group, role, member], Msg.DUPLICATE_ALREADY_A_ROLE.format(Ent.Singular(result[u'role'])), j, jcount)
       return
     except (GAPI.memberNotFound, GAPI.resourceNotFound):
       pass
@@ -27753,7 +27765,8 @@ def addUserToGroups(users):
     Act.Set(Act.ADD)
     role = body[u'role']
     jcount = len(groupKeys)
-    entityPerformActionModifierNumItemsModifier([Ent.USER, user], Act.MODIFIER_TO, jcount, Ent.GROUP, u'{0} {1}'.format(Msg.AS, body[u'role'].lower()), i, count)
+    entityPerformActionModifierNumItemsModifier([Ent.USER, user], Act.MODIFIER_TO, jcount, Ent.GROUP,
+                                                u'{0} {1}'.format(Msg.AS, Ent.Singular(body[u'role'])), i, count)
     Ind.Increment()
     svcargs = dict([(u'groupKey', None), (u'body', body), (u'fields', u'')]+GM.Globals[GM.EXTRA_ARGS_LIST])
     method = getattr(cd.members(), u'insert')
