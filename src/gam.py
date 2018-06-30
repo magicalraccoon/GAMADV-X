@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.57.03'
+__version__ = u'4.57.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12731,7 +12731,7 @@ def doUpdateGroups():
                                        GAPI.CONDITION_NOT_MET: Msg.DUPLICATE,
                                        GAPI.MEMBER_NOT_FOUND: Msg.DOES_NOT_EXIST,
                                        GAPI.RESOURCE_NOT_FOUND: Msg.DOES_NOT_EXIST,
-                                       GAPI.INVALID_MEMBER: Msg.INVALID_ROLE,
+                                       GAPI.INVALID_MEMBER: Msg.INVALID_MEMBER,
                                        GAPI.CYCLIC_MEMBERSHIPS_NOT_ALLOWED: Msg.WOULD_MAKE_MEMBERSHIP_CYCLE}
 
   def _handleDuplicateAdd(group, i, count, role, member, j, jcount):
@@ -28246,7 +28246,7 @@ def addUserToGroups(users):
 
   _ADD_USER_REASON_TO_MESSAGE_MAP = {GAPI.DUPLICATE: Msg.DUPLICATE,
                                      GAPI.MEMBER_NOT_FOUND: Msg.DOES_NOT_EXIST,
-                                     GAPI.INVALID_MEMBER: Msg.INVALID_ROLE}
+                                     GAPI.INVALID_MEMBER: Msg.INVALID_MEMBER}
 
   def _handleDuplicateAdd(group, i, count, role, member, j, jcount):
     try:
