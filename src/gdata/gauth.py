@@ -46,10 +46,29 @@ ae_save
 """
 
 
+import datetime
 import time
 import random
 import urllib
+import urlparse
 import atom.http_core
+
+try:
+  import simplejson
+  from simplejson.decoder import JSONDecodeError
+except ImportError:
+  JSONDecodeError = None
+  try:
+    # Try to import from django, should work on App Engine
+    from django.utils import simplejson
+  except ImportError:
+    # Should work for Python2.6 and higher.
+    import json as simplejson
+
+try:
+    from urlparse import parse_qsl
+except ImportError:
+    from cgi import parse_qsl
 
 
 __author__ = 'j.s@google.com (Jeff Scudder)'
@@ -57,6 +76,7 @@ __author__ = 'j.s@google.com (Jeff Scudder)'
 
 PROGRAMMATIC_AUTH_LABEL = 'GoogleLogin auth='
 AUTHSUB_AUTH_LABEL = 'AuthSub token='
+OAUTH2_AUTH_LABEL = 'Bearer '
 
 
 # This dict provides the AuthSub and OAuth scopes for all services by service
@@ -81,19 +101,22 @@ AUTH_SCOPES = {
         'https://www.google.com/health/feeds/',),
     'writely': ( # Documents List API
         'https://docs.google.com/feeds/',
-        'http://docs.google.com/feeds/'),
+        'https://spreadsheets.google.com/feeds/',
+        'https://docs.googleusercontent.com/'),
     'lh2': ( # Picasa Web Albums API
         'http://picasaweb.google.com/data/',),
-    'apps': ( # Google Apps Provisioning API
-        'http://www.google.com/a/feeds/',
-        'https://www.google.com/a/feeds/',
-        'http://apps-apis.google.com/a/feeds/',
-        'https://apps-apis.google.com/a/feeds/'),
+    'apps': ( # Google Apps Domain Info & Management APIs
+        'https://apps-apis.google.com/a/feeds/user/',
+        'https://apps-apis.google.com/a/feeds/policies/',
+        'https://apps-apis.google.com/a/feeds/alias/',
+        'https://apps-apis.google.com/a/feeds/groups/',
+        'https://apps-apis.google.com/a/feeds/compliance/audit/',
+        'https://apps-apis.google.com/a/feeds/migration/',
+        'https://apps-apis.google.com/a/feeds/emailsettings/2.0/'),
     'weaver': ( # Health H9 Sandbox
         'https://www.google.com/h9/feeds/',),
     'wise': ( # Spreadsheets Data API
-        'https://spreadsheets.google.com/feeds/',
-        'http://spreadsheets.google.com/feeds/'),
+        'https://spreadsheets.google.com/feeds/',),
     'sitemaps': ( # Google Webmaster Tools API
         'https://www.google.com/webmasters/tools/feeds/',),
     'youtube': ( # YouTube API
@@ -443,7 +466,11 @@ def generate_signature(data, rsa_key):
   try:
     from tlslite.utils import keyfactory
   except ImportError:
-    from gdata.tlslite.utils import keyfactory
+    try:
+      from gdata.tlslite.utils import keyfactory
+    except ImportError:
+      from tlslite.tlslite.utils import keyfactory
+
   private_key = keyfactory.parsePrivateKey(rsa_key)
   signed = private_key.hashAndSign(data)
   # Python2.3 and lower does not have the base64.b64encode function.
@@ -629,7 +656,10 @@ def generate_rsa_signature(http_request, consumer_key, rsa_key,
   try:
     from tlslite.utils import keyfactory
   except ImportError:
-    from gdata.tlslite.utils import keyfactory
+    try:
+      from gdata.tlslite.utils import keyfactory
+    except ImportError:
+      from tlslite.tlslite.utils import keyfactory
   base_string = build_oauth_base_string(
       http_request, consumer_key, nonce, RSA_SHA1, timestamp, version,
       next, token, verifier=verifier)
