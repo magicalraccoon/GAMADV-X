@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.57.06'
+__version__ = u'4.57.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -27612,7 +27612,7 @@ def emptyDriveTrash(users):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
 
 def _getDriveFileACLPrintKeysTimeObjects():
-  printKeys = [u'id', u'type', u'emailAddress', u'domain', u'role', u'additionalRoles', VX_EXPIRATION_TIME, u'photoLink', u'authKey', u'withLink']
+  printKeys = [u'id', u'type', u'emailAddress', u'domain', u'role', u'additionalRoles', VX_EXPIRATION_TIME, u'photoLink', u'authKey', u'withLink', u'deleted']
   timeObjects = [VX_EXPIRATION_TIME]
   return (printKeys, set(timeObjects))
 
@@ -27625,7 +27625,7 @@ def _showDriveFilePermissionJSON(user, fileId, fileName, permission, timeObjects
   printLine(json.dumps(cleanJSON(flattened, u'', timeObjects=timeObjects), ensure_ascii=False, sort_keys=True))
 
 def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
-  if u'name' in permission:
+  if permission.get(u'displayName'):
     name = permission[u'name']
   elif u'id' in permission:
     if permission[u'id'] == u'anyone':
