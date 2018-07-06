@@ -8,6 +8,8 @@ del /q /f gamadv-x-%1-windows-x64.msi
 del /q /f *.wixobj
 del /q /f *.wixpdb
 
+set WIXVERSION=3.11
+
 c:\python27-32\scripts\pyinstaller --clean -F --distpath=gamadv-x windows-gam.spec
 xcopy LICENSE gamadv-x\
 xcopy license.rtf gamadv-x\
@@ -28,6 +30,6 @@ xcopy cacerts.pem gamadv-x-64\
 "%ProgramFiles%\7-Zip\7z.exe" a -tzip gamadv-x-%1-windows-x64.zip gamadv-x-64\ -xr!.svn
 
 set GAMVERSION=%1
-"%ProgramFiles(x86)%\WiX Toolset v3.11\bin\candle.exe" -arch x64 gam.wxs
-"%ProgramFiles(x86)%\WiX Toolset v3.11\bin\light.exe" -ext "%ProgramFiles(x86)%\WiX Toolset v3.11\bin\WixUIExtension.dll" gam.wixobj -o gamadv-x-%1-windows-x64.msi
+"%ProgramFiles(x86)%\WiX Toolset v%WIXVERSION%\bin\candle.exe" -arch x64 gam.wxs
+"%ProgramFiles(x86)%\WiX Toolset v%WIXVERSION%\bin\light.exe" -ext "%ProgramFiles(x86)%\WiX Toolset v%WIXVERSION%\bin\WixUIExtension.dll" gam.wixobj -o gamadv-x-%1-windows-x64.msi
 del /q /f gamadv-x-%1-windows-x64.wixpdb
