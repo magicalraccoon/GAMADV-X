@@ -1,10 +1,16 @@
+4.57.08
+
+Updated gam get drivefile to handle large files more efficiently.
+
+Added showprogress option to gam get drivefile which will show file download progress as a percentage.
+
 4.57.07
 
 Updated gam info/show drivefileacl to show deleted field.
 
 4.57.06
 
-Update cachetools, googleapiclient, httplib2, pyasn1, pyasn1_modules libraries.
+Updated cachetools, googleapiclient, httplib2, pyasn1, pyasn1_modules libraries.
 
 4.57.05
 

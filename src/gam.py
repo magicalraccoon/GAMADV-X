@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.57.07'
+__version__ = u'4.57.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -226,6 +226,7 @@ VX_PARENTS_ID = u'parents(id)'
 VX_TRASHED = u'labels(trashed)'
 
 VX_COPY_FOLDER_FIELDS = u'{0},description,folderColorRgb,mimeType,modifiedDate,properties,labels(restricted,starred),lastViewedByMeDate,writersCanShare'.format(VX_PARENTS_ID)
+VX_DOWNLOAD_FIELDS = u'{0},fileExtension,mimeType,{1}'.format(VX_FILENAME, VX_SIZE)
 VX_FILENAME_MIMETYPE = u'{0},mimeType'.format(VX_FILENAME)
 VX_FILENAME_PARENTS = u'{0},{1}'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_FILENAME_PARENTS_COPY_FILE_FIELDS = u'id,{0},{1},capabilities,description,mimeType,modifiedDate,properties,labels(restricted,starred),lastViewedByMeDate,writersCanShare'.format(VX_FILENAME, VX_PARENTS_ID)
@@ -26153,7 +26154,15 @@ def trashDriveFile(users):
 def untrashDriveFile(users):
   deleteDriveFile(users, u'untrash')
 
-#
+NON_DOWNLOADABLE_MIMETYPES = [MIMETYPE_GA_FORM, MIMETYPE_GA_FUSIONTABLE, MIMETYPE_GA_MAP]
+
+GOOGLEDOC_VALID_EXTENSIONS_MAP = {
+  MIMETYPE_GA_DRAWING: [u'.jpeg', u'.jpg', u'.pdf', u'.png', u'.svg'],
+  MIMETYPE_GA_DOCUMENT: [u'.docx', u'.html', u'.odt', u'.pdf', u'.rtf', u'.txt', u'.zip'],
+  MIMETYPE_GA_PRESENTATION: [u'.pdf', u'.pptx', u'.odp', u'.txt'],
+  MIMETYPE_GA_SPREADSHEET: [u'.csv', u'.ods', u'.pdf', u'.xlsx', u'zip'],
+  }
+
 MICROSOFT_FORMATS_LIST = [{u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.document', u'ext': u'.docx'},
                           {u'mime': u'application/vnd.openxmlformats-officedocument.wordprocessingml.template', u'ext': u'.dotx'},
                           {u'mime': u'application/vnd.openxmlformats-officedocument.presentationml.presentation', u'ext': u'.pptx'},
@@ -26207,7 +26216,7 @@ DOCUMENT_FORMATS_MAP = {
                   {u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'}],
   }
 
-# gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [targetname <FileName>] [overwrite [<Boolean>]] [revision <Number>] [nocache]
+# gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [targetname <FileName>] [overwrite [<Boolean>]] [showprogress [<Boolean>]] [revision <Number>]
 def getDriveFile(users):
   fileIdEntity = getDriveFileEntity()
   revisionId = None
@@ -26216,7 +26225,7 @@ def getDriveFile(users):
   exportFormats = DOCUMENT_FORMATS_MAP[exportFormatName]
   targetFolder = GC.Values[GC.DRIVE_DIR]
   targetName = None
-  nocache = overwrite = False
+  overwrite = showProgress = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'format':
@@ -26238,7 +26247,9 @@ def getDriveFile(users):
     elif myarg == u'revision':
       revisionId = getInteger(minVal=1)
     elif myarg == u'nocache':
-      nocache = True
+      pass
+    elif myarg == u'showprogress':
+      showProgress = getBoolean()
     else:
       unknownArgumentExit()
   i, count, users = getEntityArgument(users)
@@ -26251,55 +26262,76 @@ def getDriveFile(users):
     j = 0
     for fileId in fileIdEntity[u'list']:
       j += 1
-      extension = fileExtension = None
+      fileExtension = None
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                          fileId=fileId, fields=u'title,fileExtension,mimeType,fileSize,downloadUrl,exportLinks')
+                          fileId=fileId, fields=VX_DOWNLOAD_FIELDS)
         fileExtension = result.get(u'fileExtension')
-        if result[u'mimeType'] == MIMETYPE_GA_FOLDER:
+        mimeType = result[u'mimeType']
+        if mimeType == MIMETYPE_GA_FOLDER:
           entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, result[VX_FILENAME]], Msg.CAN_NOT_BE_DOWNLOADED, j, jcount)
           continue
-        if VX_SIZE in result:
-          my_line = [u'Size', formatFileSize(int(result[VX_SIZE]))]
-        else:
-          my_line = [u'Type', u'Google Doc']
-        if u'downloadUrl' in result:
-          download_url = result[u'downloadUrl']
-        elif u'exportLinks' in result:
-          for exportFormat in exportFormats:
-            if exportFormat[u'mime'] in result[u'exportLinks']:
-              download_url = result[u'exportLinks'][exportFormat[u'mime']]
-              extension = fileExtension or exportFormat[u'ext']
-              break
-          else:
-            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]],
-                                            Msg.FORMAT_NOT_AVAILABLE.format(u','.join(exportFormatChoices)), j, jcount)
-            continue
-        else:
-          entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]],
-                                          Msg.FORMAT_NOT_DOWNLOADABLE, j, jcount)
+        if mimeType in NON_DOWNLOADABLE_MIMETYPES:
+          entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], Msg.FORMAT_NOT_DOWNLOADABLE, j, jcount)
           continue
-        safe_file_title = targetName or cleanFilename(result[VX_FILENAME])
-        filename = os.path.join(targetFolder, safe_file_title)
-        y = 0
-        while True:
-          if extension and filename.lower()[-len(extension):] != extension.lower():
-            filename += extension
-          if overwrite or not os.path.isfile(filename):
-            break
-          y += 1
-          filename = os.path.join(targetFolder, u'({0})-{1}'.format(y, safe_file_title))
-        if revisionId:
-          download_url = u'{0}&revision={1}'.format(download_url, revisionId)
-        if nocache:
-          drive._http.cache = None
-        _, content = drive._http.request(download_url)
-        status, e = writeFileReturnError(filename, content)
-        if status:
-          entityModifierNewValueKeyValueActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], Act.MODIFIER_TO, filename, my_line[0], my_line[1], j, jcount)
+        validExtensions = GOOGLEDOC_VALID_EXTENSIONS_MAP.get(mimeType)
+        if validExtensions:
+          my_line = [u'Type', u'Google Doc']
+          googleDoc = True
         else:
-          entityModifierNewValueActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], Act.MODIFIER_TO, filename, str(e), j, jcount)
+          if VX_SIZE in result:
+            my_line = [u'Size', formatFileSize(int(result[VX_SIZE]))]
+          else:
+            my_line = [u'Size', u'Unknown']
+          googleDoc = False
+        fileDownloaded = fileDownloadFailed = False
+        for exportFormat in exportFormats:
+          extension = fileExtension or exportFormat[u'ext']
+          if googleDoc and (extension not in validExtensions):
+            continue
+          safe_file_title = targetName or cleanFilename(result[VX_FILENAME])
+          filename = os.path.join(targetFolder, safe_file_title)
+          y = 0
+          while True:
+            if filename.lower()[-len(extension):] != extension.lower():
+              filename += extension
+            if overwrite or not os.path.isfile(filename):
+              break
+            y += 1
+            filename = os.path.join(targetFolder, u'({0})-{1}'.format(y, safe_file_title))
+          if googleDoc:
+            request = drive.files().export_media(fileId=fileId, mimeType=exportFormat[u'mime'])
+            if revisionId:
+              request.uri = u'{0}&revision={1}'.format(request.uri, revisionId)
+          else:
+            request = drive.files().get_media(fileId=fileId)
+          fh = None
+          try:
+            fh = open(filename, u'wb')
+            downloader = googleapiclient.http.MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+              status, done = downloader.next_chunk()
+              if showProgress:
+                entityActionPerformedMessage([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], u'{0:>7.2%}'.format(status.progress()), j, jcount)
+            closeFile(fh)
+            entityModifierNewValueKeyValueActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], Act.MODIFIER_TO, filename, my_line[0], my_line[1], j, jcount)
+            fileDownloaded = True
+            break
+          except (IOError, httplib2.HttpLib2Error) as e:
+            entityModifierNewValueActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]], Act.MODIFIER_TO, filename, str(e), j, jcount)
+            fileDownloadFailed = True
+            break
+          except googleapiclient.http.HttpError:
+            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]],
+                                            Msg.FORMAT_NOT_AVAILABLE.format(extension[1:]), j, jcount)
+          if fh:
+            closeFile(fh)
+            os.remove(filename)
+        if not fileDownloaded and not fileDownloadFailed:
+          entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, result[VX_FILENAME]],
+                                          Msg.FORMAT_NOT_AVAILABLE.format(u','.join(exportFormatChoices)), j, jcount)
       except GAPI.fileNotFound:
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, fileId], Msg.DOES_NOT_EXIST, j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
