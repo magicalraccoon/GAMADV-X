@@ -859,7 +859,7 @@ gam <CrOSTypeEntity> get devicefile [select <DeviceFileEntity>] [targetfolder <F
         (im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))|
         (initials <String>)|
         (jot clear|(work|home|other|keywords|user> <String>))|
-        (json <JSONData>)|
+        (json [charset <Charset>] <JSONData>)|
         (language <Language>)|
         (location <String>)|
         (maidenname <String>)|
