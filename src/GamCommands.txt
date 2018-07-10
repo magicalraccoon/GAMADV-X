@@ -180,6 +180,7 @@ If an item contains spaces, it should be surrounded by ".
 <HoldItem> ::= <UniqueID>|<String>
 <HostName> ::= <String>
 <iCalUID> ::= <String>
+<JSONData> ::= <String>
 <Key> ::= <String>
 <LabelID> ::= <String>
 <LabelName> ::= <String>
@@ -703,19 +704,19 @@ gam calendar|calendars <CalendarEntity> info events <EventEntity> [maxinstances 
         (orderby starttime|updated)|
         (timezone <TimeZone>)
 
-gam calendar|calendars <CalendarEntity> show events ([allevents] <EventSelectProperties>*) <EventDisplayProperties>* [formatjson]
-gam calendar|calendars <CalendarEntity> print events [todrive [<ToDriveAttributes>]] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
-         [formatjson] [quotechar <Character>]
+gam calendar|calendars <CalendarEntity> show events <EventSelectProperties>* <EventDisplayProperties>* [formatjson]
+gam calendar|calendars <CalendarEntity> print events <EventSelectProperties>* <EventDisplayProperties>*
+         [formatjson] [quotechar <Character>] [todrive [<ToDriveAttributes>]]
 
 gam calendar|calendars <CalendarEntity> addevent <EventCreateAttributes>+
 gam calendar|calendars <CalendarEntity> deleteevent <EventEntity> [doit] [notifyattendees]
 gam calendar|calendars <CalendarEntity> wipe
 
 <CalendarSettings> ::=
-        summary <String>|
-        description <String>|
-        location <String>|
-        timezone <String>
+        (description <String>)|
+        (location <String>)|
+        (summary <String>)|
+        (timezone <String>)
 
 gam calendar|calendars <CalendarEntity> modify <CalendarSettings>+
 
@@ -858,6 +859,7 @@ gam <CrOSTypeEntity> get devicefile [select <DeviceFileEntity>] [targetfolder <F
         (im clear|(work|home|other|<String> aim|gtalk|icq|jabber|msn|net_meeting|qq|skype|yahoo <String> notprimary|primary))|
         (initials <String>)|
         (jot clear|(work|home|other|keywords|user> <String>))|
+        (json <JSONData>)|
         (language <Language>)|
         (location <String>)|
         (maidenname <String>)|
@@ -1903,10 +1905,10 @@ gam <UserTypeEntity> show backupcodes|verificationcodes
         (summary <String>)
 
 <CalendarSettings> ::=
-        summary <String>|
-        description <String>|
-        location <String>|
-        timezone <String>
+        (description <String>)|
+        (location <String>)|
+        (summary <String>)|
+        (timezone <String>)
 
 Manage a users list of calendars
 
@@ -2034,9 +2036,9 @@ gam <UserTypeEntity> update calattendees <CalendarManageEntity> <EventEntity> [a
         (timezone <TimeZone>)
 
 gam <UserTypeEntity> info events <CalendarManageEntity> <EventEntity> [maxinstances <Number>] [formatjson]
-gam <UserTypeEntity> show events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) <EventDisplayProperties>* [formatjson]
-gam <UserTypeEntity> print events <CalendarPrintShowEntity> ([allevents] <EventSelectProperties>*) [todrive [<ToDriveAttributes>]] <EventDisplayProperties>*
-         [formatjson] [quotechar <Character>]
+gam <UserTypeEntity> show events <CalendarPrintShowEntity> <EventSelectProperties>* <EventDisplayProperties>* [formatjson]
+gam <UserTypeEntity> print events <CalendarPrintShowEntity> <EventSelectProperties>* <EventDisplayProperties>*
+         [formatjson] [quotechar <Character>] [todrive [<ToDriveAttributes>]]
 
 # Users - Drive
 
@@ -2659,7 +2661,7 @@ gam <UserTypeEntity> update sheetrange <DriveFileEntity> (json <SpreadsheetJSONR
 gam <UserTypeEntity> clear sheetrange <DriveFileEntity> (range <SpreadsheetRange>)+
         [formatjson]
 
-gam <UserTypeEntity> print sheetrange <DriveFileEntity> (range <SpreadsheetRange>)+  [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> print sheetrange <DriveFileEntity> (range <SpreadsheetRange>)+ [todrive [<ToDriveAttributes>]]
         [rows|columns] [formula|formattedvalue|unformattedvalue] [serialnumber|formattedstring]
         [formatjson] [quotechar <Character>]
 gam <UserTypeEntity> show sheetrange <DriveFileEntity> (range <SpreadsheetRange>)+
