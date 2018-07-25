@@ -26878,7 +26878,7 @@ def transferDrive(users):
                  fileId=childFileId, sendNotificationEmails=False, body=targetOwnerPermissionsBody, fields=u'')
         if updateParents:
           callGAPI(targetDrive.files(), u'patch',
-                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
                    fileId=childFileId, body={u'parents': [{u'id': parent} for parent in parents]}, fields=u'')
         entityModifierNewValueItemValueListActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, [Ent.USER, targetUser], j, jcount)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
@@ -26941,7 +26941,7 @@ def transferDrive(users):
             return
         try:
           callGAPI(targetDrive.files(), u'patch',
-                   throw_reasons=GAPI.DRIVE_USER_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
                    fileId=childFileId, addParents=mappedParentId, body={}, fields=u'')
         except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
           entityActionFailedWarning([Ent.USER, targetUser, childFileType, childFileName], str(e), j, jcount)
