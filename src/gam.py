@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.57.21'
+__version__ = u'4.57.22'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -19473,7 +19473,14 @@ def doPrintUsers(entityList=None):
     else:
       unknownArgumentExit()
   _, _, entityList = getEntityArgument(entityList)
-  if formatJSON:
+  if countOnly:
+    fieldsList = [u'primaryEmail',]
+    domainCounts = {}
+    if not formatJSON:
+      titles, csvRows = initializeTitlesCSVfile([u'domain', u'count'])
+    else:
+      titles, csvRows = initializeTitlesCSVfile([u'JSON',])
+  elif formatJSON:
     sortHeaders = False
     titles, csvRows = initializeTitlesCSVfile([u'primaryEmail', u'JSON'])
   if entityList is None:
@@ -19489,11 +19496,14 @@ def doPrintUsers(entityList=None):
                              customer=customer, domain=domain, fields=fields, query=query,
                              showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
                              projection=projection, customFieldMask=customFieldMask, maxResults=GC.Values[GC.USER_MAX_RESULTS])
-        if countOnly:
-          printKeyValueList([Ent.Plural(Ent.USER), len(feed)])
-          return
-        while feed:
-          _printUser(feed.popleft())
+        if not countOnly:
+          while feed:
+            _printUser(feed.popleft())
+        else:
+          for user in feed:
+            _, domain = splitEmailAddress(user[u'primaryEmail'])
+            domainCounts.setdefault(domain, 0)
+            domainCounts[domain] += 1
       except GAPI.domainNotFound:
         entityActionFailedWarning([Ent.USER, None, Ent.DOMAIN, domain], Msg.NOT_FOUND)
         return
@@ -19536,37 +19546,52 @@ def doPrintUsers(entityList=None):
           bcount = 0
       if bcount > 0:
         executeBatch(dbatch)
-    else:
+    elif not countOnly:
       for userEntity in entityList:
         _printUser({u'primaryEmail': normalizeEmailAddressOrUID(userEntity)})
-  if sortHeaders:
-    sortCSVTitles([u'primaryEmail',], titles)
-  if sortRows and orderBy:
-    orderBy = [u'name.{0}'.format(orderBy), u'primaryEmail'][orderBy == u'email']
-    if orderBy in titles[u'set']:
-      csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
-  if getGroupFeed:
-    addTitlesToCSVfile([u'GroupsCount', u'Groups'], titles)
-    i = 0
-    count = len(csvRows)
-    for user in csvRows:
-      i += 1
-      userEmail = user[u'primaryEmail']
-      printGettingAllEntityItemsForWhom(Ent.GROUP_MEMBERSHIP, userEmail, i, count)
-      groups = callGAPIpages(cd.groups(), u'list', u'groups',
-                             userKey=userEmail, fields=u'nextPageToken,groups(email)')
-      user[u'GroupsCount'] = len(groups)
-      user[u'Groups'] = delimiter.join([groupname[u'email'] for groupname in groups])
-  if getLicenseFeed:
-    addTitlesToCSVfile([u'LicensesCount', u'Licenses', u'LicensesDisplay'], titles)
-    licenses = doPrintLicenses(returnFields=u'userId,skuId')
-    if licenses:
+    else:
+      for userEntity in entityList:
+        userEntity = normalizeEmailAddressOrUID(userEntity)
+        if userEntity.find(u'@') != -1:
+          _, domain = splitEmailAddress(userEntity)
+        else:
+          domain = u'Unknown'
+        domainCounts.setdefault(domain, 0)
+        domainCounts[domain] += 1
+  if not countOnly:
+    if sortHeaders:
+      sortCSVTitles([u'primaryEmail',], titles)
+    if sortRows and orderBy:
+      orderBy = [u'name.{0}'.format(orderBy), u'primaryEmail'][orderBy == u'email']
+      if orderBy in titles[u'set']:
+        csvRows.sort(key=lambda k: k[orderBy], reverse=sortOrder == u'DESCENDING')
+    if getGroupFeed:
+      addTitlesToCSVfile([u'GroupsCount', u'Groups'], titles)
+      i = 0
+      count = len(csvRows)
       for user in csvRows:
-        u_licenses = licenses.get(user[u'primaryEmail'].lower())
-        if u_licenses:
-          user[u'LicensesCount'] = len(u_licenses)
-          user[u'Licenses'] = delimiter.join(u_licenses)
-          user[u'LicensesDisplay'] = delimiter.join([SKU.skuIdToDisplayName(skuId) for skuId in u_licenses])
+        i += 1
+        userEmail = user[u'primaryEmail']
+        printGettingAllEntityItemsForWhom(Ent.GROUP_MEMBERSHIP, userEmail, i, count)
+        groups = callGAPIpages(cd.groups(), u'list', u'groups',
+                               userKey=userEmail, fields=u'nextPageToken,groups(email)')
+        user[u'GroupsCount'] = len(groups)
+        user[u'Groups'] = delimiter.join([groupname[u'email'] for groupname in groups])
+    if getLicenseFeed:
+      addTitlesToCSVfile([u'LicensesCount', u'Licenses', u'LicensesDisplay'], titles)
+      licenses = doPrintLicenses(returnFields=u'userId,skuId')
+      if licenses:
+        for user in csvRows:
+          u_licenses = licenses.get(user[u'primaryEmail'].lower())
+          if u_licenses:
+            user[u'LicensesCount'] = len(u_licenses)
+            user[u'Licenses'] = delimiter.join(u_licenses)
+            user[u'LicensesDisplay'] = delimiter.join([SKU.skuIdToDisplayName(skuId) for skuId in u_licenses])
+  elif not formatJSON:
+    for domain, count in sorted(iteritems(domainCounts)):
+      csvRows.append({u'domain': domain, u'count': count})
+  else:
+    csvRows.append({u'JSON': json.dumps(cleanJSON(domainCounts, u''), ensure_ascii=False, sort_keys=True)})
   writeCSVfile(csvRows, titles, u'Users', todrive, quotechar=quotechar)
 
 # gam <UserTypeEntity> print
@@ -29026,7 +29051,7 @@ def deleteLicense(users):
 #	#  #user# and #email" will be replaced with user email address #username# will be replaced by portion of email address in front of @
 def updatePhoto(users):
   cd = buildGAPIObject(API.DIRECTORY)
-  if Cmd.NumArgumentsRemaining() == 1 and not peekArgumentPresent(u'drivedir'):
+  if Cmd.NumArgumentsRemaining() == 1 and not peekArgumentPresent([u'drivedir', u'sourcefolder', u'filename']):
     sourceFolder = None
     filenamePattern = getString(Cmd.OB_PHOTO_FILENAME_PATTERN)
   else:
@@ -29036,10 +29061,10 @@ def updatePhoto(users):
       myarg = getArgument()
       if myarg == u'drivedir':
         sourceFolder = GC.Values[GC.DRIVE_DIR]
-      elif myarg in [u'sourcefolder', u'targetfolder']:
+      elif myarg == u'sourcefolder':
         sourceFolder = os.path.expanduser(getString(Cmd.OB_FILE_PATH))
         if not os.path.isdir(sourceFolder):
-          os.makedirs(sourceFolder)
+          entityDoesNotExistExit(Ent.DIRECTORY, sourceFolder)
       elif myarg == u'filename':
         filenamePattern = getString(Cmd.OB_PHOTO_FILENAME_PATTERN)
       else:
@@ -29111,7 +29136,7 @@ def getPhoto(users):
     myarg = getArgument()
     if myarg == u'drivedir':
       targetFolder = GC.Values[GC.DRIVE_DIR]
-    elif myarg in [u'sourcefolder', u'targetfolder']:
+    elif myarg == u'targetfolder':
       targetFolder = os.path.expanduser(getString(Cmd.OB_FILE_PATH))
       if not os.path.isdir(targetFolder):
         os.makedirs(targetFolder)
