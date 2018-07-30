@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.57.22'
+__version__ = u'4.57.23'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3046,7 +3046,7 @@ def checkGAPIError(e, soft_errors=False, retryOnHttpError=False, service=None):
   return (http_status, reason, message)
 
 def callGAPI(service, function,
-             bailOnInternalError=False, soft_errors=False, throw_reasons=None, retry_reasons=None,
+             bailOnInternalError=False, soft_errors=False, throw_reasons=None, retry_reasons=None, retries=10,
              **kwargs):
   if throw_reasons is None:
     throw_reasons = []
@@ -3054,7 +3054,6 @@ def callGAPI(service, function,
     retry_reasons = []
   all_retry_reasons = GAPI.DEFAULT_RETRY_REASONS+retry_reasons
   method = getattr(service, function)
-  retries = 10
   svcparms = dict(kwargs.items()+GM.Globals[GM.EXTRA_ARGS_LIST])
   for n in range(1, retries+1):
     try:
@@ -19470,7 +19469,7 @@ def doPrintUsers(entityList=None):
       formatJSON = True
     elif myarg == u'quotechar':
       quotechar = getCharacter()
-    elif myarg == u'countonly':
+    elif myarg in [u'countonly', u'countsonly']:
       countOnly = True
     else:
       unknownArgumentExit()
@@ -26935,7 +26934,7 @@ def transferDrive(users):
                  fileId=childFileId, sendNotificationEmails=False, body=targetOwnerPermissionsBody, fields=u'')
         if updateParents:
           callGAPI(targetDrive.files(), u'patch',
-                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND], retries=3,
                    fileId=childFileId, body={u'parents': [{u'id': parent} for parent in parents]}, fields=u'')
         entityModifierNewValueItemValueListActionPerformed([Ent.USER, sourceUser, childFileType, childFileName], Act.MODIFIER_TO, None, [Ent.USER, targetUser], j, jcount)
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
@@ -26998,7 +26997,7 @@ def transferDrive(users):
             return
         try:
           callGAPI(targetDrive.files(), u'patch',
-                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS, retry_reasons=[GAPI.FILE_NOT_FOUND], retries=3,
                    fileId=childFileId, addParents=mappedParentId, body={}, fields=u'')
         except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
           entityActionFailedWarning([Ent.USER, targetUser, childFileType, childFileName], str(e), j, jcount)
@@ -27034,7 +27033,7 @@ def transferDrive(users):
         sourceUpdateRole = ownerRetainRoleBody
       try:
         if ownerRetainRoleBody[u'role'] != u'none':
-          if sourceUpdateRole[u'role'] != u'writer':
+          if sourceUpdateRole[u'role'] not in [u'writer', u'current']:
             callGAPI(targetDrive.permissions(), u'patch',
                      throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
                      fileId=childFileId, permissionId=sourcePermissionId, body=sourceUpdateRole, fields=u'')
@@ -27064,7 +27063,7 @@ def transferDrive(users):
       else:
         sourceUpdateRole = nonOwnerRetainRoleBody
       if nonOwnerTargetRoleBody[u'role'] == u'current':
-        targetInsertBody = {u'role': u'none'}
+        targetInsertBody = {u'role': u'current'}
         resetTargetRole = False
       elif nonOwnerTargetRoleBody[u'role'] == u'source':
         targetInsertBody = _setTargetInsertBody(childEntryInfo[u'sourcePermission'])
@@ -27102,9 +27101,10 @@ def transferDrive(users):
       if resetTargetRole:
         try:
           if targetInsertBody[u'role'] != u'none':
-            callGAPI(ownerDrive.permissions(), u'insert',
-                     throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST],
-                     fileId=childFileId, sendNotificationEmails=False, body=targetInsertBody, fields=u'')
+            if targetInsertBody[u'role'] != u'current':
+              callGAPI(ownerDrive.permissions(), u'insert',
+                       throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.INVALID_SHARING_REQUEST],
+                       fileId=childFileId, sendNotificationEmails=False, body=targetInsertBody, fields=u'')
           else:
             try:
               callGAPI(ownerDrive.permissions(), u'delete',
