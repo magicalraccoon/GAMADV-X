@@ -1,3 +1,10 @@
+4.60.05
+
+Fixed a backward compatibility bug where id|eventid <EventId> was not recognized as an <EventEntity>.
+<EventEntity> ::=
+        (id|eventid <EventId>)|(event|events <EventIdList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVSubkeySelector> | <CSVDataSelector>)|
+        (<EventSelectProperties>+ <EventMatchProperties>*)
+
 4.60.04
 
 Handle "invalid_grant: Invalid JWT: No valid verifier found for issuer." as a non-fatal error for service account access.

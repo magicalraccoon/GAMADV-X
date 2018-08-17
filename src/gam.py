@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.60.04'
+__version__ = u'4.60.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -15592,6 +15592,10 @@ def getCalendarEventEntity(noIds=False):
           calendarEventEntity[u'list'] = entityList
       else:
         calendarEventEntity[u'list'].extend(convertEntityToList(getString(Cmd.OB_EVENT_ID)))
+    elif myarg in [u'id', u'eventid']:
+      if noIds:
+        unknownArgumentExit()
+      calendarEventEntity[u'list'].append(getString(Cmd.OB_EVENT_ID))
     elif myarg in [u'q', u'query', u'eventquery']:
       calendarEventEntity[u'queries'].append(getString(Cmd.OB_QUERY))
     elif myarg == u'matchfield':
@@ -20591,7 +20595,7 @@ def _getCourseAttribute(myarg, body, courseAttributesFrom):
     body[u'room'] = getString(Cmd.OB_STRING, minLen=0)
   elif myarg in [u'owner', u'ownerid', u'teacher']:
     body[u'ownerId'] = getEmailAddress()
-  elif myarg in [u'state', u'status']:
+  elif myarg in [u'state', u'status', u'coursestate']:
     body[u'courseState'] = getChoice(COURSE_STATE_MAPS[Cmd.OB_COURSE_STATE_LIST], mapChoice=True)
   elif myarg == u'copyfrom':
     courseAttributesFrom[u'courseId'] = getString(Cmd.OB_COURSE_ID)
@@ -24583,6 +24587,7 @@ DRIVEFILE_ORDERBY_CHOICE_MAP = {
   u'modifieddate': VX_MODIFIED_TIME,
   u'modifiedtime': VX_MODIFIED_TIME,
   u'name': VX_FILENAME,
+  u'namenatural': VX_FILENAME+u'_natural',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
   u'recency': u'recency',
@@ -24590,6 +24595,7 @@ DRIVEFILE_ORDERBY_CHOICE_MAP = {
   u'sharedwithmetime': VX_SHARED_WITH_ME_TIME,
   u'starred': u'starred',
   u'title': VX_FILENAME,
+  u'titlenatural': VX_FILENAME+u'_natural',
   u'viewedbymedate': VX_VIEWED_BY_ME_TIME,
   u'viewedbymetime': VX_VIEWED_BY_ME_TIME,
   }
@@ -28910,6 +28916,8 @@ def deletePermissions(users):
       if reason not in GAPI.DEFAULT_RETRY_REASONS+[GAPI.SERVICE_LIMIT]:
         if reason == GAPI.PERMISSION_NOT_FOUND:
           entityDoesNotHaveItemWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
+        elif reason == GAPI.BAD_REQUEST:
+          entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], message, int(ri[RI_J]), int(ri[RI_JCOUNT]))
         else:
           errMsg = getHTTPError({}, http_status, reason, message)
           entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], errMsg, int(ri[RI_J]), int(ri[RI_JCOUNT]))
@@ -28924,7 +28932,8 @@ def deletePermissions(users):
                  fileId=ri[RI_ENTITY], permissionId=ri[RI_ITEM])
         entityActionPerformed([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], int(ri[RI_J]), int(ri[RI_JCOUNT]))
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError,
-              GAPI.badRequest, GAPI.permissionNotFound, GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+              GAPI.badRequest, GAPI.permissionNotFound,
+              GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         entityActionFailedWarning([Ent.DRIVE_FILE_OR_FOLDER_ID, ri[RI_ENTITY], Ent.PERMISSION_ID, ri[RI_ITEM]], str(e), int(ri[RI_J]), int(ri[RI_JCOUNT]))
     if int(ri[RI_J]) == int(ri[RI_JCOUNT]):
       Ind.Decrement()
