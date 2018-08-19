@@ -2282,12 +2282,12 @@ gam <UserTypeEntity> claim ownership <DriveFileEntity> [includetrashed]
 
 gam <UserTypeEntity> transfer drive <UserItem> [select <DriveFileEntity>]
         [(targetfolderid <DriveFolderID>)|(targetfoldername <DriveFolderName>)] [targetuserfoldername <DriveFolderName>] [targetuserorphansfoldername <DriveFolderName>]
-        [keepuser | (retainrole reader|commenter|writer|editor|none)] [noretentionmessages] [noupdateparentmessages]
+        [keepuser | (retainrole reader|commenter|writer|editor|none)] [noretentionmessages]
         [nonowner_retainrole reader|commenter|writer|editor|current|none] [nonowner_targetrole reader|commenter|writer|editor|current|none|source]
         (orderby <DriveFileOrderByFieldName> [ascending|descending])*
         [preview] [todrive [<ToDriveAttributes>]]
 
-gam <UserTypeEntity> collect orphans (orderby <DriveFileOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> collect [anyowner|(showownedby any|me|others)] orphans (orderby <DriveFileOrderByFieldName> [ascending|descending])*
         [targetuserfoldername <DriveFileName>] [preview] [todrive [<ToDriveAttributes>]]
 
 <DriveOwnersSubfieldName> ::=
