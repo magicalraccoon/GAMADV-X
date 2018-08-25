@@ -2469,8 +2469,8 @@ gam <UserTypeEntity> deprovision|deprov
 gam <UserTypeEntity> delegate to <UserEntity>
 gam <UserTypeEntity> create|add delegate|delegates <UserEntity>
 gam <UserTypeEntity> delete delegate|delegates <UserEntity>
-gam <UserTypeEntity> show delegates|delegate
-gam <UserTypeEntity> print delegates [todrive [<ToDriveAttributes>]]
+gam <UserTypeEntity> show delegates|delegate [shownames] [csv]
+gam <UserTypeEntity> print delegates|delegate [todrive [<ToDriveAttributes>]] [shownames]
 
 # Users - Gmail - Filters
 
