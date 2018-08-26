@@ -1,3 +1,13 @@
+4.60.14
+
+Added option matchsetting <GroupAttributes> to gam print groups to allow filtering of groups based on attribute values. You can specify
+multiple matchsetting <GroupAttributes> options, all of them must match for the group to be displayed.
+gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] ([member <UserItem>]|[query <QueryGroup>]))|[select <GroupEntity>]
+        [emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>] [descriptionmatchpattern <RegularExpression>] (matchsetting <GroupAttributes>)*
+        [maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
+        [members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
+        [convertcrnl] [delimiter <Character>] [sortheaders] [formatjson] [quotechar <Character>]
+
 4.60.13
 
 Delegates are now handled by the Gmail API rather than a soon to be deprecated Email Settings API.
