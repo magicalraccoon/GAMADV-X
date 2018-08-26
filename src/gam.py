@@ -13512,7 +13512,7 @@ def checkGroupMatchPatterns(groupEmail, group, matchPatterns):
 PRINT_GROUPS_JSON_TITLES = [u'Email', u'JSON']
 
 # gam print groups [todrive [<ToDriveAttributes>]] ([domain <DomainName>] ([member <UserItem>]|[query <QueryGroup>]))|[select <GroupEntity>]
-#	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>] [descriptionmatchpattern <RegularExpression>] (matchsetting <GroupAttributes>)*
+#	[emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>] [descriptionmatchpattern <RegularExpression>] (matchsetting [not] <GroupAttributes>)*
 #	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])]
 #	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
 #	[convertcrnl] [delimiter <Character>] [sortheaders] [formatjson] [quotechar <Character>]
@@ -13523,8 +13523,11 @@ def doPrintGroups():
     if matchSettings:
       if not isinstance(groupSettings, dict):
         return
-      for key, value in iteritems(matchSettings):
-        if value != groupSettings.get(key):
+      for key, match in iteritems(matchSettings):
+        gvalue = groupSettings.get(key)
+        if match[u'notvalues'] and gvalue in match[u'notvalues']:
+          return
+        if match[u'values'] and gvalue not in match[u'values']:
           return
     if formatJSON:
       row[u'Email'] = groupEntity[u'email']
@@ -13759,7 +13762,12 @@ def doPrintGroups():
         else:
           invalidChoiceExit(list(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP)+list(GROUP_ATTRIBUTES), True)
     elif myarg == u'matchsetting':
-      getGroupAttrValue(getString(Cmd.OB_FIELD_NAME).lower(), matchSettings)
+      valueList = getChoice({u'not': u'notvalues'}, mapChoice=True, defaultChoice=u'values')
+      matchBody = {}
+      getGroupAttrValue(getString(Cmd.OB_FIELD_NAME).lower(), matchBody)
+      for key, value in iteritems(matchBody):
+        matchSettings.setdefault(key, {u'notvalues': [], u'values': []})
+        matchSettings[key][valueList].append(value)
     elif myarg in [u'members', u'memberscount']:
       rolesSet.add(Ent.ROLE_MEMBER)
       members = True
