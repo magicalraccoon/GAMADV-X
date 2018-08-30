@@ -627,16 +627,16 @@ gam audit monitor list <EmailAddress>
 <CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
 <CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam calendar|calendars <CalendarEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam calendar|calendars <CalendarEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam calendar|calendars <CalendarEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
+gam calendar|calendars <CalendarEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
 gam calendar|calendars <CalendarEntity> delete acls|calendaracls [<CalendarACLRole>] <CalendarACLScopeEntity>
 gam calendar|calendars <CalendarEntity> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
 gam calendar|calendars <CalendarEntity> show acls|calendaracls [formatjson]
 gam calendar|calendars <CalendarEntity> print acls|calendaracls [todrive <ToDriveAttribute>*] [formatjson] [quotechar <Character>]
 
-gam calendar|calendars <CalendarEntity> create|add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
-gam calendar|calendars <CalendarEntity> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
+gam calendar|calendars <CalendarEntity> create|add <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default [sendnotifications <Boolean>]
+gam calendar|calendars <CalendarEntity> update <CalendarACLRole> ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default [sendnotifications <Boolean>]
 gam calendar|calendars <CalendarEntity> delete [<CalendarACLRole>] ([user] <EmailAddress>)|(group <EmailAddress>)|(domain [<DomainName>])|default
 gam calendar|calendars <CalendarEntity> showacl [formatjson]
 
@@ -1672,16 +1672,16 @@ gam print resources [todrive <ToDriveAttribute>*] [allfields|<ResourceFieldName>
 <CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
 <CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 
-gam resource <ResourceID> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resource <ResourceID> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resource <ResourceID> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
+gam resource <ResourceID> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
 gam resource <ResourceID> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
 gam resource <ResourceID> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
 gam resource <ResourceID> show acls|calendaracls [formatjson]
 gam resource <ResourceID> print acls|calendaracls [todrive <ToDriveAttribute>*] [formatjson] [quotechar <Character>]
 
-gam resources <ResourceEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
-gam resources <ResourceEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity>
+gam resources <ResourceEntity> create|add acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
+gam resources <ResourceEntity> update acls|calendaracls <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
 gam resources <ResourceEntity> delete acls|calendaracls <CalendarACLRole>] <CalendarACLScopeEntity>
 gam resources <ResourceEntity> info acls|calendaracls <CalendarACLScopeEntity> [formatjson]
 
@@ -1843,7 +1843,6 @@ gam print vaultmatters|matters [todrive <ToDriveAttribute>*] [basic|full]
 <UserAttribute> ::=
         (address clear|(type work|home|other|(custom <String>) [unstructured|formatted <String>] [pobox <String>] [extendedaddress <String>] [streetaddress <String>]
                 [locality <String>] [region <String>] [postalcode <String>] [country <String>] [countrycode <String>] notprimary|primary))|
-        (admin <Boolean>)|
         (agreed2terms|agreedtoterms <Boolean>)|
         (changepassword|changepasswordatnextlogin <Boolean>)|
         (crypt|sha|sha1|sha-1|md5|nohash)|
@@ -1875,7 +1874,7 @@ gam print vaultmatters|matters [todrive <ToDriveAttribute>*] [basic|full]
         (<SchemaName>.<FieldName> [multivalued|multivalue|value|multinonempty [type work|home|other|(custom <String>)]] <String>)
 
 gam create|add user <EmailAddress> <UserAttribute>* [notify <EmailAddress>] [subject <String>] [message <String>|(file <FileName> [charset <CharSet>])] [html [<Boolean>]] 
-gam update user <UserItem> <UserAttribute> [updateprimaryemail <RegularExpression> <EmailReplacement>]
+gam update user <UserItem> <UserAttribute>* [updateprimaryemail <RegularExpression> <EmailReplacement>]
         [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
         [createifnotfound] [notify <EmailAddress>] [subject <String>] [message <String>|(file <FileName> [charset <CharSet>])] [html [<Boolean>]] 
 gam delete user <UserItem>
@@ -2012,8 +2011,8 @@ gam <UserTypeEntity> remove calendars <CalendarManageEntity>
 
 Manage access to any calendar a user owns
 
-gam <UserTypeEntity> create|add calendaracls <CalendarManageEntity> <CalendarACLRole> <CalendarACLScopeEntity>
-gam <UserTypeEntity> update calendaracls <CalendarManageEntity> <CalendarACLRole> <CalendarACLScopeEntity>
+gam <UserTypeEntity> create|add calendaracls <CalendarManageEntity> <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
+gam <UserTypeEntity> update calendaracls <CalendarManageEntity> <CalendarACLRole> <CalendarACLScopeEntity> [sendnotifications <Boolean>]
 gam <UserTypeEntity> delete calendaracls <CalendarManageEntity> <CalendarACLRole>] <CalendarACLScopeEntity>
 
 gam <UserTypeEntity> info calendaracls <CalendarManageEntity> <CalendarACLScopeEntity> [formatjson]
@@ -2143,7 +2142,7 @@ gam <UserTypeEntity> update calattendees <CalendarManageEntity> <EventEntity> [a
         sharedwithmedate|sharedwithmetime|
         starred|
         title|
-        title_natural
+        title_natural|
         viewedbymedate|viewedbymetime
 
 <DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
@@ -2421,8 +2420,8 @@ gam <UserTypeEntity> print filecounts [todrive <ToDriveAttribute>*] [anyowner|(s
         [showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
 
 gam <UserTypeEntity> print|show filelist [todrive <ToDriveAttribute>*] [anyowner|(showownedby any|me|others)]
-        [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>]
-        [select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [depth <Number>] [showparent]
+        [((query <QueryDriveFile>) | (fullquery <QueryDriveFile>) | <DriveFileQueryShortcut>) |
+          (select <DriveFileEntityListTree> [selectsubquery <QueryDriveFile>] [depth <Number>] [showparent])]
         [showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
         [filepath] [buildtree] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <Character>] [quotechar <Character>]
 
