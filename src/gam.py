@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.60.20'
+__version__ = u'4.60.21'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -27076,7 +27076,8 @@ def moveDriveFile(users):
         if movedFiles.get(childId):
           continue
         if childId == newFolderId:
-          entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(child), childTitle], Msg.NOT_COPYABLE, k, kcount)
+          entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(child), childTitle],
+                                          Msg.NOT_MOVABLE, k, kcount)
           _incrStatistic(statistics, STAT_FILE_NOT_COPYABLE_MOVABLE)
           continue
         if child[u'mimeType'] == MIMETYPE_GA_FOLDER:
@@ -27102,7 +27103,7 @@ def moveDriveFile(users):
             copyMoveOptions[u'retainSourceFolders'] = True
       Ind.Decrement()
     Act.Set(Act.DELETE)
-    if not copyMoveOptions[u'retainSourceFolders']:
+    if not copyMoveOptions[u'retainSourceFolders'] and source[VX_FILENAME] != u'My Drive':
       try:
         callGAPI(drive.files(), u'delete',
                  throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.FILE_NEVER_WRITABLE],
