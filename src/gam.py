@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.60.23'
+__version__ = u'4.60.25'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -2681,6 +2681,10 @@ def SetGlobalVariables():
     else:
       GM.Globals[GM.CACHE_DIR] = GC.Values[GC.CACHE_DIR]
       GM.Globals[GM.CACHE_DISCOVERY_ONLY] = GC.Values[GC.CACHE_DISCOVERY_ONLY]
+# Set environment variables so GData API can find cacerts.pem
+    os.environ['REQUESTS_CA_BUNDLE'] = GC.Values[GC.CACERTS_PEM]
+    os.environ['DEFAULT_CA_BUNDLE_PATH'] = GC.Values[GC.CACERTS_PEM]
+    os.environ['SSL_CERT_FILE'] = GC.Values[GC.CACERTS_PEM]
     return True
 # We're done, nothing else to do
   return False
@@ -3387,9 +3391,6 @@ def buildGAPIServiceObject(api, user, i, count, displayError=True):
   return (userEmail, service)
 
 def initGDataObject(gdataObj, api):
-  os.environ['REQUESTS_CA_BUNDLE'] = GC.Values[GC.CACERTS_PEM]
-  os.environ['DEFAULT_CA_BUNDLE_PATH'] = GC.Values[GC.CACERTS_PEM]
-  os.environ['SSL_CERT_FILE'] = GC.Values[GC.CACERTS_PEM]
   _, _, api_version, cred_family = API.getVersion(api)
   disc_file, discovery = readDiscoveryFile(api_version)
   GM.Globals[GM.CURRENT_CLIENT_API] = api

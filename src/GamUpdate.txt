@@ -1,3 +1,11 @@
+4.60.25
+
+Fixed bug where user contacts and sites were not using correct SSL cacerts.pem.
+
+4.60.24
+
+Skipped.
+
 4.60.23
 
 Support `gam.cfg/no_verify_ssl = true` for user contacts and sites to avoid this error:
