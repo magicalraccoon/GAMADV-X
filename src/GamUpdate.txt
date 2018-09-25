@@ -1,3 +1,8 @@
+4.61.04
+
+Previously, Gam issued an error if the start <Time> in gam report was earlier that 180 days before today as Google would issue an error if it was.
+Now, Google adjusts the start time to the earliest acceptable value so the check by Gam is unnecessary.
+
 4.61.03
 
 Fixed bug in gam <UserTypeEntity> print filelist select orphans that gave an invalid error message.
