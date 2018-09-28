@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.61.05'
+__version__ = u'4.61.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -10785,6 +10785,8 @@ def _updateContacts(users, entityType):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     if queriedContacts:
       entityList = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
+      if entityList is None:
+        continue
     j = 0
     jcount = len(entityList)
     entityPerformActionNumItems([entityType, user], jcount, Ent.CONTACT, i, count)
@@ -10865,6 +10867,8 @@ def _deleteContacts(users, entityType):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     if queriedContacts:
       entityList = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
+      if entityList is None:
+        continue
     j = 0
     jcount = len(entityList)
     entityPerformActionModifierNumItems([entityType, user], Msg.MAXIMUM_OF, jcount, Ent.CONTACT, i, count)
@@ -11286,6 +11290,8 @@ def _processContactPhotos(users, entityType, function):
       contactQuery[u'group'] = contactsObject.GetContactGroupFeedUri(contact_list=user, projection=u'base', groupId=groupId)
     if queriedContacts:
       entityList = queryContacts(contactsObject, contactQuery, entityType, user, i, count)
+      if entityList is None:
+        continue
     j = 0
     jcount = len(entityList)
     entityPerformActionModifierNumItems([entityType, user], Msg.MAXIMUM_OF, jcount, Ent.PHOTO, i, count)
