@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.61.04'
+__version__ = u'4.61.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1090,6 +1090,12 @@ def getEmailAddress(noUid=False, minLen=1, optional=False):
     return None
   missingArgumentExit([Cmd.OB_EMAIL_ADDRESS_OR_UID, Cmd.OB_EMAIL_ADDRESS][noUid])
 
+def getFilename():
+  filename = os.path.expanduser(getString(Cmd.OB_FILE_NAME, minLen=1))
+  if os.path.isfile(filename):
+    return filename
+  entityDoesNotExistExit(Ent.FILE, filename)
+  
 def getPermissionId():
   if Cmd.ArgumentsRemaining():
     emailAddress = Cmd.Current().strip().lower()
@@ -4513,25 +4519,68 @@ def getTodriveParameters():
         invalidTodriveParentExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_FOUND)
   return todrive
 
-# Send an email
-def send_email(msgSubject, msgBody, msgTo, i=0, count=0, msgFrom=None, msgReplyTo=None, html=False, charset=u'utf-8'):
+# Add attachements to an email message
+def _addAttachmentsToMessage(message, attachments):
   from email.mime.text import MIMEText
+  from email.mime.image import MIMEImage
+  from email.mime.audio import MIMEAudio
+  from email.mime.base import MIMEBase
+
+  for attachFilename in attachments:
+    try:
+      attachFd = openFile(attachFilename, u'rb')
+      attachContentType, attachEncoding = mimetypes.guess_type(attachFilename)
+      if attachContentType is None or attachEncoding is not None:
+        attachContentType = u'application/octet-stream'
+      main_type, sub_type = attachContentType.split('/', 1)
+      if main_type == u'text':
+        msg = MIMEText(attachFd.read(), _subtype=sub_type)
+      elif main_type == u'image':
+        msg = MIMEImage(attachFd.read(), _subtype=sub_type)
+      elif main_type == u'audio':
+        msg = MIMEAudio(attachFd.read(), _subtype=sub_type)
+      else:
+        msg = MIMEBase(main_type, sub_type)
+        msg.set_payload(attachFd.read())
+      attachFd.close()
+      msg.add_header(u'Content-Disposition', u'attachment', filename=os.path.basename(attachFilename))
+      message.attach(msg)
+    except IOError as e:
+      usageErrorExit(u'{0}: {1}'.format(attachFilename, str(e)))
+
+# Send an email
+def send_email(msgSubject, msgBody, msgTo, i=0, count=0, msgFrom=None, msgReplyTo=None,
+               html=False, charset=u'utf-8', attachments=None):
+  from email.mime.multipart import MIMEMultipart
+  from email.mime.text import MIMEText
+
   if msgFrom is None:
     msgFrom = _getValueFromOAuth(u'email')
   userId, gmail = buildGAPIServiceObject(API.GMAIL, msgFrom, 0, 0)
   if not gmail:
     return
-  msg = MIMEText(msgBody, [u'plain', u'html'][html], charset)
-  msg[u'Subject'] = msgSubject
-  msg[u'From'] = userId
-  msg[u'To'] = msgTo
-  if msgReplyTo is not None:
-    msg[u'Reply-To'] = msgReplyTo
+  if not attachments:
+    message = MIMEText(msgBody, [u'plain', u'html'][html], charset)
+    message[u'Subject'] = msgSubject
+    message[u'From'] = userId
+    message[u'To'] = msgTo
+    if msgReplyTo is not None:
+      message[u'Reply-To'] = msgReplyTo
+  else:
+    message = MIMEMultipart()
+    message[u'Subject'] = msgSubject
+    message[u'From'] = userId
+    message[u'To'] = msgTo
+    if msgReplyTo is not None:
+      message[u'Reply-To'] = msgReplyTo
+    msg = MIMEText(msgBody, [u'plain', u'html'][html], charset)
+    message.attach(msg)
+    _addAttachmentsToMessage(message, attachments)
   action = Act.Get()
   Act.Set(Act.SENDEMAIL)
   try:
     callGAPI(gmail.users().messages(), u'send',
-             userId=userId, body={u'raw': base64.urlsafe_b64encode(msg.as_string())}, fields=u'')
+             userId=userId, body={u'raw': base64.urlsafe_b64encode(message.as_string())}, fields=u'')
     entityActionPerformed([Ent.RECIPIENT, msgTo, Ent.MESSAGE, msgSubject], i, count)
   except googleapiclient.errors.HttpError as e:
     entityActionFailedWarning([Ent.RECIPIENT, msgTo, Ent.MESSAGE, msgSubject], str(e), i, count)
@@ -6946,13 +6995,15 @@ def sendCreateUpdateUserNotification(notify, body, i=0, count=0, createMessage=T
   _makeSubstitutions(u'message')
   send_email(notify[u'subject'], notify[u'message'], notify[u'emailAddress'], i, count, html=notify[u'html'], charset=notify[u'charset'])
 
-# gam sendemail <RecipientEntity> [from <UserItem>] [replyto <EmailAddress>] [subject <String>] [message <String>|(file <FileName> [charset <CharSet>])] (replace <Tag> <String>)* [html [<Boolean>]]
+# gam sendemail <RecipientEntity> [from <UserItem>] [replyto <EmailAddress>] [subject <String>] [message <String>|(file <FileName> [charset <CharSet>])]
+#	(replace <Tag> <String>)* [html [<Boolean>]] (attach <FileName>)*
 #	[newuser <EmailAddress> firstname|givenname <String> lastname|familyname <string> password <Password>]
 def doSendEmail():
   body = {}
   notify = {u'subject': u'', u'message': u'', u'html': False, u'charset': u'utf-8'}
   msgFrom = msgReplyTo = None
   tagReplacements = _initTagReplacements()
+  attachments = []
   recipients = getEntityList(Cmd.OB_RECIPIENT_ENTITY)
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -6978,6 +7029,8 @@ def doSendEmail():
       body[u'password'] = notify[u'password'] = getString(Cmd.OB_PASSWORD, maxLen=100)
     elif myarg == u'replace':
       _getTagReplacement(tagReplacements, False)
+    elif myarg == u'attach':
+      attachments.append(getFilename())
     else:
       unknownArgumentExit()
   notify[u'message'] = notify[u'message'].replace(u'\r', u'').replace(u'\\n', u'\n')
@@ -6997,7 +7050,8 @@ def doSendEmail():
   performActionModifierNumItems(Act.MODIFIER_TO, count, Ent.RECIPIENT)
   for recipient in recipients:
     i += 1
-    send_email(notify[u'subject'], notify[u'message'], recipient, i, count, msgFrom, msgReplyTo, notify[u'html'], notify[u'charset'])
+    send_email(notify[u'subject'], notify[u'message'], recipient, i, count, msgFrom, msgReplyTo,
+               notify[u'html'], notify[u'charset'], attachments)
 
 ADDRESS_FIELDS_PRINT_ORDER = [u'contactName', u'organizationName', u'addressLine1', u'addressLine2', u'addressLine3', u'locality', u'region', u'postalCode', u'countryCode']
 
@@ -29484,7 +29538,6 @@ def _showDriveFilePermission(permission, printKeys, timeObjects, i=0, count=0):
 DRIVEFILE_ACL_ROLES_MAP = {
   u'commenter': u'commenter',
   u'editor': u'writer',
-  u'organizer': u'organizer',
   u'owner': u'owner',
   u'read': u'reader',
   u'reader': u'reader',
@@ -29494,7 +29547,7 @@ DRIVEFILE_ACL_ROLES_MAP = {
 DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # anyone must be first element
 
 # gam <UserTypeEntity> create|add drivefileacl <DriveFileEntity> anyone|(user <UserItem>)|(group <GroupItem>)|(domain <DomainName>)
-#	(role reader|commenter|writer|owner|editor|organizer) [withlink|(allowfilediscovery|discoverable [<Boolean>])] [expiration <Time>] [sendemail] [emailmessage <String>] [showtitles] [nodetails]
+#	(role <DriveFileACLRole>) [withlink|(allowfilediscovery|discoverable [<Boolean>])] [expiration <Time>] [sendemail] [emailmessage <String>] [showtitles] [nodetails]
 def createDriveFileACL(users):
   sendNotificationEmails = showTitles = False
   showDetails = True
@@ -29578,7 +29631,7 @@ def createDriveFileACL(users):
     Ind.Decrement()
 
 # gam <UserTypeEntity> update drivefileacl <DriveFileEntity> <DriveFilePermissionIDorEmail>
-#	(role reader|commenter|writer|owner|editor|organizer) [expiration <Time>] [removeexpiration [<Boolean>]] [showtitles] [nodetails]
+#	(role <DriveFileACLRole>) [expiration <Time>] [removeexpiration [<Boolean>]] [showtitles] [nodetails]
 def updateDriveFileACLs(users):
   fileIdEntity = getDriveFileEntity()
   body = {}
@@ -32418,9 +32471,6 @@ def _importInsertMessage(users, importMsg):
   from email.generator import Generator
   from email.header import Header
   from email.mime.text import MIMEText
-  from email.mime.audio import MIMEAudio
-  from email.mime.base import MIMEBase
-  from email.mime.image import MIMEImage
   from email.mime.multipart import MIMEMultipart
   from email.utils import formatdate
   from tempfile import TemporaryFile
@@ -32475,7 +32525,7 @@ def _importInsertMessage(users, importMsg):
     elif myarg == u'addlabel':
       addLabelNames.append(getString(Cmd.OB_LABEL_NAME, minLen=1))
     elif myarg == u'attach':
-      attachments.append(getString(Cmd.OB_FILE_NAME, minLen=1))
+      attachments.append(getFilename())
     elif myarg == u'deleted':
       deleted = getBoolean()
     elif importMsg and myarg == u'nevermarkspam':
@@ -32530,27 +32580,7 @@ def _importInsertMessage(users, importMsg):
         message = MIMEMultipart()
         textpart = MIMEText(tmpText, u'plain', UTF8)
         message.attach(textpart)
-      for attachFilename in attachments:
-        try:
-          attachFd = openFile(attachFilename, u'rb')
-          attachContentType, attachEncoding = mimetypes.guess_type(attachFilename)
-          if attachContentType is None or attachEncoding is not None:
-            attachContentType = u'application/octet-stream'
-          main_type, sub_type = attachContentType.split('/', 1)
-          if main_type == u'text':
-            msg = MIMEText(attachFd.read(), _subtype=sub_type)
-          elif main_type == u'image':
-            msg = MIMEImage(attachFd.read(), _subtype=sub_type)
-          elif main_type == u'audio':
-            msg = MIMEAudio(attachFd.read(), _subtype=sub_type)
-          else:
-            msg = MIMEBase(main_type, sub_type)
-            msg.set_payload(attachFd.read())
-          attachFd.close()
-          msg.add_header(u'Content-Disposition', u'attachment', filename=attachFilename)
-          message.attach(msg)
-        except IOError as e:
-          usageErrorExit(u'{0}: {1}'.format(attachFilename, str(e)))
+      _addAttachmentsToMessage(message, attachments)
     else:
       if tmpText and tmpHTML:
         message = MIMEMultipart(u'alternative')
