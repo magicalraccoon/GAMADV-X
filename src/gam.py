@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.61.08'
+__version__ = u'4.61.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3069,7 +3069,8 @@ def checkGAPIError(e, soft_errors=False, retryOnHttpError=False, service=None):
     elif (e.resp[u'status'] == u'400') and (u'Failed to parse Content-Range header' in e.content):
       error = {u'error': {u'code': 400, u'errors': [{u'reason': GAPI.BAD_REQUEST, u'message': u'Failed to parse Content-Range header'}]}}
     elif retryOnHttpError:
-      service._http.request.credentials.refresh(getHttpObj())
+      if hasattr(service._http.request, u'credentials'):
+        service._http.request.credentials.refresh(getHttpObj())
       return (-1, None, None)
     elif soft_errors:
       stderrErrorMsg(e.content)

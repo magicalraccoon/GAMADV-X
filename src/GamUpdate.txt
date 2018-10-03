@@ -1,3 +1,7 @@
+4.61.09
+
+Handle rare HTTP retry error.
+
 4.61.08
 
 Added cc <EmailAddressEntity>, bcc <EmailAddressEntity> and  singlemessage <Boolean> options to gam sendemail.
