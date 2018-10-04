@@ -2223,6 +2223,7 @@ gam <UserTypeEntity> update calattendees <UserCalendarEntity> <EventEntity> [any
 
 <DriveFileAttribute> ::=
         convert|
+        (copyrequireswriterpermission [<Boolean>])|
         (description <String>)|
         (folderColorRgb <ColorValue>)|
         (indexabletext <String>)|
@@ -2421,6 +2422,7 @@ gam <UserTypeEntity> collect orphans [anyowner|(showownedby any|me|others)] (ord
         canreadrevisions|
         capabilities|
         copyable|
+        copyrequireswriterpermission|
         createddate|createdtime|
         description|
         editable|

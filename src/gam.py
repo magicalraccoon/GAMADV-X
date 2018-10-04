@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.61.09'
+__version__ = u'4.61.10'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -235,11 +235,11 @@ VX_PAGES_REVISIONS = u'items'
 VX_PARENTS_ID = u'parents(id)'
 VX_TRASHED = u'labels(trashed)'
 
-VX_COPY_FOLDER_FIELDS = u'{0},description,folderColorRgb,mimeType,modifiedDate,properties,labels(restricted,starred),lastViewedByMeDate,writersCanShare'.format(VX_PARENTS_ID)
+VX_COPY_FOLDER_FIELDS = u'{0},copyRequiresWriterPermission,description,folderColorRgb,mimeType,modifiedDate,properties,labels(starred),lastViewedByMeDate,writersCanShare'.format(VX_PARENTS_ID)
 VX_DOWNLOAD_FIELDS = u'{0},fileExtension,mimeType,{1}'.format(VX_FILENAME, VX_SIZE)
 VX_FILENAME_MIMETYPE = u'{0},mimeType'.format(VX_FILENAME)
 VX_FILENAME_PARENTS = u'{0},{1}'.format(VX_FILENAME, VX_PARENTS_ID)
-VX_FILENAME_PARENTS_COPY_FILE_FIELDS = u'id,{0},{1},capabilities,description,mimeType,modifiedDate,properties,labels(restricted,starred),lastViewedByMeDate,writersCanShare'.format(VX_FILENAME, VX_PARENTS_ID)
+VX_FILENAME_PARENTS_COPY_FILE_FIELDS = u'id,{0},{1},capabilities,copyRequiresWriterPermission,description,mimeType,modifiedDate,properties,labels(starred),lastViewedByMeDate,writersCanShare'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_FILENAME_PARENTS_MIMETYPE = u'{0},{1},mimeType'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_FILES_ID_FILENAME = u'{0}(id,{1})'.format(VX_PAGES_FILES, VX_FILENAME)
 VX_ID_FILENAME = u'id,{0}'.format(VX_FILENAME)
@@ -257,7 +257,7 @@ VX_NPT_FILES_ID = u'nextPageToken,{0}(id)'.format(VX_PAGES_FILES)
 VX_NPT_FILES_ID_FILENAME = u'nextPageToken,{0}(id,{1})'.format(VX_PAGES_FILES, VX_FILENAME)
 VX_NPT_FILES_ID_FILENAME_CAPABILITIES_MIMETYPE_MODIFIEDTIME = u'nextPageToken,{0}({1},id,capabilities,mimeType,{2})'.format(VX_PAGES_FILES, VX_FILENAME, VX_MODIFIED_TIME)
 VX_NPT_FILES_ID_FILENAME_OWNEDBYME = u'nextPageToken,{0}(id,{1},ownedByMe)'.format(VX_PAGES_FILES, VX_FILENAME)
-VX_NPT_FILES_ID_FILENAME_PARENTS_COPY_FIELDS = u'nextPageToken,{0}(id,{1},{2},capabilities,description,folderColorRgb,mimeType,modifiedDate,properties,labels(restricted,starred),lastViewedByMeDate,writersCanShare)'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
+VX_NPT_FILES_ID_FILENAME_PARENTS_COPY_FIELDS = u'nextPageToken,{0}(id,{1},{2},capabilities,copyRequiresWriterPermission,description,folderColorRgb,mimeType,modifiedDate,properties,labels(starred),lastViewedByMeDate,writersCanShare)'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE = u'nextPageToken,{0}(id,{1},{2},mimeType)'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe)'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_OWNERS = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,owners(emailAddress,permissionId))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
@@ -25139,15 +25139,12 @@ def _getDriveFileAddRemoveParentInfo(user, i, count, parameters, drive):
   return (True, u','.join(addParents), u','.join(removeParents))
 
 DRIVEFILE_LABEL_CHOICE_MAP = {
-  u'restrict': u'restricted',
-  u'restricted': u'restricted',
   u'star': u'starred',
   u'starred': u'starred',
   u'trash': u'trashed',
   u'trashed': u'trashed',
   u'view': u'viewed',
   u'viewed': u'viewed',
-  u'viewerscancopycontent': u'restricted',
   }
 
 MIMETYPE_CHOICE_MAP = {
@@ -25270,12 +25267,13 @@ def getDriveFileAttribute(myarg, body, parameters, assignLocalName):
     parameters[DFA_OCR] = True
   elif myarg == u'ocrlanguage':
     parameters[DFA_OCRLANGUAGE] = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
+  elif myarg == u'viewerscancopycontent':
+    body[u'copyRequiresWriterPermission'] = not getBoolean()
+  elif myarg in [u'copyrequireswriterpermission', u'restrict', u'restricted']:
+    body[u'copyRequiresWriterPermission'] = getBoolean()
   elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
     body.setdefault(u'labels', {})
-    if myarg != u'viewerscancopycontent':
-      body[u'labels'][DRIVEFILE_LABEL_CHOICE_MAP[myarg]] = getBoolean()
-    else:
-      body[u'labels'][DRIVEFILE_LABEL_CHOICE_MAP[myarg]] = not getBoolean()
+    body[u'labels'][DRIVEFILE_LABEL_CHOICE_MAP[myarg]] = getBoolean()
   elif myarg in [u'lastviewedbyme', u'lastviewedbyuser', u'lastviewedbymedate', u'lastviewedbymetime']:
     body[VX_VIEWED_BY_ME_TIME] = getTimeOrDeltaFromNow()
   elif myarg == u'description':
@@ -25690,6 +25688,7 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'canreadrevisions': u'capabilities.canReadRevisions',
   u'capabilities': u'capabilities',
   u'copyable': u'capabilities.canCopy',
+  u'copyrequireswriterpermission': u'copyRequiresWriterPermission',
   u'createddate': VX_CREATED_TIME,
   u'createdtime': VX_CREATED_TIME,
   u'description': u'description',
@@ -25734,6 +25733,8 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'properties': u'properties',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
+  u'restrict': u'copyRequiresWriterPermission',
+  u'restricted': u'copyRequiresWriterPermission',
   u'shareable': u'capabilities.canShare',
   u'shared': u'shared',
   u'sharedwithmedate': VX_SHARED_WITH_ME_TIME,
@@ -25750,7 +25751,7 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'viewedbyme': u'labels.viewed',
   u'viewedbymedate': VX_VIEWED_BY_ME_TIME,
   u'viewedbymetime': VX_VIEWED_BY_ME_TIME,
-  u'viewerscancopycontent': u'labels.restricted',
+  u'viewerscancopycontent': u'copyRequiresWriterPermission',
   u'webcontentlink': u'webContentLink',
   u'webviewlink': VX_WEB_VIEW_LINK,
   u'writerscanshare': u'writersCanShare',
@@ -29280,7 +29281,7 @@ def claimOwnership(users):
     elif myarg == u'orderby':
       getDrivefileOrderBy(orderByList)
     elif myarg == u'restricted':
-      bodyShare[u'labels'][u'restricted'] = getBoolean()
+      bodyShare[u'copyRequiresWriterPermission'] = getBoolean()
     elif myarg == u'writerscanshare':
       bodyShare[u'writersCanShare'] = getBoolean()
     elif myarg == u'writerscantshare':
