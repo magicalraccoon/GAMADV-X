@@ -144,6 +144,7 @@ If an item contains spaces, it should be surrounded by ".
 <CalendarColorIndex> ::= <Number in range 1-24>
 <CalendarItem> ::= <EmailAddress>|<String>
 <ChatRoom> ::= <String>
+<ClassroomInvitationID> ::= <String>
 <ClientID> ::= <String>
 <ColorValue> ::= <ColorName>|<ColorHex>
 <ContactID> ::= <String>
@@ -271,6 +272,7 @@ If an item contains spaces, it should be surrounded by ".
 <CalendarACLScopeList> ::= "<CalendarACLScope>(,<CalendarACLScope>)*"
 <CalendarList> ::= "<CalendarItem>(,<CalendarItem>)*"
 <ChatRoomList> ::= "<ChatRoom>(,<ChatRoom>)*"
+<ClassroomInvitationIDList> ::= "<ClassroomInvitationID>(,<ClassroomInvitationID>)*"
 <ContactGroupList> ::= "<ContactGroupItem>(,<ContactGroupItem>)*"
 <ContactIDList> ::= "<ContactID>(,<ContactID>)*"
 <CourseAliasList> ::= "<CourseAlias>(,<CourseAlias>)*"
@@ -297,7 +299,7 @@ If an item contains spaces, it should be surrounded by ".
 <FileFormatList> ::= "<FileFormat>(,<FileFormat)*"
 <FilterIDList> ::= "<FilterID>(,<FilterID>)*"
 <GuardianItemList> ::= "<GuardianItem>(,<GuardianItem>)*"
-<GuardianInvitationIDList> ::= "<GuardianInvitationId>(,<GuardianInvitationID>)*"
+<GuardianInvitationIDList> ::= "<GuardianInvitationID>(,<GuardianInvitationID>)*"
 <GroupList> ::= "<GroupItem>(,<GroupItem>)*"
 <GroupRoleList> ::= "<GroupRole>(,<GroupRole>)*"
 <LabelNameList> ::= "<LabelName>(,<LabelName)*"
@@ -424,6 +426,7 @@ Specify a collection of items by directly specifying them; the item type is dete
 
 <CalendarACLScopeEntity>::= <CalendarACLScopeList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <CalendarEntity> ::= <CalendarList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
+<ClassroomInvitationIDEntity> ::= <ClassroomInvitationIDList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactEntity> ::= <ContactIDList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <ContactGroupEntity> ::= <ContactGroupList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <CourseAliasEntity> ::= <CourseAliasList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
@@ -1025,7 +1028,7 @@ gam print gal [todrive <ToDriveAttribute>*] [query <QueryContact>] [emailmatchpa
         [basic|full] [orderby <ContactOrderByFieldName> [ascending|descending]]
         [fields <ContactFieldNameList>] [formatjson] [quotechar <Character>]
 
-# Courses
+# Classroom - Courses
 
 <CourseAnnouncementState> ::= draft|published|deleted
 <CourseAnnouncementStateList> ::= "<CourseAnnouncementState>(,<CourseAnnouncementState>)*"
@@ -1089,6 +1092,7 @@ gam course <CourseID> delete alias <CourseAlias>
 
 gam course <CourseID> create|add teachers|students <UserItem>
 gam course <CourseID> delete|remove teachers|students <UserItem>
+gam course <CourseID> clear teachers|students
 gam course <CourseID> sync teachers|students [addonly|removeonly] <UserTypeEntity>
 
 gam courses <CourseEntity> create|add alias <CourseAliasEntity>
@@ -1096,6 +1100,7 @@ gam courses <CourseEntity> delete alias <CourseAliasEntity>
 
 gam courses <CourseEntity> create|add teachers|students <UserTypeEntity>
 gam courses <CourseEntity> delete|remove teachers|students <UserTypeEntity>
+gam courses <CourseEntity> clear teachers|students
 gam courses <CourseEntity> sync teachers|students [addonly|removeonly] <UserTypeEntity>
 
 gam info course <CourseID> [owneremail] [alias|aliases] [show all|students|teachers] [countsonly]
@@ -1172,14 +1177,65 @@ gam print course-participants [todrive <ToDriveAttribute>*] (course|class <Cours
 
 gam print course-announcements [todrive <ToDriveAttribute>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
         (announcementids <CourseAnnouncementIDEntity>)|((announcementstates <CourseAnnouncementStateList>)* (orderby <CourseAnnouncementOrderByFieldName> [ascending|descending])*)
-        [creatoremail] [fields <CourseAnnouncementFieldNameList>] [formatjson] [quotechar <Character>]
+        [showcreatoremails] [fields <CourseAnnouncementFieldNameList>] [formatjson] [quotechar <Character>]
 gam print course-work [todrive <ToDriveAttribute>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
         (workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)* (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
-        [creatoremail] [fields <CourseWorkFieldNameList>] [formatjson] [quotechar <Character>]
+        [showcreatoremails] [fields <CourseWorkFieldNameList>] [formatjson] [quotechar <Character>]
 gam print course-submissions [todrive <ToDriveAttribute>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
         (workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)* (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
         (submissionids <CourseSubmissionIDEntity>)|((submissionstates <CourseSubmissionStateList>)*) [late|notlate]
         [fields <CourseSubmissionFieldNameList>] [formatjson] [quotechar <Character>] [showuserprofile]
+
+# Classroom - Invitations
+
+gam <UserTypeEntity> create classroominvitation courses <CourseEntity> [role owner|student|teacher]
+        [csvformat] [todrive <ToDriveAttributes>*] [formatjson] [quotechar <Character>]
+gam <UserTypeEntity> accept classroominvitation (ids <ClassroomInvitationIDEntity>)|([courses <CourseEntity>] [role all|owner|student|teacher])
+gam <UserTypeEntity> delete classroominvitation (ids <ClassroomInvitationIDEntity>)|([courses <CourseEntity>] [role all|owner|student|teacher])
+gam <UserTypeEntity> show classroominvitations [role all|owner|student|teacher]
+        [formatjson]
+gam <UserTypeEntity> print classroominvitations [todrive <ToDriveAttributes>*] [role all|owner|student|teacher]
+        [formatjson] [quotechar <Character>]
+
+gam show classroominvitations (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>])
+        [role all|owner|student|teacher] [formatjson]
+gam print classroominvitations [todrive <ToDriveAttributes>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>])
+        [role all|owner|student|teacher] [formatjson] [quotechar <Character>]
+
+# Classroom - Guardians
+
+<GuardianInvitationState> ::=
+        complete|
+        pending
+<GuardianInvitationStateList> ::= "<GuardianInvitationState>(,<GuardianInvitationState>)*"
+
+## Selected students, new style
+
+gam <UserTypeEntity> create|add guardian|guardianinvitation <GuardianEntity>
+gam <UserTypeEnfity> cancel guardianinvitation|guardianinvitations <GuardianInvitationIDEntity>
+gam <UserTypeEntity> delete guardian|guardians <GuardianEntity> [accepted|invitations|all]
+gam <UserTypeEntity> clear guardian|guardians [accepted|invitations|all]
+gam <UserTypeEntity> sync guardian|guardians <GuardianEntity>
+gam <UserTypeEntity> show guardian|guardians [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
+        [showstudentemails] [formatjson]
+gam <UserTypeEntity> print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
+        [showstudentemails] [formatjson] [quotechar <Character>]
+
+## Selected students, old style
+
+gam create|add guardian|guardianinvitation <EmailAddress> <StudentItem>
+gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+gam delete guardian|guardians <GuardianItem> <StudentItem> [accepted|invitations|all]
+gam show guardian|guardians [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
+        [student <StudentItem>] [<UserTypeEntity>]
+        [showstudentemails] [formatjson]
+gam print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
+        [student <StudentItem>] [<UserTypeEntity>]
+        [showstudentemails] [formatjson] [quotechar <Character>]
+
+## All students
+gam print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
+        [showstudentemails] [formatjson] [quotechar <Character>]
 
 # Customer
 
@@ -1376,41 +1432,6 @@ gam show group-members
         ([domain <DomainName>] ([member <UserItem>]|[query <QueryGroup>]))|[group|group_ns|group_susp <GroupItem>]|[select <GroupEntity>] [notsuspended|suspended]
         [emailmatchpattern <RegularExpression>] [namematchpattern <RegularExpression>] [descriptionmatchpattern <RegularExpression>]
         [roles <GroupRoleList>] [members] [managers] [owners] [depth <Number>]
-
-# Guardians
-
-<GuardianInvitationState> ::=
-        complete|
-        pending
-<GuardianInvitationStateList> ::= "<GuardianInvitationState>(,<GuardianInvitationState>)*"
-
-## Selected students, new style
-
-gam <UserTypeEntity> create|add guardian|guardianinvite|inviteguardian <GuardianEntity>
-gam <UserTypeEnfity> cancel guardianinvitation|guardianinvitations <GuardianInvitationIDEntity>
-gam <UserTypeEntity> delete guardian|guardians <GuardianEntity> [accepted|invitations|all]
-gam <UserTypeEntity> clear guardian|guardians [accepted|invitations|all]
-gam <UserTypeEntity> sync guardian|guardians <GuardianEntity>
-gam <UserTypeEntity> show guardian|guardians [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
-        [showstudentemails] [formatjson]
-gam <UserTypeEntity> print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
-        [showstudentemails] [formatjson] [quotechar <Character>]
-
-## Selected students, old style
-
-gam create|add guardian|guardianinvite|inviteguardian <EmailAddress> <StudentItem>
-gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
-gam delete guardian|guardians <GuardianItem> <StudentItem> [accepted|invitations|all]
-gam show guardian|guardians [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
-        [student <StudentItem>] [<UserTypeEntity>]
-        [showstudentemails] [formatjson]
-gam print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
-        [student <StudentItem>] [<UserTypeEntity>]
-        [showstudentemails] [formatjson] [quotechar <Character>]
-
-## All students
-gam print guardian|guardians [todrive <ToDriveAttribute>*] [accepted|invitations|all] [states <GuardianInvitationStateList>] [invitedguardian <EmailAddress>]
-        [showstudentemails] [formatjson] [quotechar <Character>]
 
 # Licenses
 
