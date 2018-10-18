@@ -1,3 +1,12 @@
+4.61.16
+
+Updated gam create classroominvitation to send invitations as the owner of the course rather than as
+the Google admin in oauth2.txt.
+
+4.61.15
+
+Skipped.
+
 4.61.14
 
 Simplify gam <UserTypeEntity> add/delete groups; handle additional errors.
