@@ -23386,7 +23386,7 @@ def createClassroomInvitations(users):
     if formatJSON:
       sortTitles = [u'userEmail', u'JSON']
     else:
-      sortTitles =[u'userId', u'userEmail', u'courseId', u'courseName', u'id', u'role']
+      sortTitles = [u'userId', u'userEmail', u'courseId', u'courseName', u'id', u'role']
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   courseIdsLists = courseIds if isinstance(courseIds, dict) else None
   if courseIdsLists is None:
@@ -23531,7 +23531,7 @@ def printShowClassroomInvitations(users, csvFormat):
     if formatJSON:
       sortTitles = [u'userEmail', u'JSON']
     else:
-      sortTitles =[u'userId', u'userEmail', u'courseId', u'courseName', u'id', u'role']
+      sortTitles = [u'userId', u'userEmail', u'courseId', u'courseName', u'id', u'role']
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   entityType = CLASSROOM_ROLE_ENTITY_MAP[role]
   i, count, users = getEntityArgument(users)
