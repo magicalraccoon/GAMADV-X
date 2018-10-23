@@ -4763,21 +4763,26 @@ def writeCSVfile(csvRows, titles, list_type, todrive, sortTitles=None, quotechar
                             quoting=csv.QUOTE_MINIMAL, quotechar=quotechar,
                             delimiter=delimiter, lineterminator='\n')
     if writeCSVData(writer):
-      if GC.Values[GC.TODRIVE_CONVERSION]:
-        columns = len(titles[u'list'])
-        rows = len(csvRows)
-        cell_count = rows * columns
-        mimeType = MIMETYPE_GA_SPREADSHEET
-        if cell_count > 2000000 or columns > 256:
-          printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
-          mimeType = u'text/csv'
-      else:
-        mimeType = u'text/csv'
       title = todrive[u'title'] or u'{0} - {1}'.format(GC.Values[GC.DOMAIN], list_type)
       if todrive[u'timestamp']:
         title += u' - '+ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset']))
       _, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'], 0, 0)
+      if drive is None:
+        closeFile(csvFile)
+        return
       try:
+        if GC.Values[GC.TODRIVE_CONVERSION]:
+          columns = len(titles[u'list'])
+          rows = len(csvRows)
+          cell_count = rows * columns
+          mimeType = MIMETYPE_GA_SPREADSHEET
+          result = callGAPI(drive.about(), u'get',
+                            fields=u'maxImportSizes')
+          if cell_count > 2000000 or columns > 256 or csvFile.tell() > int(result[u'maxImportSizes'][MIMETYPE_GA_SPREADSHEET]):
+            printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
+            mimeType = u'text/csv'
+        else:
+          mimeType = u'text/csv'
         if not todrive[u'fileId']:
           result = callGAPI(drive.files(), u'create',
                             throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
