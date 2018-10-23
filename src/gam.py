@@ -14677,6 +14677,7 @@ def infoGroupMembers(entityList):
         result = callGAPI(cd.members(), u'get',
                           throw_reasons=GAPI.MEMBERS_THROW_REASONS+[GAPI.MEMBER_NOT_FOUND], retry_reasons=GAPI.MEMBERS_RETRY_REASONS,
                           groupKey=groupKey, memberKey=memberKey, fields=fields)
+        result.setdefault(u'role', Ent.ROLE_MEMBER)
         printEntity([Ent.GROUP, groupKey], j, jcount)
         Ind.Increment()
         for field in INFO_GROUPMEMBERS_FIELDS:
@@ -14685,7 +14686,7 @@ def infoGroupMembers(entityList):
       except (GAPI.groupNotFound, GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.invalid, GAPI.forbidden) as e:
         entityActionFailedWarning([Ent.GROUP, group], str(e), j, jcount)
       except GAPI.memberNotFound:
-        entityActionFailedWarning([Ent.MEMBER, memberKey], Msg.DOES_NOT_EXIST, j, jcount)
+        entityActionFailedWarning([Ent.GROUP, group], Msg.NOT_AN_ENTITY.format(Ent.Singular(Ent.MEMBER)), j, jcount)
     Ind.Decrement()
 
 # gam info member <UserTypeEntity> <GroupEntity>
