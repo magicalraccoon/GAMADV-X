@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.61.20'
+__version__ = u'4.61.21'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -23152,7 +23152,7 @@ CLASSROOM_ROLE_OWNER = u'OWNER'
 CLASSROOM_ROLE_STUDENT = u'STUDENT'
 CLASSROOM_ROLE_TEACHER = u'TEACHER'
 
-def _getCoursesOwnerInfo(croom, courseIds, coursesInfo):
+def _getCoursesOwnerInfo(croom, courseIds, coursesInfo, useAdminAccess):
   for courseId in courseIds:
     courseId = addCourseIdScope(courseId)
     if courseId not in coursesInfo:
@@ -23161,7 +23161,10 @@ def _getCoursesOwnerInfo(croom, courseIds, coursesInfo):
         info = callGAPI(croom.courses(), u'get',
                         throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
                         id=courseId, fields=u'name,ownerId')
-        _, ocroom = buildGAPIServiceObject(API.CLASSROOM, u'uid:{0}'.format(info[u'ownerId']), 0, 0)
+        if not useAdminAccess:
+          _, ocroom = buildGAPIServiceObject(API.CLASSROOM, u'uid:{0}'.format(info[u'ownerId']), 0, 0)
+        else:
+          ocroom = croom
         if ocroom is not None:
           coursesInfo[courseId] = {u'name': info[u'name'], u'croom': ocroom}
       except GAPI.notFound:
@@ -23235,7 +23238,7 @@ CLASSROOM_ROLE_ENTITY_MAP = {
   }
 
 # gam <UserTypeEntity> create classroominvitation courses <CourseEntity> [role owner|student|teacher]
-#	[csvformat] [todrive <ToDriveAttributes>*] [formatjson] [quotechar <Character>]
+#	[adminaccess|asadmin] [csvformat] [todrive <ToDriveAttributes>*] [formatjson] [quotechar <Character>]
 def createClassroomInvitations(users):
   croom = buildGAPIObject(API.CLASSROOM)
   classroomEmails = {}
@@ -23243,7 +23246,7 @@ def createClassroomInvitations(users):
   coursesInfo = {}
   role = CLASSROOM_ROLE_STUDENT
   todrive = {}
-  csvFormat = formatJSON = False
+  csvFormat = formatJSON = useAdminAccess = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -23259,6 +23262,8 @@ def createClassroomInvitations(users):
       formatJSON = True
     elif myarg == u'quotechar':
       quotechar = getCharacter()
+    elif myarg in [u'adminaccess', u'asadmin']:
+      useAdminAccess = True
     else:
       unknownArgumentExit()
   if courseIds is None:
@@ -23271,7 +23276,7 @@ def createClassroomInvitations(users):
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   courseIdsLists = courseIds if isinstance(courseIds, dict) else None
   if courseIdsLists is None:
-    _getCoursesOwnerInfo(croom, courseIds, coursesInfo)
+    _getCoursesOwnerInfo(croom, courseIds, coursesInfo, useAdminAccess)
   entityType = CLASSROOM_ROLE_ENTITY_MAP[role]
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -23280,7 +23285,7 @@ def createClassroomInvitations(users):
     userEmail = _getClassroomEmail(croom, classroomEmails, userId, userId)
     if courseIdsLists:
       courseIds = courseIdsLists[user]
-      _getCoursesOwnerInfo(croom, courseIds, coursesInfo)
+      _getCoursesOwnerInfo(croom, courseIds, coursesInfo, useAdminAccess)
     jcount = len(courseIds)
     if csvFormat or not formatJSON:
       entityPerformActionNumItems([Ent.USER, userId], jcount, entityType, i, count)
