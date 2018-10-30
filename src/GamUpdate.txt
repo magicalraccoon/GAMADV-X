@@ -1,3 +1,16 @@
+4.65.00
+
+Added delete_cleared_contacts_with_no_emails option to gam clear contacts.
+A contact may contain no email addresses after matching email addresses are cleared. If you do not want to keep contacts with no
+email addresses after clearing, use the delete_cleared_contacts_with_no_emails option and they will be deleted.
+Contacts with no email addresses before clearing will not be affected.
+
+User contacts may be assigned to Contact Groups or may be unassigned and appear under Other Contacts. The Contacts API
+allows selection of contacts by Contact Group; in Gam you specify selectcontactgroup <ContactGroupItem>. However, the API
+does not allow selection of contacts from the Other Contacts section. If you specify selectothercontacts, then GAM will select only the contacts from "Other Contacts".
+<UserContactSelection> ::=
+        [query <QueryContact>] [(selectcontactgroup <ContactGroupItem>)|selectothercontacts] [emailmatchpattern <RegularExpression>] [emailmatchtype work|home|other|<String>] [updated_min <Date>]
+
 4.61.25
 
 Fixed bug in gam print/show sites that caused a trap.
@@ -351,8 +364,8 @@ Skipped.
 
 4.60.23
 
-Support `gam.cfg/no_verify_ssl = true` for user contacts and sites to avoid this error:
-`Temporary error: 3 - Connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:661)`
+Support gam.cfg/no_verify_ssl = true for user contacts and sites to avoid this error:
+Temporary error: 3 - Connection error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:661)
 
 Handle socket.error messages in non-ASCII character sets.
 
