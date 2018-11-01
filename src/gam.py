@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.01'
+__version__ = u'4.65.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -21732,6 +21732,38 @@ def _getCourseSelectionParameters(myarg, courseSelectionParameters):
     return False
   return True
 
+COURSE_CU_FILTER_FIELDS_MAP = {u'creationtime': u'creationTime', u'updatetime': u'updateTime'}
+COURSE_CUS_FILTER_FIELDS_MAP = {u'creationtime': u'creationTime', u'updatetime': u'updateTime', u'scheduledtime': u'scheduledTime'}
+COURSE_START_ARGUMENTS = [u'start', u'startdate', u'oldestdate']
+COURSE_END_ARGUMENTS = [u'end', u'enddate']
+
+def _initCourseItemFilter():
+  return {u'timefilter': None, u'startTime': None, u'endTime': None}
+
+def _getCourseItemFilter(myarg, courseItemFilter, courseFilterFields):
+  if myarg == u'timefilter':
+    courseItemFilter[u'timefilter'] = getChoice(courseFilterFields, mapChoice=True)
+  elif myarg in COURSE_START_ARGUMENTS:
+    courseItemFilter[u'startTime'], _, _ = getTimeOrDeltaFromNow(True)
+  elif myarg in COURSE_END_ARGUMENTS:
+    courseItemFilter[u'endTime'], _, _ = getTimeOrDeltaFromNow(True)
+  else:
+    return False
+  return True
+
+def _setApplyCourseItemFilter(courseItemFilter, fieldsList):
+  if courseItemFilter[u'timefilter'] and (courseItemFilter[u'startTime'] or courseItemFilter[u'endTime']):
+    if fieldsList:
+      fieldsList.append(courseItemFilter[u'timefilter'])
+    return True
+  return False
+
+def _courseItemPassesFilter(item, courseItemFilter):
+  startTime = courseItemFilter[u'startTime']
+  endTime = courseItemFilter[u'endTime']
+  timeValue, _ = iso8601.parse_date(item[courseItemFilter[u'timefilter']])
+  return ((startTime is None) or (timeValue >= startTime)) and ((endTime is None) or (timeValue <= endTime))
+
 def _gettingCoursesQuery(courseSelectionParameters):
   query = u''
   if courseSelectionParameters[u'teacherId']:
@@ -21787,6 +21819,7 @@ def _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties):
 # gam print courses [todrive <ToDriveAttributes>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] [states <CourseStateList>])
 #	[owneremail] [owneremailmatchpattern <RegularExpression>] [alias|aliases] [delimiter <Character>] [show none|all|students|teachers] [countsonly]
 #	[fields <CourseFieldNameList>] [skipfields <CourseFieldNameList>] [formatjson] [quotechar <Character>]
+#	[timefilter creationtime|updatetime] [start|starttime <Date>|<DateTime>] [end|endtime <Date>|<DateTime>]
 def doPrintCourses():
   def _saveParticipants(course, participants, role, rtitles):
     jcount = len(participants)
@@ -21820,6 +21853,7 @@ def doPrintCourses():
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'id',])
   courseSelectionParameters = _initCourseSelectionParameters()
+  courseItemFilter = _initCourseItemFilter()
   courseShowProperties = _initCourseShowProperties()
   ownerEmails = {}
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
@@ -21831,6 +21865,8 @@ def doPrintCourses():
       todrive = getTodriveParameters()
     elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
       pass
+    elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CU_FILTER_FIELDS_MAP):
+      pass
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == u'formatjson':
@@ -21840,6 +21876,10 @@ def doPrintCourses():
       quotechar = getCharacter()
     else:
       _getCourseShowProperties(myarg, courseShowProperties)
+  applyCourseItemFilter = _setApplyCourseItemFilter(courseItemFilter, None)
+  if applyCourseItemFilter:
+    if courseShowProperties[u'fields']:
+      courseShowProperties[u'fields'].append(courseItemFilter[u'timefilter'])
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
@@ -21869,6 +21909,8 @@ def doPrintCourses():
   i = 0
   for course in coursesInfo:
     i += 1
+    if applyCourseItemFilter and not _courseItemPassesFilter(course, courseItemFilter):
+      continue
     for field in courseShowProperties[u'skips']:
       course.pop(field, None)
     courseId = course[u'id']
@@ -21945,8 +21987,11 @@ COURSE_ANNOUNCEMENTS_TIME_OBJECTS = set([u'creationTime', u'scheduledTime', u'up
 # gam print course-announcements [todrive <ToDriveAttributes>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
 #	(announcementids <CourseAnnouncementIDEntity>)|((announcementstates <CourseAnnouncementStateList>)* (orderby <CourseAnnouncementOrderByFieldName> [ascending|descending])*)
 #	[showcreatoremails] [fields <CourseAnnouncementFieldNameList>] [formatjson] [quotechar <Character>]
+#	[timefilter creationtime|updatetime|scheduledtime] [start|starttime <Date>|<DateTime>] [end|endtime <Date>|<DateTime>]
 def doPrintCourseAnnouncements():
   def _printCourseAnnouncement(course, courseAnnouncement, i, count):
+    if applyCourseItemFilter and not _courseItemPassesFilter(courseAnnouncement, courseItemFilter):
+      return
     if showCreatorEmail:
       courseAnnouncement[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseAnnouncement[u'creatorUserId'], creatorEmails,
                                                                             [Ent.COURSE, course[u'id'], Ent.COURSE_ANNOUNCEMENT_ID, courseAnnouncement[u'id'],
@@ -21963,6 +22008,7 @@ def doPrintCourseAnnouncements():
   titles, csvRows = initializeTitlesCSVfile([u'courseId', u'courseName'])
   fieldsList = []
   courseSelectionParameters = _initCourseSelectionParameters()
+  courseItemFilter = _initCourseItemFilter()
   courseShowProperties = _initCourseShowProperties([u'name',])
   courseAnnouncementIds = []
   courseAnnouncementStates = []
@@ -21975,6 +22021,8 @@ def doPrintCourseAnnouncements():
     if myarg == u'todrive':
       todrive = getTodriveParameters()
     elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
+      pass
+    elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CUS_FILTER_FIELDS_MAP):
       pass
     elif myarg in [u'announcementid', u'announcementids']:
       courseAnnouncementIds = getEntityList(Cmd.OB_COURSE_ANNOUNCEMENT_ID_ENTITY)
@@ -22001,6 +22049,7 @@ def doPrintCourseAnnouncements():
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
+  applyCourseItemFilter = _setApplyCourseItemFilter(courseItemFilter, fieldsList)
   if showCreatorEmail and fieldsList:
     fieldsList.append(u'creatorUserId')
   courseAnnouncementIdsLists = courseAnnouncementIds if isinstance(courseAnnouncementIds, dict) else None
@@ -22097,8 +22146,11 @@ def _gettingCourseWorkQuery(courseWorkStates):
 # gam print course-work [todrive <ToDriveAttributes>*] (course|class <CourseEntity>)*|([teacher <UserItem>] [student <UserItem>] states <CourseStateList>])
 #	(workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
 #	[showcreatoremails] [fields <CourseWorkFieldNameList>] [formatjson] [quotechar <Character>]
+#	[timefilter creationtime|updatetime|scheduledtime] [start|starttime <Date>|<DateTime>] [end|endtime <Date>|<DateTime>]
 def doPrintCourseWork():
   def _printCourseWork(course, courseWork, i, count):
+    if applyCourseItemFilter and not _courseItemPassesFilter(courseWork, courseItemFilter):
+      return
     if showCreatorEmail:
       courseWork[u'creatorUserEmail'] = _convertCourseUserIdToEmail(croom, courseWork[u'creatorUserId'], creatorEmails,
                                                                     [Ent.COURSE, course[u'id'], Ent.COURSE_WORK_ID, courseWork[u'id'],
@@ -22116,6 +22168,7 @@ def doPrintCourseWork():
   fieldsList = []
   courseSelectionParameters = _initCourseSelectionParameters()
   courseWorkSelectionParameters = _initCourseWorkSelectionParameters()
+  courseItemFilter = _initCourseItemFilter()
   courseShowProperties = _initCourseShowProperties([u'name',])
   orderByList = []
   creatorEmails = {}
@@ -22128,6 +22181,8 @@ def doPrintCourseWork():
     elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
       pass
     elif _getCourseWorkSelectionParameters(myarg, courseWorkSelectionParameters):
+      pass
+    elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CUS_FILTER_FIELDS_MAP):
       pass
     elif myarg == u'orderby':
       fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
@@ -22152,6 +22207,7 @@ def doPrintCourseWork():
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
+  applyCourseItemFilter = _setApplyCourseItemFilter(courseItemFilter, fieldsList)
   courseWorkIds = courseWorkSelectionParameters[u'courseWorkIds']
   courseWorkIdsLists = courseWorkIds if isinstance(courseWorkIds, dict) else None
   i = 0
@@ -22231,8 +22287,11 @@ def _gettingCourseSubmissionQuery(courseSubmissionStates, late, userId):
 #	(workids <CourseWorkIDEntity>)|((workstates <CourseWorkStateList>)*  (orderby <CourseWorkOrderByFieldName> [ascending|descending])*)
 #	(submissionids <CourseSubmissionIDEntity>)|((submissionstates <CourseSubmissionStateList>)*) [late|notlate]
 #	[fields <CourseSubmissionFieldNameList>] [formatjson] [quotechar <Character>] [showuserprofile]
+#	[timefilter creationtime|updatetime] [start|starttime <Date>|<DateTime>] [end|endtime <Date>|<DateTime>]
 def doPrintCourseSubmissions():
   def _printCourseSubmission(course, courseSubmission):
+    if applyCourseItemFilter and not _courseItemPassesFilter(courseSubmission, courseItemFilter):
+      return
     if showUserProfile:
       userId = courseSubmission.get(u'userId')
       if userId:
@@ -22258,6 +22317,7 @@ def doPrintCourseSubmissions():
   fieldsList = []
   courseSelectionParameters = _initCourseSelectionParameters()
   courseWorkSelectionParameters = _initCourseWorkSelectionParameters()
+  courseItemFilter = _initCourseItemFilter()
   courseShowProperties = _initCourseShowProperties([u'name',])
   courseSubmissionStates = []
   courseSubmissionIds = []
@@ -22273,6 +22333,8 @@ def doPrintCourseSubmissions():
     elif _getCourseSelectionParameters(myarg, courseSelectionParameters):
       pass
     elif _getCourseWorkSelectionParameters(myarg, courseWorkSelectionParameters):
+      pass
+    elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CU_FILTER_FIELDS_MAP):
       pass
     elif myarg == u'orderby':
       fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
@@ -22303,6 +22365,7 @@ def doPrintCourseSubmissions():
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
+  applyCourseItemFilter = _setApplyCourseItemFilter(courseItemFilter, fieldsList)
   courseWorkIds = courseWorkSelectionParameters[u'courseWorkIds']
   courseWorkIdsLists = courseWorkIds if isinstance(courseWorkIds, dict) else None
   courseSubmissionIdsLists = courseSubmissionIds if isinstance(courseSubmissionIds, dict) else None
