@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.03'
+__version__ = u'4.65.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -52,6 +52,7 @@ from htmlentitydefs import name2codepoint
 from HTMLParser import HTMLParser, HTMLParseError
 import httplib as http_client
 import StringIO
+import multiprocessing
 
 from gamlib import glaction
 from gamlib import glcfg as GC
@@ -1355,7 +1356,7 @@ def getDelta(argstr, pattern, formatRequired):
   sign = tg.group(1)
   delta = int(tg.group(2))
   unit = tg.group(3)
-  if  unit == u'y':
+  if unit == u'y':
     deltaTime = datetime.timedelta(days=delta*365)
   elif unit == u'w':
     deltaTime = datetime.timedelta(weeks=delta)
@@ -2675,7 +2676,7 @@ def SetGlobalVariables():
         _setSTDFile(GM.STDERR, filename, mode, multi)
       else:
         multi = checkArgumentPresent(u'multiprocess')
-        if  not GM.Globals[GM.STDOUT]:
+        if not GM.Globals[GM.STDOUT]:
           _setSTDFile(GM.STDOUT, u'-', DEFAULT_FILE_WRITE_MODE, multi)
         GM.Globals[GM.STDERR] = GM.Globals[GM.STDOUT].copy()
         GM.Globals[GM.STDERR][GM.REDIRECT_NAME] = u'stdout'
@@ -3037,6 +3038,8 @@ def callGDataPages(service, function,
         flushStderr()
       return allResults
     uri = nextLink.href
+    if u'url_params' in kwargs:
+      kwargs[u'url_params'].pop(u'start-index', None)
 
 def checkGAPIError(e, soft_errors=False, retryOnHttpError=False, service=None):
   try:
@@ -5050,7 +5053,7 @@ def resetDefaultEncodingToUTF8():
     if hasattr(sys, u'setdefaultencoding'):
       sys.setdefaultencoding(UTF8)
 
-def CSVFileQueueHandler(mpQueue):
+def CSVFileQueueHandler(mpQueue, mpQueueStderr):
   global Cmd
   resetDefaultEncodingToUTF8()
   if sys.platform.startswith(u'win'):
@@ -5082,16 +5085,24 @@ def CSVFileQueueHandler(mpQueue):
       Cmd.InitializeArguments(dataItem)
     elif dataType == GM.REDIRECT_QUEUE_GLOBALS:
       GM.Globals = dataItem
+      if GM.Globals[GM.WINDOWS]:
+        if GM.Globals[GM.STDOUT][GM.REDIRECT_NAME] == u'-' and not GM.Globals[GM.STDOUT][GM.REDIRECT_MULTIPROCESS]:
+          GM.Globals[GM.STDOUT][GM.REDIRECT_FD] = GM.Globals[GM.STDOUT][GM.REDIRECT_MULTI_FD] = sys.stdout
+        if GM.Globals[GM.STDERR][GM.REDIRECT_NAME] == u'-' and not GM.Globals[GM.STDERR][GM.REDIRECT_MULTIPROCESS]:
+          GM.Globals[GM.STDERR][GM.REDIRECT_FD] = GM.Globals[GM.STDERR][GM.REDIRECT_MULTI_FD] = sys.stderr
+        elif GM.Globals[GM.STDERR][GM.REDIRECT_NAME] == u'stdout' and not GM.Globals[GM.STDERR][GM.REDIRECT_MULTIPROCESS]:
+          GM.Globals[GM.STDERR][GM.REDIRECT_FD] = GM.Globals[GM.STDERR][GM.REDIRECT_MULTI_FD] = sys.stdout
     elif dataType == GM.REDIRECT_QUEUE_VALUES:
       GC.Values = dataItem
     else:
       break
   writeCSVfile(csvRows, titles, list_type, todrive, sortTitles, quotechar, fixPaths)
+  if mpQueueStderr is not None:
+    mpQueueStderr.put((0, GM.REDIRECT_QUEUE_DATA, GM.Globals[GM.STDERR][GM.REDIRECT_MULTI_FD].getvalue()))
 
-def initializeCSVFileQueueHandler():
-  import multiprocessing
+def initializeCSVFileQueueHandler(mpQueueStderr):
   mpQueue = multiprocessing.Manager().Queue()
-  mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue,))
+  mpQueueHandler = multiprocessing.Process(target=CSVFileQueueHandler, args=(mpQueue, mpQueueStderr))
   mpQueueHandler.start()
   return (mpQueue, mpQueueHandler)
 
@@ -5109,14 +5120,20 @@ def StdQueueHandler(mpQueue, stdtype, gmGlobals, gcValues):
 
   PROCESS_MSG = u'{0}: {1:6d}, {2:>5s}: {3}, RC: {4:3d}, Cmd: {5}\n'
 
+  def _writeData(data):
+    if fd in [sys.stdout, sys.stderr]:
+      fd.write(convertUTF8toSys(data))
+    else:
+      fd.write(data)
+
   def _writePidData(pid, data):
     try:
       if pid != 0 and GC.Values[GC.SHOW_MULTIPROCESS_INFO]:
-        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], data[0], pidData[pid][u'cmd']))
+        _writeData(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], data[0], pidData[pid][u'cmd']))
       if data[1] is not None:
-        fd.write(data[1])
+        _writeData(data[1])
       if GC.Values[GC.SHOW_MULTIPROCESS_INFO]:
-        fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'End', ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE])), data[0], pidData[pid][u'cmd']))
+        _writeData(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'End', ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE])), data[0], pidData[pid][u'cmd']))
       fd.flush()
     except IOError as e:
       systemErrorExit(FILE_ERROR_RC, e)
@@ -5147,6 +5164,8 @@ def StdQueueHandler(mpQueue, stdtype, gmGlobals, gcValues):
                       u'cmd': Cmd.QuotedArgumentList(dataItem)}
       if pid == 0 and GC.Values[GC.SHOW_MULTIPROCESS_INFO]:
         fd.write(PROCESS_MSG.format(pidData[pid][u'queue'], pid, u'Start', pidData[pid][u'start'], 0, pidData[pid][u'cmd']))
+    elif dataType == GM.REDIRECT_QUEUE_DATA:
+      _writeData(dataItem)
     elif dataType == GM.REDIRECT_QUEUE_END:
       if pid != 0:
         _writePidData(pid, dataItem)
@@ -5167,7 +5186,6 @@ def StdQueueHandler(mpQueue, stdtype, gmGlobals, gcValues):
   GM.Globals[stdtype][GM.REDIRECT_FD] = None
 
 def initializeStdQueueHandler(stdtype, gmGlobals, gcValues):
-  import multiprocessing
   mpQueue = multiprocessing.Manager().Queue()
   mpQueueHandler = multiprocessing.Process(target=StdQueueHandler, args=(mpQueue, stdtype, gmGlobals, gcValues))
   mpQueueHandler.start()
@@ -5232,7 +5250,6 @@ PROCESS_PLURAL_SINGULAR = [Msg.PROCESSES, Msg.PROCESS]
 THREAD_PLURAL_SINGULAR = [Msg.THREADS, Msg.THREAD]
 
 def MultiprocessGAMCommands(items, logCmds):
-  import multiprocessing
   if not items:
     return
   numPoolProcesses = min(len(items), GC.Values[GC.NUM_THREADS])
@@ -5258,7 +5275,7 @@ def MultiprocessGAMCommands(items, logCmds):
   else:
     mpQueueStderr = None
   if GM.Globals[GM.CSVFILE][GM.REDIRECT_MULTIPROCESS]:
-    mpQueueCSVFile, mpQueueHandlerCSVFile = initializeCSVFileQueueHandler()
+    mpQueueCSVFile, mpQueueHandlerCSVFile = initializeCSVFileQueueHandler(mpQueueStderr)
   else:
     mpQueueCSVFile = None
   signal.signal(signal.SIGINT, origSigintHandler)
@@ -19094,6 +19111,8 @@ def _printShowSites(entityList, entityType, csvFormat):
       includeAllSites = u'true'
     elif myarg == u'maxresults':
       url_params[u'max-results'] = getInteger(minVal=1)
+    elif myarg == u'startindex':
+      url_params[u'start-index'] = getInteger(minVal=1)
     elif myarg == u'withmappings':
       url_params[u'with-mappings'] = u'true'
     elif myarg in [u'role', u'roles']:
@@ -19157,22 +19176,22 @@ def _printShowSites(entityList, entityType, csvFormat):
     writeCSVfile(csvRows, titles, u'Sites', todrive)
 
 # gam [<UserTypeEntity>] print sites [todrive <ToDriveAttributes>*] [domain|domains <DomainNameEntity>] [includeallsites]
-#	[withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
+#	[withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
 def printUserSites(users):
   _printShowSites(users, Ent.USER, True)
 
 # gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites]
-#	[withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl]
+#	[withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>] [convertcrnl]
 def showUserSites(users):
   _printShowSites(users, Ent.USER, False)
 
 # gam print sites [todrive <ToDriveAttributes>*] [domain|domains <DomainNameEntity>] [includeallsites]
-#	[withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
+#	[withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
 def doPrintDomainSites():
   _printShowSites([GC.Values[GC.DOMAIN]], Ent.DOMAIN, True)
 
 # gam show sites [domain|domains <DomainNameEntity>] [includeallsites]
-#	[withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl]
+#	[withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>] [convertcrnl]
 def doShowDomainSites():
   _printShowSites([GC.Values[GC.DOMAIN]], Ent.DOMAIN, False)
 
@@ -19333,6 +19352,8 @@ def _printSiteActivity(users, entityType):
       todrive = getTodriveParameters()
     elif myarg == u'maxresults':
       url_params[u'max-results'] = getInteger(minVal=1)
+    elif myarg == u'startindex':
+      url_params[u'start-index'] = getInteger(minVal=1)
     elif myarg == u'updatedmin':
       url_params[u'updated-min'] = getYYYYMMDD()
     elif myarg == u'updatedmax':
@@ -19380,7 +19401,7 @@ def _printSiteActivity(users, entityType):
         entityActionFailedWarning([Ent.SITE, domainSite], str(e), j, jcount)
   writeCSVfile(csvRows, titles, u'Site Activities', todrive)
 
-# gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive <ToDriveAttributes>*] [maxresults <Number>] [updated_min <Date>] [updated_max <Date>]
+# gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive <ToDriveAttributes>*] [startindex <Number>] [maxresults <Number>] [updated_min <Date>] [updated_max <Date>]
 def printUserSiteActivity(users):
   _printSiteActivity(users, Ent.USER)
 
@@ -25799,12 +25820,18 @@ def _getDriveFileAddRemoveParentInfo(user, i, count, parameters, drive):
   return (True, u','.join(addParents), u','.join(removeParents))
 
 DRIVEFILE_LABEL_CHOICE_MAP = {
+  u'hidden': u'hidden',
+  u'modified': u'modified',
+  u'modifiedbyme': u'modified',
+  u'restrict': u'restricted',
+  u'restricted': u'restricted',
   u'star': u'starred',
   u'starred': u'starred',
   u'trash': u'trashed',
   u'trashed': u'trashed',
   u'view': u'viewed',
   u'viewed': u'viewed',
+  u'viewedbyme': u'viewed',
   }
 
 MIMETYPE_CHOICE_MAP = {
@@ -26365,6 +26392,7 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'id': u'id',
   u'imagemediametadata': u'imageMediaMetadata',
   u'isappauthorized': u'isAppAuthorized',
+  u'labels': u'labels',
   u'lastmodifyinguser': u'lastModifyingUser',
   u'lastmodifyingusername': u'lastModifyingUserName',
   u'lastviewedbyme': VX_VIEWED_BY_ME_TIME,
@@ -26376,7 +26404,6 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'md5sum': u'md5Checksum',
   u'mime': u'mimeType',
   u'mimetype': u'mimeType',
-  u'modifiedbyme': VX_MODIFIED_BY_ME_TIME,
   u'modifiedbymedate': VX_MODIFIED_BY_ME_TIME,
   u'modifiedbymetime': VX_MODIFIED_BY_ME_TIME,
   u'modifiedbyuser': VX_MODIFIED_BY_ME_TIME,
@@ -26393,8 +26420,6 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'properties': u'properties',
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
-  u'restrict': u'copyRequiresWriterPermission',
-  u'restricted': u'copyRequiresWriterPermission',
   u'shareable': u'capabilities.canShare',
   u'shared': u'shared',
   u'sharedwithmedate': VX_SHARED_WITH_ME_TIME,
@@ -26408,7 +26433,6 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'userpermission': u'userPermission',
   u'version': u'version',
   u'videomediametadata': u'videoMediaMetadata',
-  u'viewedbyme': u'labels.viewed',
   u'viewedbymedate': VX_VIEWED_BY_ME_TIME,
   u'viewedbymetime': VX_VIEWED_BY_ME_TIME,
   u'viewerscancopycontent': u'copyRequiresWriterPermission',
@@ -26462,6 +26486,7 @@ SHARINGUSER_SUBFIELDS_CHOICE_MAP = {
   }
 
 SUBFIELDS_CHOICE_MAP = {
+  u'labels': DRIVEFILE_LABEL_CHOICE_MAP,
   u'owners': OWNERS_SUBFIELDS_CHOICE_MAP,
   u'parents': PARENTS_SUBFIELDS_CHOICE_MAP,
   u'permissions': PERMISSIONS_SUBFIELDS_CHOICE_MAP,
@@ -26479,7 +26504,7 @@ def _getDriveTimeObjects():
 def _getDriveFieldSubField(field, fieldsList, titles):
   field, subField = field.split(u'.', 1)
   if field in SUBFIELDS_CHOICE_MAP:
-    if titles is not None:
+    if titles is not None and field != u'labels':
       addTitlesToCSVfile(DRIVEFILE_FIELDS_CHOICE_MAP[field], titles)
     if subField in SUBFIELDS_CHOICE_MAP[field]:
       fieldsList.append(u'{0}.{1}'.format(DRIVEFILE_FIELDS_CHOICE_MAP[field], SUBFIELDS_CHOICE_MAP[field][subField]))
@@ -27333,7 +27358,7 @@ def printFileList(users):
   timeObjects = _getDriveTimeObjects()
   _mapDrive3TitlesToDrive2(titles[u'list'], API.DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP)
   titles[u'set'] = set(titles[u'list'])
-  removeTitlesFromCSVfile([u'capabilities',], titles)
+  removeTitlesFromCSVfile([u'capabilities', u'labels'], titles)
   fileNameTitle = VX_FILENAME
   incrementalPrint = buildTree and (not filepath) and noSelect
   i, count, users = getEntityArgument(users)
@@ -33679,7 +33704,7 @@ def deleteDelegate(users):
 
 # gam <UserTypeEntity> update delegate|delegates [<UserEntity>]
 def updateDelegates(users):
-  if  Cmd.ArgumentsRemaining():
+  if Cmd.ArgumentsRemaining():
     cd = buildGAPIObject(API.DIRECTORY)
     delegateEntity = getUserObjectEntity(Cmd.OB_USER_ENTITY, Ent.DELEGATE)
     checkForExtraneousArguments()
@@ -36313,7 +36338,7 @@ def doLoop():
   GAM_argv, subFields = getSubFields([Cmd.GAM_CMD,], csvFile.fieldnames)
   multi = GM.Globals[GM.CSVFILE][GM.REDIRECT_MULTIPROCESS]
   if multi:
-    mpQueue, mpQueueHandler = initializeCSVFileQueueHandler()
+    mpQueue, mpQueueHandler = initializeCSVFileQueueHandler(None)
   else:
     mpQueue = None
   GM.Globals[GM.CSVFILE][GM.REDIRECT_QUEUE] = mpQueue

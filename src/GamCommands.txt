@@ -1826,11 +1826,11 @@ gam [<UserTypeEntity>] create|add site <SiteItem> <SiteAttribute>*
 gam [<UserTypeEntity>] update sites <SiteEntity> <SiteAttribute>+
 gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [role|roles all|<SiteACLRoleList>]
 gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites]
-        [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>]
+        [withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>]
 gam [<UserTypeEntity>] print sites [todrive <ToDriveAttribute>*] [domain|domains <DomainNameEntity>] [includeallsites]
-        [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
+        [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [startindex <Number>] [convertcrnl] [delimiter <Character>]
 
-gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive <ToDriveAttribute>*] [maxresults <Number>] [updated_min <Date>] [updated_max <Date>]
+gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive <ToDriveAttribute>*] [startindex <Number>] [maxresults <Number>] [updated_min <Date>] [updated_max <Date>]
 
 gam [<UserTypeEntity>] create|add siteacls <SiteEntity> <SiteACLRole> <SiteACLScopeEntity>
 gam [<UserTypeEntity>] update siteacls <SiteEntity> <SiteACLRole> <SiteACLScopeEntity>
@@ -2428,6 +2428,14 @@ gam <UserTypeEntity> transfer drive <UserItem> [select <DriveFileEntity>]
 gam <UserTypeEntity> collect orphans [anyowner|(showownedby any|me|others)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
         [targetuserfoldername <DriveFileName>] [preview] [todrive <ToDriveAttribute>*]
 
+<DriveLabelsSubfieldName> ::=
+        labels.hidden|
+        labels.modified|
+        labels.restricted|
+        labels.starred|
+        labels.trashed|
+        labels.viewed
+
 <DriveOwnersSubfieldName> ::=
         owners.displayname|
         owners.emailaddress|
@@ -2487,16 +2495,20 @@ gam <UserTypeEntity> collect orphans [anyowner|(showownedby any|me|others)] (ord
         hasaugmentedpermissions|
         hasthumbnail|
         headrevisionid|
+        hidden|
         iconlink|
         id|
         imagemediametadata|
         isappauthorized|
+        labels|
+        <DriveLabelsSubfieldName>|
         lastmodifyinguser|
         lastmodifyingusername|
         lastviewedbyme|lastviewedbymedate|lastviewedbymetime|lastviewedbyuser|
         md5|md5checksum|md5sum|
         mime|mimetype|
-        modifiedbyme|modifiedbymedate|modifiedbymetime|modifiedbyuser|
+        modified|modifiedbyme|
+        modifiedbymedate|modifiedbymetime|modifiedbyuser|
         modifieddate|modifiedtime|
         name|
         originalfilename|
@@ -2507,8 +2519,8 @@ gam <UserTypeEntity> collect orphans [anyowner|(showownedby any|me|others)] (ord
         parents|
         <DriveParentsSubfieldName>|
         permissions|
-        permissionids|
         <DrivePermissionsSubfieldName>|
+        permissionids|
         properties|
         quotabytesused|quotaused|
         restricted|
