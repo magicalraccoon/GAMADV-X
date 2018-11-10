@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.04'
+__version__ = u'4.65.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1459,7 +1459,7 @@ def getTimeOrDeltaFromNow(returnDateTime=False):
         if not returnDateTime:
           return argstr.replace(u' ', u'T')
         return (fullDateTime, tz, argstr.replace(u' ', u'T'))
-      except iso8601.ParseError:
+      except (iso8601.ParseError, OverflowError):
         pass
       invalidArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
@@ -1660,7 +1660,7 @@ def formatLocalTime(dateTimeStr):
   try:
     timestamp, _ = iso8601.parse_date(dateTimeStr)
     return ISOformatTimeStamp(timestamp.astimezone(GC.Values[GC.TIMEZONE]))
-  except iso8601.ParseError:
+  except (iso8601.ParseError, OverflowError):
     return dateTimeStr
 
 def formatLocalTimestamp(timestamp):
@@ -2359,7 +2359,7 @@ def SetGlobalVariables():
       return iso8601.Local
     try:
       return iso8601.parse_timezone_str(value)
-    except iso8601.ParseError:
+    except (iso8601.ParseError, OverflowError):
       pass
     _printValueError(sectionName, itemName, value, u'{0}: {1}'.format(Msg.EXPECTED, TIMEZONE_FORMAT_REQUIRED))
     status[u'errors'] = True
@@ -12180,7 +12180,7 @@ def getDeviceFilesEntity():
         try:
           timestamp, _ = iso8601.parse_date(timeItem)
           deviceFilesEntity[u'list'].append(ISOformatTimeStamp(timestamp.astimezone(GC.Values[GC.TIMEZONE])))
-        except iso8601.ParseError:
+        except (iso8601.ParseError, OverflowError):
           Cmd.Backup()
           invalidArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
   return deviceFilesEntity
