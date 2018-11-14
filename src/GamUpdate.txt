@@ -1,3 +1,14 @@
+4.65.07
+
+Added fields <EventFieldNameList> option to gam info/show/print events to allow selection of specific event fields to display.
+See:
+* https://github.com/taers232c/GAMADV-X/wiki/Calendars-Events
+* https://github.com/taers232c/GAMADV-X/wiki/Users-Calendars-Events
+
+Enhanced <Tag> <Replace> processing to allow greater selection of user fields.
+See: 
+* https://github.com/taers232c/GAMADV-X/wiki/Tag-Replace
+
 4.65.06
 
 Added command to display Google license counts in "keyword: value" form.

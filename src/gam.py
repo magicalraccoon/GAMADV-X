@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.06'
+__version__ = u'4.65.07'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6700,6 +6700,7 @@ TAG_ADDRESS_ARGUMENT_TO_FIELD_MAP = {
   u'locality': u'locality',
   u'pobox': u'poBox',
   u'postalcode': u'postalCode',
+  u'primary': u'primary',
   u'region': u'region',
   u'streetaddress': u'streetAddress',
   u'type': u'type',
@@ -6737,13 +6738,22 @@ TAG_ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
   u'fulltimeequivalent': u'fullTimeEquivalent',
   u'location': u'location',
   u'name': u'name',
+  u'primary': u'primary',
   u'symbol': u'symbol',
   u'title': u'title',
   u'type': u'type',
   }
 
+TAG_OTHEREMAIL_ARGUMENT_TO_FIELD_MAP = {
+  u'address': u'address',
+  u'customtype': u'customType',
+  u'primary': u'primary',
+  u'type': u'type',
+  }
+
 TAG_PHONE_ARGUMENT_TO_FIELD_MAP = {
   u'customtype': u'customType',
+  u'primary': u'primary',
   u'type': u'type',
   u'value': u'value',
   }
@@ -6757,6 +6767,8 @@ TAG_FIELD_SUBFIELD_CHOICE_MAP = {
   u'name': (u'name', TAG_NAME_ARGUMENT_TO_FIELD_MAP),
   u'organization': (u'organizations', TAG_ORGANIZATION_ARGUMENT_TO_FIELD_MAP),
   u'organizations': (u'organizations', TAG_ORGANIZATION_ARGUMENT_TO_FIELD_MAP),
+  u'otheremail': (u'emails', TAG_OTHEREMAIL_ARGUMENT_TO_FIELD_MAP),
+  u'otheremails': (u'emails', TAG_OTHEREMAIL_ARGUMENT_TO_FIELD_MAP),
   u'phone': (u'phones', TAG_PHONE_ARGUMENT_TO_FIELD_MAP),
   u'phones': (u'phones', TAG_PHONE_ARGUMENT_TO_FIELD_MAP),
   }
@@ -6775,7 +6787,25 @@ def _getTagReplacement(tagReplacements, allowSubs):
     tagReplacements[u'subs'] = True
     field = matchReplacement[6:].strip().lower()
     if field.find(u'.') != -1:
-      field, subfield = field.split(u'.', 1)
+      args = field.split(u'.', 3)
+      field = args[0]
+      subfield = args[1]
+      if len(args) == 2:
+        matchfield = matchvalue = u''
+      elif len(args) == 4:
+        matchfield = args[2]
+        matchvalue = args[3]
+        if matchfield == u'primary':
+          matchvalue = matchvalue.lower()
+          if matchvalue == TRUE:
+            matchvalue = True
+          elif matchvalue == FALSE:
+            matchvalue = u''
+          else:
+            invalidChoiceExit(TRUE_FALSE, True)
+      else:
+        Cmd.Backup()
+        usageErrorExit(Msg.INVALID_TAG_SPECIFICATION)
     else:
       field = u''
     if not field or field not in TAG_FIELD_SUBFIELD_CHOICE_MAP:
@@ -6784,9 +6814,13 @@ def _getTagReplacement(tagReplacements, allowSubs):
     if subfield not in subfieldsChoiceMap:
       invalidChoiceExit(subfieldsChoiceMap, True)
     subfield = subfieldsChoiceMap[subfield]
+    if matchfield and matchfield not in subfieldsChoiceMap:
+      invalidChoiceExit(subfieldsChoiceMap, True)
+    matchfield = subfieldsChoiceMap[matchfield]
     tagReplacements[u'fieldsSet'].add(field)
     tagReplacements[u'fields'] = u','.join(tagReplacements[u'fieldsSet'])
-    tagReplacements[u'tags'][matchTag] = {u'field': field, u'subfield': subfield, u'value': u''}
+    tagReplacements[u'tags'][matchTag] = {u'field': field, u'subfield': subfield,
+                                          u'matchfield': matchfield, u'matchvalue': matchvalue, u'value': u''}
     if field == u'locations' and subfield == u'buildingName':
       _makeBuildingIdNameMap()
   elif matchReplacement.startswith(u'schema:'):
@@ -6840,23 +6874,37 @@ def _getTagReplacementFieldValues(user, i, count, tagReplacements):
         else:
           tag[u'value'] = user
       else:
-        if field in [u'addresses', u'organizations', u'phones']:
+        if field in [u'addresses', u'emails', u'organizations', u'phones']:
           items = results.get(field, [])
-          for data in items:
-            if data.get(u'primary'):
-              break
+          if not tag[u'matchfield']:
+            for data in items:
+              if data.get(u'primary'):
+                break
+            else:
+              if len(items) > 0:
+                data = items[0]
+              else:
+                data = {}
           else:
-            if len(items) > 0:
-              data = items[0]
+            for data in items:
+              if data.get(tag[u'matchfield'], u'') == tag[u'matchvalue']:
+                break
             else:
               data = {}
         elif field == u'locations':
           items = results.get(field, [])
-          if len(items) > 0:
-            data = items[0]
-            data[u'buildingName'] = GM.Globals[GM.MAP_BUILDING_ID_TO_NAME].get(data.get(u'buildingId', u''), u'')
+          if not tag[u'matchfield']:
+            if len(items) > 0:
+              data = items[0]
+              data[u'buildingName'] = GM.Globals[GM.MAP_BUILDING_ID_TO_NAME].get(data.get(u'buildingId', u''), u'')
+            else:
+              data = {}
           else:
-            data = {}
+            for data in items:
+              if data.get(tag[u'matchfield'], u'') == tag[u'matchvalue']:
+                break
+            else:
+              data = {}
         else:
           data = results.get(field, {})
         tag[u'value'] = str(data.get(tag[u'subfield'], u''))
@@ -11944,7 +11992,8 @@ CROS_DEVICE_FILES_ARGUMENTS = [u'devicefiles', u'files']
 CROS_CPU_STATUS_REPORTS_ARGUMENTS = [u'cpustatusreports']
 CROS_DISK_VOLUME_REPORTS_ARGUMENTS = [u'diskvolumereports']
 CROS_SYSTEM_RAM_FREE_REPORTS_ARGUMENTS = [u'systemramfreereports']
-CROS_LISTS_ARGUMENTS = CROS_ACTIVE_TIME_RANGES_ARGUMENTS+CROS_RECENT_USERS_ARGUMENTS+CROS_DEVICE_FILES_ARGUMENTS+CROS_CPU_STATUS_REPORTS_ARGUMENTS+CROS_DISK_VOLUME_REPORTS_ARGUMENTS+CROS_SYSTEM_RAM_FREE_REPORTS_ARGUMENTS
+CROS_LISTS_ARGUMENTS = (CROS_ACTIVE_TIME_RANGES_ARGUMENTS+CROS_RECENT_USERS_ARGUMENTS+CROS_DEVICE_FILES_ARGUMENTS+
+                        CROS_CPU_STATUS_REPORTS_ARGUMENTS+CROS_DISK_VOLUME_REPORTS_ARGUMENTS+CROS_SYSTEM_RAM_FREE_REPORTS_ARGUMENTS)
 CROS_START_ARGUMENTS = [u'start', u'startdate', u'oldestdate']
 CROS_END_ARGUMENTS = [u'end', u'enddate']
 
@@ -12319,12 +12368,12 @@ CROS_ORDERBY_CHOICE_MAP = {
 # gam print cros [todrive <ToDriveAttributes>*]
 #	[(query <QueryCrOS>)|(queries <QueryCrOSList>)|(select <CrOSTypeEntity>)] [limittoou <OrgUnitItem>]
 #	[querytime.* <Time>]
-#	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|recentusers|timeranges|devicefiles|cpustatusreports|diskvolumereports|systemramfreereports] [listlimit <Number>] [start <Date>] [end <Date>]
+#	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|<DrOSListFieldName>*] [listlimit <Number>] [start <Date>] [end <Date>]
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>] [sortheaders] [formatjson] [quotechar <Character>]
 #	[minimize_quota_count|minimize_quota_pct <Number>]
 #
 # gam <CrOSTypeEntity> print cros [todrive <ToDriveAttributes>*]
-#	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|recentusers|timeranges|devicefiles|cpustatusreports|diskvolumereports|systemramfreereports] [listlimit <Number>] [start <Date>] [end <Date>]
+#	[orderby <CrOSOrderByFieldName> [ascending|descending]] [nolists|<DrOSListFieldName>*] [listlimit <Number>] [start <Date>] [end <Date>]
 #	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>] [sortheaders] [formatjson] [quotechar <Character>]
 #	[minimize_quota_count|minimize_quota_pct <Number>]
 def doPrintCrOSDevices(entityList=None):
@@ -14556,7 +14605,8 @@ def doPrintGroups():
   required = 0
   if memberRoles:
     required += 1
-    svcargs = dict([(u'groupKey', None), (u'roles', memberRoles), (u'fields', u'nextPageToken,members(email,id,role,status)'), (u'maxResults', GC.Values[GC.MEMBER_MAX_RESULTS])]+GM.Globals[GM.EXTRA_ARGS_LIST])
+    svcargs = dict([(u'groupKey', None), (u'roles', memberRoles), (u'fields', u'nextPageToken,members(email,id,role,status)'),
+                    (u'maxResults', GC.Values[GC.MEMBER_MAX_RESULTS])]+GM.Globals[GM.EXTRA_ARGS_LIST])
   if getSettings:
     required += 1
     svcargsgs = dict([(u'groupUniqueId', None), (u'fields', gsfields)]+GM.Globals[GM.EXTRA_ARGS_LIST])
@@ -15107,7 +15157,8 @@ def doPrintLicenses(returnFields=None, skus=None, countsOnly=False, returnCounts
       return licenseCounts
     if skus:
       for u_license in licenseCounts:
-        csvRows.append({u'productId': u_license[1], u'productDisplay': SKU.productIdToDisplayName(u_license[1]), u'skuId': u_license[3], u'skuDisplay': SKU.skuIdToDisplayName(u_license[3]), u'licenses': u_license[5]})
+        csvRows.append({u'productId': u_license[1], u'productDisplay': SKU.productIdToDisplayName(u_license[1]),
+                        u'skuId': u_license[3], u'skuDisplay': SKU.skuIdToDisplayName(u_license[3]), u'licenses': u_license[5]})
     else:
       for u_license in licenseCounts:
         csvRows.append({u'productId': u_license[1], u'productDisplay': SKU.productIdToDisplayName(u_license[1]), u'licenses': u_license[3]})
@@ -16235,7 +16286,7 @@ def _doInfoCalendarACLs(origUser, user, cal, calIds, count, ACLScopeEntity, form
       continue
     _infoCalendarACLs(cal, user, Ent.CALENDAR, calId, i, count, ruleIds, jcount, formatJSON)
 
-def _getCalendarInfoACLEventOptions():
+def _getCalendarInfoACLOptions():
   formatJSON = False
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -16248,7 +16299,7 @@ def _getCalendarInfoACLEventOptions():
 # gam calendars <CalendarEntity> info acl|acls <CalendarACLScopeEntity> [formatjson]
 def doCalendarsInfoACLs(cal, calIds):
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
-  formatJSON = _getCalendarInfoACLEventOptions()
+  formatJSON = _getCalendarInfoACLOptions()
   _doInfoCalendarACLs(None, None, cal, calIds, len(calIds), ACLScopeEntity, formatJSON)
 
 def _printShowCalendarACLs(cal, user, entityType, calId, i, count, csvFormat, formatJSON, csvRows, titles):
@@ -16647,7 +16698,8 @@ def _validateCalendarGetEventIDs(origUser, user, cal, calId, j, jcount, calendar
     entityPerformActionNumItems([Ent.CALENDAR, calId], kcount, Ent.EVENT, j, jcount)
   return (calId, cal, calEventIds, kcount)
 
-def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEventEntity, showAction):
+def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEventEntity,
+                               fieldsList, showAction):
   if calendarEventEntity[u'dict']:
     if origUser:
       if not GM.Globals[GM.CSV_SUBKEY_FIELD]:
@@ -16661,6 +16713,8 @@ def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEv
   calId = normalizeCalendarId(calId, user)
   eventIdsSet = set()
   eventsList = []
+  fields = u','.join(set(fieldsList)).replace(u'.', u'/') if fieldsList else None
+  ifields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList)).replace(u'.', u'/')) if fieldsList else None
   try:
     if not calEventIds:
       if len(calendarEventEntity[u'queries']) <= 1:
@@ -16668,7 +16722,7 @@ def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEv
           calendarEventEntity[u'kwargs'][u'q'] = calendarEventEntity[u'queries'][0]
         events = callGAPIpages(cal.events(), u'list', u'items',
                                throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID],
-                               calendarId=calId, fields=u'nextPageToken,items',
+                               calendarId=calId, fields=ifields,
                                maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
         for event in events:
           for match in calendarEventEntity[u'matches']:
@@ -16681,7 +16735,7 @@ def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEv
           calendarEventEntity[u'kwargs'][u'q'] = query
           events = callGAPIpages(cal.events(), u'list', u'items',
                                  throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN, GAPI.INVALID],
-                                 calendarId=calId, fields=u'nextPageToken,items',
+                                 calendarId=calId, fields=ifields,
                                  maxResults=GC.Values[GC.EVENT_MAX_RESULTS], **calendarEventEntity[u'kwargs'])
           for event in events:
             for match in calendarEventEntity[u'matches']:
@@ -16699,7 +16753,7 @@ def _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEv
         if eventId not in eventIdsSet:
           eventsList.append(callGAPI(cal.events(), u'get',
                                      throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.DELETED, GAPI.FORBIDDEN],
-                                     calendarId=calId, eventId=eventId))
+                                     calendarId=calId, eventId=eventId, fields=fields))
           eventIdsSet.add(eventId)
     kcount = len(eventsList)
     if showAction:
@@ -16876,9 +16930,11 @@ EVENT_TIME_OBJECTS = set([u'created', u'updated', u'dateTime'])
 def _showCalendarEvent(primaryEmail, calId, eventEntityType, event, k, kcount, formatJSON):
   if formatJSON:
     if primaryEmail:
-      printLine(json.dumps(cleanJSON({u'primaryEmail': primaryEmail, u'calendarId': calId, u'event': event}, u'', timeObjects=EVENT_TIME_OBJECTS), ensure_ascii=False, sort_keys=True))
+      printLine(json.dumps(cleanJSON({u'primaryEmail': primaryEmail, u'calendarId': calId, u'event': event},
+                                     u'', timeObjects=EVENT_TIME_OBJECTS), ensure_ascii=False, sort_keys=True))
     else:
-      printLine(json.dumps(cleanJSON({u'calendarId': calId, u'event': event}, u'', timeObjects=EVENT_TIME_OBJECTS), ensure_ascii=False, sort_keys=True))
+      printLine(json.dumps(cleanJSON({u'calendarId': calId, u'event': event},
+                                     u'', timeObjects=EVENT_TIME_OBJECTS), ensure_ascii=False, sort_keys=True))
     return
   printEntity([eventEntityType, event[u'id']], k, kcount)
   skipObjects = set([u'id',])
@@ -16890,7 +16946,9 @@ def _showCalendarEvent(primaryEmail, calId, eventEntityType, event, k, kcount, f
   showJSON(None, event, skipObjects)
   Ind.Decrement()
 
-def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity, formatJSON):
+def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity, formatJSON, fieldsList):
+  fields = u','.join(set(fieldsList)).replace(u'.', u'/') if fieldsList else None
+  ifields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList)).replace(u'.', u'/')) if fieldsList else None
   i = 0
   for calId in calIds:
     i += 1
@@ -16904,13 +16962,13 @@ def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity,
       try:
         event = callGAPI(cal.events(), u'get',
                          throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.DELETED, GAPI.FORBIDDEN],
-                         calendarId=calId, eventId=eventId)
+                         calendarId=calId, eventId=eventId, fields=fields)
         if calendarEventEntity[u'maxinstances'] == -1 or u'recurrence' not in event:
           _showCalendarEvent(user, calId, Ent.EVENT, event, j, jcount, formatJSON)
         else:
           instances = callGAPIpages(cal.events(), u'instances', u'items',
                                     throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.DELETED, GAPI.FORBIDDEN],
-                                    calendarId=calId, eventId=eventId,
+                                    calendarId=calId, eventId=eventId, fields=ifields,
                                     maxItems=calendarEventEntity[u'maxinstances'], maxResults=GC.Values[GC.EVENT_MAX_RESULTS])
           lcount = len(instances)
           if not formatJSON:
@@ -16935,11 +16993,13 @@ def _infoCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity,
         break
     Ind.Decrement()
 
-def _printShowCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity, csvFormat, formatJSON, csvRows, titles):
+def _printShowCalendarEvents(origUser, user, cal, calIds, count, calendarEventEntity,
+                             csvFormat, formatJSON, fieldsList, csvRows, titles):
   i = 0
   for calId in calIds:
     i += 1
-    calId, cal, events, jcount = _validateCalendarGetEvents(origUser, user, cal, calId, i, count, calendarEventEntity, not csvFormat and not formatJSON)
+    calId, cal, events, jcount = _validateCalendarGetEvents(origUser, user, cal, calId, i, count, calendarEventEntity,
+                                                            fieldsList, not csvFormat and not formatJSON)
     if not csvFormat:
       Ind.Increment()
       j = 0
@@ -17137,15 +17197,146 @@ def doCalendarsMoveEvents(cal, calIds):
     return
   _moveCalendarEvents(None, None, cal, calIds, len(calIds), calendarEventEntity, newCalId, sendNotifications)
 
-# gam calendars <CalendarEntity> info event <EventEntity> [formatjson]
+EVENT_FIELDS_CHOICE_MAP = {
+  u'anyonecanaddself': u'anyoneCanAddSelf',
+  u'attachments': u'attachments',
+  u'attendees': u'attendees',
+  u'attendeesomitted': u'attendeesOmitted',
+  u'colorid': u'colorId',
+  u'conferencedata': u'conferenceData',
+  u'created': u'created',
+  u'creator': u'creator',
+  u'description': u'description',
+  u'end': u'end',
+  u'endtimeunspecified': u'endTimeUnspecified',
+  u'extendedproperties': u'extendedProperties',
+  u'gadget': u'gadget',
+  u'guestscaninviteothers': u'guestsCanInviteOthers',
+  u'guestscanmodify': u'guestsCanModify',
+  u'guestscanseeotherguests': u'guestsCanSeeOtherGuests',
+  u'hangoutlink': u'hangoutLink',
+  u'htmllink': u'htmlLink',
+  u'icaluid': u'iCalUID',
+  u'id': u'id',
+  u'location': u'location',
+  u'locked': u'locked',
+  u'organizer': u'organizer',
+  u'originalstarttime': u'originalStartTime',
+  u'privatecopy': u'privateCopy',
+  u'recurrence': u'recurrence',
+  u'recurringeventid': u'recurringEventId',
+  u'reminders': u'reminders',
+  u'sequence': u'sequence',
+  u'source': u'source',
+  u'start': u'start',
+  u'status': u'status',
+  u'summary': u'summary',
+  u'transparency': u'transparency',
+  u'updated': u'updated',
+  u'visibility': u'visibility',
+  }
+
+EVENT_ATTACHMENTS_SUBFIELDS_CHOICE_MAP = {
+  u'fileid': u'fileId',
+  u'fileurl': u'fileUrl',
+  u'iconlink': u'iconLink',
+  u'mimetype': u'mimeType',
+  u'title': u'title',
+  }
+
+EVENT_ATTENDEES_SUBFIELDS_CHOICE_MAP = {
+  u'additionalguests': u'additionalGuests',
+  u'comment': u'comment',
+  u'displayname': u'displayName',
+  u'email': u'email',
+  u'id': u'id',
+  u'optional': u'optional',
+  u'organizer': u'organizer',
+  u'resource': u'resource',
+  u'responseStatus': u'responseStatus',
+  u'self': u'self',
+  }
+
+EVENT_CONFERENCEDATA_SUBFIELDS_CHOICE_MAP = {
+  u'conferenceid': u'conferenceId',
+  u'conferencesolution': u'conferenceSolution',
+  u'createrequest': u'createRequest',
+  u'entrypoints': u'entryPoints',
+  u'notes': u'notes',
+  u'signature': u'signature',
+  }
+
+EVENT_CREATOR_SUBFIELDS_CHOICE_MAP = {
+  u'displayname': u'displayName',
+  u'email': u'email',
+  u'id': u'id',
+  u'self': u'self',
+  }
+
+EVENT_ORGANIZER_SUBFIELDS_CHOICE_MAP = {
+  u'displayname': u'displayName',
+  u'email': u'email',
+  u'id': u'id',
+  u'self': u'self',
+  }
+
+EVENT_SUBFIELDS_CHOICE_MAP = {
+  u'attachments': EVENT_ATTACHMENTS_SUBFIELDS_CHOICE_MAP,
+  u'attendees': EVENT_ATTENDEES_SUBFIELDS_CHOICE_MAP,
+  u'conferencedata': EVENT_CONFERENCEDATA_SUBFIELDS_CHOICE_MAP,
+  u'creator': EVENT_CREATOR_SUBFIELDS_CHOICE_MAP,
+  u'organizer': EVENT_ORGANIZER_SUBFIELDS_CHOICE_MAP,
+}
+
+def _getEventFields(fieldsList):
+  if not fieldsList:
+    fieldsList.append(u'id')
+  for field in _getFieldsList():
+    if field.find(u'.') == -1:
+      if field in EVENT_FIELDS_CHOICE_MAP:
+        addFieldToFieldsList(field, EVENT_FIELDS_CHOICE_MAP, fieldsList)
+      else:
+        invalidChoiceExit(EVENT_FIELDS_CHOICE_MAP, True)
+    else:
+      field, subField = field.split(u'.', 1)
+      if field in EVENT_SUBFIELDS_CHOICE_MAP:
+        if subField in EVENT_SUBFIELDS_CHOICE_MAP[field]:
+          fieldsList.append(u'{0}.{1}'.format(EVENT_FIELDS_CHOICE_MAP[field], EVENT_SUBFIELDS_CHOICE_MAP[field][subField]))
+        else:
+          invalidChoiceExit(list(EVENT_SUBFIELDS_CHOICE_MAP[field]), True)
+      else:
+        invalidChoiceExit(list(EVENT_SUBFIELDS_CHOICE_MAP), True)
+
+def _addEventEntitySelectFields(calendarEventEntity, fieldsList):
+  if fieldsList:
+    fieldsList.extend([match[0] for match in calendarEventEntity[u'matches']])
+    if calendarEventEntity[u'maxinstances'] != -1:
+      fieldsList.append(u'recurrence')
+
+def _getCalendarInfoEventOptions(calendarEventEntity):
+  formatJSON = False
+  fieldsList = []
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == "formatjson":
+      formatJSON = True
+    elif myarg == u'fields':
+      _getEventFields(fieldsList)
+    else:
+      unknownArgumentExit()
+  _addEventEntitySelectFields(calendarEventEntity, fieldsList)
+  return (formatJSON, fieldsList)
+
+# gam calendars <CalendarEntity> info events <EventEntity> [maxinstances <Number>] [fields <EventFieldNameList>] [formatjson]
 def doCalendarsInfoEvents(cal, calIds):
   calendarEventEntity = getCalendarEventEntity()
-  formatJSON = _getCalendarInfoACLEventOptions()
-  _infoCalendarEvents(None, None, cal, calIds, len(calIds), calendarEventEntity, formatJSON)
+  formatJSON, fieldsList = _getCalendarInfoEventOptions(calendarEventEntity)
+  _infoCalendarEvents(None, None, cal, calIds, len(calIds), calendarEventEntity, formatJSON, fieldsList)
 
 def _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, entityType):
   todrive = {}
   formatJSON = False
+  fieldsList = []
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -17155,6 +17346,8 @@ def _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, entityType
       pass
     elif myarg == "formatjson":
       formatJSON = True
+    elif myarg == u'fields':
+      _getEventFields(fieldsList)
     elif myarg == u'quotechar':
       quotechar = getCharacter()
     else:
@@ -17166,28 +17359,31 @@ def _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, entityType
     else: # Ent.CALENDAR:
       sortTitles = [u'calendarId',]
     if not formatJSON:
-      sortTitles.extend(EVENT_PRINT_ORDER)
+      if not fieldsList:
+        sortTitles.extend(EVENT_PRINT_ORDER)
     else:
       sortTitles.append(u'JSON')
-  return (todrive, formatJSON, quotechar, sortTitles)
+  _addEventEntitySelectFields(calendarEventEntity, fieldsList)
+  return (todrive, formatJSON, fieldsList, quotechar, sortTitles)
 
 def calendarsPrintShowEvents(cal, calIds, csvFormat):
   calendarEventEntity = getCalendarEventEntity(noIds=True)
-  todrive, formatJSON, quotechar, sortTitles = _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, Ent.CALENDAR)
+  todrive, formatJSON, fieldsList, quotechar, sortTitles = _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, Ent.CALENDAR)
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   else:
     titles = csvRows = None
-  _printShowCalendarEvents(None, None, cal, calIds, len(calIds), calendarEventEntity, csvFormat, formatJSON, csvRows, titles)
+  _printShowCalendarEvents(None, None, cal, calIds, len(calIds), calendarEventEntity,
+                           csvFormat, formatJSON, fieldsList, csvRows, titles)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Calendar Events', todrive, sortTitles, quotechar)
 
-# gam calendars <CalendarEntity> print events <EventSelectProperties>* <EventDisplayProperties>*
+# gam calendars <CalendarEntity> print events <EventSelectProperties>* <EventDisplayProperties>* [fields <EventFieldNameList>]
 #	[formatjson] [quotechar <Character>] [todrive <ToDriveAttributes>*]
 def doCalendarsPrintEvents(cal, calIds):
   calendarsPrintShowEvents(cal, calIds, True)
 
-# gam calendars <CalendarEntity> show events <EventSelectProperties>* <EventDisplayProperties>* [formatjson]
+# gam calendars <CalendarEntity> show events <EventSelectProperties>* <EventDisplayProperties>* [fields <EventFieldNameList>] [formatjson]
 def doCalendarsShowEvents(cal, calIds):
   calendarsPrintShowEvents(cal, calIds, False)
 
@@ -17298,7 +17494,7 @@ def doResourceDeleteCalendarACLs(entityList):
 def doResourceInfoCalendarACLs(entityList):
   cal = buildGAPIObject(API.CALENDAR)
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
-  formatJSON = _getCalendarInfoACLEventOptions()
+  formatJSON = _getCalendarInfoACLOptions()
   i = 0
   count = len(entityList)
   for resourceId in entityList:
@@ -25237,7 +25433,7 @@ def deleteCalendarACLs(users):
 def infoCalendarACLs(users):
   calendarEntity = getUserCalendarEntity()
   ACLScopeEntity = getCalendarSiteACLScopeEntity()
-  formatJSON = _getCalendarInfoACLEventOptions()
+  formatJSON = _getCalendarInfoACLOptions()
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -25516,6 +25712,7 @@ def updateCalendarAttendees(users):
       if len(row) >= 2:
         attendee_map[row[0].lower()] = row[1].lower()
     closeFile(f)
+  fieldsList = [u'attendees', u'id', u'organizer', u'status', u'summary']
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -25528,7 +25725,8 @@ def updateCalendarAttendees(users):
     for calId in calIds:
       j += 1
       Act.Set(Act.UPDATE)
-      calId, cal, events, kcount = _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEventEntity, True)
+      calId, cal, events, kcount = _validateCalendarGetEvents(origUser, user, cal, calId, j, jcount, calendarEventEntity,
+                                                              fieldsList, True)
       if kcount == 0:
         continue
       Ind.Increment()
@@ -25581,11 +25779,11 @@ def updateCalendarAttendees(users):
       Ind.Decrement()
     Ind.Decrement()
 
-# gam <UserTypeEntity> info events <UserCalendarEntity> <EventEntity> [formatjson]
+# gam <UserTypeEntity> info events <UserCalendarEntity> <EventEntity> [maxinstances <Number>] [fields <EventFieldNameList>] [formatjson]
 def infoCalendarEvents(users):
   calendarEntity = getUserCalendarEntity()
   calendarEventEntity = getCalendarEventEntity()
-  formatJSON = _getCalendarInfoACLEventOptions()
+  formatJSON, fieldsList = _getCalendarInfoEventOptions(calendarEventEntity)
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -25594,14 +25792,15 @@ def infoCalendarEvents(users):
     if jcount == 0:
       continue
     Ind.Increment()
-    _infoCalendarEvents(origUser, user, cal, calIds, jcount, calendarEventEntity, formatJSON)
+    _infoCalendarEvents(origUser, user, cal, calIds, jcount, calendarEventEntity,
+                        formatJSON, fieldsList)
     Ind.Decrement()
 
 def printShowCalendarEvents(users, csvFormat):
   todrive = {}
   calendarEntity = getUserCalendarEntity()
   calendarEventEntity = getCalendarEventEntity(noIds=True)
-  todrive, formatJSON, quotechar, sortTitles = _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, Ent.USER)
+  todrive, formatJSON, fieldsList, quotechar, sortTitles = _getCalendarPrintShowEventOptions(calendarEventEntity, csvFormat, Ent.USER)
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   else:
@@ -25614,17 +25813,18 @@ def printShowCalendarEvents(users, csvFormat):
     if jcount == 0:
       continue
     Ind.Increment()
-    _printShowCalendarEvents(origUser, user, cal, calIds, jcount, calendarEventEntity, csvFormat, formatJSON, csvRows, titles)
+    _printShowCalendarEvents(origUser, user, cal, calIds, jcount, calendarEventEntity,
+                             csvFormat, formatJSON, fieldsList, csvRows, titles)
     Ind.Decrement()
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Calendar Events', todrive, sortTitles, quotechar)
 
-# gam <UserTypeEntity> print events <UserCalendarEntity> <EventSelectProperties>* <EventDisplayProperties>*
+# gam <UserTypeEntity> print events <UserCalendarEntity> <EventSelectProperties>* <EventDisplayProperties>* [fields <EventFieldNameList>]
 #	[formatjson] [quotechar <Character>] [todrive <ToDriveAttributes>*]
 def printCalendarEvents(users):
   printShowCalendarEvents(users, True)
 
-# gam <UserTypeEntity> show events <UserCalendarEntity> <EventSelectProperties>* <EventDisplayProperties>* [formatjson]
+# gam <UserTypeEntity> show events <UserCalendarEntity> <EventSelectProperties>* <EventDisplayProperties>* [fields <EventFieldNameList>] [formatjson]
 def showCalendarEvents(users):
   printShowCalendarEvents(users, False)
 
@@ -25864,7 +26064,7 @@ def _getDriveFileAddRemoveParentInfo(user, i, count, parameters, drive):
     removeParents.extend(parents)
   return (True, u','.join(addParents), u','.join(removeParents))
 
-DRIVEFILE_LABEL_CHOICE_MAP = {
+DRIVE_LABEL_CHOICE_MAP = {
   u'hidden': u'hidden',
   u'modified': u'modified',
   u'modifiedbyme': u'modified',
@@ -26003,9 +26203,9 @@ def getDriveFileAttribute(myarg, body, parameters, assignLocalName):
     body[u'copyRequiresWriterPermission'] = not getBoolean()
   elif myarg in [u'copyrequireswriterpermission', u'restrict', u'restricted']:
     body[u'copyRequiresWriterPermission'] = getBoolean()
-  elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
+  elif myarg in DRIVE_LABEL_CHOICE_MAP:
     body.setdefault(u'labels', {})
-    body[u'labels'][DRIVEFILE_LABEL_CHOICE_MAP[myarg]] = getBoolean()
+    body[u'labels'][DRIVE_LABEL_CHOICE_MAP[myarg]] = getBoolean()
   elif myarg in [u'lastviewedbyme', u'lastviewedbyuser', u'lastviewedbymedate', u'lastviewedbymetime']:
     body[VX_VIEWED_BY_ME_TIME] = getTimeOrDeltaFromNow()
   elif myarg == u'description':
@@ -26412,7 +26612,7 @@ def _mapDriveFieldNames(f_file):
     _mapDrivePermissionNames(permission)
   _mapDriveProperties(f_file)
 
-DRIVEFILE_FIELDS_CHOICE_MAP = {
+DRIVE_FIELDS_CHOICE_MAP = {
   u'alternatelink': VX_WEB_VIEW_LINK,
   u'appdatacontents': u'appDataContents',
   u'appproperties': u'properties',
@@ -26486,7 +26686,7 @@ DRIVEFILE_FIELDS_CHOICE_MAP = {
   u'writerscanshare': u'writersCanShare',
   }
 
-OWNERS_SUBFIELDS_CHOICE_MAP = {
+DRIVE_OWNERS_SUBFIELDS_CHOICE_MAP = {
   u'displayname': u'displayName',
   u'emailaddress': u'emailAddress',
   u'isauthenticateduser': u'isAuthenticatedUser',
@@ -26496,12 +26696,12 @@ OWNERS_SUBFIELDS_CHOICE_MAP = {
   u'picture': u'picture',
   }
 
-PARENTS_SUBFIELDS_CHOICE_MAP = {
+DRIVE_PARENTS_SUBFIELDS_CHOICE_MAP = {
   u'id': u'id',
   u'isroot': u'isRoot',
   }
 
-PERMISSIONS_SUBFIELDS_CHOICE_MAP = {
+DRIVE_PERMISSIONS_SUBFIELDS_CHOICE_MAP = {
   u'id': u'id',
   u'name': u'name',
   u'displayname': u'name',
@@ -26519,7 +26719,7 @@ PERMISSIONS_SUBFIELDS_CHOICE_MAP = {
   u'deleted': u'deleted',
   }
 
-SHARINGUSER_SUBFIELDS_CHOICE_MAP = {
+DRIVE_SHARINGUSER_SUBFIELDS_CHOICE_MAP = {
   u'name': u'displayName',
   u'displayname': u'displayName',
   u'photolink': u'picture',
@@ -26530,12 +26730,12 @@ SHARINGUSER_SUBFIELDS_CHOICE_MAP = {
   u'emailaddress': u'emailAddress',
   }
 
-SUBFIELDS_CHOICE_MAP = {
-  u'labels': DRIVEFILE_LABEL_CHOICE_MAP,
-  u'owners': OWNERS_SUBFIELDS_CHOICE_MAP,
-  u'parents': PARENTS_SUBFIELDS_CHOICE_MAP,
-  u'permissions': PERMISSIONS_SUBFIELDS_CHOICE_MAP,
-  u'sharinguser': SHARINGUSER_SUBFIELDS_CHOICE_MAP,
+DRIVE_SUBFIELDS_CHOICE_MAP = {
+  u'labels': DRIVE_LABEL_CHOICE_MAP,
+  u'owners': DRIVE_OWNERS_SUBFIELDS_CHOICE_MAP,
+  u'parents': DRIVE_PARENTS_SUBFIELDS_CHOICE_MAP,
+  u'permissions': DRIVE_PERMISSIONS_SUBFIELDS_CHOICE_MAP,
+  u'sharinguser': DRIVE_SHARINGUSER_SUBFIELDS_CHOICE_MAP,
 }
 
 VX_FILEINFO_FIELDS_TITLES = [VX_FILENAME, u'mimeType']
@@ -26548,15 +26748,15 @@ def _getDriveTimeObjects():
 
 def _getDriveFieldSubField(field, fieldsList, titles):
   field, subField = field.split(u'.', 1)
-  if field in SUBFIELDS_CHOICE_MAP:
+  if field in DRIVE_SUBFIELDS_CHOICE_MAP:
     if titles is not None and field != u'labels':
-      addTitlesToCSVfile(DRIVEFILE_FIELDS_CHOICE_MAP[field], titles)
-    if subField in SUBFIELDS_CHOICE_MAP[field]:
-      fieldsList.append(u'{0}.{1}'.format(DRIVEFILE_FIELDS_CHOICE_MAP[field], SUBFIELDS_CHOICE_MAP[field][subField]))
+      addTitlesToCSVfile(DRIVE_FIELDS_CHOICE_MAP[field], titles)
+    if subField in DRIVE_SUBFIELDS_CHOICE_MAP[field]:
+      fieldsList.append(u'{0}.{1}'.format(DRIVE_FIELDS_CHOICE_MAP[field], DRIVE_SUBFIELDS_CHOICE_MAP[field][subField]))
     else:
-      invalidChoiceExit(list(SUBFIELDS_CHOICE_MAP[field]), True)
+      invalidChoiceExit(list(DRIVE_SUBFIELDS_CHOICE_MAP[field]), True)
   else:
-    invalidChoiceExit(list(SUBFIELDS_CHOICE_MAP), True)
+    invalidChoiceExit(list(DRIVE_SUBFIELDS_CHOICE_MAP), True)
 
 def _setSkipObjects(skipObjects, skipTitles, fieldsList):
   for field in skipTitles:
@@ -26593,19 +26793,19 @@ def showFileInfo(users):
       getDrivefileOrderBy(orderByList)
     elif myarg == u'allfields':
       fieldsList = []
-    elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
-      addFieldToFieldsList(myarg, DRIVEFILE_LABEL_CHOICE_MAP, labelsList)
-    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      addFieldToFieldsList(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList)
+    elif myarg in DRIVE_LABEL_CHOICE_MAP:
+      addFieldToFieldsList(myarg, DRIVE_LABEL_CHOICE_MAP, labelsList)
+    elif myarg in DRIVE_FIELDS_CHOICE_MAP:
+      addFieldToFieldsList(myarg, DRIVE_FIELDS_CHOICE_MAP, fieldsList)
     elif myarg == u'fields':
       for field in _getFieldsList():
-        if field in DRIVEFILE_LABEL_CHOICE_MAP:
-          addFieldToFieldsList(field, DRIVEFILE_LABEL_CHOICE_MAP, labelsList)
+        if field in DRIVE_LABEL_CHOICE_MAP:
+          addFieldToFieldsList(field, DRIVE_LABEL_CHOICE_MAP, labelsList)
         elif field.find(u'.') == -1:
-          if field in DRIVEFILE_FIELDS_CHOICE_MAP:
-            addFieldToFieldsList(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList)
+          if field in DRIVE_FIELDS_CHOICE_MAP:
+            addFieldToFieldsList(field, DRIVE_FIELDS_CHOICE_MAP, fieldsList)
           else:
-            invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
+            invalidChoiceExit(list(DRIVE_FIELDS_CHOICE_MAP)+list(DRIVE_LABEL_CHOICE_MAP), True)
         else:
           _getDriveFieldSubField(field, fieldsList, None)
     elif myarg.find(u'.') != -1:
@@ -27331,19 +27531,19 @@ def printFileList(users):
     elif myarg == u'allfields':
       fieldsList = []
       allfields = True
-    elif myarg in DRIVEFILE_LABEL_CHOICE_MAP:
-      addFieldToCSVfile(myarg, DRIVEFILE_LABEL_CHOICE_MAP, labelsList, titles)
-    elif myarg in DRIVEFILE_FIELDS_CHOICE_MAP:
-      addFieldToCSVfile(myarg, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
+    elif myarg in DRIVE_LABEL_CHOICE_MAP:
+      addFieldToCSVfile(myarg, DRIVE_LABEL_CHOICE_MAP, labelsList, titles)
+    elif myarg in DRIVE_FIELDS_CHOICE_MAP:
+      addFieldToCSVfile(myarg, DRIVE_FIELDS_CHOICE_MAP, fieldsList, titles)
     elif myarg == u'fields':
       for field in _getFieldsList():
-        if field in DRIVEFILE_LABEL_CHOICE_MAP:
-          addFieldToCSVfile(field, DRIVEFILE_LABEL_CHOICE_MAP, labelsList, titles)
+        if field in DRIVE_LABEL_CHOICE_MAP:
+          addFieldToCSVfile(field, DRIVE_LABEL_CHOICE_MAP, labelsList, titles)
         elif field.find(u'.') == -1:
-          if field in DRIVEFILE_FIELDS_CHOICE_MAP:
-            addFieldToCSVfile(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
+          if field in DRIVE_FIELDS_CHOICE_MAP:
+            addFieldToCSVfile(field, DRIVE_FIELDS_CHOICE_MAP, fieldsList, titles)
           else:
-            invalidChoiceExit(list(DRIVEFILE_FIELDS_CHOICE_MAP)+list(DRIVEFILE_LABEL_CHOICE_MAP), True)
+            invalidChoiceExit(list(DRIVE_FIELDS_CHOICE_MAP)+list(DRIVE_LABEL_CHOICE_MAP), True)
         else:
           _getDriveFieldSubField(field, fieldsList, titles)
     elif myarg.find(u'.') != -1:
@@ -27390,7 +27590,7 @@ def printFileList(users):
     pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
   elif not allfields:
     for field in [u'title', u'alternatelink']:
-      addFieldToCSVfile(field, DRIVEFILE_FIELDS_CHOICE_MAP, fieldsList, titles)
+      addFieldToCSVfile(field, DRIVE_FIELDS_CHOICE_MAP, fieldsList, titles)
     _setSelectionFields()
     fields = u','.join(set(fieldsList)).replace(u'.', u'/')
     pagesfields = VX_NPT_FILES_FIELDLIST.format(fields)
@@ -28860,7 +29060,8 @@ DOCUMENT_FORMATS_MAP = {
                   {u'mime': u'application/vnd.oasis.opendocument.text', u'ext': u'.odt'}],
   }
 
-# gam <UserTypeEntity> get drivefile <DriveFileEntity> [format <FileFormatList>] [targetfolder <FilePath>] [targetname <FileName>] [overwrite [<Boolean>]] [showprogress [<Boolean>]] [revision <Number>]
+# gam <UserTypeEntity> get drivefile <DriveFileEntity> [revision <Number>] [format <FileFormatList>]
+#	[targetfolder <FilePath>] [targetname <FileName>] [overwrite [<Boolean>]] [showprogress [<Boolean>]]
 def getDriveFile(users):
   fileIdEntity = getDriveFileEntity()
   revisionId = None
