@@ -772,16 +772,16 @@ gam calendar|calendars <CalendarEntity> empty calendartrash
 <EventFieldName> ::=
         anyonecanaddself|
         attachments|
-	<EventAttachmentsSubfieldName>|
+        <EventAttachmentsSubfieldName>|
         attendees|
-	<EventAttendeesSubfieldName>|
+        <EventAttendeesSubfieldName>|
         attendeesomitted|
         colorid|
         conferencedata|
-	<EventConferenceDataSubfieldName>|
+        <EventConferenceDataSubfieldName>|
         created|
         creator|
-	<EventCreatorSubfieldName>|
+        <EventCreatorSubfieldName>|
         description|
         end|
         endtimeunspecified|
@@ -797,7 +797,7 @@ gam calendar|calendars <CalendarEntity> empty calendartrash
         location|
         locked|
         organizer|
-	<EventOrganizerSubfieldName>|
+        <EventOrganizerSubfieldName>|
         originalstarttime|
         privatecopy|
         recurrence|
@@ -1912,7 +1912,7 @@ gam [<UserTypeEntity>] info sites <SiteEntity> [withmappings] [role|roles all|<S
 gam [<UserTypeEntity>] show sites [domain|domains <DomainNameEntity>] [includeallsites]
         [withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>]
 gam [<UserTypeEntity>] print sites [todrive <ToDriveAttribute>*] [domain|domains <DomainNameEntity>] [includeallsites]
-        [withmappings] [role|roles all|<SiteACLRoleList>] [maxresults <Number>] [startindex <Number>] [convertcrnl] [delimiter <Character>]
+        [withmappings] [role|roles all|<SiteACLRoleList>] [startindex <Number>] [maxresults <Number>] [convertcrnl] [delimiter <Character>]
 
 gam [<UserTypeEntity>] print siteactivity <SiteEntity> [todrive <ToDriveAttribute>*] [startindex <Number>] [maxresults <Number>] [updated_min <Date>] [updated_max <Date>]
 
@@ -2086,7 +2086,7 @@ gam <UserTypeEntity> info users [quick] [noaliases] [nogroups] [nolicenses|nolic
         [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)] [formatjson]
 
 Print fields for selected users; use these options to select users:
-         ([domain <DomainName>] [(query <QueryUser>)|(queries <QueryUserList>)] [deleted_only|only_deleted])
+         ([domain <DomainName>] [(query <QueryUser>)|(queries <QueryUserList>)] [deleted_only|only_deleted] [notsuspended|suspended])
 If none of these options are chosen, all users are selected.
 
 gam print users [todrive <ToDriveAttribute>*]
@@ -2163,7 +2163,10 @@ gam <UserTypeEntity> show backupcodes|verificationcodes
         showhidden
 
 <UserCalendarAddEntity> ::=
-        <EmailAddressEntity>|
+        <EmailAddress>|
+        (courses <CourseIDList>)|
+        ((courses_with_teacher <UserItem>)|my_courses_as_teacher [coursestates <CourseStateList>])|
+        ((courses_with_student <UserItem>)|my_courses_as_student [coursestates <CourseStateList>])|
         (resource <ResourceID>)|
         (resources <ResourceIDList>)|
         ((calendars <CalendarList>) | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>)
@@ -2171,7 +2174,11 @@ gam <UserTypeEntity> show backupcodes|verificationcodes
 <UserCalendarEntity> ::=
         allcalendars|
         primary|
-        <EmailAddressEntity>|
+        <EmailAddress>|
+        (courses <CourseIDList>)|
+        ((courses_with_teacher <UserItem>)|my_courses_as_teacher [coursestates <CourseStateList>])|
+        ((courses_with_student <UserItem>)|my_courses_as_student [coursestates <CourseStateList>])|
+        (coursestates <CourseStateList>)|
         (resource <ResourceID>)|
         (resources <ResourceIDList>)|
         ((calendars <CalendarList>) | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>)|
