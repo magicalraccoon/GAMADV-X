@@ -46,29 +46,11 @@ ae_save
 """
 
 
-import datetime
 import time
 import random
 import urllib
 import urlparse
 import atom.http_core
-
-try:
-  import simplejson
-  from simplejson.decoder import JSONDecodeError
-except ImportError:
-  JSONDecodeError = None
-  try:
-    # Try to import from django, should work on App Engine
-    from django.utils import simplejson
-  except ImportError:
-    # Should work for Python2.6 and higher.
-    import json as simplejson
-
-try:
-    from urlparse import parse_qsl
-except ImportError:
-    from cgi import parse_qsl
 
 
 __author__ = 'j.s@google.com (Jeff Scudder)'
@@ -76,7 +58,6 @@ __author__ = 'j.s@google.com (Jeff Scudder)'
 
 PROGRAMMATIC_AUTH_LABEL = 'GoogleLogin auth='
 AUTHSUB_AUTH_LABEL = 'AuthSub token='
-OAUTH2_AUTH_LABEL = 'Bearer '
 
 
 # This dict provides the AuthSub and OAuth scopes for all services by service
@@ -466,11 +447,7 @@ def generate_signature(data, rsa_key):
   try:
     from tlslite.utils import keyfactory
   except ImportError:
-    try:
-      from gdata.tlslite.utils import keyfactory
-    except ImportError:
-      from tlslite.tlslite.utils import keyfactory
-
+    from gdata.tlslite.utils import keyfactory
   private_key = keyfactory.parsePrivateKey(rsa_key)
   signed = private_key.hashAndSign(data)
   # Python2.3 and lower does not have the base64.b64encode function.
@@ -656,10 +633,7 @@ def generate_rsa_signature(http_request, consumer_key, rsa_key,
   try:
     from tlslite.utils import keyfactory
   except ImportError:
-    try:
-      from gdata.tlslite.utils import keyfactory
-    except ImportError:
-      from tlslite.tlslite.utils import keyfactory
+    from gdata.tlslite.utils import keyfactory
   base_string = build_oauth_base_string(
       http_request, consumer_key, nonce, RSA_SHA1, timestamp, version,
       next, token, verifier=verifier)
