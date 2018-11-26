@@ -22,41 +22,66 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.11'
+__version__ = u'4.65.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
-import sys
-import os
-import string
-import time
 import base64
 import codecs
 import collections
+import ConfigParser as configparser
+import cStringIO
 import csv
 import datetime
+from email.charset import add_charset, QP
+from email.generator import Generator
+from email.header import decode_header, Header
+from email.mime.audio import MIMEAudio
+from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 import hashlib
-import json
-import logging
-import mimetypes
-import platform
-import random
-import re
-import signal
-import socket
-import ssl
-import uuid
-import zipfile
-
-import ConfigParser as configparser
 from htmlentitydefs import name2codepoint
 from HTMLParser import HTMLParser, HTMLParseError
 import httplib as http_client
-import StringIO
+import json
+import logging
+import mimetypes
 import multiprocessing
+import os
+import platform
+import Queue
+import random
+import re
+import shlex
+import signal
+import socket
+import ssl
+import string
+import StringIO
+import struct
+import subprocess
+import sys
+from tempfile import TemporaryFile
+import threading
+import time
+from traceback import print_exc
+from urllib import urlencode
+from urllib2 import unquote
+import uuid
+import webbrowser
+import zipfile
+
+try:
+  import dns.resolver
+  dnsAvailable = True
+except ImportError:
+  dnsAvailable = False
 
 from gamlib import glaction
-from gamlib import glcfg as GC
 from gamlib import glapi as API
+from gamlib import glcfg as GC
 from gamlib import glclargs
 from gamlib import glentity
 from gamlib import glgapi as GAPI
@@ -66,7 +91,16 @@ from gamlib import glglobals as GM
 from gamlib import glindent
 from gamlib import glmsgs as Msg
 from gamlib import glskus as SKU
+from gamlib import gluprop as UProp
 
+import atom
+import gdata.apps.audit.service
+import gdata.apps.service
+import gdata.apps.contacts
+import gdata.apps.contacts.service
+import gdata.apps.emailsettings.service
+import gdata.apps.sites
+import gdata.apps.sites.service
 import googleapiclient
 import googleapiclient.discovery
 import googleapiclient.errors
@@ -77,8 +111,10 @@ import google.oauth2.service_account
 import google_auth_httplib2
 import oauth2client.client
 import oauth2client.file
-from oauth2client.contrib.multiprocess_file_storage import MultiprocessFileStorage
 import oauth2client.tools
+from oauth2client.contrib.dictionary_storage import DictionaryStorage
+from oauth2client.contrib.multiprocess_file_storage import MultiprocessFileStorage
+from passlib.handlers.sha2_crypt import sha512_crypt
 
 # Python 2
 string_types = (basestring,)
@@ -482,7 +518,6 @@ def dehtml(text):
     parser.close()
     return parser.text()
   except HTMLParseError:
-    from traceback import print_exc
     print_exc(file=sys.stderr)
     return text
 
@@ -2159,7 +2194,6 @@ class UnicodeWriter(object):
 
   def __init__(self, f, encoding, **kwds):
     # Redirect output to a queue
-    import cStringIO
     self.queue = cStringIO.StringIO()
     self.writer = csv.writer(self.queue, **kwds)
     self.stream = f
@@ -2744,14 +2778,12 @@ def getHttpObj(cache=None):
                        disable_ssl_certificate_validation=GC.Values[GC.NO_VERIFY_SSL])
 
 def doGAMCheckForUpdates(forceCheck=False):
-  import calendar
-
   def _gamLatestVersionNotAvailable():
     if forceCheck:
       systemErrorExit(NETWORK_ERROR_RC, Msg.GAM_LATEST_VERSION_NOT_AVAILABLE)
 
   current_version = __version__
-  now_time = calendar.timegm(time.gmtime())
+  now_time = int(time.time())
   if forceCheck:
     check_url = GAM_ALL_RELEASES # includes pre-releases
   else:
@@ -2791,7 +2823,6 @@ def doGAMCheckForUpdates(forceCheck=False):
       printLine(Msg.HIT_CONTROL_C_TO_UPDATE)
       time.sleep(15)
     except KeyboardInterrupt:
-      import webbrowser
       webbrowser.open(release_data[u'html_url'])
       printLine(Msg.GAM_EXITING_FOR_UPDATE)
       sys.exit(0)
@@ -2983,7 +3014,6 @@ def waitOnFailure(n, retries, error_code, error_message):
 def callGData(service, function,
               soft_errors=False, throw_errors=None, retry_errors=None,
               **kwargs):
-  import gdata.apps.service
   if throw_errors is None:
     throw_errors = []
   if retry_errors is None:
@@ -3507,7 +3537,6 @@ def getGDataUserCredentials(api, user, i, count):
     return (userEmail, None)
 
 def getContactsObject(entityType=Ent.DOMAIN, entityName=None, i=0, count=0, contactFeed=True):
-  import gdata.apps.contacts.service
   if entityType == Ent.DOMAIN:
     contactsObject = initGDataObject(gdata.apps.contacts.service.ContactsService(contactFeed=contactFeed),
                                      API.CONTACTS)
@@ -3524,21 +3553,17 @@ def getContactsObject(entityType=Ent.DOMAIN, entityName=None, i=0, count=0, cont
   return (userEmail, contactsObject)
 
 def getContactsQuery(**kwargs):
-  import gdata.apps.contacts.service
   if GC.Values[GC.NO_VERIFY_SSL]:
     ssl._create_default_https_context = ssl._create_unverified_context
   return gdata.apps.contacts.service.ContactsQuery(**kwargs)
 
 def getEmailAuditObject():
-  import gdata.apps.audit.service
   return initGDataObject(gdata.apps.audit.service.AuditService(), API.EMAIL_AUDIT)
 
 def getEmailSettingsObject():
-  import gdata.apps.emailsettings.service
   return initGDataObject(gdata.apps.emailsettings.service.EmailSettingsService(), API.EMAIL_SETTINGS)
 
 def getSitesObject(entityType=Ent.DOMAIN, entityName=None, i=0, count=0):
-  import gdata.apps.sites.service
   if entityType == Ent.DOMAIN:
     sitesObject = initGDataObject(gdata.apps.sites.service.SitesService(), API.SITES)
     return (entityName or GC.Values[GC.DOMAIN], sitesObject)
@@ -3667,7 +3692,6 @@ def convertOrgUnitIDtoPath(orgUnitId, cd):
   return orgUnitPath
 
 def shlexSplitList(entity, dataDelimiter=u' ,'):
-  import shlex
   lexer = shlex.shlex(entity, posix=True)
   lexer.whitespace = dataDelimiter
   lexer.whitespace_split = True
@@ -4554,11 +4578,6 @@ def getTodriveParameters():
 
 # Add attachements to an email message
 def _addAttachmentsToMessage(message, attachments):
-  from email.mime.text import MIMEText
-  from email.mime.image import MIMEImage
-  from email.mime.audio import MIMEAudio
-  from email.mime.base import MIMEBase
-
   for attachFilename in attachments:
     try:
       attachFd = openFile(attachFilename, u'rb')
@@ -4584,9 +4603,6 @@ def _addAttachmentsToMessage(message, attachments):
 # Send an email
 def send_email(msgSubject, msgBody, msgTo, i=0, count=0, msgFrom=None, msgReplyTo=None,
                html=False, charset=u'utf-8', attachments=None, ccRecipients=None, bccRecipients=None):
-  from email.mime.multipart import MIMEMultipart
-  from email.mime.text import MIMEText
-
   if msgFrom is None:
     msgFrom = _getValueFromOAuth(u'email')
   userId, gmail = buildGAPIServiceObject(API.GMAIL, msgFrom, 0, 0)
@@ -4831,7 +4847,6 @@ def writeCSVfile(csvRows, titles, list_type, todrive, sortTitles=None, quotechar
           send_email(title, msg_txt, todrive[u'user'])
           printKeyValueList([msg_txt])
         else:
-          import webbrowser
           webbrowser.open(file_url)
       except GAPI.insufficientPermissions:
         printWarningMessage(INSUFFICIENT_PERMISSIONS_RC, Msg.INSUFFICIENT_PERMISSIONS_TO_PERFORM_TASK)
@@ -5058,7 +5073,6 @@ def doVersion(checkForArgs=True):
   if simple:
     writeStdout(__version__)
     return
-  import struct
   version_data = u'GAM {0} - {1}\n{2}\nPython {3}.{4}.{5} {6}-bit {7}\ngoogle-api-python-client {8}\nhttplib2 {9}\nauth2client {10}\n{11} {12}\nPath: {13}\n'
   writeStdout(version_data.format(__version__, GAM_URL, __author__, sys.version_info[0],
                                   sys.version_info[1], sys.version_info[2], struct.calcsize(u'P')*8,
@@ -5374,16 +5388,12 @@ def MultiprocessGAMCommands(items, logCmds):
     terminateStdQueueHandler(mpQueueStderr, mpQueueHandlerStderr)
 
 def threadBatchWorker():
-  import subprocess
   while True:
     item = GM.Globals[GM.TBATCH_QUEUE].get()
     subprocess.call(item, stdout=GM.Globals[GM.STDOUT].get(GM.REDIRECT_MULTI_FD, sys.stdout), stderr=GM.Globals[GM.STDERR].get(GM.REDIRECT_MULTI_FD, sys.stderr))
     GM.Globals[GM.TBATCH_QUEUE].task_done()
 
 def ThreadBatchGAMCommands(items, logCmds):
-  import Queue
-  import threading
-
   pythonCmd = [sys.executable.lower(),]
   if not getattr(sys, u'frozen', False): # we're not frozen
     pythonCmd.append(os.path.realpath(Cmd.Argument(0)))
@@ -5417,7 +5427,6 @@ def ThreadBatchGAMCommands(items, logCmds):
 
 # gam batch <FileName>|- [charset <Charset>] [showcmds]
 def doBatch(threadBatch=False):
-  import shlex
   filename = getString(Cmd.OB_FILE_NAME)
   if (filename == u'-') and (GC.Values[GC.DEBUG_LEVEL] > 0):
     Cmd.Backup()
@@ -6003,7 +6012,6 @@ def checkServiceAccount(users):
     printBlankLine()
 
 def getCRMService(login_hint):
-  from oauth2client.contrib.dictionary_storage import DictionaryStorage
   scope = u'https://www.googleapis.com/auth/cloud-platform'
   client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
   client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
@@ -6067,7 +6075,6 @@ def doCreateProject():
                  u'code': u'ThisIsAnInvalidCodeOnlyBeingUsedToTestIfClientAndSecretAreValid',
                  u'redirect_uri': u'urn:ietf:wg:oauth:2.0:oob', u'grant_type': u'authorization_code'}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
-    from urllib import urlencode
     _, content = simplehttp.request(url, u'POST', urlencode(post_data), headers=headers)
     try:
       content = json.loads(content)
@@ -9669,8 +9676,6 @@ CONTACT_GROUP_UPDATED = u'Updated'
 CONTACT_GROUP_NAME = u'ContactGroupName'
 #
 class ContactsManager(object):
-  import gdata.apps.contacts
-
   CONTACT_ARGUMENT_TO_PROPERTY_MAP = {
     u'json': CONTACT_JSON,
     u'name': CONTACT_NAME,
@@ -10282,8 +10287,6 @@ class ContactsManager(object):
 
   @staticmethod
   def FieldsToContact(fields):
-    import gdata.apps.contacts
-
     def GetField(fieldName):
       return fields.get(fieldName)
 
@@ -10415,8 +10418,6 @@ class ContactsManager(object):
 
   @staticmethod
   def AddContactGroupsToContact(contactsObject, contactEntry, contactGroupsList, user):
-    import gdata.apps.contacts
-
     contactEntry.groupMembershipInfo = []
     for groupId in contactGroupsList:
       if groupId != u'clear':
@@ -10578,9 +10579,6 @@ class ContactsManager(object):
 
   @staticmethod
   def FieldsToContactGroup(fields):
-    import atom
-    import gdata.apps.contacts
-
     groupEntry = gdata.apps.contacts.GroupEntry(title=atom.Title(text=fields[CONTACT_GROUP_NAME]))
     return groupEntry
 
@@ -17427,18 +17425,25 @@ def doCalendarsShowEvents(cal, calIds):
 
 # <CalendarSettings> ::==
 #	[description <String>] [location <String>] [summary <String>] [timezone <TimeZone>]
-def _getCalendarSettings(summaryRequired=False):
+def _getCalendarSetting(myarg, body):
+  if myarg == u'description':
+    body[u'description'] = getStringWithCRsNLs()
+  elif myarg == u'location':
+    body[u'location'] = getString(Cmd.OB_STRING, minLen=0)
+  elif myarg == u'summary':
+    body[u'summary'] = getString(Cmd.OB_STRING)
+  elif myarg == u'timezone':
+    body[u'timeZone'] = getString(Cmd.OB_STRING)
+  else:
+    return False
+  return True
+
+def getCalendarSettings(summaryRequired=False):
   body = {}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'description':
-      body[u'description'] = getStringWithCRsNLs()
-    elif myarg == u'location':
-      body[u'location'] = getString(Cmd.OB_STRING, minLen=0)
-    elif myarg == u'summary':
-      body[u'summary'] = getString(Cmd.OB_STRING)
-    elif myarg == u'timezone':
-      body[u'timeZone'] = getString(Cmd.OB_STRING)
+    if _getCalendarSetting(myarg, body):
+      pass
     else:
       unknownArgumentExit()
   if summaryRequired and not body.get(u'summary', None):
@@ -17447,7 +17452,7 @@ def _getCalendarSettings(summaryRequired=False):
 
 # gam calendars <CalendarEntity> modify <CalendarSettings>
 def doCalendarsModifySettings(cal, calIds):
-  body = _getCalendarSettings(summaryRequired=False)
+  body = getCalendarSettings(summaryRequired=False)
   count = len(calIds)
   i = 0
   for calId in calIds:
@@ -18948,8 +18953,6 @@ class SitesManager(object):
 
   @staticmethod
   def FieldsToAclEntry(fields):
-    import gdata.apps.sites
-
     acl_entry = gdata.apps.sites.AclEntry()
     acl_entry.role = gdata.apps.sites.AclRole(value=fields[u'role'])
     acl_entry.scope = gdata.apps.sites.AclScope(stype=fields[u'scope'][u'type'], value=fields[u'scope'].get(u'value'))
@@ -19045,9 +19048,6 @@ class SitesManager(object):
 
   @staticmethod
   def FieldsToSite(fields):
-    import atom
-    import gdata.apps.sites
-
     def GetField(fieldName):
       return fields.get(fieldName)
 
@@ -19781,9 +19781,7 @@ ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
   }
 
 def getUserAttributes(cd, updateCmd, noUid=False):
-  from gamlib import gluprop as UProp
-
-  def getKeywordAttribute(UProp, keywords, attrdict, **opts):
+  def getKeywordAttribute(keywords, attrdict, **opts):
     if Cmd.ArgumentsRemaining():
       keyword = Cmd.Current().strip().lower()
       if keyword in keywords[UProp.PTKW_KEYWORD_LIST]:
@@ -19856,7 +19854,6 @@ def getUserAttributes(cd, updateCmd, noUid=False):
       body[itemName].append(itemValue)
 
   def gen_sha512_hash(password):
-    from passlib.handlers.sha2_crypt import sha512_crypt
     return sha512_crypt.encrypt(password, rounds=5000)
 
   def _splitSchemaNameDotFieldName(sn_fn, fnRequired=True):
@@ -19956,7 +19953,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         if checkArgumentPresent(u'addressmeas'):
           entry[u'addressMeAs'] = getString(Cmd.OB_STRING, minLen=0)
         body[up] = entry
@@ -19965,7 +19962,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         if checkArgumentPresent([u'unstructured', u'formatted']):
           entry[u'sourceIsStructured'] = False
           entry[u'formatted'] = getStringWithCRsNLs()
@@ -19985,9 +19982,9 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         getChoice([UProp.IM_PROTOCOLS[UProp.PTKW_CL_TYPE_KEYWORD]])
-        getKeywordAttribute(UProp, UProp.IM_PROTOCOLS, entry)
+        getKeywordAttribute(UProp.IM_PROTOCOLS, entry)
         # Backwards compatability: notprimary|primary on either side of IM address
         getPrimaryNotPrimaryChoice(entry, False)
         entry[u'im'] = getString(Cmd.OB_STRING, minLen=0)
@@ -19998,7 +19995,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'locations':
@@ -20008,7 +20005,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         while Cmd.ArgumentsRemaining():
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(UProp, typeKeywords, entry)
+            getKeywordAttribute(typeKeywords, entry)
           elif argument == u'area':
             entry[u'area'] = getString(Cmd.OB_STRING)
           elif argument in [u'building', u'buildingid']:
@@ -20030,7 +20027,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         if checkClearBodyList(body, up):
           continue
         entry = {}
-        getKeywordAttribute(UProp, typeKeywords, entry, defaultChoice=u'text_plain')
+        getKeywordAttribute(typeKeywords, entry, defaultChoice=u'text_plain')
         entry[u'value'] = getStringWithCRsNLsOrFile(u'')
         body[up] = entry
       elif up == u'organizations':
@@ -20040,7 +20037,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         while Cmd.ArgumentsRemaining():
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(UProp, typeKeywords, entry)
+            getKeywordAttribute(typeKeywords, entry)
           elif argument == typeKeywords[UProp.PTKW_CL_CUSTOMTYPE_KEYWORD]:
             entry[typeKeywords[UProp.PTKW_ATTR_CUSTOMTYPE_KEYWORD]] = getString(Cmd.OB_STRING)
             entry.pop(typeKeywords[UProp.PTKW_ATTR_TYPE_KEYWORD], None)
@@ -20064,7 +20061,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         while Cmd.ArgumentsRemaining():
           argument = getArgument()
           if argument == clTypeKeyword:
-            getKeywordAttribute(UProp, typeKeywords, entry)
+            getKeywordAttribute(typeKeywords, entry)
           elif argument == u'value':
             entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
           elif primaryNotPrimary(argument, entry):
@@ -20111,7 +20108,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'emails':
@@ -20119,7 +20116,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         entry[u'address'] = getEmailAddress(noUid=True, minLen=0)
         appendItemToBodyList(body, up, entry, u'address')
       elif up == u'sshPublicKeys':
@@ -20144,7 +20141,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'websites':
@@ -20152,7 +20149,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
           continue
         entry = {}
         getChoice([clTypeKeyword], defaultChoice=None)
-        getKeywordAttribute(UProp, typeKeywords, entry)
+        getKeywordAttribute(typeKeywords, entry)
         entry[u'value'] = getString(Cmd.OB_URL, minLen=0)
         getPrimaryNotPrimaryChoice(entry, False)
         appendItemToBodyList(body, up, entry, u'value')
@@ -20187,7 +20184,7 @@ def getUserAttributes(cd, updateCmd, noUid=False):
         clTypeKeyword = typeKeywords[UProp.PTKW_CL_TYPE_KEYWORD]
         schemaValue = {}
         if checkArgumentPresent(clTypeKeyword):
-          getKeywordAttribute(UProp, typeKeywords, schemaValue)
+          getKeywordAttribute(typeKeywords, schemaValue)
         schemaValue[u'value'] = getString(Cmd.OB_STRING, minLen=0)
         if schemaValue[u'value'] or multivalue != u'multinonempty':
           body[up][schemaName][fieldName].append(schemaValue)
@@ -20608,8 +20605,6 @@ USER_SKIP_OBJECTS = set([u'thumbnailPhotoEtag',])
 USER_TIME_OBJECTS = set([u'creationTime', u'deletionTime', u'lastLoginTime'])
 
 def infoUsers(entityList):
-  from gamlib import gluprop as UProp
-
   def _showType(row, typeKey, typeCustomValue, customTypeKey):
     if typeKey in row:
       if row[typeKey] != typeCustomValue or not row.get(customTypeKey):
@@ -21373,10 +21368,9 @@ def doCreateSiteVerification():
   printBlankLine()
 
 def _showSiteVerificationInfo(site):
-  import urllib2
   printKeyValueList([u'Site', site[u'site'][u'identifier']])
   Ind.Increment()
-  printKeyValueList([u'ID', urllib2.unquote(site[u'id'])])
+  printKeyValueList([u'ID', unquote(site[u'id'])])
   printKeyValueList([u'Type', site[u'site'][u'type']])
   printKeyValueList([u'All Owners', None])
   if u'owners' in site:
@@ -21410,35 +21404,28 @@ def doUpdateSiteVerification():
                            body=body)
     printKeyValueList([u'Method', verify_data[u'method']])
     printKeyValueList([u'Token', verify_data[u'token']])
-    if verify_data[u'method'] == u'DNS_CNAME':
-      try:
-        import dns.resolver
-        resolver = dns.resolver.Resolver()
-        resolver.nameservers = GOOGLE_NAMESERVERS
+    if verify_data[u'method'] in [u'DNS_CNAME', u'DNS_TXT']:
+      if not dnsAvailable:
+        systemErrorExit(NETWORK_ERROR_RC, Msg.NO_DNS_CAPABILITY_AVAILABLE)
+      resolver = dns.resolver.Resolver()
+      resolver.nameservers = [u'8.8.8.8', u'8.8.4.4']
+      if verify_data[u'method'] == u'DNS_CNAME':
         cname_token = verify_data[u'token']
         cname_list = cname_token.split(u' ')
         cname_subdomain = cname_list[0]
         try:
-          answers = resolver.query(u'{0},{1}'.format(cname_subdomain, a_domain), u'A')
+          answers = resolver.query(u'{0}.{1}'.format(cname_subdomain, a_domain), u'A')
           for answer in answers:
-            printKeyValueList([u'DNS Record', answer])
+            printKeyValueList([u'DNS Record', str(answer)])
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-          printKeyValueList([ERROR, u'No such domain found in DNS!'])
-      except ImportError:
-        pass
-    elif verify_data[u'method'] == u'DNS_TXT':
-      try:
-        import dns.resolver
-        resolver = dns.resolver.Resolver()
-        resolver.nameservers = GOOGLE_NAMESERVERS
+          systemErrorExit(NETWORK_ERROR_RC, Msg.DOMAIN_NOT_FOUND_IN_DNS)
+      elif verify_data[u'method'] == u'DNS_TXT':
         try:
           answers = resolver.query(a_domain, u'TXT')
           for answer in answers:
-            printKeyValueList([u'DNS Record', answer.replace(u'"', u'')])
+            printKeyValueList([u'DNS Record', str(answer).replace(u'"', u'')])
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-          printKeyValueList([ERROR, u'Domain not found in DNS!'])
-      except ImportError:
-        printKeyValueList([u'!!!No DNS'])
+          systemErrorExit(NETWORK_ERROR_RC, Msg.DOMAIN_NOT_FOUND_IN_DNS)
     return
   printKeyValueList([u'Verified!'])
   _showSiteVerificationInfo(verify_result)
@@ -25247,7 +25234,7 @@ def infoCalendars(users):
 # gam <UserTypeEntity> create calendars <CalendarSettings>
 def createCalendar(users):
   calendarEntity = initUserCalendarEntity()
-  body = _getCalendarSettings(summaryRequired=True)
+  body = getCalendarSettings(summaryRequired=True)
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -25300,7 +25287,7 @@ def _modifyRemoveCalendars(users, calendarEntity, function, **kwargs):
 # gam <UserTypeEntity> modify calendars <UserCalendarEntity> <CalendarSettings>
 def modifyCalendars(users):
   calendarEntity = getUserCalendarEntity()
-  body = _getCalendarSettings(summaryRequired=False)
+  body = getCalendarSettings(summaryRequired=False)
   _modifyRemoveCalendars(users, calendarEntity, u'patch', body=body)
 
 # gam <UserTypeEntity> remove calendars <UserCalendarEntity>
@@ -25567,13 +25554,19 @@ def printCalendarACLs(users):
 def showCalendarACLs(users):
   printShowCalendarACLs(users, False)
 
-# gam <UserTypeEntity> transfer calendars <UserItem> <UserCalendarEntity> [keepuser | (retainrole <CalendarACLRole>)] [noretentionmessages]
+TRANSFER_CALENDAR_APPEND_FIELDS = [u'description', u'location', u'summary']
+
+# gam <UserTypeEntity> transfer calendars <UserItem> <UserCalendarEntity>
+#	[keepuser | (retainrole <CalendarACLRole>)] [noretentionmessages]
+#	[<CalendarSettings>] [append description|location|summary] [noupdatemessages]
 def transferCalendars(users):
   targetUser = getEmailAddress()
   calendarEntity = getUserCalendarEntity(noSelectionKwargs={u'minAccessRole': u'owner', u'showHidden': True})
   notAllowedForbidden = [Msg.NOT_ALLOWED, Msg.FORBIDDEN][not calendarEntity[u'all'] and not calendarEntity.get(u'kwargs', {}).get(u'minAccessRole', u'') == u'owner']
   retainRoleBody = {u'role': u'none'}
-  showRetentionMessages = True
+  showUpdateMessages = showRetentionMessages = True
+  updateBody = {}
+  appendFieldsList = []
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'keepuser':
@@ -25582,11 +25575,23 @@ def transferCalendars(users):
       retainRoleBody[u'role'] = getChoice(CALENDAR_ACL_ROLES_MAP, mapChoice=True)
     elif myarg == u'noretentionmessages':
       showRetentionMessages = False
+    elif _getCalendarSetting(myarg, updateBody):
+      pass
+    elif myarg == u'append':
+      for field in _getFieldsList():
+        if field in TRANSFER_CALENDAR_APPEND_FIELDS:
+          appendFieldsList.append(field)
+        else:
+          invalidChoiceExit(TRANSFER_CALENDAR_APPEND_FIELDS, True)
+    elif myarg == u'noupdatemessages':
+      showUpdateMessages = False
     else:
       unknownArgumentExit()
   targetUser, targetCal = validateCalendar(targetUser)
   if not targetCal:
     return
+  if updateBody:
+    timestamp = ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE]))
   targetRoleBody = {u'role': u'owner', u'scope': {u'type': u'user', u'value': targetUser}}
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -25595,6 +25600,13 @@ def transferCalendars(users):
     user, sourceCal, calIds, jcount = _validateUserGetCalendarIds(user, i, count, calendarEntity)
     if jcount == 0:
       continue
+    if updateBody:
+      userName, domain = splitEmailAddress(user)
+      for field in updateBody:
+        updateBody[field] = _substituteForUser(updateBody[field], user, userName)
+        updateBody[field] = updateBody[field].replace(u'#domain#', domain)
+        updateBody[field] = updateBody[field].replace(u'#timestamp#', timestamp)
+      appendFields = u','.join(set(appendFieldsList))
     sourceRuleId = u'{0}:{1}'.format(u'user', user)
     Ind.Increment()
     j = 0
@@ -25615,6 +25627,29 @@ def transferCalendars(users):
       except (GAPI.notFound, GAPI.invalid):
         entityUnknownWarning(Ent.CALENDAR, calId, j, jcount)
         continue
+      if updateBody:
+        Act.Set(Act.UPDATE)
+        try:
+          if appendFields:
+            body = callGAPI(targetCal.calendars(), u'get',
+                            throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                            calendarId=calId, fields=appendFields)
+            for field in appendFieldsList:
+              body[field] += updateBody[field]
+          else:
+            body = {}
+          for field in updateBody:
+            if field not in appendFieldsList:
+              body[field] = updateBody[field]
+          callGAPI(targetCal.calendars(), u'patch',
+                   throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
+                   calendarId=calId, body=body)
+          if showUpdateMessages:
+            entityActionPerformed([Ent.CALENDAR, calId], j, jcount)
+        except (GAPI.notACalendarUser, GAPI.notFound) as e:
+          entityActionFailedWarning([Ent.CALENDAR, calId], str(e), j, jcount)
+        except (GAPI.serviceNotAvailable, GAPI.authError):
+          entityServiceNotApplicableWarning(Ent.CALENDAR, calId, j, jcount)
       Act.Set(Act.RETAIN)
       if retainRoleBody[u'role'] != u'none':
         try:
@@ -33447,14 +33482,6 @@ SMTP_DATE_HEADERS = [
 SMTP_NAME_ADDRESS_PATTERN = re.compile(r'^(.+?)\s*<(.+)>$')
 
 def _importInsertMessage(users, importMsg):
-  from email.charset import add_charset, QP
-  from email.generator import Generator
-  from email.header import Header
-  from email.mime.text import MIMEText
-  from email.mime.multipart import MIMEMultipart
-  from email.utils import formatdate
-  from tempfile import TemporaryFile
-
   def _appendToHeader(header, value):
     try:
       header.append(value)
@@ -33626,7 +33653,6 @@ def _printShowMessagesThreads(users, entityType, csvFormat):
   HEADER_ENCODE_PATTERN = re.compile(r'=\?(.*?)\?Q\?(.*?)\?=')
 
   def _decodeHeader(header):
-    from email.header import decode_header
     header = header.encode(UTF8, u'replace').decode(UTF8)
     while True:
       mg = HEADER_ENCODE_PATTERN.search(header)
@@ -36700,7 +36726,6 @@ def ProcessGAMCommand(args, processGamCfg=True):
     except SystemExit:
       pass
   except Exception:
-    from traceback import print_exc
     print_exc(file=sys.stderr)
     setSysExitRC(UNKNOWN_ERROR_RC)
     showAPICallsRetryData()
@@ -36747,8 +36772,6 @@ def doLoop():
     terminateCSVFileQueueHandler(mpQueue, mpQueueHandler)
 #
 if sys.platform.startswith('win'):
-  from multiprocessing import freeze_support
-
   def win32_unicode_argv():
     from ctypes import POINTER, byref, cdll, c_int, windll
     from ctypes.wintypes import LPCWSTR, LPWSTR
@@ -36773,7 +36796,7 @@ if sys.platform.startswith('win'):
 if __name__ == "__main__":
   resetDefaultEncodingToUTF8()
   if sys.platform.startswith('win'):
-    freeze_support()
+    multiprocessing.freeze_support()
     win32_unicode_argv() # cleanup sys.argv on Windows
   initializeLogging()
   rc = ProcessGAMCommand(sys.argv)
