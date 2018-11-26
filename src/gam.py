@@ -127,7 +127,7 @@ def iteritems(d, **kw):
   return d.iteritems(**kw)
 
 def ISOformatTimeStamp(timestamp):
-  return timestamp.isoformat('T')
+  return timestamp.replace(microsecond=0).isoformat('T')
 
 Act = glaction.GamAction()
 Cmd = glclargs.GamCLArgs()
