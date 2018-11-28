@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.12'
+__version__ = u'4.65.13'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -73,11 +73,7 @@ import uuid
 import webbrowser
 import zipfile
 
-try:
-  import dns.resolver
-  dnsAvailable = True
-except ImportError:
-  dnsAvailable = False
+import dns.resolver
 
 from gamlib import glaction
 from gamlib import glapi as API
@@ -2784,16 +2780,13 @@ def doGAMCheckForUpdates(forceCheck=False):
 
   current_version = __version__
   now_time = int(time.time())
-  if forceCheck:
-    check_url = GAM_ALL_RELEASES # includes pre-releases
-  else:
+  if not forceCheck:
     last_check_time_str = readFile(GM.Globals[GM.LAST_UPDATE_CHECK_TXT], continueOnError=True, displayError=False)
     last_check_time = int(last_check_time_str) if last_check_time_str and last_check_time_str.isdigit() else 0
     if last_check_time > now_time-604800:
       return
-    check_url = GAM_LATEST_RELEASE # latest full release
   try:
-    _, c = getHttpObj().request(check_url, u'GET', headers={u'Accept': u'application/vnd.github.v3.text+json'})
+    _, c = getHttpObj().request(GAM_LATEST_RELEASE, u'GET', headers={u'Accept': u'application/vnd.github.v3.text+json'})
     try:
       release_data = json.loads(c)
     except ValueError:
@@ -2827,10 +2820,10 @@ def doGAMCheckForUpdates(forceCheck=False):
       printLine(Msg.GAM_EXITING_FOR_UPDATE)
       sys.exit(0)
     writeFile(GM.Globals[GM.LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
-    return
   except (httplib2.HttpLib2Error, httplib2.ServerNotFoundError,
-          google.auth.exceptions.TransportError, httplib2.CertificateValidationUnsupported):
-    return
+          google.auth.exceptions.TransportError, httplib2.CertificateValidationUnsupported) as e:
+    if forceCheck:
+      systemErrorExit(NETWORK_ERROR_RC, str(e))
 
 def handleOAuthTokenError(e, soft_errors):
   errMsg = str(e)
@@ -21405,8 +21398,6 @@ def doUpdateSiteVerification():
     printKeyValueList([u'Method', verify_data[u'method']])
     printKeyValueList([u'Token', verify_data[u'token']])
     if verify_data[u'method'] in [u'DNS_CNAME', u'DNS_TXT']:
-      if not dnsAvailable:
-        systemErrorExit(NETWORK_ERROR_RC, Msg.NO_DNS_CAPABILITY_AVAILABLE)
       resolver = dns.resolver.Resolver()
       resolver.nameservers = [u'8.8.8.8', u'8.8.4.4']
       if verify_data[u'method'] == u'DNS_CNAME':
