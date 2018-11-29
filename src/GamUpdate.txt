@@ -1,3 +1,14 @@
+4.65.17
+
+Backed out the gam <UserTypeEntity> language <Language> language change in 4.65.11.
+There seem to be two language settings for Google: Gmail and all other Google products.
+Gmail: gam <UserTypeEntity> language <Language>
+Other Google products: gam update user <UserTypeEntity> language <LanguageList>
+
+4.65.16
+
+Skipped.
+
 4.65.15
 
 Handle additional ownership change error in gam transfer drive.
