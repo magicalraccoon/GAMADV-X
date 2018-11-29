@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.14'
+__version__ = u'4.65.15'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -29612,11 +29612,12 @@ def transferDrive(users):
                      fileId=childFileId, permissionId=sourcePermissionId, body=ownerRetainRoleBody, fields=u'')
         else:
           callGAPI(targetDrive.permissions(), u'delete',
-                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
+                   throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.CANNOT_REMOVE_OWNER],
                    fileId=childFileId, permissionId=sourcePermissionId)
         if showRetentionMessages:
           entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, _canonicalRole(ownerRetainRoleBody)], j, jcount)
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError,
+              GAPI.badRequest, GAPI.cannotRemoveOwner) as e:
         entityActionFailedWarning([Ent.USER, sourceUser, childFileType, childFileName], str(e), j, jcount)
       except GAPI.permissionNotFound:
         entityDoesNotHaveItemWarning([Ent.USER, sourceUser, childFileType, childFileName, Ent.PERMISSION_ID, sourcePermissionId], j, jcount)
@@ -29652,13 +29653,14 @@ def transferDrive(users):
         else:
           try:
             callGAPI(ownerDrive.permissions(), u'delete',
-                     throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST],
+                     throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.PERMISSION_NOT_FOUND, GAPI.BAD_REQUEST, GAPI.CANNOT_REMOVE_OWNER],
                      fileId=childFileId, permissionId=sourcePermissionId)
           except GAPI.permissionNotFound:
             pass
         if showRetentionMessages:
           entityActionPerformed([Ent.USER, sourceUser, childFileType, childFileName, Ent.ROLE, _canonicalRole(sourceUpdateRole)], j, jcount)
-      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError, GAPI.badRequest) as e:
+      except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError,
+              GAPI.badRequest, GAPI.cannotRemoveOwner) as e:
         entityActionFailedWarning([Ent.USER, ownerUser, childFileType, childFileName], str(e), j, jcount)
       except GAPI.permissionNotFound:
         entityDoesNotHaveItemWarning([Ent.USER, ownerUser, childFileType, childFileName, Ent.PERMISSION_ID, sourcePermissionId], j, jcount)
