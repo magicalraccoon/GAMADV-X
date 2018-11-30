@@ -43,16 +43,7 @@ import re
 import base64
 import socket
 import warnings
-try:
-  from xml.etree import cElementTree as ElementTree
-except ImportError:
-  try:
-    import cElementTree as ElementTree
-  except ImportError:
-    try:
-      from xml.etree import ElementTree
-    except ImportError:
-      from elementtree import ElementTree
+from xml.etree import ElementTree
 import atom
 
 

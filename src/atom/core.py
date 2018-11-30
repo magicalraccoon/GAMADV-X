@@ -22,17 +22,7 @@ __author__ = 'j.s@google.com (Jeff Scudder)'
 
 
 import inspect
-try:
-  from xml.etree import cElementTree as ElementTree
-except ImportError:
-  try:
-    import cElementTree as ElementTree
-  except ImportError:
-    try:
-      from xml.etree import ElementTree
-    except ImportError:
-      from elementtree import ElementTree
-
+from xml.etree import ElementTree
 
 try:
     from xml.dom.minidom import parseString as xmlString
