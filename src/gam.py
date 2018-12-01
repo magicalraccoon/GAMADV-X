@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.17'
+__version__ = u'4.65.18'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -299,7 +299,6 @@ VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED = u'nextPageToken,{0
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,{3},owners(emailAddress,permissionId))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,{3},owners(emailAddress,permissionId),permissions(id,role,additionalRoles))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNERS = u'nextPageToken,{0}(id,{1},{2},mimeType,owners(emailAddress))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
-VX_NPT_FILES_ID_MIMETYPE_CANEDIT = u'nextPageToken,{0}(id,mimeType,capabilities(canEdit))'.format(VX_PAGES_FILES)
 VX_NPT_PERMISSIONS = u'nextPageToken,{0}'.format(VX_PAGES_PERMISSIONS)
 VX_NPT_PERMISSIONS_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_PERMISSIONS)
 VX_NPT_REVISIONS_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_REVISIONS)
@@ -2789,8 +2788,6 @@ def doGAMCheckForUpdates(forceCheck=False):
     except ValueError:
       _gamLatestVersionNotAvailable()
       return
-    if isinstance(release_data, list):
-      release_data = release_data[0] # only care about latest release
     if not isinstance(release_data, dict) or u'tag_name' not in release_data:
       _gamLatestVersionNotAvailable()
       return
@@ -3183,7 +3180,8 @@ def checkGAPIError(e, soft_errors=False, retryOnHttpError=False, service=None):
   return (http_status, reason, message)
 
 def callGAPI(service, function,
-             bailOnInternalError=False, soft_errors=False, throw_reasons=None, retry_reasons=None, retries=10,
+             bailOnInternalError=False, bailOnTransientError=False, soft_errors=False,
+             throw_reasons=None, retry_reasons=None, retries=10,
              **kwargs):
   if throw_reasons is None:
     throw_reasons = []
@@ -3207,6 +3205,8 @@ def callGAPI(service, function,
         if reason == GAPI.INTERNAL_ERROR and bailOnInternalError and n == 2:
           raise GAPI.REASON_EXCEPTION_MAP[reason](message)
         waitOnFailure(n, retries, reason, message)
+        if reason == GAPI.TRANSIENT_ERROR and bailOnTransientError:
+          raise GAPI.REASON_EXCEPTION_MAP[reason](message)
         continue
       if reason in throw_reasons:
         if reason in GAPI.REASON_EXCEPTION_MAP:
@@ -4479,33 +4479,37 @@ def getTodriveParameters():
 
   localUser = localParent = False
   tduserLocation = tdparentLocation = tdfileidLocation = Cmd.Location()
-  todrive = {u'title': None, u'user': GC.Values[GC.TODRIVE_USER], u'parent': GC.Values[GC.TODRIVE_PARENT],
+  todrive = {u'user': GC.Values[GC.TODRIVE_USER], u'title': None, u'description': None, u'sheet': None,
              u'timestamp': GC.Values[GC.TODRIVE_TIMESTAMP], u'daysoffset': 0, u'hoursoffset': 0,
-             u'localcopy': GC.Values[GC.TODRIVE_LOCALCOPY],
-             u'fileId': None, u'parentId': None, u'nobrowser': GC.Values[GC.NO_BROWSER]}
+             u'fileId': None, u'parentId': None, u'parent': GC.Values[GC.TODRIVE_PARENT],
+             u'localcopy': GC.Values[GC.TODRIVE_LOCALCOPY], u'nobrowser': GC.Values[GC.NO_BROWSER]}
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'tdtitle':
-      todrive[u'title'] = getString(Cmd.OB_STRING)
-    elif myarg == u'tduser':
+    if myarg == u'tduser':
       todrive[u'user'] = getString(Cmd.OB_EMAIL_ADDRESS)
       tduserLocation = Cmd.Location()
       localUser = True
-    elif myarg == u'tdparent':
-      todrive[u'parent'] = escapeDriveFileName(getString(Cmd.OB_DRIVE_FOLDER_NAME, minLen=0))
-      tdparentLocation = Cmd.Location()
-      localParent = True
+    elif myarg == u'tdtitle':
+      todrive[u'title'] = getString(Cmd.OB_STRING)
+    elif myarg == u'tddescription':
+      todrive[u'description'] = getString(Cmd.OB_STRING)
+    elif myarg == u'tdsheet':
+      todrive[u'sheet'] = getString(Cmd.OB_STRING, minLen=1)
     elif myarg == u'tdtimestamp':
       todrive[u'timestamp'] = getBoolean()
     elif myarg == u'tddaysoffset':
       todrive[u'daysoffset'] = getInteger(minVal=0)
     elif myarg == u'tdhoursoffset':
       todrive[u'hoursoffset'] = getInteger(minVal=0)
-    elif myarg == u'tdlocalcopy':
-      todrive[u'localcopy'] = getBoolean()
     elif myarg == u'tdfileid':
       todrive[u'fileId'] = getString(Cmd.OB_DRIVE_FILE_ID)
       tdfileidLocation = Cmd.Location()
+    elif myarg == u'tdparent':
+      todrive[u'parent'] = escapeDriveFileName(getString(Cmd.OB_DRIVE_FOLDER_NAME, minLen=0))
+      tdparentLocation = Cmd.Location()
+      localParent = True
+    elif myarg == u'tdlocalcopy':
+      todrive[u'localcopy'] = getBoolean()
     elif myarg == u'tdnobrowser':
       todrive[u'nobrowser'] = getBoolean()
     else:
@@ -4518,7 +4522,7 @@ def getTodriveParameters():
     invalidTodriveUserExit(Ent.USER, Msg.NOT_FOUND)
   todrive[u'user'] = user
   if todrive[u'fileId']:
-    _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'], 0, 0)
+    _, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'], 0, 0)
     try:
       result = callGAPI(drive.files(), u'get',
                         throw_reasons=[GAPI.FILE_NOT_FOUND],
@@ -4532,12 +4536,12 @@ def getTodriveParameters():
   elif not todrive[u'parent'] or todrive[u'parent'] == u'root':
     todrive[u'parentId'] = u'root'
   else:
-    _, drive = buildGAPIServiceObject(API.DRIVE, todrive[u'user'], 0, 0)
+    _, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'], 0, 0)
     if todrive[u'parent'].startswith(u'id:'):
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=[GAPI.FILE_NOT_FOUND],
-                          fileId=todrive[u'parent'][3:], fields=VX_ID_MIMETYPE_CANEDIT)
+                          fileId=todrive[u'parent'][3:], fields=VX_ID_MIMETYPE_CANEDIT, supportsTeamDrives=True)
       except GAPI.fileNotFound:
         invalidTodriveParentExit(Ent.DRIVE_FOLDER_ID, Msg.NOT_FOUND)
       if result[u'mimeType'] != MIMETYPE_GA_FOLDER:
@@ -4547,10 +4551,11 @@ def getTodriveParameters():
       todrive[u'parentId'] = result[u'id']
     else:
       try:
-        results = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+        results = callGAPIpages(drive.files(), u'list', u'files',
                                 throw_reasons=[GAPI.INVALID_QUERY],
-                                q=VX_WITH_ANY_FILE_NAME.format(todrive[u'parent']),
-                                fields=VX_NPT_FILES_ID_MIMETYPE_CANEDIT, maxResults=1)
+                                q=u"name = '{0}'".format(todrive[u'parent']),
+                                fields=u'nextPageToken,files(id,mimeType,capabilities(canEdit))',
+                                pageSize=1, supportsTeamDrives=True)
       except GAPI.invalidQuery:
         invalidTodriveParentExit(Ent.DRIVE_FOLDER_NAME, Msg.NOT_FOUND)
       if not results:
@@ -4803,34 +4808,58 @@ def writeCSVfile(csvRows, titles, list_type, todrive, sortTitles=None, quotechar
       title = todrive[u'title'] or u'{0} - {1}'.format(GC.Values[GC.DOMAIN], list_type)
       if todrive[u'timestamp']:
         title += u' - '+ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE])+datetime.timedelta(days=-todrive[u'daysoffset'], hours=-todrive[u'hoursoffset']))
-      _, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'], 0, 0)
+      user, drive = buildGAPIServiceObject(API.DRIVE3, todrive[u'user'], 0, 0)
       if drive is None:
         closeFile(csvFile)
         return
+      importSize = csvFile.tell()
       try:
         if GC.Values[GC.TODRIVE_CONVERSION]:
           result = callGAPI(drive.about(), u'get', fields=u'maxImportSizes')
-          if len(csvRows)*len(titles[u'list']) > 2000000 or csvFile.tell() > int(result[u'maxImportSizes'][MIMETYPE_GA_SPREADSHEET]):
+          if len(csvRows)*len(titles[u'list']) > 2000000 or importSize > int(result[u'maxImportSizes'][MIMETYPE_GA_SPREADSHEET]):
             printKeyValueList([WARNING, Msg.RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET])
             mimeType = u'text/csv'
           else:
             mimeType = MIMETYPE_GA_SPREADSHEET
         else:
           mimeType = u'text/csv'
+        fields = u','.join([u'id', u'mimeType', V3_WEB_VIEW_LINK])
+        body = {V3_FILENAME: title, u'description': todrive[u'description'], u'mimeType': mimeType}
+        if body[u'description'] is None:
+          body[u'description'] = u' '.join(Cmd.AllArguments())
         if not todrive[u'fileId']:
+          body[u'parents'] = [todrive[u'parentId']]
           result = callGAPI(drive.files(), u'create',
                             throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
-                            body={u'parents': [todrive[u'parentId']], u'description': u' '.join(Cmd.AllArguments()), V3_FILENAME: title, u'mimeType': mimeType},
-                            media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=V3_WEB_VIEW_LINK, supportsTeamDrives=True)
+                            body=body, media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True),
+                            fields=fields, supportsTeamDrives=True)
         else:
           result = callGAPI(drive.files(), u'update',
                             throw_reasons=[GAPI.INSUFFICIENT_PERMISSIONS, GAPI.FILE_NOT_FOUND, GAPI.UNKNOWN_ERROR],
-                            fileId=todrive[u'fileId'], body={u'description': u' '.join(Cmd.AllArguments()), V3_FILENAME: title, u'mimeType': mimeType},
-                            media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True), fields=V3_WEB_VIEW_LINK, supportsTeamDrives=True)
+                            fileId=todrive[u'fileId'], body=body, media_body=googleapiclient.http.MediaIoBaseUpload(csvFile, mimetype=u'text/csv', resumable=True),
+                            fields=fields, supportsTeamDrives=True)
+        if todrive[u'sheet'] is not None and result[u'mimeType'] == MIMETYPE_GA_SPREADSHEET:
+          action = Act.Get()
+          _, sheet = buildGAPIServiceObject(API.SHEETS, user, 0, 0)
+          spreadsheetId = result[u'id']
+          try:
+            sheets = callGAPI(sheet.spreadsheets(), u'get',
+                              throw_reasons=GAPI.SHEETS_ACCESS_THROW_REASONS,
+                              spreadsheetId=spreadsheetId, fields=u'sheets/properties')
+            sheets[u'sheets'][0][u'properties'][u'title'] = todrive[u'sheet']
+            callGAPI(sheet.spreadsheets(), u'batchUpdate',
+                     throw_reasons=GAPI.SHEETS_ACCESS_THROW_REASONS,
+                     spreadsheetId=spreadsheetId,
+                     body={u'requests': [{u'updateSheetProperties': {u'properties': sheets[u'sheets'][0][u'properties'], u'fields': u'title'}}]})
+          except (GAPI.notFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.badRequest) as e:
+            entityActionFailedWarning([Ent.USER, user, Ent.SPREADSHEET, title], str(e), 0, 0)
+          except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+            userSvcNotApplicableOrDriveDisabled(user, str(e), 0, 0)
+          Act.Set(action)
         file_url = result[V3_WEB_VIEW_LINK]
         if todrive[u'nobrowser']:
           msg_txt = u'{0}:\n{1}'.format(Msg.DATA_UPLOADED_TO_DRIVE_FILE, file_url)
-          send_email(title, msg_txt, todrive[u'user'])
+          send_email(title, msg_txt, user)
           printKeyValueList([msg_txt])
         else:
           webbrowser.open(file_url)
@@ -4915,7 +4944,7 @@ def cleanJSON(structure, key, listLimit=None, skipObjects=None, timeObjects=None
   return {k: cleanJSON(v, k, listLimit, skipObjects, timeObjects) for k, v in sorted(iteritems(structure)) if k not in DEFAULT_SKIP_OBJECTS and k not in skipObjects}
 
 # Flatten a JSON object
-def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, skipObjects=None, timeObjects=None, noLenObjects=None, simpleLists=None):
+def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, skipObjects=None, timeObjects=None, noLenObjects=None, simpleLists=None, delimiter=None):
   if flattened is None:
     flattened = {}
   if skipObjects is None:
@@ -4940,20 +4969,20 @@ def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None, sk
         flattened[((path+u'.') if path else u'')+key] = formatLocalTime(structure)
       else:
         flattened[((path+u'.') if path else u'')+key] = formatLocalTimestamp(structure)
-  elif isinstance(structure, (list)):
+  elif isinstance(structure, list):
     listLen = len(structure)
     listLen = min(listLen, listLimit or listLen)
     if key in simpleLists:
-      flattened[((path+u'.') if path else u'')+key] = u','.join(structure[:listLen])
+      flattened[((path+u'.') if path else u'')+key] = delimiter.join(structure[:listLen])
     else:
       if key not in noLenObjects:
         flattened[((path+u'.') if path else u'')+key] = listLen
       for i in xrange(listLen):
-        flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, skipObjects, timeObjects, noLenObjects, simpleLists)
+        flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit, skipObjects, timeObjects, noLenObjects, simpleLists, delimiter)
   else:
     for k, v in sorted(iteritems(structure)):
       if k not in DEFAULT_SKIP_OBJECTS and k not in skipObjects:
-        flattenJSON(v, k, u'.'.join([item for item in [path, key] if item]), flattened, listLimit, skipObjects, timeObjects, noLenObjects, simpleLists)
+        flattenJSON(v, k, u'.'.join([item for item in [path, key] if item]), flattened, listLimit, skipObjects, timeObjects, noLenObjects, simpleLists, delimiter)
   return flattened
 
 # Show a json object
@@ -4969,7 +4998,7 @@ def showJSON(object_name, object_value, skipObjects=None, timeObjects=None, dict
   if object_name is not None:
     printJSONKey(object_name)
     subObjectKey = dictObjectsKey.get(object_name)
-  if isinstance(object_value, (list)):
+  if isinstance(object_value, list):
     if len(object_value) == 1 and isinstance(object_value[0], non_compound_types):
       if object_name is not None:
         printJSONValue(object_value[0])
@@ -25286,6 +25315,7 @@ def _printShowCalendars(users, csvFormat):
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
   kwargs = {}
   formatJSON = False
+  delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -25303,6 +25333,8 @@ def _printShowCalendars(users, csvFormat):
       formatJSON = True
       if csvFormat:
         addTitlesToCSVfile(u'JSON', titles)
+    elif myarg == u'delimiter':
+      delimiter = getCharacter()
     elif myarg == u'quotechar':
       quotechar = getCharacter()
     else:
@@ -25350,7 +25382,7 @@ def _printShowCalendars(users, csvFormat):
             row = {u'primaryEmail': user, u'calendarId': calendar.pop(u'id')}
             if showPermissions:
               flattenJSON(_getPermissions(cal, calendar), key=u'permissions', flattened=row)
-            addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row, simpleLists=CALENDAR_SIMPLE_LISTS), csvRows, titles)
+            addRowTitlesToCSVfile(flattenJSON(calendar, flattened=row, simpleLists=CALENDAR_SIMPLE_LISTS, delimiter=delimiter), csvRows, titles)
         elif GC.Values[GC.CSV_OUTPUT_USERS_AUDIT]:
           csvRows.append({u'primaryEmail': user})
       else:
@@ -25366,7 +25398,7 @@ def _printShowCalendars(users, csvFormat):
     writeCSVfile(csvRows, titles, u'Calendars', todrive, sortTitles, quotechar)
 
 # gam <UserTypeEntity> print calendars <UserCalendarEntity> [todrive <ToDriveAttributes>*] [permissions]
-#	[formatjson] [quotechar <Character>}
+#	[formatjson] [delimiter <Character>] [quotechar <Character>}
 def printCalendars(users):
   _printShowCalendars(users, True)
 
@@ -26696,14 +26728,24 @@ def _mapDriveProperties(f_file):
     for driveprop in sorted(properties, key=lambda k: (k[u'visibility'], k[u'key'])):
       f_file[u'properties'].append({u'key': driveprop[u'key'], u'value': driveprop[u'value'], u'visibility': driveprop[u'visibility']})
 
-def _mapDriveFieldNames(f_file):
+def _mapDriveFieldNames(f_file, mapFromLabels):
+  if mapFromLabels:
+    labels = f_file.get(u'labels')
+    if labels:
+      for label, value in iteritems(labels):
+        f_file[label] = value
+      del f_file[u'labels']
   capabilities = f_file.get(u'capabilities')
   if capabilities:
     for attrib in API.DRIVE3_TO_DRIVE2_CAPABILITIES_FIELDS_MAP:
       if attrib in capabilities:
         f_file[API.DRIVE3_TO_DRIVE2_CAPABILITIES_FIELDS_MAP[attrib]] = capabilities[attrib]
+  for parent in f_file.get(u'parents', []):
+    parent.pop(u'selfLink', None)
   for permission in f_file.get(u'permissions', []):
     _mapDrivePermissionNames(permission)
+  if u'userPermission' in f_file:
+    f_file[u'userPermission'].pop(u'selfLink', None)
   _mapDriveProperties(f_file)
 
 DRIVE_FIELDS_CHOICE_MAP = {
@@ -26840,11 +26882,9 @@ def _getDriveTimeObjects():
   timeObjects = [VX_CREATED_TIME, VX_VIEWED_BY_ME_TIME, VX_MODIFIED_BY_ME_TIME, VX_MODIFIED_TIME, VX_SHARED_WITH_ME_TIME, V2_MARKED_VIEWED_BY_ME_DATE]
   return set(timeObjects)
 
-def _getDriveFieldSubField(field, fieldsList, titles):
+def _getDriveFieldSubField(field, fieldsList):
   field, subField = field.split(u'.', 1)
   if field in DRIVE_SUBFIELDS_CHOICE_MAP:
-    if titles is not None and field != u'labels':
-      addTitlesToCSVfile(DRIVE_FIELDS_CHOICE_MAP[field], titles)
     if subField in DRIVE_SUBFIELDS_CHOICE_MAP[field]:
       fieldsList.append(u'{0}.{1}'.format(DRIVE_FIELDS_CHOICE_MAP[field], DRIVE_SUBFIELDS_CHOICE_MAP[field][subField]))
     else:
@@ -26901,9 +26941,9 @@ def showFileInfo(users):
           else:
             invalidChoiceExit(list(DRIVE_FIELDS_CHOICE_MAP)+list(DRIVE_LABEL_CHOICE_MAP), True)
         else:
-          _getDriveFieldSubField(field, fieldsList, None)
+          _getDriveFieldSubField(field, fieldsList)
     elif myarg.find(u'.') != -1:
-      _getDriveFieldSubField(myarg, fieldsList, None)
+      _getDriveFieldSubField(myarg, fieldsList)
     else:
       unknownArgumentExit()
   orderBy = u','.join(orderByList) if orderByList else None
@@ -26942,7 +26982,7 @@ def showFileInfo(users):
           for path in paths:
             printKeyValueList([u'path', path])
           Ind.Decrement()
-        _mapDriveFieldNames(result)
+        _mapDriveFieldNames(result, False)
         showJSON(None, result, skipObjects, timeObjects, {u'owners': u'displayName', u'parents': u'id', u'permissions': u'name', u'properties': u'key'})
         Ind.Decrement()
       except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions, GAPI.unknownError) as e:
@@ -27454,12 +27494,108 @@ def _simpleFileIdEntityList(fileIdEntityList):
       return False
   return True
 
+def _validatePermissionOwnerType(location, body):
+  if body.get(u'role', u'') == u'owner' and body[u'type'] != u'user':
+    Cmd.SetLocation(location)
+    usageErrorExit(Msg.INVALID_PERMISSION_ATTRIBUTE_TYPE.format(u'role {0}'.format(body[u'role']), body[u'type']))
+
+def _validatePermissionAttributes(myarg, location, body, field, validTypes):
+  if field in body and body[u'type'] not in validTypes:
+    Cmd.SetLocation(location-1)
+    usageErrorExit(Msg.INVALID_PERMISSION_ATTRIBUTE_TYPE.format(myarg, body[u'type']))
+
+def _getPermissionMatch(permissionMatches):
+  body = {}
+  startTime = endTime = startDateTime = endDateTime = None
+  roleLocation = withLinkLocation = expirationStartLocation = expirationEndLocation = deletedLocation = None
+  while Cmd.ArgumentsRemaining():
+    myarg = getArgument()
+    if myarg == u'type':
+      body[u'type'] = getChoice(DRIVEFILE_ACL_PERMISSION_TYPES)
+    elif myarg == u'role':
+      roleLocation = Cmd.Location()
+      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
+    elif myarg == u'emailaddress':
+      body[u'emailAddress'] = getREPattern(re.IGNORECASE)
+    elif myarg == u'domain':
+      body[u'domain'] = getREPattern(re.IGNORECASE)
+    elif myarg == u'withlink':
+      withLinkLocation = Cmd.Location()
+      body[u'withLink'] = getBoolean()
+    elif myarg in [u'allowfilediscovery', u'discoverable']:
+      withLinkLocation = Cmd.Location()
+      body[u'withLink'] = not getBoolean()
+    elif myarg in [u'name', u'displayname']:
+      body[u'name'] = getREPattern(re.IGNORECASE)
+    elif myarg == 'expirationstart':
+      expirationStartLocation = Cmd.Location()
+      startDateTime, _, startTime = getTimeOrDeltaFromNow(True)
+      if endDateTime and endDateTime < startDateTime:
+        Cmd.Backup()
+        usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
+      body[myarg] = startDateTime
+    elif myarg == u'expirationend':
+      expirationEndLocation = Cmd.Location()
+      endDateTime, _, endTime = getTimeOrDeltaFromNow(True)
+      if startDateTime and endDateTime < startDateTime:
+        Cmd.Backup()
+        usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
+      body[myarg] = endDateTime
+    elif myarg == u'deleted':
+      deletedLocation = Cmd.Location()
+      body[u'deleted'] = getBoolean()
+    elif myarg == u'endmatch':
+      break
+    else:
+      unknownArgumentExit()
+  if body:
+    if u'type' in body:
+      _validatePermissionOwnerType(roleLocation, body)
+      _validatePermissionAttributes(u'allowfilediscovery/withlink', withLinkLocation, body, u'withLink', [u'anyone', u'domain'])
+      _validatePermissionAttributes(u'expirationstart', expirationStartLocation, body, u'expirationstart', [u'user', u'group'])
+      _validatePermissionAttributes(u'expirationend', expirationEndLocation, body, u'expirationend', [u'user', u'group'])
+      _validatePermissionAttributes(u'deleted', deletedLocation, body, u'deleted', [u'user', u'group'])
+    permissionMatches.append(body)
+
+def _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, fileInfo):
+  permissions = fileInfo.get(u'permissions', [])
+  if permissions:
+    requiredMatches = 1 if permissionMatchOr else len(permissionMatches)
+    for permission in permissions:
+      for permissionMatch in permissionMatches:
+        for field, value in iteritems(permissionMatch):
+          if field in [u'type', u'role', u'withLink', u'deleted']:
+            if value != permission.get(field):
+              break
+          elif field in [u'expirationstart', u'expirationend']:
+            if u'expirationDate' in permission:
+              expirationDateTime, _ = iso8601.parse_date(permission[u'expirationDate'])
+              if field == u'expirationstart':
+                if expirationDateTime < value:
+                  break
+              else:
+                if expirationDateTime > value:
+                  break
+            else:
+              break
+          else:
+            if not value.match(permission.get(field, u'')):
+              break
+        else:
+          requiredMatches -= 1
+          if requiredMatches == 0:
+            return permissionMatchKeep
+  return not permissionMatchKeep
+
 FILELIST_FIELDS_TITLES = [u'id', u'mimeType', u'parents']
+PERMISSION_MATCH_ACTION_MAP = {u'process': True, u'skip': False}
+PERMISSION_MATCH_MODE_MAP = {u'or': True, u'and': False}
 
 # gam <UserTypeEntity> print|show filelist [todrive <ToDriveAttributes>*] [anyowner|(showownedby any|me|others)]
 #	[((query <QueryDriveFile>) | (fullquery <QueryDriveFile>) | <DriveFileQueryShortcut>) |
 #	  (select <DriveFileEntityListTree> [selectsubquery <QueryDriveFile>] [depth <Number>] [showparent])]
 #	[showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
+#	(<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
 #	[filepath] [buildtree] [allfields|<DriveFieldName>*|(fields <DriveFieldNameList>)] (orderby <DriveFileOrderByFieldName> [ascending|descending])* [delimiter <Character>] [quotechar <Character>]
 def printFileList(users):
   def _setSelectionFields():
@@ -27477,63 +27613,22 @@ def printFileList(users):
       if VX_FILENAME not in fieldsList:
         skipObjects.add(VX_FILENAME)
         fieldsList.append(VX_FILENAME)
+    if permissionMatches:
+      fieldsList.append(u'permisions')
 
   def _printFileInfo(drive, user, fileInfo):
     if ((showOwnedBy is not None and fileInfo.get(u'ownedByMe', showOwnedBy) != showOwnedBy) or
         (not checkMimeType(mimeTypeCheck, fileInfo)) or
-        (filenameMatchPattern and not filenameMatchPattern.match(fileInfo[VX_FILENAME]))):
+        (filenameMatchPattern and not filenameMatchPattern.match(fileInfo[VX_FILENAME])) or
+        (permissionMatches and not _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, fileInfo))):
       return
     row = {u'Owner': user}
     if filepath:
       addFilePathsToRow(drive, fileTree, fileInfo, filePathInfo, row, titles)
-    _mapDriveFieldNames(fileInfo)
-    for attrib in fileInfo:
-      if attrib in skipObjects:
-        pass
-      elif not isinstance(fileInfo[attrib], dict):
-        if isinstance(fileInfo[attrib], list):
-          if fileInfo[attrib]:
-            if attrib not in titles[u'set']:
-              addTitleToCSVfile(attrib, titles)
-            if isinstance(fileInfo[attrib][0], non_compound_types):
-              row[attrib] = delimiter.join(fileInfo[attrib])
-            else:
-              row[attrib] = len(fileInfo[attrib])
-              for j, l_attrib in enumerate(fileInfo[attrib]):
-                for list_attrib in l_attrib:
-                  if list_attrib not in set([u'kind', u'etag', u'selfLink']):
-                    x_attrib = u'{0}.{1}.{2}'.format(attrib, j, list_attrib)
-                    row[x_attrib] = l_attrib[list_attrib]
-                    if x_attrib not in titles[u'set']:
-                      addTitleToCSVfile(x_attrib, titles)
-        elif isinstance(fileInfo[attrib], non_compound_types):
-          if attrib not in timeObjects:
-            if isinstance(fileInfo[attrib], string_types) and (fileInfo[attrib].find(u'\n') >= 0 or fileInfo[attrib].find(u'\r') >= 0):
-              if GC.Values[GC.CSV_OUTPUT_CONVERT_CR_NL]:
-                row[attrib] = escapeCRsNLs(fileInfo[attrib])
-              else:
-                row[attrib] = fileInfo[attrib]
-            else:
-              row[attrib] = fileInfo[attrib]
-          else:
-            row[attrib] = formatLocalTime(fileInfo[attrib])
-          if attrib not in titles[u'set']:
-            addTitleToCSVfile(attrib, titles)
-        else:
-          writeStderr(u'{0}: {1}, Attribute: {2}, Unknown type: {3}\n'.format(Ent.Singular(Ent.DRIVE_FILE_ID), fileInfo[u'id'], attrib, type(fileInfo[attrib])))
-      elif attrib == u'labels':
-        for dict_attrib in fileInfo[attrib]:
-          row[dict_attrib] = fileInfo[attrib][dict_attrib]
-          if dict_attrib not in titles[u'set']:
-            addTitleToCSVfile(dict_attrib, titles)
-      else:
-        for dict_attrib in fileInfo[attrib]:
-          if dict_attrib not in DEFAULT_SKIP_OBJECTS:
-            x_attrib = u'{0}.{1}'.format(attrib, dict_attrib)
-            row[x_attrib] = fileInfo[attrib][dict_attrib]
-            if x_attrib not in titles[u'set']:
-              addTitleToCSVfile(x_attrib, titles)
-    csvRows.append(row)
+    _mapDriveFieldNames(fileInfo, True)
+    addRowTitlesToCSVfile(flattenJSON(fileInfo, flattened=row, skipObjects=skipObjects, timeObjects=timeObjects,
+                                      simpleLists=[u'additionalRoles', u'ownerNames', u'permissionIds', u'spaces'], delimiter=delimiter),
+                          csvRows, titles)
 
   def _printChildDriveFolderContents(drive, fileEntry, user, i, count, depth):
     parentFileEntry = fileTree.get(fileEntry[u'id'])
@@ -27583,8 +27678,10 @@ def printFileList(users):
   selectSubQuery = u''
   fileIdEntity = {}
   filenameMatchPattern = fileTree = None
-  showOwnedBy = True
   mimeTypeCheck = initMimeTypeCheck()
+  permissionMatches = []
+  permissionMatchKeep = permissionMatchOr = True
+  showOwnedBy = True
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
   while Cmd.ArgumentsRemaining():
@@ -27625,22 +27722,22 @@ def printFileList(users):
       fieldsList = []
       allfields = True
     elif myarg in DRIVE_LABEL_CHOICE_MAP:
-      addFieldToCSVfile(myarg, DRIVE_LABEL_CHOICE_MAP, labelsList, titles)
+      addFieldToFieldsList(myarg, DRIVE_LABEL_CHOICE_MAP, labelsList)
     elif myarg in DRIVE_FIELDS_CHOICE_MAP:
-      addFieldToCSVfile(myarg, DRIVE_FIELDS_CHOICE_MAP, fieldsList, titles)
+      addFieldToFieldsList(myarg, DRIVE_FIELDS_CHOICE_MAP, fieldsList)
     elif myarg == u'fields':
       for field in _getFieldsList():
         if field in DRIVE_LABEL_CHOICE_MAP:
-          addFieldToCSVfile(field, DRIVE_LABEL_CHOICE_MAP, labelsList, titles)
+          addFieldToFieldsList(field, DRIVE_LABEL_CHOICE_MAP, labelsList)
         elif field.find(u'.') == -1:
           if field in DRIVE_FIELDS_CHOICE_MAP:
-            addFieldToCSVfile(field, DRIVE_FIELDS_CHOICE_MAP, fieldsList, titles)
+            addFieldToFieldsList(field, DRIVE_FIELDS_CHOICE_MAP, fieldsList)
           else:
             invalidChoiceExit(list(DRIVE_FIELDS_CHOICE_MAP)+list(DRIVE_LABEL_CHOICE_MAP), True)
         else:
-          _getDriveFieldSubField(field, fieldsList, titles)
+          _getDriveFieldSubField(field, fieldsList)
     elif myarg.find(u'.') != -1:
-      _getDriveFieldSubField(myarg, fieldsList, titles)
+      _getDriveFieldSubField(myarg, fieldsList)
     elif myarg == u'anyowner':
       showOwnedBy = None
       query = _updateAnyOwnerQuery(query)
@@ -27650,6 +27747,12 @@ def printFileList(users):
       getMimeTypeCheck(mimeTypeCheck)
     elif myarg == u'filenamematchpattern':
       filenameMatchPattern = getREPattern(re.IGNORECASE)
+    elif myarg == u'permissionmatch':
+      _getPermissionMatch(permissionMatches)
+    elif myarg == u'permissionmatchaction':
+      permissionMatchKeep = getChoice(PERMISSION_MATCH_ACTION_MAP, mapChoice=True)
+    elif myarg == u'permissionmatchmode':
+      permissionMatchOr = getChoice(PERMISSION_MATCH_MODE_MAP, mapChoice=True)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == u'quotechar':
@@ -27873,11 +27976,12 @@ def showFilePaths(users):
 def _printShowFileCounts(users, csvFormat):
   if csvFormat:
     todrive = {}
-    titles, csvRows = initializeTitlesCSVfile([u'User', u'Total'])
   fieldsList = [u'mimeType',]
   query = ME_IN_OWNERS
   filenameMatchPattern = None
   mimeTypeCheck = initMimeTypeCheck()
+  permissionMatches = []
+  permissionMatchKeep = permissionMatchOr = True
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
@@ -27898,6 +28002,13 @@ def _printShowFileCounts(users, csvFormat):
     elif myarg == u'filenamematchpattern':
       filenameMatchPattern = getREPattern(re.IGNORECASE)
       fieldsList.append(VX_FILENAME)
+    elif myarg == u'permissionmatch':
+      _getPermissionMatch(permissionMatches)
+      fieldsList.append(u'permissions')
+    elif myarg == u'permissionmatchaction':
+      permissionMatchKeep = getChoice(PERMISSION_MATCH_ACTION_MAP, mapChoice=True)
+    elif myarg == u'permissionmatchmode':
+      permissionMatchOr = getChoice(PERMISSION_MATCH_MODE_MAP, mapChoice=True)
     elif myarg == u'query':
       if query:
         query += u' and '+getString(Cmd.OB_QUERY)
@@ -27919,7 +28030,10 @@ def _printShowFileCounts(users, csvFormat):
       _, query = _getShowOwnedBy(query)
     else:
       unknownArgumentExit()
-  pagesfields = VX_NPT_FILES_FIELDLIST.format(u','.join(fieldsList))
+  if csvFormat:
+    sortTitles = [u'User', u'Total']
+    titles, csvRows = initializeTitlesCSVfile(sortTitles)
+  pagesfields = VX_NPT_FILES_FIELDLIST.format(u','.join(set(fieldsList))).replace(u'.', u'/')
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -27941,10 +28055,12 @@ def _printShowFileCounts(users, csvFormat):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       continue
     for f_file in feed:
-      if (not filenameMatchPattern) or filenameMatchPattern.match(f_file[VX_FILENAME]):
-        total += 1
-        mimeTypeCounts.setdefault(f_file[u'mimeType'], 0)
-        mimeTypeCounts[f_file[u'mimeType']] += 1
+      if ((filenameMatchPattern and not filenameMatchPattern.match(f_file[VX_FILENAME])) or
+          (permissionMatches and not _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, f_file))):
+        continue
+      total += 1
+      mimeTypeCounts.setdefault(f_file[u'mimeType'], 0)
+      mimeTypeCounts[f_file[u'mimeType']] += 1
     if not csvFormat:
       printEntityKVList([Ent.USER, user], [Ent.Choose(Ent.DRIVE_FILE_OR_FOLDER, total), total], i, count)
       Ind.Increment()
@@ -27956,11 +28072,12 @@ def _printShowFileCounts(users, csvFormat):
       row.update(mimeTypeCounts)
       addRowTitlesToCSVfile(row, csvRows, titles)
   if csvFormat:
-    writeCSVfile(csvRows, titles, u'Drive File Counts', todrive, [u'User', u'Total'])
+    writeCSVfile(csvRows, titles, u'Drive File Counts', todrive, sortTitles)
 
 # gam <UserTypeEntity> print filecounts [todrive <ToDriveAttributes>*] [anyowner|(showownedby any|me|others)]
 #	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>]
 #	[showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
+#	(<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
 def printFileCounts(users):
   _printShowFileCounts(users, True)
 
@@ -27984,6 +28101,7 @@ FILETREE_FIELDS_PRINT_ORDER = [u'id', u'parents', u'owners', u'mimeType']
 #	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [depth <Number>]
 #	[showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
 #	(orderby <DriveFileOrderByFieldName> [ascending|descending])* [fields <FileTreeFieldNameList>] [delimiter <Character>]
+#	(<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
 def showFileTree(users):
   def _showFileInfo(fileEntry, j=0, jcount=0):
     fileInfoList = []
@@ -30608,6 +30726,7 @@ DRIVEFILE_ACL_PERMISSION_TYPES = [u'anyone', u'domain', u'group', u'user',] # an
 #	(role <DriveFileACLRole>) [withlink|(allowfilediscovery|discoverable [<Boolean>])] [expiration <Time>] [sendemail] [emailmessage <String>] [showtitles] [nodetails]
 def createDriveFileACL(users):
   sendNotificationEmails = showTitles = False
+  roleLocation = withLinkLocation = expirationLocation = None
   showDetails = True
   emailMessage = None
   fileIdEntity = getDriveFileEntity()
@@ -30634,6 +30753,7 @@ def createDriveFileACL(users):
       if body[u'role'] == u'owner':
         sendNotificationEmails = True
     elif myarg in [u'expiration', u'expires']:
+      expirationLocation = Cmd.Location()
       body[VX_EXPIRATION_TIME] = getTimeOrDeltaFromNow()
     elif myarg == u'sendemail':
       sendNotificationEmails = True
@@ -30648,12 +30768,9 @@ def createDriveFileACL(users):
       unknownArgumentExit()
   if u'role' not in body:
     missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
-  if body[u'role'] == u'owner' and body[u'type'] != u'user':
-    Cmd.SetLocation(roleLocation)
-    usageErrorExit(Msg.INVALID_OWNER_TYPE.format(body[u'role'], body[u'type']))
-  if u'withLink' in body and body[u'type'] in [u'user', u'group']:
-    Cmd.SetLocation(withLinkLocation-1)
-    usageErrorExit(Msg.WITHLINK_INCOMPATIBILITY.format(body[u'type']))
+  _validatePermissionOwnerType(roleLocation, body)
+  _validatePermissionAttributes(u'allowfilediscovery/withlink', withLinkLocation, body, u'withLink', [u'anyone', u'domain'])
+  _validatePermissionAttributes(u'expiration', expirationLocation, body, VX_EXPIRATION_TIME, [u'user', u'group'])
   printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
