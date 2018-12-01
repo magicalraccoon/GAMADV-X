@@ -27614,7 +27614,7 @@ def printFileList(users):
         skipObjects.add(VX_FILENAME)
         fieldsList.append(VX_FILENAME)
     if permissionMatches:
-      fieldsList.append(u'permisions')
+      fieldsList.append(u'permissions')
 
   def _printFileInfo(drive, user, fileInfo):
     if ((showOwnedBy is not None and fileInfo.get(u'ownedByMe', showOwnedBy) != showOwnedBy) or
