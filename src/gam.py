@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.21'
+__version__ = u'4.65.22'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -281,7 +281,6 @@ VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME = u'id,{0},{1},mimeType,ownedByMe'.for
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED = u'id,{0},{1},mimeType,ownedByMe,{2}'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS = u'id,{0},{1},mimeType,ownedByMe,{2},owners(emailAddress,permissionId)'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS = u'id,{0},{1},mimeType,ownedByMe,{2},owners(emailAddress,permissionId),permissions(id,role,additionalRoles)'.format(VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
-VX_ID_FILENAME_PARENTS_MIMETYPE_OWNERS = u'id,{0},{1},mimeType,owners(emailAddress)'.format(VX_FILENAME, VX_PARENTS_ID)
 VX_ID_MIMETYPE_CANEDIT = u'id,mimeType,capabilities(canEdit)'
 VX_NPT_FILES_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_FILES)
 VX_NPT_FILES_ID = u'nextPageToken,{0}(id)'.format(VX_PAGES_FILES)
@@ -296,7 +295,6 @@ VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_OWNERS_PERMISSIONS = u'nextP
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,{3})'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,{3},owners(emailAddress,permissionId))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
 VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS = u'nextPageToken,{0}(id,{1},{2},mimeType,ownedByMe,{3},owners(emailAddress,permissionId),permissions(id,role,additionalRoles))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID, VX_TRASHED)
-VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNERS = u'nextPageToken,{0}(id,{1},{2},mimeType,owners(emailAddress))'.format(VX_PAGES_FILES, VX_FILENAME, VX_PARENTS_ID)
 VX_NPT_PERMISSIONS = u'nextPageToken,{0}'.format(VX_PAGES_PERMISSIONS)
 VX_NPT_PERMISSIONS_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_PERMISSIONS)
 VX_NPT_REVISIONS_FIELDLIST = u'nextPageToken,{0}({{0}})'.format(VX_PAGES_REVISIONS)
@@ -26220,20 +26218,23 @@ def validateMimeType(mimeType):
 def getMimeType():
   return validateMimeType(getString(Cmd.OB_MIMETYPE).lower())
 
-def initMimeTypeCheck():
-  return {u'mimeTypes': set(), u'reverse': False}
+class MimeTypeCheck(object):
 
-def getMimeTypeCheck(mimeTypeCheck):
-  mimeTypeCheck[u'reverse'] = checkArgumentPresent(u'not')
-  for mimeType in getString(Cmd.OB_MIMETYPE_LIST).lower().replace(u',', u' ').split():
-    mimeTypeCheck[u'mimeTypes'].add(validateMimeType(mimeType))
+  def __init__(self):
+    self.mimeTypes = set()
+    self.reverse = False
 
-def checkMimeType(mimeTypeCheck, fileEntry):
-  if not mimeTypeCheck[u'mimeTypes']:
-    return True
-  if not mimeTypeCheck[u'reverse']:
-    return fileEntry[u'mimeType'] in mimeTypeCheck[u'mimeTypes']
-  return fileEntry[u'mimeType'] not in mimeTypeCheck[u'mimeTypes']
+  def Get(self):
+    self.reverse = checkArgumentPresent(u'not')
+    for mimeType in getString(Cmd.OB_MIMETYPE_LIST).lower().replace(u',', u' ').split():
+      self.mimeTypes.add(validateMimeType(mimeType))
+
+  def Check(self, fileEntry):
+    if not self.mimeTypes:
+      return True
+    if not self.reverse:
+      return fileEntry[u'mimeType'] in self.mimeTypes
+    return fileEntry[u'mimeType'] not in self.mimeTypes
 
 def initializeDriveFileAttributes():
   return {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None,
@@ -27486,92 +27487,165 @@ def _validatePermissionAttributes(myarg, location, body, field, validTypes):
     Cmd.SetLocation(location-1)
     usageErrorExit(Msg.INVALID_PERMISSION_ATTRIBUTE_TYPE.format(myarg, body[u'type']))
 
-def _getPermissionMatch(permissionMatches):
-  body = {}
-  startTime = endTime = startDateTime = endDateTime = None
-  roleLocation = withLinkLocation = expirationStartLocation = expirationEndLocation = deletedLocation = None
-  while Cmd.ArgumentsRemaining():
-    myarg = getArgument()
-    if myarg == u'type':
-      body[u'type'] = getChoice(DRIVEFILE_ACL_PERMISSION_TYPES)
-    elif myarg == u'role':
-      roleLocation = Cmd.Location()
-      _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
-    elif myarg == u'emailaddress':
-      body[u'emailAddress'] = getREPattern(re.IGNORECASE)
-    elif myarg == u'domain':
-      body[u'domain'] = getREPattern(re.IGNORECASE)
-    elif myarg == u'withlink':
-      withLinkLocation = Cmd.Location()
-      body[u'withLink'] = getBoolean()
-    elif myarg in [u'allowfilediscovery', u'discoverable']:
-      withLinkLocation = Cmd.Location()
-      body[u'withLink'] = not getBoolean()
-    elif myarg in [u'name', u'displayname']:
-      body[u'name'] = getREPattern(re.IGNORECASE)
-    elif myarg == 'expirationstart':
-      expirationStartLocation = Cmd.Location()
-      startDateTime, _, startTime = getTimeOrDeltaFromNow(True)
-      if endDateTime and endDateTime < startDateTime:
-        Cmd.Backup()
-        usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
-      body[myarg] = startDateTime
-    elif myarg == u'expirationend':
-      expirationEndLocation = Cmd.Location()
-      endDateTime, _, endTime = getTimeOrDeltaFromNow(True)
-      if startDateTime and endDateTime < startDateTime:
-        Cmd.Backup()
-        usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
-      body[myarg] = endDateTime
-    elif myarg == u'deleted':
-      deletedLocation = Cmd.Location()
-      body[u'deleted'] = getBoolean()
-    elif myarg in [u'em', u'endmatch']:
-      break
-    else:
-      unknownArgumentExit()
-  if body:
-    if u'type' in body:
-      _validatePermissionOwnerType(roleLocation, body)
-      _validatePermissionAttributes(u'allowfilediscovery/withlink', withLinkLocation, body, u'withLink', [u'anyone', u'domain'])
-      _validatePermissionAttributes(u'expirationstart', expirationStartLocation, body, u'expirationstart', [u'user', u'group'])
-      _validatePermissionAttributes(u'expirationend', expirationEndLocation, body, u'expirationend', [u'user', u'group'])
-      _validatePermissionAttributes(u'deleted', deletedLocation, body, u'deleted', [u'user', u'group'])
-    permissionMatches.append(body)
+class DriveListParameters(object):
+  _PERMISSION_MATCH_ACTION_MAP = {u'process': True, u'skip': False}
+  _PERMISSION_MATCH_MODE_MAP = {u'or': True, u'and': False}
 
-def _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, fileInfo):
-  permissions = fileInfo.get(u'permissions', [])
-  if permissions:
-    requiredMatches = 1 if permissionMatchOr else len(permissionMatches)
-    for permission in permissions:
-      for permissionMatch in permissionMatches:
-        for field, value in iteritems(permissionMatch):
-          if field in [u'type', u'role', u'withLink', u'deleted']:
-            if value != permission.get(field):
-              break
-          elif field in [u'expirationstart', u'expirationend']:
-            if u'expirationDate' in permission:
-              expirationDateTime, _ = iso8601.parse_date(permission[u'expirationDate'])
-              if field == u'expirationstart':
-                if expirationDateTime < value:
-                  break
-              else:
-                if expirationDateTime > value:
-                  break
-            else:
-              break
-          else:
-            if not value.match(permission.get(field, u'')):
-              break
+  def __init__(self, mimeTypeInQuery=False, allowQuery=True):
+    self.mimeTypeInQuery = mimeTypeInQuery
+    self.query = ME_IN_OWNERS
+    self.filenameMatchPattern = None
+    self.mimeTypeCheck = MimeTypeCheck()
+    self.permissionMatches = []
+    self.permissionMatchKeep = self.permissionMatchOr = True
+    self.showOwnedBy = True
+    self.allowQuery = allowQuery
+
+  def _getPermissionMatch(self):
+    body = {}
+    startTime = endTime = startDateTime = endDateTime = None
+    roleLocation = withLinkLocation = expirationStartLocation = expirationEndLocation = deletedLocation = None
+    while Cmd.ArgumentsRemaining():
+      myarg = getArgument()
+      if myarg == u'type':
+        body[u'type'] = getChoice(DRIVEFILE_ACL_PERMISSION_TYPES)
+      elif myarg == u'role':
+        roleLocation = Cmd.Location()
+        _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
+      elif myarg == u'emailaddress':
+        body[u'emailAddress'] = getREPattern(re.IGNORECASE)
+      elif myarg == u'domain':
+        body[u'domain'] = getREPattern(re.IGNORECASE)
+      elif myarg == u'withlink':
+        withLinkLocation = Cmd.Location()
+        body[u'withLink'] = getBoolean()
+      elif myarg in [u'allowfilediscovery', u'discoverable']:
+        withLinkLocation = Cmd.Location()
+        body[u'withLink'] = not getBoolean()
+      elif myarg in [u'name', u'displayname']:
+        body[u'name'] = getREPattern(re.IGNORECASE)
+      elif myarg == 'expirationstart':
+        expirationStartLocation = Cmd.Location()
+        startDateTime, _, startTime = getTimeOrDeltaFromNow(True)
+        if endDateTime and endDateTime < startDateTime:
+          Cmd.Backup()
+          usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
+        body[myarg] = startDateTime
+      elif myarg == u'expirationend':
+        expirationEndLocation = Cmd.Location()
+        endDateTime, _, endTime = getTimeOrDeltaFromNow(True)
+        if startDateTime and endDateTime < startDateTime:
+          Cmd.Backup()
+          usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
+        body[myarg] = endDateTime
+      elif myarg == u'deleted':
+        deletedLocation = Cmd.Location()
+        body[u'deleted'] = getBoolean()
+      elif myarg in [u'em', u'endmatch']:
+        break
+      else:
+        unknownArgumentExit()
+    if body:
+      if u'type' in body:
+        _validatePermissionOwnerType(roleLocation, body)
+        _validatePermissionAttributes(u'allowfilediscovery/withlink', withLinkLocation, body, u'withLink', [u'anyone', u'domain'])
+        _validatePermissionAttributes(u'expirationstart', expirationStartLocation, body, u'expirationstart', [u'user', u'group'])
+        _validatePermissionAttributes(u'expirationend', expirationEndLocation, body, u'expirationend', [u'user', u'group'])
+        _validatePermissionAttributes(u'deleted', deletedLocation, body, u'deleted', [u'user', u'group'])
+      self.permissionMatches.append(body)
+
+  def ProcessArgument(self, myarg):
+    if myarg == u'showmimetype':
+      self.mimeTypeCheck.Get()
+      if self.mimeTypeInQuery:
+        if self.query:
+          self.query += u' and ('
+        if not self.mimeTypeCheck.reverse:
+          for mimeType in self.mimeTypeCheck.mimeTypes:
+            self.query += u"mimeType = '{0}' or ".format(mimeType)
+          self.query = self.query[:-4]
         else:
-          requiredMatches -= 1
-          if requiredMatches == 0:
-            return permissionMatchKeep
-  return not permissionMatchKeep
+          for mimeType in self.mimeTypeCheck.mimeTypes:
+            self.query += u"mimeType != '{0}' and ".format(mimeType)
+          self.query = self.query[:-5]
+        self.query += u')'
+    elif myarg == u'filenamematchpattern':
+      self.filenameMatchPattern = getREPattern(re.IGNORECASE)
+    elif myarg in [u'pm', u'permissionmatch']:
+      self._getPermissionMatch()
+    elif myarg in [u'pma', u'permissionmatchaction']:
+      self.permissionMatchKeep = getChoice(DriveListParameters._PERMISSION_MATCH_ACTION_MAP, mapChoice=True)
+    elif myarg in [u'pmm', u'permissionmatchmode']:
+      self.permissionMatchOr = getChoice(DriveListParameters._PERMISSION_MATCH_MODE_MAP, mapChoice=True)
+    elif self.allowQuery and myarg == u'query':
+      if self.query:
+        self.query += u' and '+getString(Cmd.OB_QUERY)
+      else:
+        self.query = getString(Cmd.OB_QUERY)
+    elif self.allowQuery and myarg == u'fullquery':
+      self.query = getString(Cmd.OB_QUERY, minLen=0)
+      if not self.query:
+        self.query = None
+    elif self.allowQuery and myarg in QUERY_SHORTCUTS_MAP:
+      self.UpdateAnyOwnerQuery()
+      if self.query:
+        self.query += u' and '+QUERY_SHORTCUTS_MAP[myarg]
+      else:
+        self.query = QUERY_SHORTCUTS_MAP[myarg]
+    elif myarg == u'anyowner':
+      self.showOwnedBy = None
+      self.UpdateAnyOwnerQuery()
+    elif myarg == u'showownedby':
+      self.showOwnedBy, self.query = _getShowOwnedBy(self.query)
+    else:
+      return False
+    return True
+
+  def UpdateAnyOwnerQuery(self):
+    self.query = _updateAnyOwnerQuery(self.query)
+
+  def CheckShowOwnedBy(self, fileInfo):
+    return self.showOwnedBy is None or fileInfo.get(u'ownedByMe', self.showOwnedBy) == self.showOwnedBy
+
+  def CheckMimeType(self, fileInfo):
+    return self.mimeTypeCheck.Check(fileInfo)
+
+  def CheckFilenameMatch(self, fileInfo):
+    return not self.filenameMatchPattern or self.filenameMatchPattern.match(fileInfo[VX_FILENAME])
+
+  def CheckPermissonMatches(self, fileInfo):
+    if not self.permissionMatches:
+      return True
+    permissions = fileInfo.get(u'permissions', [])
+    if permissions:
+      requiredMatches = 1 if self.permissionMatchOr else len(self.permissionMatches)
+      for permission in permissions:
+        for permissionMatch in self.permissionMatches:
+          for field, value in iteritems(permissionMatch):
+            if field in [u'type', u'role', u'withLink', u'deleted']:
+              if value != permission.get(field):
+                break
+            elif field in [u'expirationstart', u'expirationend']:
+              if u'expirationDate' in permission:
+                expirationDateTime, _ = iso8601.parse_date(permission[u'expirationDate'])
+                if field == u'expirationstart':
+                  if expirationDateTime < value:
+                    break
+                else:
+                  if expirationDateTime > value:
+                    break
+              else:
+                break
+            else:
+              if not value.match(permission.get(field, u'')):
+                break
+          else:
+            requiredMatches -= 1
+            if requiredMatches == 0:
+              return self.permissionMatchKeep
+    return not self.permissionMatchKeep
 
 FILELIST_FIELDS_TITLES = [u'id', u'mimeType', u'parents']
-PERMISSION_MATCH_ACTION_MAP = {u'process': True, u'skip': False}
-PERMISSION_MATCH_MODE_MAP = {u'or': True, u'and': False}
 
 # gam <UserTypeEntity> print|show filelist [todrive <ToDriveAttributes>*] [anyowner|(showownedby any|me|others)]
 #	[((query <QueryDriveFile>) | (fullquery <QueryDriveFile>) | <DriveFileQueryShortcut>) |
@@ -27585,24 +27659,24 @@ def printFileList(users):
       _setSkipObjects(skipObjects, FILELIST_FIELDS_TITLES, fieldsList)
     if filepath:
       _setSkipObjects(skipObjects, VX_FILEPATH_FIELDS_TITLES, fieldsList)
-    if showOwnedBy is not None:
+    if DLP.showOwnedBy is not None:
       _setSkipObjects(skipObjects, OWNED_BY_ME_FIELDS_TITLES, fieldsList)
-    if mimeTypeCheck[u'mimeTypes']:
+    if DLP.mimeTypeCheck.mimeTypes:
       if u'mimeType' not in fieldsList:
         skipObjects.add(u'mimeType')
         fieldsList.append(u'mimeType')
-    if filenameMatchPattern:
+    if DLP.filenameMatchPattern:
       if VX_FILENAME not in fieldsList:
         skipObjects.add(VX_FILENAME)
         fieldsList.append(VX_FILENAME)
-    if permissionMatches:
+    if DLP.permissionMatches:
       fieldsList.append(u'permissions')
 
   def _printFileInfo(drive, user, fileInfo):
-    if ((showOwnedBy is not None and fileInfo.get(u'ownedByMe', showOwnedBy) != showOwnedBy) or
-        (not checkMimeType(mimeTypeCheck, fileInfo)) or
-        (filenameMatchPattern and not filenameMatchPattern.match(fileInfo[VX_FILENAME])) or
-        (permissionMatches and not _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, fileInfo))):
+    if (not DLP.CheckShowOwnedBy(fileInfo) or
+        not DLP.CheckMimeType(fileInfo) or
+        not DLP.CheckFilenameMatch(fileInfo) or
+        not DLP.CheckPermissonMatches(fileInfo)):
       return
     row = {u'Owner': user}
     if filepath:
@@ -27650,52 +27724,26 @@ def printFileList(users):
 
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
-  allfields = buildTree = filepath = showParent = False
+  allfields = buildTree = filepath = False
   maxdepth = -1
   fieldsList = []
   labelsList = []
   orderByList = []
   skipObjects = set()
-  query = ME_IN_OWNERS
   selectSubQuery = u''
   fileIdEntity = {}
-  filenameMatchPattern = fileTree = None
-  mimeTypeCheck = initMimeTypeCheck()
-  permissionMatches = []
-  permissionMatchKeep = permissionMatchOr = True
-  showOwnedBy = True
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
+  DLP = DriveListParameters()
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'filepath':
-      filepath = True
-    elif myarg == u'buildtree':
-      buildTree = True
-    elif myarg == u'showparent':
-      showParent = getBoolean()
-    elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
-    elif myarg == u'query':
-      if query:
-        query += u' and '+getString(Cmd.OB_QUERY)
-      else:
-        query = getString(Cmd.OB_QUERY)
-    elif myarg == u'fullquery':
-      query = getString(Cmd.OB_QUERY, minLen=0)
-      if not query:
-        query = None
-    elif myarg in QUERY_SHORTCUTS_MAP:
-      query = _updateAnyOwnerQuery(query)
-      if query:
-        query += u' and '+QUERY_SHORTCUTS_MAP[myarg]
-      else:
-        query = QUERY_SHORTCUTS_MAP[myarg]
+    elif DLP.ProcessArgument(myarg):
+      pass
     elif myarg == u'select':
       fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
-      query = None
+      DLP.query = None
     elif myarg == u'selectsubquery':
       selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
     elif myarg == u'depth':
@@ -27720,21 +27768,14 @@ def printFileList(users):
           _getDriveFieldSubField(field, fieldsList)
     elif myarg.find(u'.') != -1:
       _getDriveFieldSubField(myarg, fieldsList)
-    elif myarg == u'anyowner':
-      showOwnedBy = None
-      query = _updateAnyOwnerQuery(query)
-    elif myarg == u'showownedby':
-      showOwnedBy, query = _getShowOwnedBy(query)
-    elif myarg == u'showmimetype':
-      getMimeTypeCheck(mimeTypeCheck)
-    elif myarg == u'filenamematchpattern':
-      filenameMatchPattern = getREPattern(re.IGNORECASE)
-    elif myarg in [u'pm', u'permissionmatch']:
-      _getPermissionMatch(permissionMatches)
-    elif myarg in [u'pma', u'permissionmatchaction']:
-      permissionMatchKeep = getChoice(PERMISSION_MATCH_ACTION_MAP, mapChoice=True)
-    elif myarg in [u'pmm', u'permissionmatchmode']:
-      permissionMatchOr = getChoice(PERMISSION_MATCH_MODE_MAP, mapChoice=True)
+    elif myarg == u'filepath':
+      filepath = True
+    elif myarg == u'buildtree':
+      buildTree = True
+    elif myarg == u'showparent':
+      showParent = getBoolean()
+    elif myarg == u'orderby':
+      getDrivefileOrderBy(orderByList)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == u'quotechar':
@@ -27795,7 +27836,7 @@ def printFileList(users):
       filePathInfo = initFilePathInfo()
     filesPrinted = set()
     if incrementalPrint:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=query)
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=DLP.query)
       page_message = getPageMessageForWhom()
       pageToken = None
       totalItems = 0
@@ -27805,9 +27846,9 @@ def printFileList(users):
           feed = callGAPI(drive.files(), u'list',
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
                           pageToken=pageToken,
-                          q=query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                          q=DLP.query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         except (GAPI.invalidQuery, GAPI.invalid):
-          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
+          entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(DLP.query), i, count)
           queryError = True
           break
         except GAPI.fileNotFound:
@@ -27829,14 +27870,15 @@ def printFileList(users):
       continue
     fileTree = {}
     if buildTree:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=query)
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=DLP.query)
       try:
         feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                              page_message=getPageMessageForWhom(),
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
-                             q=query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                             q=DLP.query, orderBy=orderBy, fields=pagesfields,
+                             maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       except (GAPI.invalidQuery, GAPI.invalid):
-        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(query), i, count)
+        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(DLP.query), i, count)
         break
       except GAPI.fileNotFound:
         printGotEntityItemsForWhom(0)
@@ -27959,59 +28001,19 @@ def _printShowFileCounts(users, csvFormat):
   if csvFormat:
     todrive = {}
   fieldsList = [u'mimeType',]
-  query = ME_IN_OWNERS
-  filenameMatchPattern = None
-  mimeTypeCheck = initMimeTypeCheck()
-  permissionMatches = []
-  permissionMatchKeep = permissionMatchOr = True
+  DLP = DriveListParameters(mimeTypeInQuery=True)
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
-    elif myarg == u'showmimetype':
-      getMimeTypeCheck(mimeTypeCheck)
-      if query:
-        query += u' and ('
-      if not mimeTypeCheck[u'reverse']:
-        for mimeType in mimeTypeCheck[u'mimeTypes']:
-          query += u"mimeType = '{0}' or ".format(mimeType)
-        query = query[:-4]
-      else:
-        for mimeType in mimeTypeCheck[u'mimeTypes']:
-          query += u"mimeType != '{0}' and ".format(mimeType)
-        query = query[:-5]
-      query += u')'
-    elif myarg == u'filenamematchpattern':
-      filenameMatchPattern = getREPattern(re.IGNORECASE)
-      fieldsList.append(VX_FILENAME)
-    elif myarg in [u'pm', u'permissionmatch']:
-      _getPermissionMatch(permissionMatches)
-      fieldsList.extend([u'id', u'permissions'])
-    elif myarg in [u'pma', u'permissionmatchaction']:
-      permissionMatchKeep = getChoice(PERMISSION_MATCH_ACTION_MAP, mapChoice=True)
-    elif myarg in [u'pmm', u'permissionmatchmode']:
-      permissionMatchOr = getChoice(PERMISSION_MATCH_MODE_MAP, mapChoice=True)
-    elif myarg == u'query':
-      if query:
-        query += u' and '+getString(Cmd.OB_QUERY)
-      else:
-        query = getString(Cmd.OB_QUERY)
-    elif myarg == u'fullquery':
-      query = getString(Cmd.OB_QUERY, minLen=0)
-      if not query:
-        query = None
-    elif myarg in QUERY_SHORTCUTS_MAP:
-      query = _updateAnyOwnerQuery(query)
-      if query:
-        query += u' and '+QUERY_SHORTCUTS_MAP[myarg]
-      else:
-        query = QUERY_SHORTCUTS_MAP[myarg]
-    elif myarg == u'anyowner':
-      query = _updateAnyOwnerQuery(query)
-    elif myarg == u'showownedby':
-      _, query = _getShowOwnedBy(query)
+    elif DLP.ProcessArgument(myarg):
+      pass
     else:
       unknownArgumentExit()
+  if DLP.filenameMatchPattern:
+    fieldsList.append(VX_FILENAME)
+  if DLP.permissionMatches:
+    fieldsList.extend([u'id', u'permissions'])
   if csvFormat:
     sortTitles = [u'User', u'Total']
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
@@ -28024,21 +28026,21 @@ def _printShowFileCounts(users, csvFormat):
       continue
     total = 0
     mimeTypeCounts = {}
-    printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=query)
+    printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=DLP.query)
     try:
       feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                            page_message=getPageMessageForWhom(),
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
-                           q=query, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                           q=DLP.query, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.invalidQuery, GAPI.invalid):
-      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, None], invalidQuery(query), i, count)
+      entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, None], invalidQuery(DLP.query), i, count)
       continue
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       continue
     for f_file in feed:
-      if ((filenameMatchPattern and not filenameMatchPattern.match(f_file[VX_FILENAME])) or
-          (permissionMatches and not _checkPermissonMatches(permissionMatches, permissionMatchKeep, permissionMatchOr, f_file))):
+      if (not DLP.CheckFilenameMatch(f_file) or
+          not DLP.CheckPermissonMatches(f_file)):
         continue
       total += 1
       mimeTypeCounts.setdefault(f_file[u'mimeType'], 0)
@@ -28066,6 +28068,7 @@ def printFileCounts(users):
 # gam <UserTypeEntity> show filecounts [anyowner|(showownedby any|me|others)]
 #	[query <QueryDriveFile>] [fullquery <QueryDriveFile>] [<DriveFileQueryShortcut>]
 #	[showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
+#	(<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
 def showFileCounts(users):
   _printShowFileCounts(users, False)
 
@@ -28082,8 +28085,8 @@ FILETREE_FIELDS_PRINT_ORDER = [u'id', u'parents', u'owners', u'mimeType']
 # gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)]
 #	[select <DriveFileEntityListTree>] [selectsubquery <QueryDriveFile>] [depth <Number>]
 #	[showmimetype [not] <MimeTypeList>] [filenamematchpattern <RegularExpression>]
-#	(orderby <DriveFileOrderByFieldName> [ascending|descending])* [fields <FileTreeFieldNameList>] [delimiter <Character>]
 #	(<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
+#	(orderby <DriveFileOrderByFieldName> [ascending|descending])* [fields <FileTreeFieldNameList>] [delimiter <Character>]
 def showFileTree(users):
   def _showFileInfo(fileEntry, j=0, jcount=0):
     fileInfoList = []
@@ -28107,8 +28110,9 @@ def showFileTree(users):
     for childId in fileEntry[u'children']:
       childEntry = fileTree.get(childId)
       if childEntry:
-        if (checkMimeType(mimeTypeCheck, childEntry[u'info']) and
-            ((not filenameMatchPattern) or filenameMatchPattern.match(childEntry[u'info'][VX_FILENAME]))):
+        if (DLP.CheckMimeType(childEntry[u'info']) and
+            DLP.CheckFilenameMatch(childEntry[u'info']) and
+            DLP.CheckPermissonMatches(childEntry[u'info'])):
           _showFileInfo(childEntry[u'info'])
         if childEntry[u'info'][u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
           Ind.Increment()
@@ -28122,7 +28126,7 @@ def showFileTree(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
-                               q=q, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNERS,
+                               q=q, orderBy=orderBy, fields=pagesFields,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.invalidQuery, GAPI.invalid):
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(selectSubQuery), i, count)
@@ -28131,7 +28135,9 @@ def showFileTree(users):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
       return
     for childEntryInfo in children:
-      if checkMimeType(mimeTypeCheck, childEntryInfo):
+      if (DLP.CheckMimeType(childEntryInfo) and
+          DLP.CheckFilenameMatch(childEntryInfo) and
+          DLP.CheckPermissonMatches(childEntryInfo)):
         _showFileInfo(childEntryInfo)
       if childEntryInfo[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
         Ind.Increment()
@@ -28139,20 +28145,21 @@ def showFileTree(users):
         Ind.Decrement()
 
   maxdepth = -1
-  query = ME_IN_OWNERS
   fileIdEntity = initDriveFileEntity()
   selectSubQuery = u''
-  filenameMatchPattern = fileTree = showOwnedBy = None
+  fieldsList = [u'id', VX_FILENAME, VX_PARENTS_ID, u'mimeType', u'owners(emailAddress)']
   showFields = {}
   for field in FILETREE_FIELDS_CHOICE_MAP:
     showFields[FILETREE_FIELDS_CHOICE_MAP[field]] = False
   buildTree = False
-  mimeTypeCheck = initMimeTypeCheck()
   orderByList = []
+  DLP = DriveListParameters(allowQuery=False)
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
-    if myarg == u'select':
+    if DLP.ProcessArgument(myarg):
+      pass
+    elif myarg == u'select':
       fileIdEntity = getDriveFileEntity(orphansOK=True, queryShortcutsOK=False)
     elif myarg == u'selectsubquery':
       selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
@@ -28160,20 +28167,6 @@ def showFileTree(users):
       getDrivefileOrderBy(orderByList)
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
-    elif myarg == u'anyowner':
-      query = None
-    elif myarg == u'showownedby':
-      showOwnedBy = getChoice(SHOW_OWNED_BY_CHOICE_MAP, mapChoice=True)
-      if showOwnedBy is None:
-        query = None
-      elif not showOwnedBy:
-        query = NOT_ME_IN_OWNERS
-      else:
-        query = ME_IN_OWNERS
-    elif myarg == u'showmimetype':
-      getMimeTypeCheck(mimeTypeCheck)
-    elif myarg == u'filenamematchpattern':
-      filenameMatchPattern = getREPattern(re.IGNORECASE)
     elif myarg == u'fields':
       for field in _getFieldsList():
         if field in FILETREE_FIELDS_CHOICE_MAP:
@@ -28189,6 +28182,10 @@ def showFileTree(users):
                and _simpleFileIdEntityList(fileIdEntity[u'list']))
   if buildTree:
     defaultSelection = not fileIdEntity[u'list']
+  if DLP.permissionMatches:
+    fieldsList.append('permissions')
+  fields = u','.join(set(fieldsList)).replace(u'.', u'/')
+  pagesFields = VX_NPT_FILES_FIELDLIST.format(u','.join(set(fieldsList))).replace(u'.', u'/')
   orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -28198,7 +28195,7 @@ def showFileTree(users):
     if not drive:
       continue
     if buildTree:
-      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=query)
+      printGettingAllEntityItemsForWhom(Ent.DRIVE_FILE_OR_FOLDER, user, i, count, query=DLP.query)
       page_message = getPageMessageForWhom()
       pageToken = None
       totalItems = 0
@@ -28209,7 +28206,7 @@ def showFileTree(users):
           feed = callGAPI(drive.files(), u'list',
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                           pageToken=pageToken,
-                          q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNERS,
+                          q=DLP.query, orderBy=orderBy, fields=pagesFields,
                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
           userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -28248,7 +28245,7 @@ def showFileTree(users):
         try:
           fileEntryInfo = callGAPI(drive.files(), u'get',
                                    throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                                   fileId=fileId, fields=VX_ID_FILENAME_PARENTS_MIMETYPE_OWNERS)
+                                   fileId=fileId, fields=fields)
         except GAPI.fileNotFound:
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER, fileId], Msg.NOT_FOUND, j, jcount)
           continue
@@ -28385,7 +28382,7 @@ def updateDriveFile(users):
         try:
           if media_body:
             result = callGAPI(drive.files(), u'update',
-                              throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST, GAPI.CANNOT_MODIFY__RESTRICTED_LABEL],
+                              throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST, GAPI.CANNOT_MODIFY_RESTRICTED_LABEL],
                               fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
                               pinned=parameters[DFA_KEEP_REVISION_FOREVER],
                               useContentAsIndexableText=parameters[DFA_USE_CONTENT_AS_INDEXABLE_TEXT],

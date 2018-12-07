@@ -1,3 +1,11 @@
+4.65.22
+
+Extended permission matching to gam show filetree.
+
+Code cleanup.
+
+Fixed bug in gam update drivefile that caused a trap.
+
 4.65.21
 
 Code cleanup.
