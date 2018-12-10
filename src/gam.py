@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.23'
+__version__ = u'4.65.24'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -27500,30 +27500,41 @@ class DriveListParameters(object):
     self.permissionMatchKeep = self.permissionMatchOr = True
     self.showOwnedBy = True
     self.allowQuery = allowQuery
+    self.permissionFields = set()
 
   def _getPermissionMatch(self):
-    body = {}
     startTime = endTime = startDateTime = endDateTime = None
     roleLocation = withLinkLocation = expirationStartLocation = expirationEndLocation = deletedLocation = None
+    requiredMatch = not checkArgumentPresent(u'not')
+    body = {}
     while Cmd.ArgumentsRemaining():
       myarg = getArgument()
       if myarg == u'type':
         body[u'type'] = getChoice(DRIVEFILE_ACL_PERMISSION_TYPES)
+        self.permissionFields.add(u'type')
       elif myarg == u'role':
         roleLocation = Cmd.Location()
         _setRoleConvertCommenterToReader(body, getChoice(DRIVEFILE_ACL_ROLES_MAP, mapChoice=True))
+        self.permissionFields.add(u'role')
+        if u'additionalRoles' in body:
+          self.permissionFields.add(u'additionalRoles')
       elif myarg == u'emailaddress':
         body[u'emailAddress'] = getREPattern(re.IGNORECASE)
+        self.permissionFields.add(u'emailAddress')
       elif myarg == u'domain':
         body[u'domain'] = getREPattern(re.IGNORECASE)
+        self.permissionFields.add(u'domain')
       elif myarg == u'withlink':
         withLinkLocation = Cmd.Location()
         body[u'withLink'] = getBoolean()
+        self.permissionFields.add(u'withLink')
       elif myarg in [u'allowfilediscovery', u'discoverable']:
         withLinkLocation = Cmd.Location()
         body[u'withLink'] = not getBoolean()
+        self.permissionFields.add(u'withLink')
       elif myarg in [u'name', u'displayname']:
         body[u'name'] = getREPattern(re.IGNORECASE)
+        self.permissionFields.add(u'name')
       elif myarg == 'expirationstart':
         expirationStartLocation = Cmd.Location()
         startDateTime, _, startTime = getTimeOrDeltaFromNow(True)
@@ -27531,6 +27542,7 @@ class DriveListParameters(object):
           Cmd.Backup()
           usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
         body[myarg] = startDateTime
+        self.permissionFields.add(u'expirationDate')
       elif myarg == u'expirationend':
         expirationEndLocation = Cmd.Location()
         endDateTime, _, endTime = getTimeOrDeltaFromNow(True)
@@ -27538,9 +27550,11 @@ class DriveListParameters(object):
           Cmd.Backup()
           usageErrorExit(Msg.INVALID_TIME_RANGE.format(u'expirationend', endTime, u'expirationstart', startTime))
         body[myarg] = endDateTime
+        self.permissionFields.add(u'expirationDate')
       elif myarg == u'deleted':
         deletedLocation = Cmd.Location()
         body[u'deleted'] = getBoolean()
+        self.permissionFields.add(u'deleted')
       elif myarg in [u'em', u'endmatch']:
         break
       else:
@@ -27552,7 +27566,7 @@ class DriveListParameters(object):
         _validatePermissionAttributes(u'expirationstart', expirationStartLocation, body, u'expirationstart', [u'user', u'group'])
         _validatePermissionAttributes(u'expirationend', expirationEndLocation, body, u'expirationend', [u'user', u'group'])
         _validatePermissionAttributes(u'deleted', deletedLocation, body, u'deleted', [u'user', u'group'])
-      self.permissionMatches.append(body)
+      self.permissionMatches.append((requiredMatch, body))
 
   def ProcessArgument(self, myarg):
     if myarg == u'showmimetype':
@@ -27621,7 +27635,8 @@ class DriveListParameters(object):
       requiredMatches = 1 if self.permissionMatchOr else len(self.permissionMatches)
       for permission in permissions:
         for permissionMatch in self.permissionMatches:
-          for field, value in iteritems(permissionMatch):
+          match = False
+          for field, value in iteritems(permissionMatch[1]):
             if field in [u'type', u'role', u'withLink', u'deleted']:
               if value != permission.get(field):
                 break
@@ -27640,6 +27655,8 @@ class DriveListParameters(object):
               if not value.match(permission.get(field, u'')):
                 break
           else:
+            match = True
+          if match == permissionMatch[0]:
             requiredMatches -= 1
             if requiredMatches == 0:
               return self.permissionMatchKeep
@@ -27669,8 +27686,8 @@ def printFileList(users):
       if VX_FILENAME not in fieldsList:
         skipObjects.add(VX_FILENAME)
         fieldsList.append(VX_FILENAME)
-    if DLP.permissionMatches:
-      fieldsList.append(u'permissions')
+    if DLP.permissionMatches and u'permissions' not in fieldsList:
+      fieldsList.append(u'permissions({0})'.format(u','.join(DLP.permissionFields)))
 
   def _printFileInfo(drive, user, fileInfo):
     if (not DLP.CheckShowOwnedBy(fileInfo) or
