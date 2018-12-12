@@ -2686,7 +2686,8 @@ gam <UserTypeEntity> show filetree [anyowner|(showownedby any|me|others)]
         (<PermissionMatch>)* [<PermissionMatchMode>] [<PermissionMatchAction>]
         (orderby <DriveFileOrderByFieldName> [ascending|descending])* [fields <FileTreeFieldNameList>] [delimiter <Character>]
 
-gam <UserTypeEntity> print|show driveactivity [todrive <ToDriveAttributes>*] [(fileid <DriveFileID>)|(folderid <DriveFolderID>)]
+gam <UserTypeEntity> print|show driveactivity [todrive <ToDriveAttributes>*]
+        [fileid <DriveFileID>] [folderid <DriveFolderID>]
 
 <DriveSettingsFieldName> ::=
         appinstalled|
