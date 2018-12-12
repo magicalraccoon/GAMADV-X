@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.24'
+__version__ = u'4.65.25'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -27741,7 +27741,7 @@ def printFileList(users):
 
   todrive = {}
   titles, csvRows = initializeTitlesCSVfile([u'Owner',])
-  allfields = buildTree = filepath = False
+  allfields = buildTree = filepath = showParent = False
   maxdepth = -1
   fieldsList = []
   labelsList = []
@@ -36620,6 +36620,7 @@ USER_COMMANDS_OBJ_ALIASES = {
   Cmd.ARG_FILEPATHS:	Cmd.ARG_FILEPATH,
   Cmd.ARG_FILEREVISIONS:	Cmd.ARG_FILEREVISION,
   Cmd.ARG_FILTERS:	Cmd.ARG_FILTER,
+  Cmd.ARG_FORWARDS:	Cmd.ARG_FORWARD,
   Cmd.ARG_FORWARDINGADDRESSES:	Cmd.ARG_FORWARDINGADDRESS,
   Cmd.ARG_GROUPS:	Cmd.ARG_GROUP,
   Cmd.ARG_GROUPSMEMBERS:	Cmd.ARG_GROUPMEMBERS,

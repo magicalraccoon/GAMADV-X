@@ -1,3 +1,7 @@
+4.65.25
+
+Fixed bug in gam print filelist that caused a trap.
+
 4.65.24
 
 Added the ability to negate the result of a permission match, this allows for more complex match criteria.
