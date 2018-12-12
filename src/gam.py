@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.25'
+__version__ = u'4.65.26'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -25573,6 +25573,7 @@ def transferCalendars(users):
     return
   if updateBody:
     timestamp = ISOformatTimeStamp(datetime.datetime.now(GC.Values[GC.TIMEZONE]))
+    appendFields = u','.join(set(appendFieldsList))
   targetRoleBody = {u'role': u'owner', u'scope': {u'type': u'user', u'value': targetUser}}
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -25587,7 +25588,6 @@ def transferCalendars(users):
         updateBody[field] = _substituteForUser(updateBody[field], user, userName)
         updateBody[field] = updateBody[field].replace(u'#domain#', domain)
         updateBody[field] = updateBody[field].replace(u'#timestamp#', timestamp)
-      appendFields = u','.join(set(appendFieldsList))
     sourceRuleId = u'{0}:{1}'.format(u'user', user)
     Ind.Increment()
     j = 0
@@ -25616,7 +25616,8 @@ def transferCalendars(users):
                             throw_reasons=GAPI.CALENDAR_THROW_REASONS+[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
                             calendarId=calId, fields=appendFields)
             for field in appendFieldsList:
-              body[field] += updateBody[field]
+              if field in updateBody:
+                body[field] += updateBody[field]
           else:
             body = {}
           for field in updateBody:
