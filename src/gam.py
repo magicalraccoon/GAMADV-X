@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.31'
+__version__ = u'4.65.32'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -16526,11 +16526,11 @@ def _getCalendarEventAttribute(myarg, body, parameters, function):
     body[u'extendedProperties'].setdefault(u'shared', {})
     body[u'extendedProperties'][u'shared'][getString(Cmd.OB_PROPERTY_KEY)] = None
   elif function == u'import' and myarg == u'organizername':
-    body.setdefault(u'orgainzer', {})
-    body[u'orgainzer'][u'displayName'] = getString(Cmd.OB_NAME)
+    body.setdefault(u'organizer', {})
+    body[u'organizer'][u'displayName'] = getString(Cmd.OB_NAME)
   elif function == u'import' and myarg == u'organizeremail':
-    body.setdefault(u'orgainzer', {})
-    body[u'orgainzer'][u'email'] = getEmailAddress(noUid=True)
+    body.setdefault(u'organizer', {})
+    body[u'organizer'][u'email'] = getEmailAddress(noUid=True)
   else:
     return False
   return True
@@ -28557,6 +28557,7 @@ COPY_NONPATH_PARENTS = 1
 COPY_ALL_PARENTS = 2
 
 DEFAULT_COPY_OPTIONS = {
+  u'mergeWithParent': False,
   u'retainSourceFolders': False,
   u'duplicateFiles': DUPLICATE_FILE_OVERWRITE_OLDER,
   u'duplicateFolders': DUPLICATE_FOLDER_MERGE,
@@ -28645,10 +28646,19 @@ def _copyPermissions(drive, user, i, count, j, jcount, entityType, fileId, fileT
     userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
     _incrStatistic(statistics, stat)
 
-def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren, atTop,
-                 copyMoveOptions, statistics):
+def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren,
+                 atTop, newParentId, copyMoveOptions, statistics):
   folderId = source.pop(u'id')
   folderTitle = source[VX_FILENAME]
+  if atTop and copyMoveOptions[u'mergeWithParent']:
+    action = Act.Get()
+    Act.Set(Act.MERGE)
+    entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FOLDER, folderTitle],
+                                                       Act.MODIFIER_WITH, newFolderTitle,
+                                                       [Ent.DRIVE_FOLDER_ID, newParentId], j, jcount)
+    Act.Set(action)
+    _incrStatistic(statistics, STAT_FOLDER_MERGED)
+    return (newParentId, True)
   if copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_MERGE:
     newFolderTitleLower = newFolderTitle.lower()
     for target in targetChildren:
@@ -28753,14 +28763,14 @@ DUPLICATE_FOLDER_CHOICES = {
 COPY_TOP_PARENTS_CHOICES = {u'all': COPY_ALL_PARENTS, u'none': COPY_NO_PARENTS}
 COPY_SUB_PARENTS_CHOICES = {u'all': COPY_ALL_PARENTS, u'none': COPY_NO_PARENTS, u'nonpath': COPY_NONPATH_PARENTS}
 
-# gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]] [summary [<Boolean>]]
-#	<DriveFileCopyAttributes>*
+# gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [summary [<Boolean>]]
+#	<DriveFileCopyAttributes>* [mergewithparent [<Boolean>] [recursive [depth <Number>]]
 #	[duplicatefiles overwriteolder|overwriteall|duplicatename|uniquename|skip]
 #	[duplicatefolders merge|duplicatename|uniquename|skip]
 #	[copytopfileparents none|all] [copytopfolderparents all|none]
 #	[copysubfileparents nonpath|none|all] [copysubfolderparents nonpath|none|all]
-#	[copyfilepermissions <Boolean>]
-#	[copytopfolderpermissions <Boolean>] [copysubfolderpermissions <Boolean>]
+#	[copyfilepermissions [<Boolean>]]
+#	[copytopfolderpermissions [<Boolean>]] [copysubfolderpermissions [<Boolean>]]
 def copyDriveFile(users):
   def _recursiveFolderCopy(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren, depth, atTop):
     folderId = source[u'id']
@@ -28769,10 +28779,13 @@ def copyDriveFile(users):
                                    q=WITH_PARENTS.format(folderId), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_COPY_FIELDS,
                                    orderBy=VX_ORDERBY_FOLDER_DESC_NAME_MODIFIED_TIME,
                                    maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-    newFolderId, existingTargetFolder = _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren, atTop,
-                                                     copyMoveOptions, statistics)
+    newFolderId, existingTargetFolder = _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren,
+                                                     atTop, newParentId, copyMoveOptions, statistics)
     if newFolderId is None:
       return
+    if maxdepth != -1 and depth > maxdepth:
+      return
+    depth += 1
     copiedFiles[newFolderId] = 1
     kcount = len(sourceChildren)
     if kcount > 0:
@@ -28799,12 +28812,11 @@ def copyDriveFile(users):
         childParents = child.pop(u'parents', [])
         child[u'parents'] = [{u'id': newFolderId}]
         if child[u'mimeType'] == MIMETYPE_GA_FOLDER:
-          if maxdepth == -1 or depth < maxdepth:
-            if copyMoveOptions[u'copySubFolderParents'] != COPY_NO_PARENTS:
-              for parent in childParents:
-                if parent[u'id'] != folderId or copyMoveOptions[u'copySubFolderParents'] == COPY_ALL_PARENTS:
-                  child[u'parents'].append({u'id': parent[u'id']})
-            _recursiveFolderCopy(drive, user, i, count, k, kcount, child, childTitle, subTargetChildren, depth+1, False)
+          if copyMoveOptions[u'copySubFolderParents'] != COPY_NO_PARENTS:
+            for parent in childParents:
+              if parent[u'id'] != folderId or copyMoveOptions[u'copySubFolderParents'] == COPY_ALL_PARENTS:
+                child[u'parents'].append({u'id': parent[u'id']})
+            _recursiveFolderCopy(drive, user, i, count, k, kcount, child, childTitle, subTargetChildren, depth, False)
         else:
           if not child.pop(u'capabilities')[u'canCopy']:
             entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, childTitle], Msg.NOT_COPYABLE, k, kcount)
@@ -28855,6 +28867,8 @@ def copyDriveFile(users):
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'summary':
       summary = getBoolean()
+    elif myarg == u'mergewithparent':
+      copyMoveOptions[u'mergeWithParent'] = getBoolean()
     elif myarg == u'duplicatefiles':
       copyMoveOptions[u'duplicateFiles'] = getChoice(DUPLICATE_FILE_CHOICES, mapChoice=True)
     elif myarg == u'duplicatefolders':
@@ -28920,6 +28934,10 @@ def copyDriveFile(users):
         source[u'parents'] = newParents
         if newFilename:
           destFilename = newFilename
+        elif copyMoveOptions[u'mergeWithParent']:
+          destFilename = callGAPI(drive.files(), u'get',
+                                  throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
+                                  fileId=newParentId, fields=VX_FILENAME)[VX_FILENAME]
         elif ((newParentsSpecified and newParentId not in sourceParentsList) or
               ((newParentId in sourceParentsList and
                 (source[u'mimeType'] == MIMETYPE_GA_FOLDER and copyMoveOptions[u'duplicateFolders'] != DUPLICATE_FOLDER_MERGE) or
@@ -28951,8 +28969,8 @@ def copyDriveFile(users):
           if recursive:
             _recursiveFolderCopy(drive, user, i, count, j, jcount, source, destFilename, targetChildren, 0, True)
           else:
-            _cloneFolder(drive, user, i, count, j, jcount, source, destFilename, targetChildren, True,
-                         copyMoveOptions, statistics)
+            _cloneFolder(drive, user, i, count, j, jcount, source, destFilename, targetChildren,
+                         True, newParentId, copyMoveOptions, statistics)
         else:
           if not source.pop(u'capabilities')[u'canCopy']:
             entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, sourceFilename], Msg.NOT_COPYABLE, j, jcount)
@@ -28995,20 +29013,20 @@ def copyDriveFile(users):
       _printStatistics(user, statistics, i, count, True)
 
 # gam <UserTypeEntity> move drivefile <DriveFileEntity> [newfilename <DriveFileName>] [summary [<Boolean>]]
-#	<DriveFileMoveAttributes>*
+#	<DriveFileMoveAttributes>* [mergewithparent [<Boolean>]]
 #	[duplicatefiles overwriteolder|overwriteall|duplicatename|uniquename|skip]
 #	[duplicatefolders merge|duplicatename|uniquename|skip]
-#	[retainsourcefolders]
+#	[retainsourcefolders [<Boolean>]]
 def moveDriveFile(users):
-  def _recursiveFolderMove(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren):
+  def _recursiveFolderMove(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren, atTop):
     folderId = source[u'id']
     sourceChildren = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                    throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                                    q=WITH_PARENTS.format(folderId), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_COPY_FIELDS,
                                    orderBy=VX_ORDERBY_FOLDER_DESC_NAME_MODIFIED_TIME,
                                    maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
-    newFolderId, existingTargetFolder = _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren, False,
-                                                     copyMoveOptions, statistics)
+    newFolderId, existingTargetFolder = _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targetChildren,
+                                                     atTop, newParentId, copyMoveOptions, statistics)
     if newFolderId is None:
       return
     movedFiles[newFolderId] = 1
@@ -29036,9 +29054,12 @@ def moveDriveFile(users):
           _incrStatistic(statistics, STAT_FILE_NOT_COPYABLE_MOVABLE)
           continue
         if child[u'mimeType'] == MIMETYPE_GA_FOLDER:
-          child.pop(u'parents', [])
+          childParents = child.pop(u'parents', [])
           child[u'parents'] = [{u'id': newFolderId}]
-          _recursiveFolderMove(drive, user, i, count, k, kcount, child, childTitle, subTargetChildren)
+          for parent in childParents:
+            if parent[u'id'] != folderId:
+              child[u'parents'].append({u'id': parent[u'id']})
+          _recursiveFolderMove(drive, user, i, count, k, kcount, child, childTitle, subTargetChildren, False)
         else:
           if existingTargetFolder and _checkForDuplicateTargetFile(drive, user, k, kcount, child, childTitle, subTargetChildren, copyMoveOptions, statistics):
             copyMoveOptions[u'retainSourceFolders'] = True
@@ -29087,6 +29108,8 @@ def moveDriveFile(users):
       newFilename = getString(Cmd.OB_DRIVE_FILE_NAME)
     elif myarg == u'summary':
       summary = getBoolean()
+    elif myarg == u'mergewithparent':
+      copyMoveOptions[u'mergeWithParent'] = getBoolean()
     elif myarg == u'retainsourcefolders':
       copyMoveOptions[u'retainSourceFolders'] = getBoolean()
     elif myarg == u'duplicatefiles':
@@ -29130,6 +29153,10 @@ def moveDriveFile(users):
         source[u'parents'] = newParents
         if newFilename:
           destFilename = newFilename
+        elif copyMoveOptions[u'mergeWithParent']:
+          destFilename = callGAPI(drive.files(), u'get',
+                                  throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
+                                  fileId=newParentId, fields=VX_FILENAME)[VX_FILENAME]
         else:
           destFilename = sourceFilename
         targetChildren = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
@@ -29149,9 +29176,9 @@ def moveDriveFile(users):
             if _targetFilenameExists(destFilename, source[u'mimeType'], targetChildren):
               _incrStatistic(statistics, STAT_FOLDER_DUPLICATE)
               continue
-          if (copyMoveOptions[u'retainSourceFolders'] or
+          if (copyMoveOptions[u'mergeWithParent'] or copyMoveOptions[u'retainSourceFolders'] or
               (copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_MERGE and _targetFilenameExists(destFilename, source[u'mimeType'], targetChildren))):
-            _recursiveFolderMove(drive, user, i, count, j, jcount, source, destFilename, targetChildren)
+            _recursiveFolderMove(drive, user, i, count, j, jcount, source, destFilename, targetChildren, True)
             continue
           body = {VX_FILENAME: destFilename}
         else:
