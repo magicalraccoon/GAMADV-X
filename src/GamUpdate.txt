@@ -1,3 +1,14 @@
+4.65.38
+
+Modified gam print group-members to use the People API to get member names for users not in the domain.
+To enable this feature you must perform the following commands:
+gam update project
+gam oauth create - Enable the People API
+
+4.65.37
+
+Skipped.
+
 4.65.36
 
 Fixed bug in gam print group-members where member name was not being printed when requested.
