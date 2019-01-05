@@ -1,3 +1,7 @@
+4.65.36
+
+Fixed bug in gam print group-members where member name was not being printed when requested.
+
 4.65.35
 
 Updated gam report users to support new orgUnitID argument in Reports API.

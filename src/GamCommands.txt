@@ -2425,12 +2425,12 @@ gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [retainname | (ne
          (parentname <DriveFolderName>)|
          (anyownerparentname <DriveFolderName>))
 
-gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [recursive [depth <Number>]] [summary [<Boolean>]]
-        <DriveFileCopyAttribute>* [mergewithparent [<Boolean>]]
-        [duplicatefiles overwriteall|overwriteolder|duplicatename|uniquename|skip]
-        [duplicatefolders merge|duplicatename|uniquename]
-        [copytopfileparents all|none] [copytopfolderparents all|none]
-        [copysubfileparents all|none|nonpath] [copysubfolderparents all|none|nonpath]
+gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileName>] [summary [<Boolean>]]
+        <DriveFileCopyAttribute>* [mergewithparent [<Boolean>]] [recursive [depth <Number>]]
+        [duplicatefiles overwriteolder|overwriteall|duplicatename|uniquename|skip]
+        [duplicatefolders merge|duplicatename|uniquename|skip]
+        [copytopfileparents none|all] [copytopfolderparents none|all]
+        [copysubfileparents nonpath|none|all] [copysubfolderparents nonpath|none|all]
         [copyfilepermissions [<Boolean>]]
         [copytopfolderpermissions [<Boolean>]] [copysubfolderpermissions [<Boolean>]]
 
@@ -2441,8 +2441,10 @@ gam <UserTypeEntity> copy drivefile <DriveFileEntity> [newfilename <DriveFileNam
 
 gam <UserTypeEntity> move drivefile <DriveFileEntity> [newfilename <DriveFileName>] [summary [<Boolean>]]
         <DriveFileMoveAttribute>* [mergewithparent [<Boolean>]]
-        [duplicatefiles overwriteall|duplicatename|uniquename]
-        [duplicatefolders merge|duplicatename|uniquename]
+        [duplicatefiles overwriteolder|overwriteall|duplicatename|uniquename|skip]
+        [duplicatefolders merge|duplicatename|uniquename|skip]
+        [copytopfileparents none|all] [copytopfolderparents none|all]
+        [copysubfileparents nonpath|none|all] [copysubfolderparents nonpath|none|all]
         [retainsourcefolders [<Boolean>]]
 
 gam <UserTypeEntity> get drivefile <DriveFileEntity> [revision <DriveFileRevisionID>] [format <FileFormatList>]
