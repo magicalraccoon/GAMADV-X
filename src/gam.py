@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.38'
+__version__ = u'4.65.39'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -3022,7 +3022,8 @@ def waitOnFailure(n, retries, error_code, error_message):
     incrAPICallsRetryData(error_message, delta)
 
 def callGData(service, function,
-              soft_errors=False, throw_errors=None, retry_errors=None,
+              bailOnInternalServerError=False, soft_errors=False,
+              throw_errors=None, retry_errors=None,
               **kwargs):
   if throw_errors is None:
     throw_errors = []
@@ -3039,6 +3040,8 @@ def callGData(service, function,
     except (gdata.service.RequestError, gdata.apps.service.AppsForYourDomainException) as e:
       error_code, error_message = checkGDataError(e, service)
       if (n != retries) and (error_code in all_retry_errors):
+        if error_code == GDATA.INTERNAL_SERVER_ERROR and bailOnInternalServerError and n == 2:
+          raise GDATA.ERROR_CODE_EXCEPTION_MAP[error_code](error_message)
         waitOnFailure(n, retries, error_code, error_message)
         continue
       if error_code in throw_errors:
@@ -11151,18 +11154,17 @@ def _infoContacts(users, entityType, contactFeed=True):
       try:
         contactId = normalizeContactId(contact)
         contact = callGData(contactsObject, u'GetContact',
-                            throw_errors=[GDATA.NOT_FOUND, GDATA.BAD_REQUEST, GDATA.SERVICE_NOT_APPLICABLE, GDATA.FORBIDDEN, GDATA.NOT_IMPLEMENTED],
+                            bailOnInternalServerError=True,
+                            throw_errors=[GDATA.NOT_FOUND, GDATA.BAD_REQUEST, GDATA.SERVICE_NOT_APPLICABLE,
+                                          GDATA.FORBIDDEN, GDATA.NOT_IMPLEMENTED, GDATA.INTERNAL_SERVER_ERROR],
                             retry_errors=[GDATA.INTERNAL_SERVER_ERROR],
                             uri=contactsObject.GetContactFeedUri(contact_list=user, contactId=contactId, projection=contactQuery[u'projection']))
         fields = contactsManager.ContactToFields(contact)
         if showContactGroups and CONTACT_GROUPS in fields and not contactGroupIDs:
           contactGroupIDs, _ = getContactGroupsInfo(contactsManager, contactsObject, entityType, user, i, count)
         _showContact(contactsManager, fields, displayFieldsList, [None, contactGroupIDs][showContactGroups], j, jcount, formatJSON)
-      except (GDATA.notFound, GDATA.badRequest) as e:
+      except (GDATA.notFound, GDATA.badRequest, GDATA.forbidden, GDATA.notImplemented, GDATA.internalServerError) as e:
         entityActionFailedWarning([entityType, user, Ent.CONTACT, contactId], str(e), j, jcount)
-      except (GDATA.forbidden, GDATA.notImplemented):
-        entityServiceNotApplicableWarning(entityType, user, i, count)
-        break
       except GDATA.serviceNotApplicable:
         entityUnknownWarning(entityType, user, i, count)
         break
@@ -14765,6 +14767,7 @@ def doPrintGroupMembers():
 
   cd = buildGAPIObject(API.DIRECTORY)
   people = None
+  peopleNames = {}
   memberOptions = _initMemberOptions()
   groupColumn = True
   todrive = {}
@@ -14918,9 +14921,10 @@ def doPrintGroupMembers():
             continue
           except GAPI.userNotFound:
             if memberOptions[MEMBEROPTION_MEMBERNAMES] and people:
-              name = getNameFromPeople(memberId)
-              if name:
-                row[u'name'] = name
+              if memberId not in peopleNames:
+                peopleNames[memberId] = getNameFromPeople(memberId)
+              if peopleNames[memberId]:
+                row[u'name'] = peopleNames[memberId]
           except (GAPI.domainNotFound, GAPI.domainCannotUseApis, GAPI.forbidden, GAPI.badRequest, GAPI.backendError, GAPI.systemError):
             pass
         elif memberType == u'GROUP':
