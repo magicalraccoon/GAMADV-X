@@ -45,8 +45,6 @@
 __author__ = 'api.jscudder (Jeffrey Scudder)'
 
 from xml.etree import ElementTree
-import warnings
-
 
 # XML namespaces which are often used in Atom entities.
 ATOM_NAMESPACE = 'http://www.w3.org/2005/Atom'
