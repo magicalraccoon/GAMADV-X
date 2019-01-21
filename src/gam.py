@@ -2345,7 +2345,7 @@ def openCSVFileReader(filename, fieldnames=None):
   else:
     f = getGSheetData()
     getCharSet()
-    encoding = None
+    encoding = GC.Values[GC.CHARSET]
   if checkArgumentPresent(u'columndelimiter'):
     delimiter = getCharacter()
   else:
