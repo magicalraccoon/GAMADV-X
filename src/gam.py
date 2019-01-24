@@ -29045,7 +29045,8 @@ def _getUniqueFilename(destFilename, mimeType, targetChildren):
     return u'{0}({1}).{2}'.format(base, n+1, ext)
   return u'{0}({1})'.format(base, n+1)
 
-def _copyPermissions(drive, user, i, count, j, jcount, entityType, fileId, fileTitle, newFileId, newFileTitle, statistics, stat):
+def _copyPermissions(drive, user, i, count, j, jcount, entityType, fileId, fileTitle, newFileId, newFileTitle,
+                     statistics, stat):
   try:
     try:
       permissions = callGAPIpages(drive.permissions(), u'list', VX_PAGES_PERMISSIONS,
@@ -29110,13 +29111,21 @@ def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targe
         _incrStatistic(statistics, STAT_FOLDER_NOT_WRITABLE)
         return (None, False)
     if copyMoveOptions[u'move'] and not copyMoveOptions[u'retainSourceFolders']:
-      result = callGAPI(drive.files(), u'patch',
-                        throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST],
-                        fileId=folderId, body={'parents': source[u'parents']}, fields=VX_ID_FILENAME)
-      entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, folderTitle],
-                                                         Act.MODIFIER_TO, result[VX_FILENAME],
-                                                         [Ent.DRIVE_FOLDER_ID, result[u'id']], j, jcount)
-      _incrStatistic(statistics, STAT_FILE_COPIED_MOVED)
+      try:
+        result = callGAPI(drive.files(), u'patch',
+                          throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST],
+                          fileId=folderId, body={'parents': source[u'parents']}, fields=VX_ID_FILENAME)
+        entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, folderTitle],
+                                                           Act.MODIFIER_TO, result[VX_FILENAME],
+                                                           [Ent.DRIVE_FOLDER_ID, result[u'id']], j, jcount)
+        _incrStatistic(statistics, STAT_FILE_COPIED_MOVED)
+        return (None, False)
+      except GAPI.badRequest as e:
+        entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, folderTitle], str(e), j, jcount)
+      except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+        userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+      _incrStatistic(statistics, STAT_FILE_FAILED)
+      copyMoveOptions[u'retainSourceFolders'] = True
       return (None, False)
   body = source.copy()
   body.pop(u'capabilities', None)
@@ -29135,12 +29144,11 @@ def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targe
     return (newFolderId, False)
   except (GAPI.forbidden, GAPI.internalError) as e:
     entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], str(e), j, jcount)
-    _incrStatistic(statistics, STAT_FOLDER_FAILED)
-    return (None, False)
   except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
     userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
-    _incrStatistic(statistics, STAT_FOLDER_FAILED)
-    return (None, False)
+  _incrStatistic(statistics, STAT_FOLDER_FAILED)
+  copyMoveOptions[u'retainSourceFolders'] = True
+  return (None, False)
 
 def _identicalSourceTarget(fileId, targetChildren):
   for target in targetChildren:
@@ -29184,6 +29192,36 @@ def _checkForDuplicateTargetFile(drive, user, k, kcount, child, destFilename, ta
       return True
   child[VX_FILENAME] = destFilename
   return False
+
+def _getCopyMoveParentInfo(drive, user, i, count, j, jcount, newParentId, statistics):
+  try:
+    return callGAPI(drive.files(), u'get',
+                    throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
+                    fileId=newParentId, fields=VX_FILENAME)
+  except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions,
+          GAPI.unknownError, GAPI.cannotCopyFile, GAPI.badRequest, GAPI.fileNeverWritable) as e:
+    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, newParentId], str(e), j, jcount)
+  except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+    userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+  _incrStatistic(statistics, STAT_FILE_FAILED)
+  return None
+
+def _getCopyMoveTargetInfo(drive, user, i, count, j, jcount, source, destFilename, newParentId, statistics):
+  try:
+    return callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
+                         throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                         q=VX_ANY_NON_TRASHED_MIMETYPE_NAME_PREFIX_WITH_PARENTS.format(source[u'mimeType'],
+                                                                                       escapeDriveFileName(_getFilenamePrefix(destFilename)),
+                                                                                       newParentId),
+                         orderBy=VX_ORDERBY_FOLDER_DESC_NAME_MODIFIED_TIME,
+                         fields=VX_NPT_FILES_ID_FILENAME_CAPABILITIES_MIMETYPE_MODIFIEDTIME)
+  except (GAPI.fileNotFound, GAPI.forbidden, GAPI.internalError, GAPI.insufficientFilePermissions,
+          GAPI.unknownError, GAPI.cannotCopyFile, GAPI.badRequest, GAPI.fileNeverWritable) as e:
+    entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE_OR_FOLDER_ID, newParentId], str(e), j, jcount)
+  except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
+    userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
+  _incrStatistic(statistics, STAT_FILE_FAILED)
+  return None
 
 DUPLICATE_FILE_CHOICES = {
   u'overwriteall': DUPLICATE_FILE_OVERWRITE_ALL,
@@ -29337,7 +29375,8 @@ def copyDriveFile(users):
           newParents = parentBody[u'parents']
           numNewParents = len(newParents)
           if numNewParents > 1:
-            entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(source), sourceFilename], Msg.MULTIPLE_PARENTS_SPECIFIED.format(numNewParents), i, count)
+            entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(source), sourceFilename],
+                                            Msg.MULTIPLE_PARENTS_SPECIFIED.format(numNewParents), j, jcount)
             _incrStatistic(statistics, STAT_FILE_FAILED)
             continue
         else:
@@ -29345,12 +29384,13 @@ def copyDriveFile(users):
         newParentsList = [parent[u'id'] for parent in newParents]
         newParentId = newParents[0][u'id']
         source[u'parents'] = newParents
+        dest = _getCopyMoveParentInfo(drive, user, i, count, j, jcount, newParentId, statistics)
+        if dest is None:
+          continue
         if copyMoveOptions[u'newFilename']:
           destFilename = copyMoveOptions[u'newFilename']
         elif copyMoveOptions[u'mergeWithParent']:
-          destFilename = callGAPI(drive.files(), u'get',
-                                  throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                                  fileId=newParentId, fields=VX_FILENAME)[VX_FILENAME]
+          destFilename = dest[VX_FILENAME]
         elif ((newParentsSpecified and newParentId not in sourceParentsList) or
               ((newParentId in sourceParentsList and
                 (source[u'mimeType'] == MIMETYPE_GA_FOLDER and copyMoveOptions[u'duplicateFolders'] != DUPLICATE_FOLDER_MERGE) or
@@ -29358,15 +29398,13 @@ def copyDriveFile(users):
           destFilename = sourceFilename
         else:
           destFilename = u'Copy of {0}'.format(sourceFilename)
-        targetChildren = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                       q=VX_ANY_NON_TRASHED_MIMETYPE_NAME_PREFIX_WITH_PARENTS.format(source[u'mimeType'], escapeDriveFileName(_getFilenamePrefix(destFilename)), newParentId),
-                                       orderBy=VX_ORDERBY_FOLDER_DESC_NAME_MODIFIED_TIME,
-                                       fields=VX_NPT_FILES_ID_FILENAME_CAPABILITIES_MIMETYPE_MODIFIEDTIME)
+        targetChildren = _getCopyMoveTargetInfo(drive, user, i, count, j, jcount, source, destFilename, newParentId, statistics)
+        if targetChildren is None:
+          continue
         if source[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_MERGE:
             if _identicalSourceTarget(fileId, targetChildren):
-              entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, sourceFilename], Msg.NOT_COPYABLE_SAME_NAME_CURRENT_FOLDER_MERGE, i, count)
+              entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, sourceFilename], Msg.NOT_COPYABLE_SAME_NAME_CURRENT_FOLDER_MERGE, j, jcount)
               _incrStatistic(statistics, STAT_FOLDER_FAILED)
               continue
           elif copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_UNIQUE_NAME:
@@ -29390,7 +29428,7 @@ def copyDriveFile(users):
             _incrStatistic(statistics, STAT_FILE_NOT_COPYABLE_MOVABLE)
             continue
           if copyMoveOptions[u'duplicateFiles'] in [DUPLICATE_FILE_OVERWRITE_ALL, DUPLICATE_FILE_OVERWRITE_OLDER] and _identicalSourceTarget(fileId, targetChildren):
-            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, sourceFilename], Msg.NOT_COPYABLE_SAME_NAME_CURRENT_FOLDER_OVERWRITE, i, count)
+            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, sourceFilename], Msg.NOT_COPYABLE_SAME_NAME_CURRENT_FOLDER_OVERWRITE, j, jcount)
             _incrStatistic(statistics, STAT_FILE_FAILED)
             continue
           if _checkForDuplicateTargetFile(drive, user, j, jcount, source, destFilename, targetChildren, copyMoveOptions, statistics):
@@ -29555,30 +29593,30 @@ def moveDriveFile(users):
           newParents = parentBody[u'parents']
           numNewParents = len(newParents)
           if numNewParents > 1:
-            entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(source), sourceFilename], Msg.MULTIPLE_PARENTS_SPECIFIED.format(numNewParents), i, count)
+            entityActionNotPerformedWarning([Ent.USER, user, _getEntityMimeType(source), sourceFilename],
+                                            Msg.MULTIPLE_PARENTS_SPECIFIED.format(numNewParents), j, jcount)
             _incrStatistic(statistics, STAT_FILE_FAILED)
             continue
         else:
           newParents = sourceParents if sourceParents else  [{u'id': u'root'}]
         newParentId = newParents[0][u'id']
         source[u'parents'] = newParents
+        dest = _getCopyMoveParentInfo(drive, user, i, count, j, jcount, newParentId, statistics)
+        if dest is None:
+          continue
         if copyMoveOptions[u'newFilename']:
           destFilename = copyMoveOptions[u'newFilename']
         elif copyMoveOptions[u'mergeWithParent']:
-          destFilename = callGAPI(drive.files(), u'get',
-                                  throw_reasons=GAPI.DRIVE_GET_THROW_REASONS,
-                                  fileId=newParentId, fields=VX_FILENAME)[VX_FILENAME]
+          destFilename = dest[VX_FILENAME]
         else:
           destFilename = sourceFilename
-        targetChildren = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
-                                       throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                       q=VX_ANY_NON_TRASHED_MIMETYPE_NAME_PREFIX_WITH_PARENTS.format(source[u'mimeType'], escapeDriveFileName(_getFilenamePrefix(destFilename)), newParentId),
-                                       orderBy=VX_ORDERBY_FOLDER_DESC_NAME_MODIFIED_TIME,
-                                       fields=VX_NPT_FILES_ID_FILENAME_CAPABILITIES_MIMETYPE_MODIFIEDTIME)
+        targetChildren = _getCopyMoveTargetInfo(drive, user, i, count, j, jcount, source, destFilename, newParentId, statistics)
+        if targetChildren is None:
+          continue
         if source[u'mimeType'] == MIMETYPE_GA_FOLDER:
           if copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_MERGE:
             if _identicalSourceTarget(fileId, targetChildren):
-              entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, sourceFilename], Msg.NOT_MOVABLE_SAME_NAME_CURRENT_FOLDER_MERGE, i, count)
+              entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, sourceFilename], Msg.NOT_MOVABLE_SAME_NAME_CURRENT_FOLDER_MERGE, j, jcount)
               _incrStatistic(statistics, STAT_FOLDER_FAILED)
               continue
           elif copyMoveOptions[u'duplicateFolders'] == DUPLICATE_FOLDER_UNIQUE_NAME:
@@ -29595,7 +29633,7 @@ def moveDriveFile(users):
           body = {VX_FILENAME: destFilename}
         else:
           if copyMoveOptions[u'duplicateFiles'] in [DUPLICATE_FILE_OVERWRITE_ALL, DUPLICATE_FILE_OVERWRITE_OLDER] and _identicalSourceTarget(fileId, targetChildren):
-            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, sourceFilename], Msg.NOT_MOVABLE_SAME_NAME_CURRENT_FOLDER_OVERWRITE, i, count)
+            entityActionNotPerformedWarning([Ent.USER, user, Ent.DRIVE_FILE, sourceFilename], Msg.NOT_MOVABLE_SAME_NAME_CURRENT_FOLDER_OVERWRITE, j, jcount)
             _incrStatistic(statistics, STAT_FILE_FAILED)
             continue
           if _checkForDuplicateTargetFile(drive, user, j, jcount, source, destFilename, targetChildren, copyMoveOptions, statistics):
