@@ -29326,7 +29326,7 @@ def copyDriveFile(users):
   fileIdEntity = getDriveFileEntity()
   copyBody = {}
   parentBody = {}
-  parameters = initDriveFileAttributes()
+  parentParms = initDriveFileAttributes()
   copyParameters = initDriveFileAttributes()
   copyMoveOptions = initCopyMoveOptions(False)
   newParentsSpecified = recursive = False
@@ -29337,7 +29337,7 @@ def copyDriveFile(users):
     myarg = getArgument()
     if getCopyMoveOptions(myarg, copyMoveOptions, True):
       pass
-    elif getDriveFileParentAttribute(myarg, parameters):
+    elif getDriveFileParentAttribute(myarg, parentParms):
       newParentsSpecified = True
     elif myarg == u'recursive':
       recursive = getBoolean()
@@ -29359,7 +29359,7 @@ def copyDriveFile(users):
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
-    if not _getDriveFileParentInfo(user, i, count, parentBody, parameters, drive):
+    if not _getDriveFileParentInfo(user, i, count, parentBody, parentParms, drive):
       continue
     Ind.Increment()
     j = 0
@@ -29559,7 +29559,7 @@ def moveDriveFile(users):
 
   fileIdEntity = getDriveFileEntity()
   parentBody = {}
-  parameters = initDriveFileAttributes()
+  parentParms = initDriveFileAttributes()
   copyMoveOptions = initCopyMoveOptions(True)
   newParentsSpecified = False
   movedFiles = {}
@@ -29568,7 +29568,7 @@ def moveDriveFile(users):
     myarg = getArgument()
     if getCopyMoveOptions(myarg, copyMoveOptions, False):
       pass
-    elif getDriveFileParentAttribute(myarg, parameters):
+    elif getDriveFileParentAttribute(myarg, parentParms):
       newParentsSpecified = True
     else:
       unknownArgumentExit()
@@ -29578,7 +29578,7 @@ def moveDriveFile(users):
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER)
     if jcount == 0:
       continue
-    if not _getDriveFileParentInfo(user, i, count, parentBody, parameters, drive):
+    if not _getDriveFileParentInfo(user, i, count, parentBody, parentParms, drive):
       continue
     Ind.Increment()
     j = 0
