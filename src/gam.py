@@ -29114,7 +29114,7 @@ def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targe
       try:
         result = callGAPI(drive.files(), u'patch',
                           throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST],
-                          fileId=folderId, body={'parents': source[u'parents']}, fields=VX_ID_FILENAME)
+                          fileId=folderId, body={VX_FILENAME: newFolderTitle, u'parents': source[u'parents']}, fields=VX_ID_FILENAME)
         entityModifierNewValueItemValueListActionPerformed([Ent.USER, user, Ent.DRIVE_FILE, folderTitle],
                                                            Act.MODIFIER_TO, result[VX_FILENAME],
                                                            [Ent.DRIVE_FOLDER_ID, result[u'id']], j, jcount)
