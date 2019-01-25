@@ -29110,7 +29110,8 @@ def _cloneFolder(drive, user, i, count, j, jcount, source, newFolderTitle, targe
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FOLDER, newFolderTitle], Msg.NOT_WRITABLE, j, jcount)
         _incrStatistic(statistics, STAT_FOLDER_NOT_WRITABLE)
         return (None, False)
-    if copyMoveOptions[u'move'] and not copyMoveOptions[u'retainSourceFolders']:
+    if (copyMoveOptions[u'move'] and not copyMoveOptions[u'retainSourceFolders'] and
+        (copyMoveOptions[u'copySubFileParents'] == COPY_NONPATH_PARENTS) and (copyMoveOptions[u'copySubFolderParents'] == COPY_NONPATH_PARENTS)):
       try:
         result = callGAPI(drive.files(), u'patch',
                           throw_reasons=GAPI.DRIVE_ACCESS_THROW_REASONS+[GAPI.BAD_REQUEST],
