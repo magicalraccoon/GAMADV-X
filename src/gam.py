@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.49'
+__version__ = u'4.65.50'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -26234,6 +26234,9 @@ def getEscapedDriveFolderName():
 def initDriveFileEntity():
   return {u'list': [], u'query': None, u'dict': None, u'root': []}
 
+DRIVE_MY_NAME_OPTIONS = set([u'name', u'drivefilename'])
+DRIVE_ANY_NAME_OPTIONS = set([u'anyname', u'anydrivefilename', u'anyownername', u'anyownerdrivefilename', u'sharedname', u'shareddrivefilename'])
+
 def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
   def _getKeywordColonValue(kwColonValue):
     kw, value = kwColonValue.split(u':', 1)
@@ -26244,9 +26247,9 @@ def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
       cleanFileIDsList(fileIdEntity, value.replace(u',', u' ').split())
     elif kw == u'query':
       fileIdEntity[u'query'] = value
-    elif kw == u'drivefilename':
+    elif kw in DRIVE_MY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_MY_FILE_NAME.format(escapeDriveFileName(value))
-    elif kw in [u'anydrivefilename', u'anyownerdrivefilename', u'shareddrivefilename']:
+    elif kw in DRIVE_ANY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_ANY_FILE_NAME.format(escapeDriveFileName(value))
     else:
       return False
@@ -26267,9 +26270,9 @@ def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
       cleanFileIDsList(fileIdEntity, getStringReturnInList(Cmd.OB_DRIVE_FILE_ID))
     elif mycmd == u'ids':
       cleanFileIDsList(fileIdEntity, getString(Cmd.OB_DRIVE_FILE_ID).replace(u',', u' ').split())
-    elif mycmd == u'drivefilename':
+    elif mycmd in DRIVE_MY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_MY_FILE_NAME.format(getEscapedDriveFileName())
-    elif mycmd in [u'anydrivefilename', u'anyownerdrivefilename', u'shareddrivefilename']:
+    elif mycmd in DRIVE_ANY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_ANY_FILE_NAME.format(getEscapedDriveFileName())
     elif mycmd == u'query':
       fileIdEntity[u'query'] = getString(Cmd.OB_QUERY)

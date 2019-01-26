@@ -461,32 +461,41 @@ Specify a collection of items by directly specifying them; the item type is dete
         (before|after <Time>) | (range <Time> <Time>) |
         <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <DomainNameEntity> ::= <DomainNameList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
-<DriveFileIDEntity> ::= (<DriveFileItem>) | (id <DriveFileItem>) | (id:<DriveFileItem>) | (ids <DriveFileList>) | (ids:<DriveFileList>)
-<DriveFileNameEntity> ::= (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
-<DriveFileQueryEntity> ::= (query <QueryDriveFile>) | (query:<QueryDriveFile>)
+<DriveFileIDEntity> ::=
+        <DriveFileItem> |
+        (id <DriveFileItem>) | (id:<DriveFileItem>) |
+        (ids <DriveFileList>) | (ids:<DriveFileList>)
+<DriveFileNameEntity> ::=
+        (name <DriveFileName>) | (name:<DriveFileName>) | (drivefilename <DriveFileName>) | (drivefilename:<DriveFileName>) |
+        (anyname <DriveFileName>) | (anyname:<DriveFileName>) | (anydrivefilename <DriveFileName>) | (anydrivefilename:<DriveFileName>)
+<DriveFileQueryEntity> ::= 
+        (query <QueryDriveFile>) | (query:<QueryDriveFile>)
 <DriveFileQueryShortcut> ::=
         all_files | all_folders | all_google_files | all_non_google_files | all_items |
         my_files | my_folders | my_google_files | my_non_google_files | my_items |
         others_files | others_folders | others_google_files | others_non_google_files | others_items |
         writable_files
+<DriveRoot> ::= root | mydrive
 <DriveFileEntity> ::=
         <DriveFileIDEntity> |
         <DriveFileNameEntity> |
         <DriveFileQueryEntity> |
         <DriveFileQueryShortcut> |
-        root |
+        <DriveRoot> |
         <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
 <DriveFileEntityListTree> ::=
         <DriveFileIDEntity> |
         <DriveFileNameEntity> |
         <DriveFileQueryEntity> |
         orphans |
-        root |
+        <DriveRoot> |
         <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVSubkeySelector>) | <CSVDataSelector>)
 <DriveFilePermissionEntity> ::= <DriveFilePermissionList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <DriveFilePermissionIDEntity> ::= <DriveFilePermissionIDList> | <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
 <DriveFileRevisionIDEntity> ::=
-        (<DriveFileRevisionID>) | (id <DriveFileRevisionID>) | (id:<DriveFileRevisionID>) | (ids <DriveFileRevisionIDList>) | (ids:<DriveFileRevisionIDList>) |
+        (<DriveFileRevisionID>) |
+        (id <DriveFileRevisionID>) | (id:<DriveFileRevisionID>) |
+        (ids <DriveFileRevisionIDList>) | (ids:<DriveFileRevisionIDList>) |
         (first|last|allexceptfirst|allexceptlast <Number>) |
         (before|after <Time>) | (range <Time> <Time>) |
         <FileSelector> | <CSVFileSelector> | <CSVkmdSelector> | <CSVDataSelector>
