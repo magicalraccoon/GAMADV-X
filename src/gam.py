@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.50'
+__version__ = u'4.65.51'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -29906,7 +29906,9 @@ def getDriveFile(users):
             else:
               if revisionId:
                 entityValueList.extend([Ent.DRIVE_FILE_REVISION, revisionId])
-              request = drive.files().get_media(fileId=fileId, revisionId=revisionId)
+                request = drive.files().get_media(fileId=fileId, revisionId=revisionId)
+              else:
+                request = drive.files().get_media(fileId=fileId)
             fh = None
             fh = open(filename, u'wb') if not targetStdout else sys.stdout
             if not spreadsheetUrl:
