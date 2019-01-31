@@ -2290,6 +2290,7 @@ gam <UserTypeEntity> transfer calendars <UserItem> <UserCalendarEntity>
 
 <EventMatchProperty:> ::=
         (matchfield attendees <EmailAddressEntity>)|
+        (matchfield attendeespattern <RegularExpression>)|
         (matchfield creatoremail <RegularExpression>)|
         (matchfield creatorname <RegularExpression>)|
         (matchfield description <RegularExpression>)|
