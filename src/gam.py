@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.56'
+__version__ = u'4.65.57'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -17555,7 +17555,7 @@ EVENT_ATTENDEES_SUBFIELDS_CHOICE_MAP = {
   u'optional': u'optional',
   u'organizer': u'organizer',
   u'resource': u'resource',
-  u'responseStatus': u'responseStatus',
+  u'responsestatus': u'responseStatus',
   u'self': u'self',
   }
 
@@ -30756,15 +30756,14 @@ def validateUserGetPermissionId(user, i=0, count=0):
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
   return None
 
-def getPermissionIdForEmail(email):
-  _, drive = buildGAPIServiceObject(API.DRIVE, _getValueFromOAuth(u'email'), 0, 0)
-  if drive:
-    try:
-      return callGAPI(drive.permissions(), u'getIdForEmail',
-                      throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                      email=email, fields=u'id')[u'id']
-    except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
-      userSvcNotApplicableOrDriveDisabled(email, str(e), 0, 0)
+def getPermissionIdForEmail(drive, user, i, count, email):
+  try:
+    return callGAPI(drive.permissions(), u'getIdForEmail',
+                    throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
+                    email=email, fields=u'id')[u'id']
+  except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy):
+    entityActionNotPerformedWarning([Ent.USER, user], Msg.UNABLE_TO_GET_PERMISSION_ID.format(email), i, count)
+    systemErrorExit(GM.Globals[GM.SYSEXITRC], None)
   return None
 
 # gam <UserTypeEntity> transfer ownership <DriveFileEntity> <UserItem> [includetrashed]
@@ -31432,7 +31431,7 @@ def createDriveFileACL(users):
               GAPI.ownershipChangeAcrossDomainNotPermitted,
               GAPI.cannotShareGroupsWithLink, GAPI.cannotShareUsersWithLink) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], str(e), j, jcount)
-      except GAPI.invalidSharingRequest as e:
+      except (GAPI.invalid, GAPI.invalidSharingRequest) as e:
         entityActionFailedWarning([Ent.USER, user, entityType, fileName], Ent.TypeNameMessage(Ent.PERMISSION_ID, permissionId, str(e)), j, jcount)
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -31465,10 +31464,6 @@ def updateDriveFileACLs(users):
       unknownArgumentExit()
   if removeExpiration is None and u'role' not in body:
     missingArgumentExit(u'role {0}'.format(formatChoiceList(DRIVEFILE_ACL_ROLES_MAP)))
-  if isEmail:
-    permissionId = getPermissionIdForEmail(permissionId)
-    if not permissionId:
-      return
   printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -31476,6 +31471,11 @@ def updateDriveFileACLs(users):
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
       continue
+    if isEmail:
+      permissionId = getPermissionIdForEmail(drive, user, i, count, permissionId)
+      if not permissionId:
+        return
+      isEmail = False
     Ind.Increment()
     j = 0
     for fileId in fileIdEntity[u'list']:
@@ -31639,16 +31639,17 @@ def deleteDriveFileACLs(users):
       showTitles = getBoolean()
     else:
       unknownArgumentExit()
-  if isEmail:
-    permissionId = getPermissionIdForEmail(permissionId)
-    if not permissionId:
-      return
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER_ACL)
     if jcount == 0:
       continue
+    if isEmail:
+      permissionId = getPermissionIdForEmail(drive, user, i, count, permissionId)
+      if not permissionId:
+        return
+      isEmail = False
     Ind.Increment()
     j = 0
     for fileId in fileIdEntity[u'list']:
@@ -31772,10 +31773,6 @@ def infoDriveFileACLs(users):
       formatJSON = True
     else:
       unknownArgumentExit()
-  if isEmail:
-    permissionId = getPermissionIdForEmail(permissionId)
-    if not permissionId:
-      return
   printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -31783,6 +31780,11 @@ def infoDriveFileACLs(users):
     user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER_ACL, None][formatJSON])
     if jcount == 0:
       continue
+    if isEmail:
+      permissionId = getPermissionIdForEmail(drive, user, i, count, permissionId)
+      if not permissionId:
+        return
+      isEmail = False
     Ind.Increment()
     j = 0
     for fileId in fileIdEntity[u'list']:
