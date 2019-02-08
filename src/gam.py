@@ -27969,7 +27969,6 @@ def _getShowOwnedBy(query):
   if showOwnedBy is None:
     query = _updateAnyOwnerQuery(query)
   elif not showOwnedBy:
-  elif not showOwnedBy:
     if query.find(NOT_ME_IN_OWNERS) >= 0:
       pass
     else:
