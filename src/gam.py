@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.58'
+__version__ = u'4.65.59'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -16779,6 +16779,9 @@ LIST_EVENTS_MATCH_FIELDS = {
   u'creatoremail': [u'creator', u'email'],
   u'organizername': [u'organizer', u'displayName'],
   u'organizeremail': [u'organizer', u'email'],
+  u'status': [u'status',],
+  u'transparency': [u'transparency',],
+  u'visibility': [u'visibility',],
   }
 
 def _getCalendarListEventsProperty(myarg, attributes, kwargs):
@@ -16957,9 +16960,9 @@ def _eventMatches(event, match):
   if match[0][0] != u'attendees':
     eventAttr = event
     for attr in match[0]:
-      eventAttr = eventAttr.get(attr)
+      eventAttr = eventAttr.get(attr, u'')
       if not eventAttr:
-        return False
+        break
     return match[1].search(eventAttr) is not None
   attendees = [attendee[u'email'] for attendee in event.get(u'attendees', [])]
   if not attendees:
@@ -26320,6 +26323,16 @@ def cleanFileIDsList(fileIdEntity, fileIds):
       fileId = fileId[loc+4:]
       loc = fileId.find(u'&')
       return fileId[:loc] if loc != -1 else fileId
+    loc = fileId.find(u'/files/')
+    if loc > 0:
+      fileId = fileId[loc+7:]
+      loc = fileId.find(u'&')
+      return fileId[:loc] if loc != -1 else fileId
+    loc = fileId.find(u'/folders/')
+    if loc > 0:
+      fileId = fileId[loc+9:]
+      loc = fileId.find(u'&')
+      return fileId[:loc] if loc != -1 else fileId
     return None
 
   fileIdEntity[u'list'] = []
@@ -26335,6 +26348,13 @@ def cleanFileIDsList(fileIdEntity, fileIds):
       fileId = fileId.lower()
     fileIdEntity[u'list'].append(fileId)
     i += 1
+
+NAME_QUERY_PATTERN = re.compile(r'name((?: *!?=)|(?: +contains))', flags=re.IGNORECASE)
+
+def _mapDrive3QueryToDrive2(query):
+  if query:
+    query = NAME_QUERY_PATTERN.sub(r'title\1', query).replace(u'modifiedTime', VX_MODIFIED_TIME).replace(u'viewedByMeTime', VX_VIEWED_BY_ME_TIME)
+  return query
 
 def escapeDriveFileName(filename):
   if filename.find(u"'") == -1 and filename.find(u'\\') == -1:
@@ -26370,7 +26390,7 @@ def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
     elif kw == u'ids':
       cleanFileIDsList(fileIdEntity, value.replace(u',', u' ').split())
     elif kw == u'query':
-      fileIdEntity[u'query'] = value
+      fileIdEntity[u'query'] = _mapDrive3QueryToDrive2(value)
     elif kw in DRIVE_MY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_MY_FILE_NAME.format(escapeDriveFileName(value))
     elif kw in DRIVE_ANY_NAME_OPTIONS:
@@ -26399,7 +26419,7 @@ def getDriveFileEntity(orphansOK=False, queryShortcutsOK=True):
     elif mycmd in DRIVE_ANY_NAME_OPTIONS:
       fileIdEntity[u'query'] = VX_WITH_ANY_FILE_NAME.format(getEscapedDriveFileName())
     elif mycmd == u'query':
-      fileIdEntity[u'query'] = getString(Cmd.OB_QUERY)
+      fileIdEntity[u'query'] = _mapDrive3QueryToDrive2(getString(Cmd.OB_QUERY))
     elif queryShortcutsOK and mycmd in QUERY_SHORTCUTS_MAP:
       fileIdEntity[u'query'] = QUERY_SHORTCUTS_MAP[mycmd]
     elif mycmd in [u'root', u'mydrive']:
@@ -28153,6 +28173,9 @@ class DriveListParameters(object):
       return False
     return True
 
+  def MapDrive3QueryToDrive2(self):
+    self.query = _mapDrive3QueryToDrive2(self.query)
+
   def UpdateAnyOwnerQuery(self):
     self.query = _updateAnyOwnerQuery(self.query)
 
@@ -28377,10 +28400,11 @@ def printFileList(users):
   if filepath:
     addTitlesToCSVfile(u'paths', titles)
   timeObjects = _getDriveTimeObjects()
+  fileNameTitle = VX_FILENAME
   _mapDrive3TitlesToDrive2(titles[u'list'], API.DRIVE3_TO_DRIVE2_CAPABILITIES_TITLES_MAP)
   titles[u'set'] = set(titles[u'list'])
   removeTitlesFromCSVfile([u'capabilities', u'labels'], titles)
-  fileNameTitle = VX_FILENAME
+  DLP.MapDrive3QueryToDrive2()
   incrementalPrint = buildTree and (not filepath) and noSelect
   i, count, users = getEntityArgument(users)
   for user in users:
@@ -28579,6 +28603,7 @@ def _printShowFileCounts(users, csvFormat):
   if csvFormat:
     sortTitles = [u'User', u'Total']
     titles, csvRows = initializeTitlesCSVfile(sortTitles)
+  DLP.MapDrive3QueryToDrive2()
   pagesfields = VX_NPT_FILES_FIELDLIST.format(u','.join(set(fieldsList))).replace(u'.', u'/')
   i, count, users = getEntityArgument(users)
   for user in users:
