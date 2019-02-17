@@ -19,7 +19,7 @@ __contributors__ = [
     "Alex Yu",
 ]
 __license__ = "MIT"
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 
 import base64
 import calendar
@@ -1924,6 +1924,8 @@ class Http(object):
         being and instance of the 'Response' class, the second being
         a string that contains the response entity body.
         """
+        conn_key = ''
+        
         try:
             if headers is None:
                 headers = {}
@@ -2133,13 +2135,19 @@ class Http(object):
                         cachekey,
                     )
         except Exception as e:
+            is_timeout = isinstance(e, socket.timeout)
+            if is_timeout:
+                conn = self.connections.pop(conn_key, None)
+                if conn:
+                    conn.close()
+                    
             if self.force_exception_to_status_code:
                 if isinstance(e, HttpLib2ErrorWithResponse):
                     response = e.response
                     content = e.content
                     response.status = 500
                     response.reason = str(e)
-                elif isinstance(e, socket.timeout):
+                elif is_timeout:
                     content = "Request Timeout"
                     response = Response(
                         {
