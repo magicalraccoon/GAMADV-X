@@ -22,7 +22,7 @@ For more information, see https://github.com/taers232c/GAMADV-X
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.65.61'
+__version__ = u'4.65.62'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import base64
@@ -219,7 +219,6 @@ NEVER_TIME = u'1970-01-01T00:00:00.000Z'
 NEVER_END_DATE = u'1969-12-31'
 NEVER_START_DATE = NEVER_DATE
 PROJECTION_CHOICE_MAP = {u'basic': u'BASIC', u'full': u'FULL',}
-SORTORDER_CHOICE_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
 ME_IN_OWNERS = u"'me' in owners"
 ME_IN_OWNERS_AND = ME_IN_OWNERS+u" and "
 AND_ME_IN_OWNERS = u" and "+ME_IN_OWNERS
@@ -1133,6 +1132,28 @@ def getInteger(minVal=None, maxVal=None):
       pass
     invalidArgumentExit(integerLimits(minVal, maxVal))
   missingArgumentExit(integerLimits(minVal, maxVal))
+
+SORTORDER_CHOICE_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
+
+def initOrderBy():
+  return {u'items': [], u'list': None}
+
+def getOrderBy(choiceMap, orderBy):
+  fieldName = getChoice(choiceMap, mapChoice=True)
+  if fieldName in orderBy[u'items']:
+    orderBy[u'items'].remove(fieldName)
+  fieldNameDesc = u'{0} desc'.format(fieldName)
+  if fieldNameDesc in orderBy[u'items']:
+    orderBy[u'items'].remove(fieldNameDesc)
+  if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
+    orderBy[u'items'].append(fieldName)
+  else:
+    orderBy[u'items'].append(fieldNameDesc)
+  orderBy[u'list'] = u','.join(orderBy[u'items'])
+
+def getOrderBySortOrder(choiceMap, defaultChoice=u'ASCENDING', mapSortOrderChoice=True):
+  return (getChoice(choiceMap, mapChoice=True),
+          getChoice(SORTORDER_CHOICE_MAP, defaultChoice=defaultChoice, mapChoice=mapSortOrderChoice))
 
 def orgUnitPathQuery(path, isSuspended):
   query = u"orgUnitPath='{0}'".format(path.replace(u"'", u"\\'")) if path != u'/' else u''
@@ -6981,6 +7002,12 @@ TAG_EMAIL_ARGUMENT_TO_FIELD_MAP = {
   u'username': u'username',
   }
 
+TAG_KEYWORD_ARGUMENT_TO_FIELD_MAP = {
+  u'customtype': u'customType',
+  u'type': u'type',
+  u'value': u'value',
+  }
+
 TAG_LOCATION_ARGUMENT_TO_FIELD_MAP = {
   u'area': u'area',
   u'buildingid': u'buildingId',
@@ -7031,6 +7058,8 @@ TAG_FIELD_SUBFIELD_CHOICE_MAP = {
   u'address': (u'addresses', TAG_ADDRESS_ARGUMENT_TO_FIELD_MAP),
   u'addresses': (u'addresses', TAG_ADDRESS_ARGUMENT_TO_FIELD_MAP),
   u'email': (u'primaryEmail', TAG_EMAIL_ARGUMENT_TO_FIELD_MAP),
+  u'keyword': (u'keywords', TAG_KEYWORD_ARGUMENT_TO_FIELD_MAP),
+  u'keywords': (u'keywords', TAG_KEYWORD_ARGUMENT_TO_FIELD_MAP),
   u'location': (u'locations', TAG_LOCATION_ARGUMENT_TO_FIELD_MAP),
   u'locations': (u'locations', TAG_LOCATION_ARGUMENT_TO_FIELD_MAP),
   u'name': (u'name', TAG_NAME_ARGUMENT_TO_FIELD_MAP),
@@ -7161,7 +7190,7 @@ def _getTagReplacementFieldValues(user, i, count, tagReplacements):
                 break
             else:
               data = {}
-        elif field == u'locations':
+        elif field in [u'keywords', u'locations']:
           items = results.get(field, [])
           if not tag[u'matchfield']:
             if items:
@@ -10970,8 +10999,7 @@ def _getContactQueryAttributes(contactQuery, myarg, entityType, errorOnUnknown, 
     Cmd.Backup()
     return False
   elif myarg == u'orderby':
-    contactQuery[u'url_params'][u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICE_MAP, mapChoice=True)
-    contactQuery[u'url_params'][u'sortorder'] = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ascending')
+    contactQuery[u'url_params'][u'orderby'], contactQuery[u'url_params'][u'sortorder'] = getOrderBySortOrder(CONTACTS_ORDERBY_CHOICE_MAP, u'ascending', False)
   elif myarg in CONTACTS_PROJECTION_CHOICE_MAP:
     contactQuery[u'projection'] = CONTACTS_PROJECTION_CHOICE_MAP[myarg]
   elif myarg == u'showdeleted':
@@ -12042,8 +12070,7 @@ def printShowUserContactGroups(users):
     if csvFormat and myarg == u'todrive':
       todrive = getTodriveParameters()
     elif myarg == u'orderby':
-      url_params[u'orderby'] = getChoice(CONTACTS_ORDERBY_CHOICE_MAP, mapChoice=True)
-      url_params[u'sortorder'] = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ascending')
+      url_params[u'orderby'], url_params[u'sortorder'] = getOrderBySortOrder(CONTACTS_ORDERBY_CHOICE_MAP, u'ascending', False)
     elif myarg in CONTACTS_PROJECTION_CHOICE_MAP:
       projection = CONTACTS_PROJECTION_CHOICE_MAP[myarg]
     elif myarg == u'showdeleted':
@@ -12833,8 +12860,7 @@ def doPrintCrOSDevices(entityList=None):
     elif entityList is None and myarg == u'select':
       _, entityList = getEntityToModify(defaultEntityType=Cmd.ENTITY_CROS, crosAllowed=True, userAllowed=False)
     elif myarg == u'orderby':
-      orderBy = getChoice(CROS_ORDERBY_CHOICE_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
+      orderBy, sortOrder = getOrderBySortOrder(CROS_ORDERBY_CHOICE_MAP)
     elif myarg == u'nolists':
       noLists = True
       selectedLists = {}
@@ -13050,8 +13076,7 @@ def doPrintCrOSActivity(entityList=None):
     elif myarg == u'all':
       selectActiveTimeRanges = selectDeviceFiles = selectRecentUsers = True
     elif myarg == u'orderby':
-      orderBy = getChoice(CROS_ORDERBY_CHOICE_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
+      orderBy, sortOrder = getOrderBySortOrder(CROS_ORDERBY_CHOICE_MAP)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == "formatjson":
@@ -13398,8 +13423,7 @@ def doPrintMobileDevices():
     elif myarg.startswith(u'querytime'):
       queryTimes[myarg] = getTimeOrDeltaFromNow()[0:19]
     elif myarg == u'orderby':
-      orderBy = getChoice(MOBILE_ORDERBY_CHOICE_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
+      orderBy, sortOrder = getOrderBySortOrder(MOBILE_ORDERBY_CHOICE_MAP)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == u'listlimit':
@@ -21405,8 +21429,7 @@ def doPrintUsers(entityList=None):
     elif myarg == u'issuspended':
       isSuspended = getBoolean()
     elif myarg == u'orderby':
-      orderBy = getChoice(USERS_ORDERBY_CHOICE_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICE_MAP, defaultChoice=u'ASCENDING', mapChoice=True)
+      orderBy, sortOrder = getOrderBySortOrder(USERS_ORDERBY_CHOICE_MAP)
     elif myarg == u'userview':
       viewType = u'domain_public'
     elif myarg in [u'custom', u'schemas']:
@@ -22563,7 +22586,7 @@ def doPrintCourseAnnouncements():
   courseShowProperties = _initCourseShowProperties([u'name',])
   courseAnnouncementIds = []
   courseAnnouncementStates = []
-  orderByList = []
+  orderBy = initOrderBy()
   creatorEmails = {}
   formatJSON = showCreatorEmail = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
@@ -22580,11 +22603,7 @@ def doPrintCourseAnnouncements():
     elif myarg in [u'announcementstate', u'announcementstates']:
       _getCourseStates(Cmd.OB_COURSE_ANNOUNCEMENT_STATE_LIST, courseAnnouncementStates)
     elif myarg == u'orderby':
-      fieldName = getChoice(COURSE_ANNOUNCEMENTS_ORDERBY_CHOICE_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getOrderBy(COURSE_ANNOUNCEMENTS_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg in [u'showcreatoremails', u'creatoremail']:
       showCreatorEmail = True
     elif myarg == u'formatjson':
@@ -22596,7 +22615,6 @@ def doPrintCourseAnnouncements():
       pass
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
@@ -22618,7 +22636,7 @@ def doPrintCourseAnnouncements():
         results = callGAPIpages(croom.courses().announcements(), u'list', u'announcements',
                                 page_message=getPageMessage(),
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, announcementStates=courseAnnouncementStates, orderBy=orderBy,
+                                courseId=courseId, announcementStates=courseAnnouncementStates, orderBy=orderBy[u'list'],
                                 fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
       except GAPI.forbidden:
         APIAccessDeniedExit()
@@ -22721,7 +22739,7 @@ def doPrintCourseWork():
   courseWorkSelectionParameters = _initCourseWorkSelectionParameters()
   courseItemFilter = _initCourseItemFilter()
   courseShowProperties = _initCourseShowProperties([u'name',])
-  orderByList = []
+  orderBy = initOrderBy()
   creatorEmails = {}
   formatJSON = showCreatorEmail = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
@@ -22736,11 +22754,7 @@ def doPrintCourseWork():
     elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CUS_FILTER_FIELDS_MAP):
       pass
     elif myarg == u'orderby':
-      fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getOrderBy(COURSE_WORK_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg in [u'showcreatoremails', u'creatoremail']:
       showCreatorEmail = True
     elif myarg == u'formatjson':
@@ -22752,7 +22766,6 @@ def doPrintCourseWork():
       pass
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   if showCreatorEmail and fieldsList:
     fieldsList.append(u'creatorUserId')
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
@@ -22775,7 +22788,7 @@ def doPrintCourseWork():
         results = callGAPIpages(croom.courses().courseWork(), u'list', u'courseWork',
                                 page_message=getPageMessage(),
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy,
+                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy[u'list'],
                                 fields=fields, pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
       except GAPI.forbidden:
         APIAccessDeniedExit()
@@ -22872,7 +22885,7 @@ def doPrintCourseSubmissions():
   courseShowProperties = _initCourseShowProperties([u'name',])
   courseSubmissionStates = []
   courseSubmissionIds = []
-  orderByList = []
+  orderBy = initOrderBy()
   late = None
   userProfiles = {}
   formatJSON = showUserProfile = False
@@ -22888,11 +22901,7 @@ def doPrintCourseSubmissions():
     elif _getCourseItemFilter(myarg, courseItemFilter, COURSE_CU_FILTER_FIELDS_MAP):
       pass
     elif myarg == u'orderby':
-      fieldName = getChoice(COURSE_WORK_ORDERBY_CHOICE_MAP, mapChoice=True)
-      if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-        orderByList.append(fieldName)
-      else:
-        orderByList.append(u'{0} desc'.format(fieldName))
+      getOrderBy(COURSE_WORK_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg in [u'submissionid', u'submissionids', u'coursesubmissionid', u'coursesubmissionids']:
       courseSubmissionIds = getEntityList(Cmd.OB_COURSE_SUBMISSION_ID_ENTITY)
     elif myarg in [u'submissionstate', u'submissionstates', u'coursesubmissionstate', u'coursesubmissionstates']:
@@ -22912,7 +22921,6 @@ def doPrintCourseSubmissions():
       pass
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   coursesInfo = _getCoursesInfo(croom, courseSelectionParameters, courseShowProperties)
   if coursesInfo is None:
     return
@@ -22933,7 +22941,7 @@ def doPrintCourseSubmissions():
         results = callGAPIpages(croom.courses().courseWork(), u'list', u'courseWork',
                                 page_message=getPageMessage(),
                                 throw_reasons=[GAPI.NOT_FOUND, GAPI.FORBIDDEN],
-                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy,
+                                courseId=courseId, courseWorkStates=courseWorkSelectionParameters[u'courseWorkStates'], orderBy=orderBy[u'list'],
                                 fields=u'nextPageToken,courseWork(id)', pageSize=GC.Values[GC.CLASSROOM_MAX_RESULTS])
       except GAPI.notFound:
         continue
@@ -27182,13 +27190,6 @@ DRIVEFILE_ORDERBY_CHOICE_MAP = {
   u'viewedbymetime': VX_VIEWED_BY_ME_TIME,
   }
 
-def getDrivefileOrderBy(orderByList):
-  fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICE_MAP, mapChoice=True)
-  if getChoice(SORTORDER_CHOICE_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
-    orderByList.append(fieldName)
-  else:
-    orderByList.append(u'{0} desc'.format(fieldName))
-
 def _setRoleConvertCommenterToReader(body, role):
   body[u'role'] = role
   if role == u'commenter':
@@ -27406,13 +27407,13 @@ def showFileInfo(users):
   labelsList = []
   skipObjects = set()
   fileIdEntity = getDriveFileEntity()
-  orderByList = []
+  orderBy = initOrderBy()
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'filepath':
       filepath = True
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'allfields':
       fieldsList = []
     elif myarg in DRIVE_LABEL_CHOICE_MAP:
@@ -27434,7 +27435,6 @@ def showFileInfo(users):
       _getDriveFieldSubField(myarg, fieldsList)
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   if fieldsList or labelsList:
     _setSelectionFields()
     fields = u','.join(set(fieldsList)).replace(u'.', u'/')
@@ -27447,7 +27447,7 @@ def showFileInfo(users):
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER, orderBy=orderBy)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=Ent.DRIVE_FILE_OR_FOLDER, orderBy=orderBy[u'list'])
     if jcount == 0:
       continue
     if filepath:
@@ -27791,7 +27791,7 @@ def printShowFileRevisions(users):
   fileIdEntity = getDriveFileEntity()
   revisionsEntity = None
   oneItemPerRow = previewDelete = showTitles = False
-  orderByList = []
+  orderBy = initOrderBy()
   fileNameTitle = VX_FILENAME
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -27804,7 +27804,7 @@ def printShowFileRevisions(users):
       if csvFormat:
         addTitlesToCSVfile(u'revision.id', titles)
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'previewdelete':
       previewDelete = True
     elif myarg == u'showtitles':
@@ -27815,7 +27815,6 @@ def printShowFileRevisions(users):
       pass
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   if fieldsList:
     fields = VX_NPT_REVISIONS_FIELDLIST.format(u','.join(set(fieldsList)).replace(u'.', u'/'))
   else:
@@ -27825,7 +27824,7 @@ def printShowFileRevisions(users):
   for user in users:
     i += 1
     origUser = user
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy[u'list'])
     if jcount == 0:
       continue
     Ind.Increment()
@@ -28220,7 +28219,7 @@ def printFileList(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
-                               q=q, orderBy=orderBy, fields=pagesfields,
+                               q=q, orderBy=orderBy[u'list'], fields=pagesfields,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.invalidQuery, GAPI.invalid):
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(selectSubQuery), i, count)
@@ -28244,7 +28243,7 @@ def printFileList(users):
   maxdepth = -1
   fieldsList = []
   labelsList = []
-  orderByList = []
+  orderBy = initOrderBy()
   skipObjects = set()
   selectSubQuery = u''
   fileIdEntity = {}
@@ -28293,7 +28292,7 @@ def printFileList(users):
     elif myarg == u'showparent':
       showParent = getBoolean()
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'delimiter':
       delimiter = getCharacter()
     elif myarg == u'quotechar':
@@ -28334,7 +28333,6 @@ def printFileList(users):
   else:
     fields = pagesfields = u'*'
     skipObjects = skipObjects.union(DEFAULT_SKIP_OBJECTS)
-  orderBy = u','.join(orderByList) if orderByList else None
   if filepath:
     addTitlesToCSVfile(u'paths', titles)
   timeObjects = _getDriveTimeObjects()
@@ -28365,7 +28363,7 @@ def printFileList(users):
           feed = callGAPI(drive.files(), u'list',
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
                           pageToken=pageToken,
-                          q=DLP.query, orderBy=orderBy, fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
+                          q=DLP.query, orderBy=orderBy[u'list'], fields=pagesfields, maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         except (GAPI.invalidQuery, GAPI.invalid):
           entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(DLP.query), i, count)
           queryError = True
@@ -28394,7 +28392,7 @@ def printFileList(users):
         feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                              page_message=getPageMessageForWhom(),
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID, GAPI.FILE_NOT_FOUND],
-                             q=DLP.query, orderBy=orderBy, fields=pagesfields,
+                             q=DLP.query, orderBy=orderBy[u'list'], fields=pagesfields,
                              maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       except (GAPI.invalidQuery, GAPI.invalid):
         entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(DLP.query), i, count)
@@ -28460,7 +28458,7 @@ def printShowFilePaths(users):
     titles, csvRows = initializeTitlesCSVfile([u'Owner', u'id', fileNameTitle])
   fileIdEntity = getDriveFileEntity()
   oneItemPerRow = False
-  orderByList = []
+  orderBy = initOrderBy()
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
@@ -28469,14 +28467,13 @@ def printShowFilePaths(users):
       oneItemPerRow = True
       addTitlesToCSVfile(u'path', titles)
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat], orderBy=orderBy[u'list'])
     if jcount == 0:
       continue
     filePathInfo = initFilePathInfo()
@@ -28644,7 +28641,7 @@ def showFileTree(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS+[GAPI.INVALID_QUERY, GAPI.INVALID],
-                               q=q, orderBy=orderBy, fields=pagesFields,
+                               q=q, orderBy=orderBy[u'list'], fields=pagesFields,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.invalidQuery, GAPI.invalid):
       entityActionFailedWarning([Ent.USER, user, Ent.DRIVE_FILE, None], invalidQuery(selectSubQuery), i, count)
@@ -28670,7 +28667,7 @@ def showFileTree(users):
   for field in FILETREE_FIELDS_CHOICE_MAP:
     showFields[FILETREE_FIELDS_CHOICE_MAP[field]] = False
   buildTree = False
-  orderByList = []
+  orderBy = initOrderBy()
   DLP = DriveListParameters(allowQuery=False)
   delimiter = GC.Values[GC.CSV_OUTPUT_FIELD_DELIMITER]
   while Cmd.ArgumentsRemaining():
@@ -28682,7 +28679,7 @@ def showFileTree(users):
     elif myarg == u'selectsubquery':
       selectSubQuery = getString(Cmd.OB_QUERY, minLen=0)
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
     elif myarg == u'fields':
@@ -28704,7 +28701,6 @@ def showFileTree(users):
     fieldsList.append('permissions')
   fields = u','.join(set(fieldsList)).replace(u'.', u'/')
   pagesFields = VX_NPT_FILES_FIELDLIST.format(u','.join(set(fieldsList))).replace(u'.', u'/')
-  orderBy = u','.join(orderByList) if orderByList else None
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
@@ -28724,7 +28720,7 @@ def showFileTree(users):
           feed = callGAPI(drive.files(), u'list',
                           throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
                           pageToken=pageToken,
-                          q=DLP.query, orderBy=orderBy, fields=pagesFields,
+                          q=DLP.query, orderBy=orderBy[u'list'], fields=pagesFields,
                           maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
           userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -30126,7 +30122,7 @@ def getDriveFile(users):
 # gam <UserTypeEntity> collect orphans [anyowner|(showownedby any|me|others)] (orderby <DriveFileOrderByFieldName> [ascending|descending])*
 #	[(targetuserfoldername <DriveFolderName>)(targetuserfolderid <DriveFolderID>)] [preview] [todrive <ToDriveAttributes>*]
 def collectOrphans(users):
-  orderByList = []
+  orderBy = initOrderBy()
   csvFormat = False
   todrive = {}
   targetParms = initDriveFileAttributes()
@@ -30137,7 +30133,7 @@ def collectOrphans(users):
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
     if myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'targetuserfoldername':
       targetUserFolderPattern = getString(Cmd.OB_DRIVE_FOLDER_NAME)
       targetUserFolderId = None
@@ -30154,7 +30150,6 @@ def collectOrphans(users):
       _, query = _getShowOwnedBy(query)
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'Owner', u'type', u'id', VX_FILENAME])
   i, count, users = getEntityArgument(users)
@@ -30169,7 +30164,7 @@ def collectOrphans(users):
       feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                            page_message=getPageMessageForWhom(),
                            throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                           q=query, orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
+                           q=query, orderBy=orderBy[u'list'], fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE,
                            maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       if targetUserFolderPattern:
         trgtUserFolderName = _substituteForUser(targetUserFolderPattern, user, userName)
@@ -30264,7 +30259,7 @@ def transferDrive(users):
     try:
       result = callGAPIpages(targetDrive.files(), u'list', VX_PAGES_FILES,
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             orderBy=orderBy, q=VX_MY_NON_TRASHED_FOLDER_NAME_WITH_PARENTS.format(escapeDriveFileName(folderName), folderParentId),
+                             orderBy=orderBy[u'list'], q=VX_MY_NON_TRASHED_FOLDER_NAME_WITH_PARENTS.format(escapeDriveFileName(folderName), folderParentId),
                              fields=VX_NPT_FILES_ID)
       if result:
         return result[0][u'id']
@@ -30600,7 +30595,7 @@ def transferDrive(users):
     try:
       children = callGAPIpages(sourceDrive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                               orderBy=orderBy, q=WITH_PARENTS.format(fileId), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS,
+                               orderBy=orderBy[u'list'], q=WITH_PARENTS.format(fileId), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS_PERMISSIONS,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(sourceUser, str(e), i, count)
@@ -30653,7 +30648,7 @@ def transferDrive(users):
   buildTree = True
   csvFormat = False
   todrive = {}
-  orderByList = []
+  orderBy = initOrderBy()
   ownerRetainRoleBody = {u'role': u'none'}
   nonOwnerRetainRoleBody = {}
   nonOwnerTargetRoleBody = {u'role': u'source'}
@@ -30680,7 +30675,7 @@ def transferDrive(users):
     elif myarg == u'noretentionmessages':
       showRetentionMessages = False
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'targetfolderid':
       targetFolderIdLocation = Cmd.Location()
       targetFolderId = getString(Cmd.OB_DRIVE_FILE_ID, minLen=0)
@@ -30702,7 +30697,8 @@ def transferDrive(users):
       unknownArgumentExit()
   if not nonOwnerRetainRoleBody:
     nonOwnerRetainRoleBody = ownerRetainRoleBody
-  orderBy = u','.join(orderByList) if orderByList else u'folder,{0}'.format(VX_CREATED_TIME)
+  if not orderBy[u'list']:
+    orderBy[u'list'] = u'folder,{0}'.format(VX_CREATED_TIME)
   targetUser, targetDrive = buildGAPIServiceObject(API.DRIVE, targetUser, 0, 0)
   if not targetDrive:
     return
@@ -30811,7 +30807,7 @@ def transferDrive(users):
         sourceDriveFiles = callGAPIpages(sourceDrive.files(), u'list', VX_PAGES_FILES,
                                          page_message=getPageMessageForWhom(),
                                          throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                                         orderBy=orderBy, q=NON_TRASHED,
+                                         orderBy=orderBy[u'list'], q=NON_TRASHED,
                                          fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_OWNERS_PERMISSIONS,
                                          maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
         fileTree = buildFileTree(sourceDriveFiles, sourceDrive)
@@ -30902,7 +30898,7 @@ def transferOwnership(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                               orderBy=orderBy, q=WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED,
+                               orderBy=orderBy[u'list'], q=WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -30923,7 +30919,7 @@ def transferOwnership(users):
   fileIdEntity = getDriveFileEntity()
   body = {}
   newOwner = getEmailAddress()
-  orderByList = []
+  orderBy = initOrderBy()
   csvFormat = filepath = trashed = False
   todrive = {}
   fileTree = None
@@ -30933,7 +30929,7 @@ def transferOwnership(users):
     if myarg == u'includetrashed':
       trashed = True
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'preview':
       csvFormat = True
     elif myarg == u'filepath':
@@ -30948,7 +30944,6 @@ def transferOwnership(users):
   permissionId = validateUserGetPermissionId(newOwner)
   if not permissionId:
     return
-  orderBy = u','.join(orderByList) if orderByList else None
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'OldOwner', u'NewOwner', u'type', u'id', VX_FILENAME])
     if filepath:
@@ -30972,7 +30967,7 @@ def transferOwnership(users):
         feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                              page_message=getPageMessageForWhom(),
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED,
+                             orderBy=orderBy[u'list'], fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED,
                              maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -31095,7 +31090,7 @@ def claimOwnership(users):
     try:
       children = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                                throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                               orderBy=orderBy, q=WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS,
+                               orderBy=orderBy[u'list'], q=WITH_PARENTS.format(fileEntry[u'id']), fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS,
                                maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
     except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
       userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -31139,7 +31134,7 @@ def claimOwnership(users):
 
   fileIdEntity = getDriveFileEntity()
   skipFileIdEntity = initDriveFileEntity()
-  orderByList = []
+  orderBy = initOrderBy()
   body = {}
   skipusers = []
   subdomains = []
@@ -31168,7 +31163,7 @@ def claimOwnership(users):
     elif myarg == u'includetrashed':
       trashed = True
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'restricted':
       bodyShare[u'copyRequiresWriterPermission'] = getBoolean()
     elif myarg == u'writerscanshare':
@@ -31186,7 +31181,6 @@ def claimOwnership(users):
     else:
       unknownArgumentExit()
   Act.Set(Act.CLAIM_OWNERSHIP)
-  orderBy = u','.join(orderByList) if orderByList else None
   if csvFormat:
     titles, csvRows = initializeTitlesCSVfile([u'NewOwner', u'OldOwner', u'type', u'id', VX_FILENAME])
     if filepath:
@@ -31218,7 +31212,7 @@ def claimOwnership(users):
         feed = callGAPIpages(drive.files(), u'list', VX_PAGES_FILES,
                              page_message=getPageMessageForWhom(),
                              throw_reasons=GAPI.DRIVE_USER_THROW_REASONS,
-                             orderBy=orderBy, fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS,
+                             orderBy=orderBy[u'list'], fields=VX_NPT_FILES_ID_FILENAME_PARENTS_MIMETYPE_OWNEDBYME_TRASHED_OWNERS,
                              maxResults=GC.Values[GC.DRIVE_MAX_RESULTS])
       except (GAPI.serviceNotAvailable, GAPI.authError, GAPI.domainPolicy) as e:
         userSvcNotApplicableOrDriveDisabled(user, str(e), i, count)
@@ -31936,7 +31930,7 @@ def _printShowDriveFileACLs(users):
   fileIdEntity = getDriveFileEntity()
   formatJSON = oneItemPerRow = showTitles = False
   quotechar = GC.Values[GC.CSV_OUTPUT_QUOTE_CHAR]
-  orderByList = []
+  orderBy = initOrderBy()
   fileNameTitle = VX_FILENAME
   while Cmd.ArgumentsRemaining():
     myarg = getArgument()
@@ -31945,7 +31939,7 @@ def _printShowDriveFileACLs(users):
     elif myarg == u'oneitemperrow':
       oneItemPerRow = True
     elif myarg == u'orderby':
-      getDrivefileOrderBy(orderByList)
+      getOrderBy(DRIVEFILE_ORDERBY_CHOICE_MAP, orderBy)
     elif myarg == u'showtitles':
       showTitles = True
       if csvFormat:
@@ -31959,12 +31953,11 @@ def _printShowDriveFileACLs(users):
       quotechar = getCharacter()
     else:
       unknownArgumentExit()
-  orderBy = u','.join(orderByList) if orderByList else None
   printKeys, timeObjects = _getDriveFileACLPrintKeysTimeObjects()
   i, count, users = getEntityArgument(users)
   for user in users:
     i += 1
-    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat or formatJSON], orderBy=orderBy)
+    user, drive, jcount = _validateUserGetFileIDs(user, i, count, fileIdEntity, entityType=[Ent.DRIVE_FILE_OR_FOLDER, None][csvFormat or formatJSON], orderBy=orderBy[u'list'])
     if jcount == 0:
       continue
     Ind.Increment()
