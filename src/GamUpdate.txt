@@ -1,3 +1,11 @@
+4.65.65
+
+Added date column for gam report customer.
+
+4.65.64
+
+Skipped.
+
 4.65.63
 
 Added `sendnotifications <Boolean>` option to `gam transfer calendars|seccals` for backwards compatibility with Basic GAM.
