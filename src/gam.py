@@ -6781,7 +6781,7 @@ def doReport():
             if name not in titles[u'set']:
               addTitleToCSVfile(name, titles)
             row[u'name'] = value
-      csvRows.append(row)
+    csvRows.append(row)
     return (True, lastDate)
 
   def processCustomerUsage(usage, lastDate):
